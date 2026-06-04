@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quote Desk HU ajánlatkérés</title>
+  <meta name="description" content="Quote Desk HU ügyféloldali ajánlatkérési felület magyar vállalkozásoknak.">
+  <link rel="stylesheet" href="/qdh-product.css">
+</head>
+<body>
+  <main class="qdh-intake-shell" data-qdh-intake-shell>
+    <header class="qdh-intake-header">
+      <a class="qdh-site-brand" href="/qdh" aria-label="Quote Desk HU">
+        <span class="qdh-site-mark" aria-hidden="true">Q</span>
+        <span>
+          <strong>Quote Desk HU</strong>
+          <span>Ügyféloldali ajánlatkérés</span>
+        </span>
+      </a>
+      <div class="qdh-intake-header-note" aria-label="QDH intake határ">
+        Staff review · nincs végleges ár ezen az oldalon
+      </div>
+    </header>
+
+    <div class="qdh-intake-layout">
+      <section class="qdh-intake-copy" aria-label="Ajánlatkérés áttekintés">
+        <h1>Írd le, mire kérsz ajánlatot.</h1>
+        <p>A kérésed strukturáltan érkezik meg a vállalkozás munkatársaihoz. Ez az oldal nem számol végleges árat, nem ígér garantált ajánlatot, és nem küld automatikus szolgáltatói üzenetet.</p>
+        <div class="qdh-intake-boundary">
+          <span>Az adatokat staff review célra rögzítjük.</span>
+          <span>A pontos árat vagy végleges ajánlatot a vállalkozás erősíti meg.</span>
+          <span>Ha vészhelyzet van, ne ezt az űrlapot használd.</span>
+        </div>
+      </section>
+
+      <section class="qdh-intake-panel" aria-label="Quote Desk HU ajánlatkérő űrlap">
+        <div class="qdh-intake-status" id="qdh-intake-status" role="status" aria-live="polite" aria-atomic="true"></div>
+        <div id="qdh-intake-root">
+          <section class="qdh-intake-loading" aria-label="Ajánlatkérő betöltése">
+            <span class="qdh-intake-loader" aria-hidden="true"></span>
+            <div>
+              <h2>Ajánlatkérő betöltése</h2>
+              <p>A QDH ügyfél link ellenőrzése folyamatban.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="/qdh-intake.js"></script>
+</body>
+</html>

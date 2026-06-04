@@ -31,6 +31,43 @@ function createApiApp(deps = {}) {
         ownerUserId: options.ownerUserId,
       };
     },
+    createAgentQuoteRequest: async (_supabase, options) => ({
+      status: options.status || "request_received",
+      sourceChannel: options.sourceChannel || "qdh_public_intake",
+    }),
+    getQuoteDeskHuSetup: async () => ({
+      ownerUserId: "owner-1",
+      businessName: "Példa Kft.",
+      websiteUrl: "https://pelda.hu",
+      serviceType: "tetőfedés",
+      serviceArea: "Budapest",
+      handlingPreference: "staff_review",
+      ownerContactEmail: "owner@example.hu",
+      servicesOffered: ["Tetőjavítás", "Bádogozás"],
+      setupStatus: "ready_for_review",
+    }),
+    getQuoteDeskHuPublicAgentForOwner: async () => null,
+    resolveQuoteDeskHuPublicAgent: async (_supabase, options) => {
+      if (!options.agentKey) {
+        const error = new Error("agent_key is required for Quote Desk HU public intake.");
+        error.statusCode = 400;
+        error.code = "qdh_intake_agent_key_required";
+        throw error;
+      }
+      if (options.agentKey !== "valid-qdh-key") {
+        const error = new Error("Quote Desk HU public intake link is not available.");
+        error.statusCode = 404;
+        error.code = "qdh_intake_link_unavailable";
+        throw error;
+      }
+      return {
+        id: "agent-1",
+        ownerUserId: "owner-1",
+        businessId: "business-1",
+        publicAgentKey: "valid-qdh-key",
+        accessStatus: "active",
+      };
+    },
     listAgentQuoteRequests: async () => [],
     updateAgentQuoteRequestStatus: async (_supabase, options) => ({
       id: options.requestId,
@@ -73,6 +110,22 @@ async function requestJson(baseUrl, pathname, options = {}) {
       ? JSON.parse(text)
       : null,
     text,
+  };
+}
+
+function buildValidQdhIntakePayload(overrides = {}) {
+  return {
+    agent_key: "valid-qdh-key",
+    requested_service: "Tetőjavítás",
+    project_details: "Beázás a kémény mellett, helyszíni felmérés szükséges.",
+    location_text: "Budapest XI.",
+    urgency: "Ezen a héten",
+    budget_text: "Rugalmas",
+    customer_name: "Kovács Anna",
+    customer_email: "anna@example.hu",
+    customer_phone: "",
+    consent_acknowledged: true,
+    ...overrides,
   };
 }
 
@@ -132,17 +185,53 @@ test("QDH public acquisition and setup routes are product-specific and separate"
   }
 });
 
+test("QDH public intake routes serve standalone customer request UI", async () => {
+  const server = await startServer(createFullApp({ rootDir: repoRoot }));
+
+  try {
+    for (const pathname of ["/qdh/intake", "/quote-desk-hu/intake"]) {
+      const response = await fetch(`${server.baseUrl}${pathname}`);
+      const html = await response.text();
+
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get("content-type") || "", /html/);
+      assert.match(html, /<html lang="hu">/);
+      assert.match(html, /Quote Desk HU ajánlatkérés/);
+      assert.match(html, /Ügyféloldali ajánlatkérés/);
+      assert.match(html, /Staff review/);
+      assert.match(html, /nincs végleges ár ezen az oldalon/i);
+      assert.match(html, /qdh-product\.css/);
+      assert.match(html, /qdh-intake\.js/);
+      assert.doesNotMatch(html, /qdh-dashboard\.js/);
+      assert.doesNotMatch(html, /qdh-setup\.js/);
+      assert.doesNotMatch(html, /src="\/dashboard\.js/);
+      assert.doesNotMatch(html, /AI Front Desk magyar ügyfélkérdésekhez/);
+      assert.doesNotMatch(html, /\/widget|\/embed\.js|\/embed-lite\.js|assistant-embed/);
+    }
+  } finally {
+    await server.close();
+  }
+});
+
 test("QDH frontend stays request-review only and avoids generic dashboard/widget dependencies", () => {
   const html = readFileSync(path.join(repoRoot, "frontend", "qdh-dashboard.html"), "utf8");
   const source = readFileSync(path.join(repoRoot, "frontend", "qdh-dashboard.js"), "utf8");
   const css = readFileSync(path.join(repoRoot, "frontend", "qdh-dashboard.css"), "utf8");
   const setupSource = readFileSync(path.join(repoRoot, "frontend", "qdh-setup.js"), "utf8");
   const productCss = readFileSync(path.join(repoRoot, "frontend", "qdh-product.css"), "utf8");
+  const intakeHtml = readFileSync(path.join(repoRoot, "frontend", "qdh-intake.html"), "utf8");
+  const intakeSource = readFileSync(path.join(repoRoot, "frontend", "qdh-intake.js"), "utf8");
 
   assert.match(html, /Quote Desk HU/);
   assert.match(source, /\/quote-desk-hu\/requests/);
   assert.match(source, /\/quote-desk-hu\/setup-state/);
   assert.match(setupSource, /\/quote-desk-hu\/setup/);
+  assert.match(setupSource, /\/qdh\/intake\?agent_key=/);
+  assert.match(intakeHtml, /Quote Desk HU ajánlatkérés/);
+  assert.match(intakeSource, /\/quote-desk-hu\/intake-context/);
+  assert.match(intakeSource, /\/quote-desk-hu\/intake-requests/);
+  assert.match(intakeSource, /qdh_public_intake/);
+  assert.match(intakeSource, /nem végleges vagy garantált árajánlat/i);
   assert.match(setupSource, /signInWithPassword/);
   assert.match(setupSource, /signInWithOtp/);
   assert.match(setupSource, /signUp/);
@@ -161,8 +250,14 @@ test("QDH frontend stays request-review only and avoids generic dashboard/widget
   assert.doesNotMatch(source, /Árajánlat elküldve|Elfogadva|accepted quote|send final quote/i);
   assert.doesNotMatch(source, /\/widget|\/embed\.js|\/embed-lite\.js|assistant-embed/);
   assert.doesNotMatch(source, /whatsapp|google|external provider/i);
+  assert.doesNotMatch(intakeSource, /quoted_externally|accepted_externally/);
+  assert.doesNotMatch(intakeSource, /Ár kiszámítása|Árajánlat elküldése|send final quote|provider call/i);
+  assert.doesNotMatch(intakeSource, /\/widget|\/embed\.js|\/embed-lite\.js|assistant-embed/);
+  assert.doesNotMatch(intakeHtml, /owner_user_id|ownerUserId|agent_id|agentId|business_id|businessId|metadata|evidence|package_key|policy/i);
+  assert.doesNotMatch(intakeSource, /owner_user_id|ownerUserId|agent_id|agentId|business_id|businessId|package_key|policy/i);
   assert.doesNotMatch(css, /orb|bokeh|hero/i);
   assert.doesNotMatch(setupSource, /service_role|SUPABASE_SERVICE_ROLE|OPENAI_API_KEY|STRIPE_SECRET/i);
+  assert.doesNotMatch(intakeSource, /service_role|SUPABASE_SERVICE_ROLE|OPENAI_API_KEY|STRIPE_SECRET/i);
   assert.doesNotMatch(productCss, /orb|bokeh|purple/i);
 });
 
@@ -270,6 +365,199 @@ test("QDH setup missing-table error is product-specific and safe", async () => {
   }
 });
 
+test("QDH public intake context rejects missing or invalid routing context", async () => {
+  let setupCalled = false;
+  const server = await startServer(createApiApp({
+    getQuoteDeskHuSetup: async () => {
+      setupCalled = true;
+      return null;
+    },
+  }));
+
+  try {
+    const missing = await requestJson(server.baseUrl, "/quote-desk-hu/intake-context", {
+      method: "GET",
+      auth: false,
+    });
+    const invalid = await requestJson(server.baseUrl, "/quote-desk-hu/intake-context?agent_key=bad-key", {
+      method: "GET",
+      auth: false,
+    });
+
+    assert.equal(missing.status, 400);
+    assert.equal(missing.json.code, "qdh_intake_agent_key_required");
+    assert.equal(invalid.status, 404);
+    assert.equal(invalid.json.code, "qdh_intake_link_unavailable");
+    assert.equal(setupCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("QDH public intake create validates required fields and rejects unsafe public body fields", async () => {
+  let createCalled = false;
+  const server = await startServer(createApiApp({
+    createAgentQuoteRequest: async () => {
+      createCalled = true;
+      return {};
+    },
+  }));
+
+  try {
+    const missingService = await requestJson(server.baseUrl, "/quote-desk-hu/intake-requests", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildValidQdhIntakePayload({ requested_service: "" })),
+    });
+    const missingContact = await requestJson(server.baseUrl, "/quote-desk-hu/intake-requests", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildValidQdhIntakePayload({
+        customer_email: "",
+        customer_phone: "",
+      })),
+    });
+    const missingAcknowledgement = await requestJson(server.baseUrl, "/quote-desk-hu/intake-requests", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildValidQdhIntakePayload({ consent_acknowledged: false })),
+    });
+    const unsafeField = await requestJson(server.baseUrl, "/quote-desk-hu/intake-requests", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify({
+        ...buildValidQdhIntakePayload(),
+        owner_user_id: "owner-1",
+      }),
+    });
+    const unsafeValue = await requestJson(server.baseUrl, "/quote-desk-hu/intake-requests", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildValidQdhIntakePayload({
+        project_details: "OPENAI_API_KEY=sk-secretsecretsecretsecret",
+      })),
+    });
+
+    assert.equal(missingService.status, 400);
+    assert.equal(missingService.json.code, "qdh_requested_service_required");
+    assert.equal(missingContact.status, 400);
+    assert.equal(missingContact.json.code, "qdh_customer_contact_required");
+    assert.equal(missingAcknowledgement.status, 400);
+    assert.equal(missingAcknowledgement.json.code, "qdh_intake_acknowledgement_required");
+    assert.equal(unsafeField.status, 400);
+    assert.equal(unsafeField.json.code, "qdh_intake_field_not_allowed");
+    assert.equal(unsafeValue.status, 400);
+    assert.equal(unsafeValue.json.code, "qdh_intake_unsafe_value_rejected");
+    assert.equal(createCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("QDH public intake create requires setup and creates request-only records safely", async () => {
+  let createOptions = null;
+  const server = await startServer(createApiApp({
+    createAgentQuoteRequest: async (_supabase, options) => {
+      createOptions = options;
+      return {
+        id: "request-1",
+        ownerUserId: options.ownerUserId,
+        agentId: options.agentId,
+        businessId: options.businessId,
+        status: options.status,
+        sourceChannel: options.sourceChannel,
+        metadata: options.metadata,
+        evidence: options.evidence,
+      };
+    },
+  }));
+
+  try {
+    const missingSetupServer = await startServer(createApiApp({
+      getQuoteDeskHuSetup: async () => null,
+      createAgentQuoteRequest: async () => {
+        throw new Error("create should not be called");
+      },
+    }));
+    try {
+      const missingSetup = await requestJson(missingSetupServer.baseUrl, "/quote-desk-hu/intake-requests", {
+        method: "POST",
+        auth: false,
+        body: JSON.stringify(buildValidQdhIntakePayload()),
+      });
+      assert.equal(missingSetup.status, 404);
+      assert.equal(missingSetup.json.code, "qdh_intake_setup_required");
+    } finally {
+      await missingSetupServer.close();
+    }
+
+    const response = await requestJson(server.baseUrl, "/quote-desk-hu/intake-requests", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildValidQdhIntakePayload()),
+    });
+    const responseText = JSON.stringify(response.json);
+
+    assert.equal(response.status, 201);
+    assert.equal(response.json.product, "quote_desk_hu");
+    assert.equal(response.json.phase, "customer_intake_request_only");
+    assert.deepEqual(response.json.request, {
+      status: "request_received",
+      sourceChannel: "qdh_public_intake",
+      receivedForStaffReview: true,
+    });
+    assert.match(response.json.message, /nem végleges vagy garantált árajánlat/i);
+    assert.equal(createOptions.ownerUserId, "owner-1");
+    assert.equal(createOptions.agentId, "agent-1");
+    assert.equal(createOptions.businessId, "business-1");
+    assert.equal(createOptions.sourceChannel, "qdh_public_intake");
+    assert.equal(createOptions.displayMode, "qdh_public_intake");
+    assert.equal(createOptions.status, "request_received");
+    assert.equal(createOptions.statusReason, "QDH public intake request received for staff review only.");
+    assert.deepEqual(createOptions.evidence, { proof_source_type: "request_only" });
+    assert.equal(createOptions.metadata.product, "quote_desk_hu");
+    assert.equal(createOptions.metadata.source, "qdh_public_intake");
+    assert.equal(createOptions.metadata.request_only, true);
+    assert.match(createOptions.idempotencyKey, /^qdh-intake:[a-f0-9]{32}$/);
+    assert.doesNotMatch(responseText, /owner-1|agent-1|business-1|request-1/);
+    assert.doesNotMatch(responseText, /metadata|evidence|package_key|policy|service_role|SUPABASE_SERVICE_ROLE|OPENAI_API_KEY|STRIPE_SECRET/i);
+  } finally {
+    await server.close();
+  }
+});
+
+test("QDH public intake context exposes only safe business fields", async () => {
+  const server = await startServer(createApiApp());
+
+  try {
+    const response = await requestJson(server.baseUrl, "/quote-desk-hu/intake-context?agent_key=valid-qdh-key", {
+      method: "GET",
+      auth: false,
+    });
+    const responseText = JSON.stringify(response.json);
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.product, "quote_desk_hu");
+    assert.equal(response.json.phase, "customer_intake_request_only");
+    assert.deepEqual(response.json.business, {
+      businessName: "Példa Kft.",
+      serviceType: "tetőfedés",
+      serviceArea: "Budapest",
+      servicesOffered: ["Tetőjavítás", "Bádogozás"],
+    });
+    assert.deepEqual(response.json.intake, {
+      sourceChannel: "qdh_public_intake",
+      requestOnly: true,
+      staffReviewOnly: true,
+    });
+    assert.doesNotMatch(responseText, /owner-1|agent-1|business-1|valid-qdh-key/);
+    assert.doesNotMatch(responseText, /ownerContactEmail|owner_contact_email|websiteUrl|website_url|metadata|evidence|package_key|policy/i);
+    assert.doesNotMatch(responseText, /service_role|SUPABASE_SERVICE_ROLE|OPENAI_API_KEY|STRIPE_SECRET/i);
+  } finally {
+    await server.close();
+  }
+});
+
 test("QDH request list is authenticated and passes owner scope to the quote service", async () => {
   const authError = new Error("Unauthorized");
   authError.statusCode = 401;
@@ -289,6 +577,7 @@ test("QDH request list is authenticated and passes owner scope to the quote serv
           ownerUserId: options.ownerUserId,
           agentId: options.agentId,
           requestedService: "Tetőjavítás",
+          sourceChannel: "qdh_public_intake",
           status: "request_received",
           createdAt: "2026-06-04T08:00:00.000Z",
         },
@@ -333,6 +622,8 @@ test("QDH request list is authenticated and passes owner scope to the quote serv
     ]);
     assert.equal(authenticated.json.summary.total, 1);
     assert.deepEqual(authenticated.json.records.map((record) => record.id), ["request-1"]);
+    assert.equal(authenticated.json.records[0].sourceChannel, "qdh_public_intake");
+    assert.equal(authenticated.json.records[0].status, "request_received");
     assert.deepEqual(listOptions, {
       ownerUserId: "owner-1",
       agentId: "agent-1",

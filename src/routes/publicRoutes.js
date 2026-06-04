@@ -138,6 +138,30 @@ function renderQuoteDeskHuSetupDocument(rootDir) {
   return html;
 }
 
+function renderQuoteDeskHuIntakeDocument(rootDir, { localFixture = false } = {}) {
+  const version = getDashboardAssetVersion();
+  let html = readFileSync(path.join(rootDir, "frontend", "qdh-intake.html"), "utf8");
+
+  [
+    "/qdh-product.css",
+    "/qdh-intake.js",
+  ].forEach((assetPath) => {
+    html = html.replaceAll(
+      `${assetPath}"`,
+      `${assetPath}?v=${version}"`
+    );
+  });
+
+  if (localFixture) {
+    html = html.replace(
+      '<script src="/qdh-intake.js',
+      '<script>window.VONZA_LOCAL_QDH_INTAKE_FIXTURE = true;</script>\n  <script src="/qdh-intake.js'
+    );
+  }
+
+  return html;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -296,7 +320,8 @@ function renderQuoteDeskHuAcquisitionPage() {
           ${[
             ["1. QDH hozzáférés", "Bejelentkezés, fiók indítása vagy varázslink a meglévő Supabase auth folyamaton keresztül."],
             ["2. Setup adatok", "Vállalkozás neve, weboldal, szolgáltatási típus, terület, kezelési mód, email és szolgáltatások."],
-            ["3. QDH dashboard", "A tulajdonos a külön /qdh/dashboard felületre érkezik, ahol a kérések és setup állapot látszik."],
+            ["3. Ügyféloldali link", "A dashboard megmutatja a /qdh/intake?agent_key=... mintájú linket, amit a weboldali “Kérjen ajánlatot” gomb mögé lehet tenni."],
+            ["4. QDH dashboard", "A tulajdonos a külön /qdh/dashboard felületre érkezik, ahol a kérések és setup állapot látszik."],
           ].map(([title, copy]) => `
             <li><strong>${escapeHtml(title)}</strong><span>${escapeHtml(copy)}</span></li>
           `).join("")}
@@ -1635,6 +1660,11 @@ export function createPublicRouter({ rootDir }) {
     res.type("html").send(renderQuoteDeskHuAcquisitionPage());
   });
 
+  router.get(["/qdh/intake", "/quote-desk-hu/intake"], (_req, res) => {
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderQuoteDeskHuIntakeDocument(rootDir));
+  });
+
   router.get("/how-it-works", (_req, res) => {
     res.redirect(302, "/product");
   });
@@ -1708,6 +1738,16 @@ export function createPublicRouter({ rootDir }) {
   router.get(["/qdh/setup", "/quote-desk-hu/setup"], (_req, res) => {
     setDashboardNoStoreHeaders(res);
     res.type("html").send(renderQuoteDeskHuSetupDocument(rootDir));
+  });
+
+  router.get(["/qdh/intake-fixture", "/quote-desk-hu/intake-fixture"], (req, res) => {
+    if (!isLocalDashboardFixtureAllowed(req)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderQuoteDeskHuIntakeDocument(rootDir, { localFixture: true }));
   });
 
   router.get(["/qdh/dashboard-fixture", "/quote-desk-hu/dashboard-fixture"], (req, res) => {

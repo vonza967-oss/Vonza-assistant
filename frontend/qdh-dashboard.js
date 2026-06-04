@@ -12,6 +12,7 @@
     selectedId: "",
     loading: true,
     setup: null,
+    customerIntake: null,
     setupLoaded: false,
     setupError: null,
     requestError: null,
@@ -202,6 +203,20 @@
     }
   }
 
+  function sourceLabel(sourceChannel) {
+    switch (trimText(sourceChannel)) {
+      case "qdh_public_intake":
+        return "QDH ügyfél link";
+      case "chat_quote_request":
+      case "public_chat":
+        return "Publikus chat";
+      case "full_page_assistant":
+        return "Front Desk oldal";
+      default:
+        return valueOrEmpty(sourceChannel);
+    }
+  }
+
   function getSelectedRecord() {
     if (!state.records.length) {
       return null;
@@ -223,7 +238,7 @@
         customerEmail: "anna@example.hu",
         customerPhone: "+36 30 000 0000",
         language: "hu",
-        sourceChannel: "full_page_assistant",
+        sourceChannel: "qdh_public_intake",
         status: "request_received",
         statusReason: "",
         staffNotes: "Visszakérdezni a tető típusára és a fotókra.",
@@ -316,6 +331,13 @@
           servicesOffered: ["Tetőjavítás", "Klíma karbantartás"],
           setupStatus: "ready_for_review",
         },
+        customerIntake: {
+          available: true,
+          path: "/qdh/intake?agent_key=local-public-agent",
+          aliasPath: "/quote-desk-hu/intake?agent_key=local-public-agent",
+          sourceChannel: "qdh_public_intake",
+          guidanceHu: "Ezt a linket tedd a weboldal 'Kérjen ajánlatot' gombja mögé.",
+        },
         setupLoaded: true,
         setupError: null,
         requestError: null,
@@ -332,10 +354,12 @@
     ]);
 
     let setup;
+    let customerIntake = null;
     let setupLoaded;
     let setupError = null;
     if (setupResult.status === "fulfilled") {
       setup = setupResult.value.setup || null;
+      customerIntake = setupResult.value.customerIntake || null;
       setupLoaded = true;
     } else {
       setupLoaded = false;
@@ -369,6 +393,7 @@
       selectedId: state.selectedId || records[0]?.id || "",
       loading: false,
       setup,
+      customerIntake,
       setupLoaded,
       setupError,
       requestError,
@@ -468,7 +493,7 @@
         <strong>${escapeHtml(valueOrEmpty(record.requestedService))}</strong>
         <span>${escapeHtml(valueOrEmpty(record.locationText))} · ${escapeHtml(formatDateTime(record.createdAt))}</span>
         <span>${escapeHtml(valueOrEmpty(record.projectDetails))}</span>
-        <em>${escapeHtml(statusLabel(record.status))}</em>
+        <em>${escapeHtml(statusLabel(record.status))} · ${escapeHtml(sourceLabel(record.sourceChannel))}</em>
       </button>
     `;
   }
@@ -561,6 +586,7 @@
             ${detailItem("Telefon", record.customerPhone)}
             ${detailItem("Nyelv", record.language)}
             ${detailItem("Forrás csatorna", record.sourceChannel)}
+            ${detailItem("Forrás megnevezése", sourceLabel(record.sourceChannel))}
             ${detailItem("Létrehozva", formatDateTime(record.createdAt))}
           </div>
           <label class="qdh-field">
@@ -646,6 +672,9 @@
       ["Tulajdonosi email", state.setup.ownerContactEmail],
       ["Szolgáltatások", (state.setup.servicesOffered || []).join(", ")],
     ];
+    const intake = state.customerIntake || {};
+    const intakePath = trimText(intake.path);
+    const intakeAliasPath = trimText(intake.aliasPath);
 
     return `
       <section class="qdh-panel" id="setup" aria-label="QDH beállítási készenlét">
@@ -664,6 +693,27 @@
               <small>Mentve</small>
             </div>
           `).join("")}
+        </div>
+        <div class="qdh-customer-link" aria-label="QDH ügyféloldali intake link">
+          <div>
+            <strong>Weboldali “Kérjen ajánlatot” link</strong>
+            <p>${escapeHtml(intake.guidanceHu || "Az ügyféloldali QDH intake link aktív public agent kulcsot igényel.")}</p>
+          </div>
+          ${intake.available && intakePath ? `
+            <div class="qdh-customer-link-box">
+              <code>${escapeHtml(intakePath)}</code>
+              <div>
+                <a class="qdh-button" href="${escapeHtml(intakePath)}" target="_blank" rel="noreferrer">Megnyitás</a>
+                <button class="qdh-button" type="button" data-qdh-copy-intake-link="${escapeHtml(intakePath)}">Másolás</button>
+              </div>
+              ${intakeAliasPath ? `<small>Alias: ${escapeHtml(intakeAliasPath)}</small>` : ""}
+            </div>
+          ` : `
+            <div class="qdh-customer-link-box qdh-customer-link-box-muted">
+              <code>/qdh/intake?agent_key=&lt;public_agent_key&gt;</code>
+              <small>Aktív public agent kulcs nélkül a public create API nem fogad be kérést.</small>
+            </div>
+          `}
         </div>
       </section>
     `;
@@ -684,7 +734,7 @@
             <div class="qdh-recent-row">
               <div>
                 <strong>${escapeHtml(valueOrEmpty(record.requestedService))}</strong>
-                <span>${escapeHtml(statusLabel(record.status))} · ${escapeHtml(valueOrEmpty(record.locationText))}</span>
+                <span>${escapeHtml(statusLabel(record.status))} · ${escapeHtml(sourceLabel(record.sourceChannel))} · ${escapeHtml(valueOrEmpty(record.locationText))}</span>
               </div>
               <time>${escapeHtml(formatDateTime(record.createdAt))}</time>
             </div>
@@ -770,6 +820,21 @@
     } catch (error) {
       setStatus(error.message || "Nem sikerült menteni az állapotot.");
       button.disabled = false;
+    }
+  }
+
+  async function copyIntakeLink(button) {
+    const path = trimText(button.dataset.qdhCopyIntakeLink);
+    if (!path) {
+      return;
+    }
+
+    const absoluteUrl = `${window.location.origin}${path}`;
+    try {
+      await navigator.clipboard.writeText(absoluteUrl);
+      setStatus("QDH ügyfél link másolva.");
+    } catch {
+      setStatus(absoluteUrl);
     }
   }
 
@@ -866,6 +931,7 @@
     const refreshButton = target.closest?.("[data-qdh-refresh]");
     const signOutButton = target.closest?.("[data-qdh-sign-out]");
     const magicButton = target.closest?.('[data-qdh-auth-mode="magic"]');
+    const copyIntakeButton = target.closest?.("[data-qdh-copy-intake-link]");
 
     if (selectButton) {
       state.selectedId = trimText(selectButton.dataset.qdhSelectRequest);
@@ -883,6 +949,11 @@
       await loadRequests().finally(() => {
         refreshButton.disabled = false;
       });
+      return;
+    }
+
+    if (copyIntakeButton) {
+      await copyIntakeLink(copyIntakeButton);
       return;
     }
 

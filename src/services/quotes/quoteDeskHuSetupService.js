@@ -3,6 +3,16 @@ import { cleanText } from "../../utils/text.js";
 
 export const QDH_OWNER_SETUPS_TABLE = "qdh_owner_setups";
 
+const AGENTS_TABLE = "agents";
+const QDH_PUBLIC_AGENT_SELECT = [
+  "id",
+  "business_id",
+  "owner_user_id",
+  "access_status",
+  "public_agent_key",
+  "is_active",
+  "updated_at",
+].join(", ");
 const HANDLING_PREFERENCES = new Set([
   "staff_review",
   "email_review",
@@ -13,14 +23,14 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function isMissingRelationError(error) {
+function isMissingRelationError(error, tableName = QDH_OWNER_SETUPS_TABLE) {
   const message = cleanText(error?.message || "").toLowerCase();
   return (
     error?.code === "PGRST205" ||
     error?.code === "42P01" ||
-    message.includes(`'public.${QDH_OWNER_SETUPS_TABLE}'`) ||
-    message.includes(`${QDH_OWNER_SETUPS_TABLE} was not found`) ||
-    message.includes(`relation "${QDH_OWNER_SETUPS_TABLE}" does not exist`)
+    message.includes(`'public.${tableName}'`) ||
+    message.includes(`${tableName} was not found`) ||
+    message.includes(`relation "${tableName}" does not exist`)
   );
 }
 
@@ -39,6 +49,14 @@ function buildMissingSetupTableError() {
   );
 }
 
+function buildUnavailableIntakeLinkError() {
+  return buildSetupError(
+    "Quote Desk HU public intake link is not available for this agent.",
+    404,
+    "qdh_intake_link_unavailable"
+  );
+}
+
 function normalizeServiceList(value) {
   const source = Array.isArray(value)
     ? value
@@ -50,6 +68,10 @@ function normalizeServiceList(value) {
 function normalizeHandlingPreference(value) {
   const normalized = cleanText(value).toLowerCase();
   return HANDLING_PREFERENCES.has(normalized) ? normalized : "staff_review";
+}
+
+function normalizeAccessStatus(value) {
+  return cleanText(value).toLowerCase() || "pending";
 }
 
 function mapSetupRow(row) {
@@ -73,6 +95,33 @@ function mapSetupRow(row) {
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
   };
+}
+
+function mapPublicAgentRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: cleanText(row.id),
+    businessId: cleanText(row.business_id),
+    ownerUserId: cleanText(row.owner_user_id),
+    accessStatus: normalizeAccessStatus(row.access_status),
+    publicAgentKey: cleanText(row.public_agent_key),
+    isActive: row.is_active !== false,
+  };
+}
+
+function assertPublicAgentCanReceiveQdhIntake(agent) {
+  if (
+    !agent?.id
+    || !agent.ownerUserId
+    || !agent.publicAgentKey
+    || agent.isActive !== true
+    || agent.accessStatus !== "active"
+  ) {
+    throw buildUnavailableIntakeLinkError();
+  }
 }
 
 function buildSetupPayload(ownerUserId, input = {}) {
@@ -160,6 +209,68 @@ export async function getQuoteDeskHuSetup(supabase, options = {}) {
   }
 
   return mapSetupRow(data);
+}
+
+export async function getQuoteDeskHuPublicAgentForOwner(supabase, options = {}) {
+  const ownerUserId = cleanText(options.ownerUserId);
+
+  if (!ownerUserId) {
+    throw buildSetupError("owner_user_id is required", 400, "qdh_owner_required");
+  }
+
+  const { data, error } = await supabase
+    .from(AGENTS_TABLE)
+    .select(QDH_PUBLIC_AGENT_SELECT)
+    .eq("owner_user_id", ownerUserId)
+    .eq("is_active", true)
+    .eq("access_status", "active")
+    .not("public_agent_key", "is", null)
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    if (isMissingRelationError(error, AGENTS_TABLE)) {
+      return null;
+    }
+    throw error;
+  }
+
+  const agent = mapPublicAgentRow(data?.[0] || null);
+  if (!agent?.publicAgentKey) {
+    return null;
+  }
+
+  return agent;
+}
+
+export async function resolveQuoteDeskHuPublicAgent(supabase, options = {}) {
+  const agentKey = cleanText(options.agentKey || options.agent_key);
+
+  if (!agentKey) {
+    throw buildSetupError(
+      "agent_key is required for Quote Desk HU public intake.",
+      400,
+      "qdh_intake_agent_key_required"
+    );
+  }
+
+  const { data, error } = await supabase
+    .from(AGENTS_TABLE)
+    .select(QDH_PUBLIC_AGENT_SELECT)
+    .eq("public_agent_key", agentKey)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingRelationError(error, AGENTS_TABLE)) {
+      throw buildUnavailableIntakeLinkError();
+    }
+    throw error;
+  }
+
+  const agent = mapPublicAgentRow(data);
+  assertPublicAgentCanReceiveQdhIntake(agent);
+  return agent;
 }
 
 export async function saveQuoteDeskHuSetup(supabase, options = {}) {

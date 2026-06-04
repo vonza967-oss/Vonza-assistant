@@ -728,6 +728,64 @@ button:disabled {
   font-weight: 760;
 }
 
+.qdh-customer-link {
+  display: grid;
+  gap: 12px;
+  margin: 0 14px 14px;
+  padding: 14px;
+  border: 1px solid #b9e4de;
+  border-radius: var(--qdh-radius);
+  background: #effbf8;
+}
+
+.qdh-customer-link strong {
+  display: block;
+  color: #063f39;
+  font-size: 0.9rem;
+}
+
+.qdh-customer-link p {
+  margin: 5px 0 0;
+  color: #285f59;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.qdh-customer-link-box {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.qdh-customer-link-box code {
+  display: block;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--qdh-border);
+  border-radius: var(--qdh-radius-sm);
+  background: #ffffff;
+  color: var(--qdh-text);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.qdh-customer-link-box div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.qdh-customer-link-box small {
+  color: #285f59;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.qdh-customer-link-box-muted {
+  opacity: 0.86;
+}
+
 .qdh-recent {
   display: grid;
   gap: 0;

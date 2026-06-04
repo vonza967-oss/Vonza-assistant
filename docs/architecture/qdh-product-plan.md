@@ -19,6 +19,11 @@ Current owner routes:
 - `/qdh/dashboard`
 - `/quote-desk-hu/dashboard`
 
+Current customer-facing intake routes:
+
+- `/qdh/intake?agent_key=<public_agent_key>`
+- `/quote-desk-hu/intake?agent_key=<public_agent_key>`
+
 Current authenticated owner API routes:
 
 - `GET /quote-desk-hu/setup-state`
@@ -26,7 +31,47 @@ Current authenticated owner API routes:
 - `GET /quote-desk-hu/requests`
 - `POST /quote-desk-hu/requests/status`
 
-Public quote request creation remains available only through the existing feature-flagged chat path controlled by `QUOTE_REQUESTS_FROM_CHAT_ENABLED`.
+Current public customer-intake API routes:
+
+- `GET /quote-desk-hu/intake-context?agent_key=<public_agent_key>`
+- `POST /quote-desk-hu/intake-requests`
+
+Public QDH intake creation is server-mediated and requires an active public agent key plus a saved QDH setup for that agent owner. It does not grant anonymous database insert access and does not accept owner IDs, agent IDs, package metadata, policy metadata, or arbitrary public write scope. Public quote request creation from generic chat remains separately feature-flagged by `QUOTE_REQUESTS_FROM_CHAT_ENABLED`.
+
+## Phase 3 Customer Intake
+
+Phase 3 adds the customer-facing quote intake surface that a Hungarian business can place behind its website's "Kérjen ajánlatot" button.
+
+Customer page behavior:
+
+- loads at `/qdh/intake?agent_key=<public_agent_key>` and `/quote-desk-hu/intake?agent_key=<public_agent_key>`;
+- validates the public key through `GET /quote-desk-hu/intake-context`;
+- shows only safe public business context: business name, service type, service area, and services offered;
+- collects requested service, project details, city/location, urgency, optional approximate budget, customer name, customer email or phone, and request-only acknowledgement;
+- posts to `POST /quote-desk-hu/intake-requests`;
+- creates `public.agent_quote_requests` through `createAgentQuoteRequest`;
+- stores `source_channel = 'qdh_public_intake'`, `display_mode = 'qdh_public_intake'`, status `request_received`, request-only evidence, and request-only metadata;
+- returns only safe public response fields: product, phase, request status, source channel, and staff-review acknowledgement.
+
+Customer page non-goals:
+
+- no final quote calculation;
+- no guaranteed price;
+- no automatic quote send;
+- no email, WhatsApp, CRM, proposal, booking, or provider call;
+- no owner ID, agent ID, business ID, setup metadata, policy metadata, package key, evidence, or raw internal response leak;
+- no widget/embed/public assistant behavior change.
+
+Owner link workflow:
+
+- The authenticated setup/dashboard API returns `customerIntake` when setup exists.
+- `customerIntake.path` is the primary link: `/qdh/intake?agent_key=<public_agent_key>`.
+- `customerIntake.aliasPath` is the alias: `/quote-desk-hu/intake?agent_key=<public_agent_key>`.
+- The owner dashboard and setup page show this link only when an active owner-scoped agent has an intentionally public `public_agent_key`.
+- If no active public agent key exists, the owner sees the required pattern and a prerequisite note instead of a working customer link.
+- The owner places the full URL behind the website's "Kérjen ajánlatot" button.
+
+Requests submitted through this route appear in `/qdh/dashboard` because the dashboard already lists owner-scoped `agent_quote_requests` filtered to QDH-visible request/review statuses. The source channel is visible as `qdh_public_intake` / "QDH ügyfél link".
 
 ## Phase 2 Self-Serve Access
 
@@ -79,7 +124,6 @@ Not implemented:
 - WhatsApp, Google, booking, CRM, or proposal-system expansion;
 - package activation enforcement;
 - widget/embed changes;
-- public create route outside the existing feature-flagged chat producer.
 - automatic assistant deployment from setup.
 - automatic business/agent creation from QDH setup.
 
@@ -89,7 +133,8 @@ The QDH setup flow prepares owner readiness only. These still require manual dep
 
 - applying `supabase/migrations/20260604143000_qdh_owner_setups.sql`;
 - ensuring `supabase/migrations/20260604120000_agent_quote_requests.sql` is applied and PostgREST schema cache is reloaded;
-- connecting the business website/customer-facing assistant path that will produce quote requests;
+- ensuring the owner has an active agent with an intentionally public `public_agent_key`;
+- copying `/qdh/intake?agent_key=<public_agent_key>` or `/quote-desk-hu/intake?agent_key=<public_agent_key>` into the business website button;
 - enabling `QUOTE_REQUESTS_FROM_CHAT_ENABLED` only where the quote request producer is intentionally activated;
 - package/product entitlement decisions;
 - any external email, WhatsApp, CRM, proposal, or provider integration.
@@ -148,6 +193,11 @@ Required focused checks for QDH Phase 1:
 - QDH uses Hungarian-first copy.
 - QDH exposes no final quote or guaranteed pricing controls.
 - Status updates go through the quote request service rules.
+- Public customer intake route serves QDH-specific UI.
+- Public customer intake create rejects missing/invalid `agent_key`.
+- Public customer intake create validates required request fields.
+- Public customer intake create writes request-only `agent_quote_requests` with `source_channel = 'qdh_public_intake'`.
+- Public customer intake responses do not expose owner IDs, agent IDs, setup metadata, policy metadata, package keys, evidence, or secrets.
 - Widget/embed files remain untouched.
 - No external provider calls are introduced.
 - Quote Desk HU evals still pass with the answer contract.
@@ -161,6 +211,13 @@ QDH Phase 2 adds setup-readiness storage:
 Before production rollout, ensure the quote request migration is deployed and visible through the configured Supabase/PostgREST target:
 
 - `supabase/migrations/20260604120000_agent_quote_requests.sql`
+
+QDH Phase 3 does not add a new migration. It depends on:
+
+- an applied `agent_quote_requests` migration;
+- an applied `qdh_owner_setups` migration;
+- an active owner-scoped agent row with a non-empty `public_agent_key`;
+- server-side Supabase service role availability for the mediated public create endpoint.
 
 The canonical schema is `db/schema.sql`; keep it aligned with both migrations.
 

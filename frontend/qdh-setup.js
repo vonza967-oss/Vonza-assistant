@@ -6,6 +6,7 @@
   let authSession = null;
   let authUser = null;
   let currentSetup = null;
+  let currentCustomerIntake = null;
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -131,6 +132,39 @@
     `;
   }
 
+  function renderCustomerIntakeGuidance() {
+    if (!currentSetup) {
+      return "";
+    }
+
+    const intake = currentCustomerIntake || {};
+    const path = trimText(intake.path);
+    const aliasPath = trimText(intake.aliasPath);
+
+    if (intake.available && path) {
+      return `
+        <div class="qdh-setup-customer-link" aria-label="QDH ügyféloldali intake link">
+          <strong>Weboldali “Kérjen ajánlatot” link</strong>
+          <p>${escapeHtml(intake.guidanceHu || "Ezt a linket tedd a weboldal ajánlatkérő gombja mögé.")}</p>
+          <code>${escapeHtml(path)}</code>
+          <div>
+            <a class="qdh-button" href="${escapeHtml(path)}" target="_blank" rel="noreferrer">Megnyitás</a>
+            <button class="qdh-button" type="button" data-qdh-copy-intake-link="${escapeHtml(path)}">Másolás</button>
+          </div>
+          ${aliasPath ? `<small>Alias: ${escapeHtml(aliasPath)}</small>` : ""}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="qdh-setup-customer-link qdh-setup-customer-link-muted" aria-label="QDH ügyféloldali intake link előfeltétel">
+        <strong>Ügyféloldali intake link</strong>
+        <p>${escapeHtml(intake.guidanceHu || "Aktív public agent kulcs szükséges, mielőtt a QDH ügyféloldali ajánlatkérő link használható.")}</p>
+        <code>/qdh/intake?agent_key=&lt;public_agent_key&gt;</code>
+      </div>
+    `;
+  }
+
   function renderSetupForm() {
     const servicesOffered = Array.isArray(currentSetup?.servicesOffered)
       ? currentSetup.servicesOffered.join("\n")
@@ -144,6 +178,7 @@
       <section class="qdh-setup-card" aria-label="QDH setup űrlap">
         <h2>Vállalkozás és ajánlatkérési alapok</h2>
         <p>A QDH ebben a fázisban setup-readiness rekordot ment. A publikus assistant telepítése és üzleti konfiguráció élesítése továbbra is külön deploy/config lépés.</p>
+        ${renderCustomerIntakeGuidance()}
         <form data-qdh-setup-form>
           <div class="qdh-form-grid">
             <label class="qdh-field">
@@ -214,6 +249,7 @@
     try {
       const data = await fetchJson("/quote-desk-hu/setup-state");
       currentSetup = data.setup || null;
+      currentCustomerIntake = data.customerIntake || null;
       setStatus(currentSetup ? "Meglévő QDH setup betöltve." : "QDH setup még nincs mentve.");
       renderSetupForm();
     } catch (error) {
@@ -312,6 +348,7 @@
         body: JSON.stringify(readSetupForm(form)),
       });
       currentSetup = data.setup || null;
+      currentCustomerIntake = data.customerIntake || null;
       setStatus("QDH setup mentve. Dashboard megnyitása...");
       window.location.assign(data.nextUrl || "/qdh/dashboard");
     } catch (error) {
@@ -344,8 +381,31 @@
       authSession = null;
       authUser = null;
       currentSetup = null;
+      currentCustomerIntake = null;
       setStatus("Kijelentkezve.");
       renderAuthGate();
+      return;
+    }
+
+    const copyIntakeButton = event.target.closest("[data-qdh-copy-intake-link]");
+    if (copyIntakeButton) {
+      event.preventDefault();
+      await copyIntakeLink(copyIntakeButton);
+    }
+  }
+
+  async function copyIntakeLink(button) {
+    const path = trimText(button.dataset.qdhCopyIntakeLink);
+    if (!path) {
+      return;
+    }
+
+    const absoluteUrl = `${window.location.origin}${path}`;
+    try {
+      await navigator.clipboard.writeText(absoluteUrl);
+      setStatus("QDH ügyfél link másolva.");
+    } catch {
+      setStatus(absoluteUrl);
     }
   }
 
