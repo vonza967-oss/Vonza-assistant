@@ -146,11 +146,23 @@ function buildCompleteQdhAiPayload(overrides = {}) {
   };
 }
 
-function renderQdhIntakeFixtureHtml(contextOrFixture = "webstudio") {
+function createQdhIntakeFixtureVm(contextOrFixture = "webstudio") {
   const intakeSource = readFileSync(path.join(repoRoot, "frontend", "qdh-intake.js"), "utf8");
+  const eventHandlers = {};
+  const queriedNodes = new Map();
+  const fetchCalls = [];
   const rootElement = {
     innerHTML: "",
-    querySelector: () => null,
+    querySelector: (selector) => {
+      if (!queriedNodes.has(selector)) {
+        queriedNodes.set(selector, {
+          innerHTML: "",
+          scrollTop: 0,
+          scrollHeight: 0,
+        });
+      }
+      return queriedNodes.get(selector);
+    },
   };
   const statusElement = { textContent: "" };
   const fixtureContext = typeof contextOrFixture === "string" ? null : contextOrFixture;
@@ -170,20 +182,42 @@ function renderQdhIntakeFixtureHtml(contextOrFixture = "webstudio") {
       if (id === "qdh-intake-status") return statusElement;
       return null;
     },
-    addEventListener: () => {},
+    addEventListener: (eventName, handler) => {
+      eventHandlers[eventName] = handler;
+    },
   };
+  class FixtureFormData {
+    constructor(form) {
+      this.form = form || {};
+    }
+
+    get(name) {
+      return this.form.fields?.[name] || "";
+    }
+  }
   const context = vm.createContext({
     window: windowObject,
     document: documentObject,
     URLSearchParams,
-    FormData,
-    fetch: async () => {
+    FormData: FixtureFormData,
+    fetch: async (...args) => {
+      fetchCalls.push(args);
       throw new Error("fixture render should not fetch");
     },
   });
 
   vm.runInContext(intakeSource, context);
-  return rootElement.innerHTML;
+  return {
+    rootElement,
+    statusElement,
+    eventHandlers,
+    queriedNodes,
+    fetchCalls,
+  };
+}
+
+function renderQdhIntakeFixtureHtml(contextOrFixture = "webstudio") {
+  return createQdhIntakeFixtureVm(contextOrFixture).rootElement.innerHTML;
 }
 
 test("QDH dashboard route renders a separate Hungarian product shell", async () => {
@@ -364,6 +398,62 @@ test("QDH intake initial UI has one safety line, natural progress wording, and s
   assert.doesNotMatch(rendered, /qdh-intake-form|Kért szolgáltatás|Projekt részletei/);
   assert.match(productCss, /\.qdh-ai-chat-panel \{[\s\S]*border-bottom-right-radius: 0;/);
   assert.match(productCss, /\.qdh-manual-panel \{[\s\S]*margin-top: -1px;/);
+});
+
+test("QDH intake live recognition is frontend-only and exposes only customer-safe cues", () => {
+  const fixture = createQdhIntakeFixtureVm("webstudio");
+  const target = {
+    value: "Weboldalt szeretnék Budapesten jövő héten. Kovács Anna vagyok, anna@example.hu.",
+    closest: (selector) => (selector === "[data-qdh-message-input]" ? target : null),
+  };
+
+  fixture.eventHandlers.input({ target });
+
+  const recognitionHtml = fixture.queriedNodes.get("[data-qdh-recognition-preview]").innerHTML;
+  const progressHtml = fixture.queriedNodes.get("[data-qdh-progress-root]").innerHTML;
+
+  assert.equal(fixture.fetchCalls.length, 0);
+  assert.match(recognitionHtml, /Felismert részletek/);
+  assert.match(recognitionHtml, /Igény[\s\S]*észlelve/);
+  assert.match(recognitionHtml, /Helyszín[\s\S]*észlelve/);
+  assert.match(recognitionHtml, /Időzítés[\s\S]*észlelve/);
+  assert.match(recognitionHtml, /Név[\s\S]*észlelve/);
+  assert.match(recognitionHtml, /Elérhetőség[\s\S]*észlelve/);
+  assert.match(progressHtml, /észlelve/);
+  assert.doesNotMatch(`${recognitionHtml}\n${progressHtml}`, /qdh_public_intake|qdh_ai_intake|request_received|sourceChannel|source_channel|displayMode/i);
+  assert.doesNotMatch(`${recognitionHtml}\n${progressHtml}`, /Request-only|Staff review|AI-assisted|package|policy|metadata|model|system prompt|owner|agent|business_id/i);
+});
+
+test("QDH intake processing, follow-up, ready, success, and motion copy stay request-only", () => {
+  const intakeSource = readFileSync(path.join(repoRoot, "frontend", "qdh-intake.js"), "utf8");
+  const productCss = readFileSync(path.join(repoRoot, "frontend", "qdh-product.css"), "utf8");
+  const fixture = createQdhIntakeFixtureVm("webstudio");
+  const form = {
+    fields: {
+      message: "Weboldalt szeretnék készíttetni Budapesten.",
+    },
+    closest: (selector) => (selector === "[data-qdh-chat-form]" ? form : null),
+    querySelector: () => null,
+  };
+
+  fixture.eventHandlers.submit({
+    target: form,
+    preventDefault: () => {},
+  });
+
+  assert.equal(fixture.fetchCalls.length, 0);
+  assert.match(fixture.rootElement.innerHTML, /qdh-ai-processing-card/);
+  assert.match(fixture.rootElement.innerHTML, /Átnézem a részleteket\.\.\./);
+  assert.match(intakeSource, /qdh-ai-followup-card/);
+  assert.match(intakeSource, /Következő pontosítás/);
+  assert.match(intakeSource, /Az ajánlatkérés összeállt/);
+  assert.match(intakeSource, /A vállalkozás a leírást, helyszínt, időzítést és elérhetőséget kapja meg/);
+  assert.match(intakeSource, /Köszönjük, továbbítottuk az ajánlatkérést\./);
+  assert.match(intakeSource, /A vállalkozás a megadott elérhetőségen jelentkezik/);
+  assert.match(productCss, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(productCss, /qdh-processing-dot/);
+  assert.match(productCss, /qdh-captured-field/);
+  assert.doesNotMatch(intakeSource, /Az ajánlat elkészült|Végleges ajánlat|garantált árat adunk|pontos árat adunk|Ár kiszámítása|Árajánlat elküldése|send final quote|provider call/i);
 });
 
 test("QDH frontend stays request-review only and avoids generic dashboard/widget dependencies", () => {

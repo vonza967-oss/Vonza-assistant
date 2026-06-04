@@ -11,6 +11,44 @@
     customer_contact: "email vagy telefon",
   };
 
+  const LIVE_RECOGNITION_ITEMS = Object.freeze([
+    {
+      key: "request",
+      label: "Igény",
+      idleDetail: "várja",
+      detectedDetail: "észlelve",
+      capturedDetail: "rögzítve",
+    },
+    {
+      key: "location",
+      label: "Helyszín",
+      idleDetail: "várja",
+      detectedDetail: "észlelve",
+      capturedDetail: "rögzítve",
+    },
+    {
+      key: "timing",
+      label: "Időzítés",
+      idleDetail: "várja",
+      detectedDetail: "észlelve",
+      capturedDetail: "rögzítve",
+    },
+    {
+      key: "name",
+      label: "Név",
+      idleDetail: "várja",
+      detectedDetail: "észlelve",
+      capturedDetail: "rögzítve",
+    },
+    {
+      key: "contact",
+      label: "Elérhetőség",
+      idleDetail: "várja",
+      detectedDetail: "észlelve",
+      capturedDetail: "rögzítve",
+    },
+  ]);
+
   const CATEGORY_COPY = Object.freeze({
     web_creative: {
       categoryLabel: "web / marketing / kreatív stúdió",
@@ -186,6 +224,10 @@
   let readyToSubmit = false;
   let safetyFlags = {};
   let messages = [];
+  let draftMessage = "";
+  let draftRecognition = detectLiveRecognition("");
+  let recentlyCapturedKeys = new Set();
+  let captureAnimationTimer = 0;
 
   const FIXTURE_CONTEXT = FIXTURE_CONTEXTS.webstudio;
 
@@ -251,6 +293,21 @@
     return data;
   }
 
+  function wait(ms = 0) {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, Math.max(0, ms));
+    });
+  }
+
+  async function keepAssistantBusySince(startedAt, minimumMs = 560) {
+    const elapsed = Date.now() - startedAt;
+    const remaining = minimumMs - elapsed;
+
+    if (remaining > 0) {
+      await wait(remaining);
+    }
+  }
+
   function normalizeFields(input = {}) {
     return {
       requestedService: trimText(input.requestedService || input.requested_service),
@@ -296,6 +353,109 @@
     readyToSubmit = missingFields.length === 0
       && safetyFlags.emergency !== true
       && safetyFlags.secretLikeInput !== true;
+  }
+
+  function getCapturedFieldKeys(nextFields = fields) {
+    const normalized = normalizeFields(nextFields);
+    return new Set(
+      Object.entries(normalized)
+        .filter(([, value]) => Boolean(value))
+        .map(([key]) => key)
+    );
+  }
+
+  function isRecentlyCaptured(...keys) {
+    return keys.some((key) => recentlyCapturedKeys.has(key));
+  }
+
+  function hasCapturedRecognitionCategory(key, nextFields = fields) {
+    const normalized = normalizeFields(nextFields);
+
+    if (key === "request") {
+      return Boolean(normalized.requestedService || normalized.projectDetails);
+    }
+
+    if (key === "location") {
+      return Boolean(normalized.locationText);
+    }
+
+    if (key === "timing") {
+      return Boolean(normalized.urgency);
+    }
+
+    if (key === "name") {
+      return Boolean(normalized.customerName);
+    }
+
+    if (key === "contact") {
+      return Boolean(normalized.customerEmail || normalized.customerPhone);
+    }
+
+    return false;
+  }
+
+  function isRecentlyCapturedRecognitionCategory(key) {
+    if (key === "request") {
+      return isRecentlyCaptured("requestedService", "projectDetails");
+    }
+
+    if (key === "location") {
+      return isRecentlyCaptured("locationText");
+    }
+
+    if (key === "timing") {
+      return isRecentlyCaptured("urgency");
+    }
+
+    if (key === "name") {
+      return isRecentlyCaptured("customerName");
+    }
+
+    if (key === "contact") {
+      return isRecentlyCaptured("customerEmail", "customerPhone");
+    }
+
+    return false;
+  }
+
+  function getKnownServiceTokens() {
+    const services = Array.isArray(getBusiness().servicesOffered) ? getBusiness().servicesOffered : [];
+    return services
+      .flatMap((service) => normalizeSearchText(service).split(/[^a-z0-9]+/))
+      .filter((token) => token.length >= 5);
+  }
+
+  function detectLiveRecognition(text = "") {
+    const rawText = trimText(text);
+    const searchText = normalizeSearchText(rawText);
+
+    if (!rawText) {
+      return {
+        request: false,
+        location: false,
+        timing: false,
+        name: false,
+        contact: false,
+      };
+    }
+
+    const knownServiceDetected = getKnownServiceTokens().some((token) => searchText.includes(token));
+    const requestHints = /\b(ajanlat|ajanlatot|kerek|szeretnek|szukseg|weboldal|honlap|webshop|marketing|takaritas|nagytakaritas|javitas|szereles|szerviz|felujitas|garazskapu|kapu|munka|projekt|rendezveny|konzultacio|kezeles|telepites|csere|kivitelezes)\b/.test(searchText);
+    const locationDetected = /\b(Budapest(?:\s?[IVXLCDM]+\.?|\s?\d{1,2}\.?\s?ker(?:ület)?)?|Debrecen|Szeged|Miskolc|Pécs|Győr|Nyíregyháza|Kecskemét|Székesfehérvár|Szombathely|Szolnok|Tatabánya|Kaposvár|Békéscsaba|Érd|Veszprém|Sopron|Eger|Pest megye)(?:en|on|ban|ben)?\b/i.test(rawText)
+      || /\b(helysz[ií]n|telep[uü]l[eé]s|v[aá]ros|c[ií]m)\s*[:-]?\s*[^.,!?;]{2,80}/i.test(rawText);
+    const timingDetected = /\b(ma|holnap|jovo het|jovo heten|ezen a heten|heten belul|1\s?[-–]\s?2 het|egy-ket het|surgos|minel hamarabb|asap|idoszak|idopont|hatarido|datum)\b/.test(searchText);
+    const nameDetected = /\b(?:a nevem|nevem|en vagyok|engem)\s+[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű-]+){0,3}/i.test(rawText)
+      || /\b[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű-]+){1,3}\s+(?:vagyok|email|e-mail|telefon|el[eé]rhet[oő]s[eé]g)/i.test(rawText);
+    const contactDetected = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(rawText)
+      || /(?:\+?\d[\d\s().-]{7,}\d)/.test(rawText);
+
+    return {
+      request: rawText.length >= 28 && (requestHints || knownServiceDetected),
+      location: locationDetected,
+      timing: timingDetected,
+      name: nameDetected,
+      contact: contactDetected,
+    };
   }
 
   function getBusiness() {
@@ -460,15 +620,29 @@
     return `
       <div class="qdh-ai-messages" data-qdh-ai-messages aria-label="Ajánlatkérési beszélgetés">
         ${messages.map((message) => `
-          <article class="qdh-ai-message qdh-ai-message-${message.role === "user" ? "user" : "assistant"}">
+          <article class="qdh-ai-message qdh-ai-message-${message.role === "user" ? "user" : "assistant"} ${message.kind ? `qdh-ai-message-${message.kind}` : ""}">
             <span>${message.role === "user" ? "Ön" : escapeHtml(assistantName)}</span>
-            <p>${escapeHtml(message.content)}</p>
+            ${message.kind === "follow-up" ? `
+              <div class="qdh-ai-followup-card">
+                <strong>Következő pontosítás</strong>
+                <p>${escapeHtml(message.content)}</p>
+              </div>
+            ` : `
+              <p>${escapeHtml(message.content)}</p>
+            `}
           </article>
         `).join("")}
         ${assistantBusy ? `
           <article class="qdh-ai-message qdh-ai-message-assistant qdh-ai-message-pending">
             <span>${escapeHtml(assistantName)}</span>
-            <p>Átnézem, mit tudunk már az ajánlatkérésről.</p>
+            <div class="qdh-ai-processing-card">
+              <span class="qdh-processing-dots" aria-hidden="true">
+                <i></i>
+                <i></i>
+                <i></i>
+              </span>
+              <p>Átnézem a részleteket...</p>
+            </div>
           </article>
         ` : ""}
       </div>
@@ -479,45 +653,112 @@
     const hasRequest = Boolean(fields.requestedService || fields.projectDetails);
     const hasPlaceAndTime = Boolean(fields.locationText && fields.urgency);
     const hasContact = Boolean(fields.customerName && (fields.customerEmail || fields.customerPhone));
+    const requestDetected = draftRecognition.request;
+    const placeAndTimeDetected = draftRecognition.location && draftRecognition.timing;
+    const contactDetected = draftRecognition.name && draftRecognition.contact;
 
     return [
       {
+        key: "request",
         label: "Igény leírása",
-        detail: hasRequest ? "Rögzítve" : "Írja le pár mondatban",
+        detail: hasRequest ? "Rögzítve" : requestDetected ? "észlelve" : "Írja le pár mondatban",
         complete: hasRequest,
+        detected: !hasRequest && requestDetected,
+        fresh: isRecentlyCapturedRecognitionCategory("request"),
       },
       {
+        key: "place-time",
         label: "Helyszín és idő",
-        detail: hasPlaceAndTime ? "Pontosítva" : "Egy kérdéssel tisztázzuk",
+        detail: hasPlaceAndTime ? "Pontosítva" : placeAndTimeDetected ? "észlelve" : "Egy kérdéssel tisztázzuk",
         complete: hasPlaceAndTime,
+        detected: !hasPlaceAndTime && placeAndTimeDetected,
+        fresh: isRecentlyCapturedRecognitionCategory("location") || isRecentlyCapturedRecognitionCategory("timing"),
       },
       {
+        key: "contact",
         label: "Elérhetőség",
-        detail: hasContact ? "Megvan" : "A visszajelzéshez kell",
+        detail: hasContact ? "Megvan" : contactDetected ? "észlelve" : "A visszajelzéshez kell",
         complete: hasContact,
+        detected: !hasContact && contactDetected,
+        fresh: isRecentlyCapturedRecognitionCategory("name") || isRecentlyCapturedRecognitionCategory("contact"),
       },
       {
+        key: "handoff",
         label: "Továbbítás",
         detail: readyToSubmit ? "Beküldhető" : "Elküldés előtt ellenőrzi",
         complete: readyToSubmit,
+        detected: false,
+        fresh: readyToSubmit && recentlyCapturedKeys.size > 0,
       },
     ];
   }
 
-  function renderProgressStrip() {
+  function renderProgressItems() {
     const items = getProgressItems();
     const currentIndex = items.findIndex((item) => !item.complete);
 
+    return items.map((item, index) => `
+      <li
+        class="${item.complete ? "is-complete" : ""} ${item.detected ? "is-detected" : ""} ${item.fresh ? "is-new" : ""} ${index === currentIndex ? "is-current" : ""}"
+        data-qdh-progress-item="${escapeHtml(item.key)}"
+      >
+        <span>${item.complete ? "✓" : item.detected ? "•" : index + 1}</span>
+        <strong>${escapeHtml(item.label)}</strong>
+        <small>${escapeHtml(item.detail)}</small>
+      </li>
+    `).join("");
+  }
+
+  function renderProgressStrip() {
     return `
-      <ol class="qdh-intake-progress" aria-label="Ajánlatkérés lépései">
-        ${items.map((item, index) => `
-          <li class="${item.complete ? "is-complete" : ""} ${index === currentIndex ? "is-current" : ""}">
-            <span>${item.complete ? "✓" : index + 1}</span>
+      <ol class="qdh-intake-progress" data-qdh-progress-root aria-label="Ajánlatkérés lépései">
+        ${renderProgressItems()}
+      </ol>
+    `;
+  }
+
+  function getLiveRecognitionItems() {
+    return LIVE_RECOGNITION_ITEMS.map((item) => {
+      const captured = hasCapturedRecognitionCategory(item.key);
+      const detected = !captured && draftRecognition[item.key] === true;
+      return {
+        ...item,
+        state: captured ? "captured" : detected ? "detected" : "idle",
+        detail: captured ? item.capturedDetail : detected ? item.detectedDetail : item.idleDetail,
+        fresh: isRecentlyCapturedRecognitionCategory(item.key),
+      };
+    });
+  }
+
+  function renderLiveRecognitionContent() {
+    const items = getLiveRecognitionItems();
+
+    return `
+      <div class="qdh-live-recognition-heading">
+        <span>Felismert részletek</span>
+        <small>Csak egyértelmű jel esetén változik.</small>
+      </div>
+      <div class="qdh-live-recognition-grid">
+        ${items.map((item) => `
+          <span
+            class="${item.fresh ? "is-new" : ""}"
+            data-state="${escapeHtml(item.state)}"
+            data-recognition-key="${escapeHtml(item.key)}"
+          >
+            <i aria-hidden="true"></i>
             <strong>${escapeHtml(item.label)}</strong>
             <small>${escapeHtml(item.detail)}</small>
-          </li>
+          </span>
         `).join("")}
-      </ol>
+      </div>
+    `;
+  }
+
+  function renderLiveRecognitionPreview() {
+    return `
+      <div class="qdh-live-recognition" data-qdh-recognition-preview aria-live="polite">
+        ${renderLiveRecognitionContent()}
+      </div>
     `;
   }
 
@@ -538,11 +779,13 @@
           <textarea
             id="qdh-ai-message"
             name="message"
+            data-qdh-message-input
             rows="5"
             maxlength="2000"
             placeholder="${escapeHtml(intakeCopy.placeholder)}"
             ${assistantBusy || submitting ? "disabled" : ""}
-          ></textarea>
+          >${escapeHtml(draftMessage)}</textarea>
+          ${renderLiveRecognitionPreview()}
           <div class="qdh-ai-input-actions">
             <button class="qdh-button qdh-button-primary" type="submit" ${assistantBusy || submitting ? "disabled" : ""}>
               Üzenet küldése
@@ -571,28 +814,29 @@
     }
 
     const details = [
-      ["Szolgáltatás", fields.requestedService],
-      ["Részletek", fields.projectDetails],
-      ["Helyszín", fields.locationText],
-      ["Sürgősség", fields.urgency],
-      ["Név", fields.customerName],
-      ["Elérhetőség", detailValueFor("customerContact")],
-      ["Keret", fields.budgetText],
-    ].filter(([, value]) => trimText(value));
+      { key: "requestedService", label: "Szolgáltatás", value: fields.requestedService },
+      { key: "projectDetails", label: "Részletek", value: fields.projectDetails },
+      { key: "locationText", label: "Helyszín", value: fields.locationText },
+      { key: "urgency", label: "Sürgősség", value: fields.urgency },
+      { key: "customerName", label: "Név", value: fields.customerName },
+      { key: "customerContact", label: "Elérhetőség", value: detailValueFor("customerContact") },
+      { key: "budgetText", label: "Keret", value: fields.budgetText },
+    ].filter(({ value }) => trimText(value));
+    const readySummary = "A vállalkozás a leírást, helyszínt, időzítést és elérhetőséget kapja meg. A pontos árat külön erősíti meg.";
 
     return `
-      <div class="qdh-intake-detail-summary" aria-label="Összeszedett részletek">
+      <div class="qdh-intake-detail-summary ${readyToSubmit ? "is-ready" : ""}" aria-label="Összeszedett részletek">
         <div class="qdh-intake-detail-heading">
           <div>
-            <strong>Összeszedett részletek</strong>
-            <span>${readyToSubmit ? "Ellenőrizze, majd továbbíthatja a kérést." : "Beszélgetés közben finoman frissül."}</span>
+            <strong>${readyToSubmit ? "Az ajánlatkérés összeállt" : "Összeszedett részletek"}</strong>
+            <span>${readyToSubmit ? "Ellenőrizze, majd a gombbal továbbíthatja." : "Beszélgetés közben finoman frissül."}</span>
           </div>
-          <em>${readyToSubmit ? "Beküldhető" : "Folyamatban"}</em>
+          <em>${readyToSubmit ? "Továbbítható" : "Folyamatban"}</em>
         </div>
         ${details.length ? `
           <div class="qdh-intake-detail-chips">
-            ${details.map(([label, value]) => `
-              <span>
+            ${details.map(({ key, label, value }) => `
+              <span class="${isRecentlyCaptured(key) || (key === "customerContact" && isRecentlyCaptured("customerEmail", "customerPhone")) ? "is-new" : ""}">
                 <small>${escapeHtml(label)}</small>
                 ${escapeHtml(value)}
               </span>
@@ -601,6 +845,7 @@
         ` : `
           <p class="qdh-intake-gentle-note">Elég egy rövid leírással kezdeni; a fontos adatok itt jelennek meg.</p>
         `}
+        ${readyToSubmit ? `<p class="qdh-intake-ready-summary">${escapeHtml(readySummary)}</p>` : ""}
         <p class="qdh-ai-next-step">${escapeHtml(buildNextStepText())}</p>
       </div>
     `;
@@ -737,6 +982,50 @@
     }, 0);
   }
 
+  function refreshLiveInteractionCues() {
+    if (!root) {
+      return;
+    }
+
+    const recognitionRoot = root.querySelector("[data-qdh-recognition-preview]");
+    if (recognitionRoot) {
+      recognitionRoot.innerHTML = renderLiveRecognitionContent();
+    }
+
+    const progressRoot = root.querySelector("[data-qdh-progress-root]");
+    if (progressRoot) {
+      progressRoot.innerHTML = renderProgressItems();
+    }
+  }
+
+  function clearCaptureHighlightsLater() {
+    if (!recentlyCapturedKeys.size) {
+      return;
+    }
+
+    if (captureAnimationTimer && typeof window.clearTimeout === "function") {
+      window.clearTimeout(captureAnimationTimer);
+    }
+
+    captureAnimationTimer = window.setTimeout(() => {
+      recentlyCapturedKeys = new Set();
+      captureAnimationTimer = 0;
+      renderApp();
+    }, 1500);
+  }
+
+  function getAssistantMessageKind(data = {}) {
+    if (Array.isArray(data.missingFields) && data.missingFields.length > 0) {
+      return "follow-up";
+    }
+
+    if (readyToSubmit) {
+      return "ready";
+    }
+
+    return "";
+  }
+
   function readForm(form) {
     const formData = new FormData(form);
     return {
@@ -782,7 +1071,7 @@
       <section class="qdh-intake-success" aria-label="Ajánlatkérés sikeresen rögzítve">
         <span class="qdh-intake-success-mark" aria-hidden="true"></span>
         <h2>Köszönjük, továbbítottuk az ajánlatkérést.</h2>
-        <p>${escapeHtml(businessName)} áttekinti a részleteket, és a megadott elérhetőségen tud visszajelezni. A pontos árat a vállalkozás erősíti meg.</p>
+        <p>${escapeHtml(businessName)} áttekinti a részleteket. A vállalkozás a megadott elérhetőségen jelentkezik. A pontos árat külön erősíti meg.</p>
         <div class="qdh-intake-success-next">
           <strong>Mi történik ezután?</strong>
           <span>A vállalkozás ellenőrzi a leírást, szükség esetén pontosítást kér, majd külön jelzi a következő lépést.</span>
@@ -854,14 +1143,20 @@
   }
 
   function applyAssistantResponse(data = {}) {
+    const previouslyCapturedKeys = getCapturedFieldKeys(fields);
     fields = mergeFields(fields, data.extractedFields || {});
+    recentlyCapturedKeys = new Set(
+      [...getCapturedFieldKeys(fields)].filter((key) => !previouslyCapturedKeys.has(key))
+    );
     missingFields = Array.isArray(data.missingFields) ? data.missingFields : getLocalMissing(fields);
     safetyFlags = data.safetyFlags || {};
     updateReadiness(missingFields);
+    draftMessage = "";
+    draftRecognition = detectLiveRecognition("");
 
     const reply = trimText(data.assistant?.reply);
     if (reply) {
-      messages.push({ role: "assistant", content: reply });
+      messages.push({ role: "assistant", content: reply, kind: getAssistantMessageKind(data) });
     }
 
     if (data.request) {
@@ -870,6 +1165,7 @@
     }
 
     renderApp();
+    clearCaptureHighlightsLater();
     setStatus(readyToSubmit ? "Az ajánlatkérés továbbítható." : buildNextStepText());
   }
 
@@ -891,10 +1187,13 @@
 
     if (cleanMessage) {
       messages.push({ role: "user", content: cleanMessage });
+      draftMessage = "";
+      draftRecognition = detectLiveRecognition("");
     }
     assistantBusy = true;
-    setStatus(confirmSubmit ? "Ajánlatkérés rögzítése..." : "Asszisztens válaszának előkészítése...");
+    setStatus(confirmSubmit ? "Ajánlatkérés rögzítése..." : "Átnézem a részleteket...");
     renderApp();
+    const busyStartedAt = Date.now();
 
     try {
       const payload = {
@@ -913,9 +1212,11 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
+      await keepAssistantBusySince(busyStartedAt);
       assistantBusy = false;
       applyAssistantResponse(data);
     } catch (error) {
+      await keepAssistantBusySince(busyStartedAt);
       assistantBusy = false;
       messages.push({
         role: "assistant",
@@ -935,6 +1236,17 @@
     event.preventDefault();
     const formData = new FormData(form);
     await submitAssistantTurn({ message: formData.get("message") });
+  }
+
+  function handleMessageInput(event) {
+    const input = event.target.closest("[data-qdh-message-input]");
+    if (!input) {
+      return;
+    }
+
+    draftMessage = String(input.value || "");
+    draftRecognition = detectLiveRecognition(draftMessage);
+    refreshLiveInteractionCues();
   }
 
   async function handleManualSubmit(event) {
@@ -1025,6 +1337,10 @@
   document.addEventListener("submit", (event) => {
     handleChatSubmit(event);
     handleManualSubmit(event);
+  });
+
+  document.addEventListener("input", (event) => {
+    handleMessageInput(event);
   });
 
   document.addEventListener("click", (event) => {

@@ -39,6 +39,29 @@ Current public customer-intake API routes:
 
 Public QDH intake creation is server-mediated and requires an active public agent key plus a saved QDH setup for that agent owner. It does not grant anonymous database insert access and does not accept owner IDs, agent IDs, package metadata, policy metadata, or arbitrary public write scope. Public quote request creation from generic chat remains separately feature-flagged by `QUOTE_REQUESTS_FROM_CHAT_ENABLED`.
 
+## Phase 9 Premium Interaction Cues
+
+Phase 9 keeps the Phase 7/8 customer intake layout and adds a restrained interaction layer so visitors can feel the assistant organizing their request without turning the page into a flashy AI demo.
+
+Customer page behavior:
+
+- the main textarea has frontend-only live recognition cues for obvious request, location, timing, name, and email or phone details;
+- typing recognition is deterministic, local to the browser draft, and does not call the model, submit data, persist data, or create requests;
+- while an assistant turn is in flight, the chat shows a calm organizing state with `Átnézem a részleteket...`;
+- newly extracted details briefly highlight in the progress strip and captured-details summary, with `prefers-reduced-motion` support;
+- missing-detail follow-ups appear as focused assistant clarification cards;
+- when required details are present, the ready state says `Az ajánlatkérés összeállt` and summarizes the request fields that will be forwarded;
+- the success state is a completed handoff: `Köszönjük, továbbítottuk az ajánlatkérést.` and the business contacts the visitor through the provided contact details.
+
+Safety and data behavior remain unchanged:
+
+- still request-only and staff-confirmed pricing;
+- no final quote calculation;
+- no guaranteed pricing;
+- no external send/provider call;
+- no widget/embed behavior change;
+- no schema or migration change.
+
 ## Phase 8 Shared Front Desk Conversation Layer
 
 Phase 8 changes the QDH assistant from a standalone intake/extraction layer into a product layer on top of Vonza's shared AI Front Desk chat engine.
