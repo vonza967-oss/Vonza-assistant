@@ -212,8 +212,9 @@ test("QDH public intake routes serve standalone customer request UI", async () =
       assert.match(response.headers.get("content-type") || "", /html/);
       assert.match(html, /<html lang="hu">/);
       assert.match(html, /<title>Ajánlatkérés<\/title>/);
-      assert.match(html, /Miben segíthetünk ajánlatot adni\?/);
+      assert.match(html, /Ajánlatkérő asszisztens/);
       assert.match(html, /A pontos árat a vállalkozás erősíti meg\./);
+      assert.doesNotMatch(html, /qdh-intake-copy|qdh-intake-layout|qdh-ai-details-panel/);
       assert.doesNotMatch(html, /Request-only|Staff review|AI-assisted Staff review|Hiányos|qdh_ai_intake|package_key|package|policy|metadata/i);
       assert.match(html, /qdh-product\.css/);
       assert.match(html, /qdh-intake\.js/);
@@ -226,6 +227,35 @@ test("QDH public intake routes serve standalone customer request UI", async () =
   } finally {
     await server.close();
   }
+});
+
+test("QDH customer intake source is business-first receptionist UI", () => {
+  const intakeHtml = readFileSync(path.join(repoRoot, "frontend", "qdh-intake.html"), "utf8");
+  const intakeSource = readFileSync(path.join(repoRoot, "frontend", "qdh-intake.js"), "utf8");
+  const productCss = readFileSync(path.join(repoRoot, "frontend", "qdh-product.css"), "utf8");
+  const publicCustomerSource = `${intakeHtml}\n${intakeSource}`;
+
+  assert.match(intakeHtml, /qdh-intake-stage/);
+  assert.match(intakeSource, /renderBusinessIdentity/);
+  assert.match(intakeSource, /Minta Szolgáltató Kft\./);
+  assert.match(intakeSource, /Budapest és Pest megye/);
+  assert.match(intakeSource, /Üdvözlöm, miben segíthetünk ajánlatot adni\?/);
+  assert.match(intakeSource, /Írja le, mire lenne szüksége/);
+  assert.match(intakeSource, /qdh-intake-progress/);
+  assert.match(intakeSource, /Elég egy rövid leírással kezdeni/);
+
+  assert.match(intakeSource, /qdh-manual-summary/);
+  assert.match(intakeSource, /Részletek szerkesztése/);
+  assert.match(intakeSource, /manualOpen \? `/);
+  assert.doesNotMatch(intakeHtml, /qdh-intake-form|Kért szolgáltatás|Projekt részletei/);
+
+  assert.doesNotMatch(publicCustomerSource, /qdh_public_intake|qdh_ai_intake|request_received|sourceChannel|source_channel|displayMode/i);
+  assert.doesNotMatch(publicCustomerSource, /Request-only|Staff review|AI-assisted Staff review|Hiányos|package_key|package|policy|metadata/i);
+  assert.doesNotMatch(publicCustomerSource, /\b(?:owner_user_id|ownerUserId|agent_id|agentId|business_id|businessId|evidence)\b/i);
+  assert.doesNotMatch(publicCustomerSource, /Ár kiszámítása|Árajánlat elküldése|send final quote|provider call|garantált árat adok/i);
+
+  assert.doesNotMatch(productCss, /qdh-intake-copy|qdh-intake-layout|qdh-ai-details-panel|qdh-ai-workspace|qdh-ai-detail-row/);
+  assert.doesNotMatch(productCss, /orb|bokeh|purple/i);
 });
 
 test("QDH frontend stays request-review only and avoids generic dashboard/widget dependencies", () => {
@@ -242,12 +272,13 @@ test("QDH frontend stays request-review only and avoids generic dashboard/widget
   assert.match(source, /\/quote-desk-hu\/setup-state/);
   assert.match(setupSource, /\/quote-desk-hu\/setup/);
   assert.match(setupSource, /\/qdh\/intake\?agent_key=/);
-  assert.match(intakeHtml, /Miben segíthetünk ajánlatot adni\?/);
+  assert.match(intakeHtml, /qdh-intake-stage/);
+  assert.match(intakeSource, /Üdvözlöm, miben segíthetünk ajánlatot adni\?/);
   assert.match(intakeSource, /\/quote-desk-hu\/intake-context/);
   assert.match(intakeSource, /\/quote-desk-hu\/intake-assistant/);
   assert.match(intakeSource, /\/quote-desk-hu\/intake-requests/);
-  assert.match(intakeSource, /Ajánlatkérő asszisztens/);
-  assert.match(intakeSource, /qdh_public_intake/);
+  assert.match(intakeSource, /Részletek szerkesztése/);
+  assert.match(intakeSource, /qdh-intake-progress/);
   assert.match(intakeSource, /a pontos árat a vállalkozás erősíti meg/i);
   assert.match(setupSource, /signInWithPassword/);
   assert.match(setupSource, /signInWithOtp/);
@@ -272,9 +303,9 @@ test("QDH frontend stays request-review only and avoids generic dashboard/widget
   assert.doesNotMatch(intakeSource, /quoted_externally|accepted_externally/);
   assert.doesNotMatch(intakeSource, /Ár kiszámítása|Árajánlat elküldése|send final quote|provider call/i);
   assert.doesNotMatch(intakeSource, /\/widget|\/embed\.js|\/embed-lite\.js|assistant-embed/);
-  assert.doesNotMatch(`${intakeHtml}\n${intakeSource}`, /Request-only|Staff review|AI-assisted Staff review|Hiányos|qdh_ai_intake|package_key|package|policy|metadata/i);
-  assert.doesNotMatch(intakeHtml, /owner_user_id|ownerUserId|agent_id|agentId|business_id|businessId|metadata|evidence|package_key|policy/i);
-  assert.doesNotMatch(intakeSource, /owner_user_id|ownerUserId|agent_id|agentId|business_id|businessId|package_key|policy/i);
+  assert.doesNotMatch(`${intakeHtml}\n${intakeSource}`, /Request-only|Staff review|AI-assisted Staff review|Hiányos|qdh_public_intake|qdh_ai_intake|request_received|sourceChannel|source_channel|package_key|package|policy|metadata/i);
+  assert.doesNotMatch(intakeHtml, /\b(?:owner_user_id|ownerUserId|agent_id|agentId|business_id|businessId|metadata|evidence|package_key|policy)\b/i);
+  assert.doesNotMatch(intakeSource, /\b(?:owner_user_id|ownerUserId|agent_id|agentId|business_id|businessId|package_key|policy|evidence)\b/i);
   assert.doesNotMatch(css, /orb|bokeh|hero/i);
   assert.doesNotMatch(setupSource, /service_role|SUPABASE_SERVICE_ROLE|OPENAI_API_KEY|STRIPE_SECRET/i);
   assert.doesNotMatch(intakeSource, /service_role|SUPABASE_SERVICE_ROLE|OPENAI_API_KEY|STRIPE_SECRET/i);

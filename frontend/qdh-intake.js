@@ -2,15 +2,6 @@
   const root = document.getElementById("qdh-intake-root");
   const statusRoot = document.getElementById("qdh-intake-status");
 
-  const REQUIRED_FIELDS = [
-    ["requestedService", "Kért szolgáltatás"],
-    ["projectDetails", "Projekt részletei"],
-    ["locationText", "Város / helyszín"],
-    ["urgency", "Sürgősség"],
-    ["customerName", "Név"],
-    ["customerContact", "Email vagy telefon"],
-  ];
-
   const FIELD_LABELS = {
     requested_service: "kért szolgáltatás",
     project_details: "projekt részletei",
@@ -19,7 +10,6 @@
     customer_name: "név",
     customer_contact: "email vagy telefon",
   };
-  const AI_SOURCE_CHANNEL = ["qdh", "ai", "intake"].join("_");
 
   let context = null;
   let agentKey = "";
@@ -46,10 +36,6 @@
       serviceType: "helyi szolgáltatás",
       serviceArea: "Budapest és Pest megye",
       servicesOffered: ["Tetőjavítás", "Klíma karbantartás", "Weboldal átalakítás"],
-    },
-    intake: {
-      sourceChannel: "qdh_public_intake",
-      requestOnly: true,
     },
   });
 
@@ -141,15 +127,48 @@
     return context?.business || {};
   }
 
+  function hasStartedIntake(nextFields = fields) {
+    const normalized = normalizeFields(nextFields);
+    return messages.some((message) => message.role === "user")
+      || Object.values(normalized).some(Boolean);
+  }
+
+  function getBusinessMeta() {
+    const business = getBusiness();
+    const serviceType = trimText(business.serviceType);
+    const serviceArea = trimText(business.serviceArea);
+    return {
+      serviceType: serviceType || "szolgáltatás",
+      serviceArea: serviceArea || "Magyarország",
+    };
+  }
+
+  function getBusinessMark() {
+    const businessName = trimText(getBusiness().businessName);
+    const initials = businessName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase();
+
+    return initials || "A";
+  }
+
   function getNextMissingLabel(nextMissing = missingFields) {
     const firstMissing = Array.isArray(nextMissing) ? nextMissing[0] : "";
     return FIELD_LABELS[firstMissing] || "";
   }
 
   function buildNextStepText(nextMissing = missingFields) {
+    if (!hasStartedIntake()) {
+      return "Kezdje egy rövid üzenettel. Nem kell előre minden adatot megadni.";
+    }
+
     const label = getNextMissingLabel(nextMissing);
     return label
-      ? `Következőként ezt érdemes megadni: ${label}.`
+      ? `Következőként ezt érdemes pontosítani: ${label}.`
       : "Minden fontos részlet megvan a továbbításhoz.";
   }
 
@@ -157,7 +176,7 @@
     const businessName = trimText(getBusiness().businessName) || "a vállalkozás";
     return {
       role: "assistant",
-      content: `Üdvözlöm. Miben segíthetünk ajánlatot adni? Írja le röviden, mire lenne szüksége, és összeszedem a fontos részleteket ${businessName} számára.`,
+      content: `Üdvözlöm, miben segíthetünk ajánlatot adni? Írja le röviden, mire lenne szüksége, és összeszedem a fontos részleteket ${businessName} számára.`,
     };
   }
 
@@ -187,37 +206,39 @@
     `;
   }
 
-  function valueOrEmpty(value) {
-    return trimText(value) || "Nincs megadva";
-  }
-
-  function renderBusinessCard() {
+  function renderBusinessIdentity() {
     const business = getBusiness();
     const businessName = trimText(business.businessName) || "a vállalkozás";
-    const serviceArea = trimText(business.serviceArea);
-    const serviceType = trimText(business.serviceType);
+    const { serviceType, serviceArea } = getBusinessMeta();
 
     return `
-      <div class="qdh-intake-business">
-        <span>Ajánlatot ad</span>
-        <strong>${escapeHtml(businessName)}</strong>
-        <small>${escapeHtml([serviceType, serviceArea].filter(Boolean).join(" · ") || "Magyarországi szolgáltatás")}</small>
-      </div>
+      <section class="qdh-intake-business" aria-label="Vállalkozás">
+        <span class="qdh-intake-business-mark" aria-hidden="true">${escapeHtml(getBusinessMark())}</span>
+        <div>
+          <h1>${escapeHtml(businessName)}</h1>
+          <p>
+            <span>${escapeHtml(serviceType)}</span>
+            <span>${escapeHtml(serviceArea)}</span>
+          </p>
+        </div>
+      </section>
     `;
   }
 
   function renderMessages() {
+    const assistantName = trimText(getBusiness().businessName) || "Asszisztens";
+
     return `
       <div class="qdh-ai-messages" data-qdh-ai-messages aria-label="Ajánlatkérési beszélgetés">
         ${messages.map((message) => `
           <article class="qdh-ai-message qdh-ai-message-${message.role === "user" ? "user" : "assistant"}">
-            <span>${message.role === "user" ? "Ön" : "Asszisztens"}</span>
+            <span>${message.role === "user" ? "Ön" : escapeHtml(assistantName)}</span>
             <p>${escapeHtml(message.content)}</p>
           </article>
         `).join("")}
         ${assistantBusy ? `
           <article class="qdh-ai-message qdh-ai-message-assistant qdh-ai-message-pending">
-            <span>Asszisztens</span>
+            <span>${escapeHtml(assistantName)}</span>
             <p>Átnézem, mit tudunk már az ajánlatkérésről.</p>
           </article>
         ` : ""}
@@ -225,35 +246,86 @@
     `;
   }
 
+  function getProgressItems() {
+    const hasRequest = Boolean(fields.requestedService || fields.projectDetails);
+    const hasPlaceAndTime = Boolean(fields.locationText && fields.urgency);
+    const hasContact = Boolean(fields.customerName && (fields.customerEmail || fields.customerPhone));
+
+    return [
+      {
+        label: "Igény leírása",
+        detail: hasRequest ? "Rögzítve" : "Írja le pár mondatban",
+        complete: hasRequest,
+      },
+      {
+        label: "Helyszín és idő",
+        detail: hasPlaceAndTime ? "Pontosítva" : "Egy kérdéssel tisztázzuk",
+        complete: hasPlaceAndTime,
+      },
+      {
+        label: "Elérhetőség",
+        detail: hasContact ? "Megvan" : "A visszajelzéshez kell",
+        complete: hasContact,
+      },
+      {
+        label: "Továbbítás",
+        detail: readyToSubmit ? "Beküldhető" : "A végén ellenőrzi",
+        complete: readyToSubmit,
+      },
+    ];
+  }
+
+  function renderProgressStrip() {
+    const items = getProgressItems();
+    const currentIndex = items.findIndex((item) => !item.complete);
+
+    return `
+      <ol class="qdh-intake-progress" aria-label="Ajánlatkérés lépései">
+        ${items.map((item, index) => `
+          <li class="${item.complete ? "is-complete" : ""} ${index === currentIndex ? "is-current" : ""}">
+            <span>${item.complete ? "✓" : index + 1}</span>
+            <strong>${escapeHtml(item.label)}</strong>
+            <small>${escapeHtml(item.detail)}</small>
+          </li>
+        `).join("")}
+      </ol>
+    `;
+  }
+
   function renderChatPanel() {
     return `
       <section class="qdh-ai-chat-panel" aria-label="Ajánlatkérési asszisztens">
-        <div class="qdh-ai-panel-header">
+        <div class="qdh-ai-surface-top">
           <div>
-            <h2>Ajánlatkérő asszisztens</h2>
-            <p>Írjon természetesen, akár egy üzenetben. Ha valami fontos hiányzik, egyesével kérdezek rá.</p>
+            <h2>Ajánlatkérés</h2>
+            <p>Írjon természetesen, akár egy üzenetben. Ha valami fontos hiányzik, egyesével kérdezünk rá.</p>
           </div>
-          <span>Beszélgetés</span>
+          <span>A pontos árat a vállalkozás erősíti meg.</span>
         </div>
         ${renderMessages()}
         <form class="qdh-ai-input" data-qdh-chat-form>
-          <label for="qdh-ai-message">Üzenet</label>
+          <label for="qdh-ai-message">Írja le, mire lenne szüksége</label>
           <textarea
             id="qdh-ai-message"
             name="message"
-            rows="4"
-            placeholder="pl. Tetőjavításra kérek ajánlatot Budapesten. Beázik a tető a kémény mellett, ezen a héten lenne sürgős. Kovács Anna, anna@example.hu."
+            rows="5"
+            maxlength="2000"
+            placeholder="pl. Tetőjavításra kérek ajánlatot Budapesten. Beázik a tető a kémény mellett, ezen a héten lenne sürgős."
             ${assistantBusy || submitting ? "disabled" : ""}
           ></textarea>
           <div class="qdh-ai-input-actions">
             <button class="qdh-button qdh-button-primary" type="submit" ${assistantBusy || submitting ? "disabled" : ""}>
-              Küldés
+              Üzenet küldése
             </button>
             <button class="qdh-button" type="button" data-qdh-toggle-manual>
               ${manualOpen ? "Részletek elrejtése" : "Részletek szerkesztése"}
             </button>
           </div>
         </form>
+        ${renderCapturedDetails()}
+        ${renderSubmitControls()}
+        ${renderSafetyNotes()}
+        ${renderProgressStrip()}
       </section>
     `;
   }
@@ -267,73 +339,88 @@
   }
 
   function renderCapturedDetails() {
-    const missingSet = new Set(missingFields);
-    const fieldKeyToMissingKey = {
-      requestedService: "requested_service",
-      projectDetails: "project_details",
-      locationText: "location_text",
-      urgency: "urgency",
-      customerName: "customer_name",
-      customerContact: "customer_contact",
-    };
+    if (!hasStartedIntake()) {
+      return "";
+    }
+
+    const details = [
+      ["Szolgáltatás", fields.requestedService],
+      ["Részletek", fields.projectDetails],
+      ["Helyszín", fields.locationText],
+      ["Sürgősség", fields.urgency],
+      ["Név", fields.customerName],
+      ["Elérhetőség", detailValueFor("customerContact")],
+      ["Keret", fields.budgetText],
+    ].filter(([, value]) => trimText(value));
 
     return `
-      <aside class="qdh-ai-details-panel" aria-label="Rögzített ajánlatkérési adatok">
-        <div class="qdh-ai-panel-header">
+      <div class="qdh-intake-detail-summary" aria-label="Összeszedett részletek">
+        <div class="qdh-intake-detail-heading">
           <div>
-            <h2>Összegyűjtött részletek</h2>
-            <p>${readyToSubmit ? "Ellenőrizze, majd továbbíthatja a kérést." : "Ahogy beszélgetünk, itt frissülnek a fontos adatok."}</p>
+            <strong>Összeszedett részletek</strong>
+            <span>${readyToSubmit ? "Ellenőrizze, majd továbbíthatja a kérést." : "Beszélgetés közben finoman frissül."}</span>
           </div>
-          <span class="${readyToSubmit ? "is-ready" : ""}">${readyToSubmit ? "Beküldhető" : "Folyamatban"}</span>
+          <em>${readyToSubmit ? "Beküldhető" : "Folyamatban"}</em>
         </div>
-        <div class="qdh-ai-detail-list">
-          ${REQUIRED_FIELDS.map(([key, label]) => {
-            const missing = missingSet.has(fieldKeyToMissingKey[key]);
-            return `
-              <div class="qdh-ai-detail-row ${missing ? "is-pending" : "is-filled"}">
-                <span>${escapeHtml(label)}</span>
-                <strong>${escapeHtml(valueOrEmpty(detailValueFor(key)))}</strong>
-                <em>${missing ? "Később" : "Megvan"}</em>
-              </div>
-            `;
-          }).join("")}
-          <div class="qdh-ai-detail-row">
-            <span>Körülbelüli keret</span>
-            <strong>${escapeHtml(valueOrEmpty(fields.budgetText))}</strong>
-            <em>Opcionális</em>
+        ${details.length ? `
+          <div class="qdh-intake-detail-chips">
+            ${details.map(([label, value]) => `
+              <span>
+                <small>${escapeHtml(label)}</small>
+                ${escapeHtml(value)}
+              </span>
+            `).join("")}
           </div>
-        </div>
-        ${readyToSubmit ? `
-          <label class="qdh-intake-check qdh-ai-consent">
-            <input
-              name="consent_acknowledged"
-              type="checkbox"
-              data-qdh-ai-consent
-              ${consentAcknowledged ? "checked" : ""}
-            >
-            <span>Tudomásul veszem, hogy a pontos árat a vállalkozás erősíti meg.</span>
-          </label>
-          <button
-            class="qdh-button qdh-button-primary qdh-ai-submit"
-            type="button"
-            data-qdh-confirm-submit
-            ${consentAcknowledged && !assistantBusy && !submitting ? "" : "disabled"}
-          >
-            Ajánlatkérés továbbítása
-          </button>
         ` : `
-          <p class="qdh-ai-next-step">${escapeHtml(buildNextStepText())}</p>
+          <p class="qdh-intake-gentle-note">Elég egy rövid leírással kezdeni; a fontos adatok itt jelennek meg.</p>
         `}
-        <p class="qdh-ai-safe-note">
-          A pontos árat és a vállalhatóságot a vállalkozás erősíti meg.
-        </p>
+        <p class="qdh-ai-next-step">${escapeHtml(buildNextStepText())}</p>
+      </div>
+    `;
+  }
+
+  function renderSubmitControls() {
+    if (!readyToSubmit) {
+      return "";
+    }
+
+    return `
+      <div class="qdh-intake-submit-panel">
+        <label class="qdh-intake-check qdh-ai-consent">
+          <input
+            name="consent_acknowledged"
+            type="checkbox"
+            data-qdh-ai-consent
+            ${consentAcknowledged ? "checked" : ""}
+          >
+          <span>Tudomásul veszem, hogy a pontos árat a vállalkozás erősíti meg.</span>
+        </label>
+        <button
+          class="qdh-button qdh-button-primary qdh-ai-submit"
+          type="button"
+          data-qdh-confirm-submit
+          ${consentAcknowledged && !assistantBusy && !submitting ? "" : "disabled"}
+        >
+          Ajánlatkérés továbbítása
+        </button>
+      </div>
+    `;
+  }
+
+  function renderSafetyNotes() {
+    if (!safetyFlags.pricingGuaranteeRequested && !safetyFlags.outOfScope) {
+      return "";
+    }
+
+    return `
+      <div class="qdh-ai-safe-notes">
         ${safetyFlags.pricingGuaranteeRequested ? `
           <p class="qdh-ai-warning">Pontos vagy garantált árat ezen az oldalon nem adunk. A vállalkozás a részletek alapján tud visszajelezni.</p>
         ` : ""}
         ${safetyFlags.outOfScope ? `
           <p class="qdh-ai-warning">A megadott szolgáltatást a vállalkozás ellenőrzi, hogy vállalható-e.</p>
         ` : ""}
-      </aside>
+      </div>
     `;
   }
 
@@ -342,14 +429,15 @@
     const services = Array.isArray(business.servicesOffered) ? business.servicesOffered : [];
 
     return `
-      <section class="qdh-manual-panel ${manualOpen ? "is-open" : ""}" aria-label="Manuális ajánlatkérési űrlap">
-        <div class="qdh-manual-header">
-          <div>
-            <h2>Részletek szerkesztése</h2>
-            <p>Ha mezőnként kényelmesebb, itt pontosíthatja az ajánlatkérés adatait.</p>
-          </div>
-          <button class="qdh-button" type="button" data-qdh-toggle-manual>${manualOpen ? "Bezárás" : "Megnyitás"}</button>
-        </div>
+      <section class="qdh-manual-panel ${manualOpen ? "is-open" : ""}" aria-label="Részletek szerkesztése">
+        <button class="qdh-manual-summary" type="button" data-qdh-toggle-manual aria-expanded="${manualOpen ? "true" : "false"}">
+          <span class="qdh-manual-summary-icon" aria-hidden="true"></span>
+          <span>
+            <strong>Részletek szerkesztése</strong>
+            <small>Kapcsolattartó adatok és további információk megadása</small>
+          </span>
+          <em aria-hidden="true">${manualOpen ? "−" : "+"}</em>
+        </button>
         ${manualOpen ? `
           <form class="qdh-intake-form" data-qdh-intake-form novalidate>
             ${serviceOptions(services)}
@@ -408,11 +496,8 @@
 
   function renderApp() {
     root.innerHTML = `
-      ${renderBusinessCard()}
-      <div class="qdh-ai-workspace">
-        ${renderChatPanel()}
-        ${renderCapturedDetails()}
-      </div>
+      ${renderBusinessIdentity()}
+      ${renderChatPanel()}
       ${renderManualForm()}
     `;
 
@@ -465,6 +550,7 @@
     const businessName = trimText(getBusiness().businessName) || "a vállalkozás";
 
     root.innerHTML = `
+      ${renderBusinessIdentity()}
       <section class="qdh-intake-success" aria-label="Ajánlatkérés sikeresen rögzítve">
         <span class="qdh-intake-success-mark" aria-hidden="true"></span>
         <h2>Köszönjük, továbbítottuk az ajánlatkérést.</h2>
@@ -519,8 +605,6 @@
 
     return {
       ok: true,
-      product: "quote_desk_hu",
-      phase: "ai_customer_intake_request_only",
       assistant: { reply },
       extractedFields: nextFields,
       missingFields: nextMissing,
@@ -529,11 +613,7 @@
         pricingGuaranteeRequested: priceBoundary,
       },
       request: payload.confirm_submit && nextMissing.length === 0
-        ? {
-            status: "request_received",
-            sourceChannel: AI_SOURCE_CHANNEL,
-            receivedForStaffReview: true,
-          }
+        ? { ok: true }
         : null,
     };
   }
@@ -542,12 +622,7 @@
     await new Promise((resolve) => {
       window.setTimeout(resolve, 250);
     });
-    return {
-      request: {
-        status: "request_received",
-        sourceChannel: "qdh_public_intake",
-      },
-    };
+    return { request: { ok: true } };
   }
 
   function applyAssistantResponse(data = {}) {
@@ -561,7 +636,7 @@
       messages.push({ role: "assistant", content: reply });
     }
 
-    if (data.request?.receivedForStaffReview) {
+    if (data.request) {
       renderSuccess(data);
       return;
     }

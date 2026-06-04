@@ -39,6 +39,33 @@ Current public customer-intake API routes:
 
 Public QDH intake creation is server-mediated and requires an active public agent key plus a saved QDH setup for that agent owner. It does not grant anonymous database insert access and does not accept owner IDs, agent IDs, package metadata, policy metadata, or arbitrary public write scope. Public quote request creation from generic chat remains separately feature-flagged by `QUOTE_REQUESTS_FROM_CHAT_ENABLED`.
 
+## Phase 6 Business-Branded Intake Receptionist
+
+Phase 6 rebuilds the customer-facing intake page as a business-branded AI receptionist surface for the website "Ajánlatkérés" destination.
+
+Customer page behavior:
+
+- the business identity leads the page: business name, service category, and city/service area;
+- the first interaction is one calm assistant surface with a natural Hungarian request input;
+- the old split hero/details-panel composition is removed so the page no longer reads like a QDH dashboard, admin screen, or compliance workflow;
+- captured details are summarized through compact progress/details strips instead of a large missing-field or warning wall;
+- the manual editor remains available behind `Részletek szerkesztése`, but it is secondary to the conversation;
+- customer-visible source, channel, status, package, policy, and setup internals are not exposed in the public intake HTML/JS copy;
+- success copy remains `Köszönjük, továbbítottuk az ajánlatkérést.` and explains the next step naturally.
+
+Safety and data behavior remain unchanged:
+
+- existing assistant endpoint behavior is preserved;
+- existing manual request creation is preserved;
+- existing `agent_key` context resolution is preserved;
+- submitted requests still appear in the QDH dashboard for owner review;
+- no final quote calculation;
+- no guaranteed pricing;
+- no automatic customer message send;
+- no email, WhatsApp, CRM, proposal, booking, or provider call;
+- no widget/embed behavior change;
+- no schema or migration change.
+
 ## Phase 5 Customer AI Receptionist UX
 
 Phase 5 corrects the customer-facing AI intake experience from system/admin language to business-branded receptionist language.

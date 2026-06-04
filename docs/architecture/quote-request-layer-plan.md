@@ -115,14 +115,14 @@ The generic Vonza dashboard renders a compact "Quote requests" review card near 
 
 It does not expose casual "quote sent" or "accepted" buttons.
 
-Quote Desk HU adds separate QDH product routes at `/qdh`, `/quote-desk-hu`, `/qdh/setup`, `/quote-desk-hu/setup`, `/qdh/intake`, `/quote-desk-hu/intake`, `/qdh/dashboard`, and `/quote-desk-hu/dashboard`. It reuses the same quote request service, but it is a distinct product experience with Hungarian-first copy, QDH navigation, a customer-facing intake form, a pipeline workspace, request detail panel, setup/readiness state, and QDH-specific API wrappers. It is not a generic `/dashboard` card and it is not presented as AI Front Desk.
+Quote Desk HU adds separate QDH product routes at `/qdh`, `/quote-desk-hu`, `/qdh/setup`, `/quote-desk-hu/setup`, `/qdh/intake`, `/quote-desk-hu/intake`, `/qdh/dashboard`, and `/quote-desk-hu/dashboard`. It reuses the same quote request service, but it is a distinct product experience with Hungarian-first copy, QDH navigation, a customer-facing business-branded AI receptionist intake surface, a pipeline workspace, request detail panel, setup/readiness state, and QDH-specific API wrappers. It is not a generic `/dashboard` card and it is not presented as AI Front Desk.
 
 The QDH customer intake link pattern is:
 
 - `/qdh/intake?agent_key=<public_agent_key>`
 - `/quote-desk-hu/intake?agent_key=<public_agent_key>`
 
-The setup/dashboard surfaces show this link only after setup exists and an active public agent key can be found for the owner. The public intake page collects service, project details, location, urgency, optional budget, customer name, email or phone, and acknowledgement that the request is not a final quote. It stores `source_channel = 'qdh_public_intake'`, status `request_received`, and request-only proof/metadata. Public responses return safe status/source acknowledgement only, with no owner IDs, agent IDs, business IDs, evidence, metadata, package keys, policy metadata, or secret values.
+The setup/dashboard surfaces show this link only after setup exists and an active public agent key can be found for the owner. The public intake surface presents the business first and helps the visitor describe the request conversationally, while still collecting service, project details, location, urgency, optional budget, customer name, email or phone, and acknowledgement that the request is not a final quote. It stores `source_channel = 'qdh_public_intake'`, status `request_received`, and request-only proof/metadata. Public responses return safe status/source acknowledgement only, with no owner IDs, agent IDs, business IDs, evidence, metadata, package keys, policy metadata, or secret values.
 
 The QDH wrapper displays newly received requests plus current request-review statuses:
 
