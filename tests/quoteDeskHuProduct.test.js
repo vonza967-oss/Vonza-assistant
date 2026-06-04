@@ -396,30 +396,43 @@ test("QDH intake initial UI has one safety line, natural progress wording, and s
   assert.doesNotMatch(rendered, /Minta Webstúdió Kft\.<\/span>\s*<p>Üdvözlöm/);
   assert.ok(rendered.indexOf("qdh-ai-chat-panel") < rendered.indexOf("qdh-manual-panel"));
   assert.doesNotMatch(rendered, /qdh-intake-form|Kért szolgáltatás|Projekt részletei/);
+  assert.doesNotMatch(rendered, /Felismert részletek|várja|Csak egyértelmű jel esetén változik/);
+  assert.doesNotMatch(rendered, /qdh-recognition-chip/);
   assert.match(productCss, /\.qdh-ai-chat-panel \{[\s\S]*border-bottom-right-radius: 0;/);
   assert.match(productCss, /\.qdh-manual-panel \{[\s\S]*margin-top: -1px;/);
 });
 
-test("QDH intake live recognition is frontend-only and exposes only customer-safe cues", () => {
+test("QDH intake live recognition chips are hidden until useful and expose only customer-safe cues", () => {
   const fixture = createQdhIntakeFixtureVm("webstudio");
   const target = {
-    value: "Weboldalt szeretnék Budapesten jövő héten. Kovács Anna vagyok, anna@example.hu.",
+    value: "Szia",
     closest: (selector) => (selector === "[data-qdh-message-input]" ? target : null),
   };
 
+  assert.doesNotMatch(fixture.rootElement.innerHTML, /Felismert részletek|várja|Csak egyértelmű jel esetén változik/);
+  assert.doesNotMatch(fixture.rootElement.innerHTML, /qdh-recognition-chip/);
+
+  fixture.eventHandlers.input({ target });
+  const quietRecognitionHtml = fixture.queriedNodes.get("[data-qdh-recognition-preview]").innerHTML;
+
+  assert.equal(quietRecognitionHtml.trim(), "");
+
+  target.value = "Weboldalt szeretnék Budapesten jövő héten. Kovács Anna vagyok, anna@example.hu.";
   fixture.eventHandlers.input({ target });
 
   const recognitionHtml = fixture.queriedNodes.get("[data-qdh-recognition-preview]").innerHTML;
   const progressHtml = fixture.queriedNodes.get("[data-qdh-progress-root]").innerHTML;
 
   assert.equal(fixture.fetchCalls.length, 0);
-  assert.match(recognitionHtml, /Felismert részletek/);
-  assert.match(recognitionHtml, /Igény[\s\S]*észlelve/);
-  assert.match(recognitionHtml, /Helyszín[\s\S]*észlelve/);
-  assert.match(recognitionHtml, /Időzítés[\s\S]*észlelve/);
-  assert.match(recognitionHtml, /Név[\s\S]*észlelve/);
-  assert.match(recognitionHtml, /Elérhetőség[\s\S]*észlelve/);
+  assert.match(recognitionHtml, /qdh-recognition-chip/);
+  assert.match(recognitionHtml, /Igény észlelve/);
+  assert.match(recognitionHtml, /Helyszín észlelve/);
+  assert.match(recognitionHtml, /Időzítés észlelve/);
+  assert.match(recognitionHtml, /Név megvan/);
+  assert.match(recognitionHtml, /Elérhetőség megvan/);
   assert.match(progressHtml, /észlelve/);
+  assert.doesNotMatch(recognitionHtml, /Felismert részletek|várja|Csak egyértelmű jel esetén változik/);
+  assert.doesNotMatch(recognitionHtml, /requested_service|project_details|location_text|urgency|customer_name|customer_contact|data-state|data-recognition-key|field|source|status/i);
   assert.doesNotMatch(`${recognitionHtml}\n${progressHtml}`, /qdh_public_intake|qdh_ai_intake|request_received|sourceChannel|source_channel|displayMode/i);
   assert.doesNotMatch(`${recognitionHtml}\n${progressHtml}`, /Request-only|Staff review|AI-assisted|package|policy|metadata|model|system prompt|owner|agent|business_id/i);
 });
@@ -452,6 +465,7 @@ test("QDH intake processing, follow-up, ready, success, and motion copy stay req
   assert.match(intakeSource, /A vállalkozás a megadott elérhetőségen jelentkezik/);
   assert.match(productCss, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(productCss, /qdh-processing-dot/);
+  assert.match(productCss, /qdh-recognition-check/);
   assert.match(productCss, /qdh-captured-field/);
   assert.doesNotMatch(intakeSource, /Az ajánlat elkészült|Végleges ajánlat|garantált árat adunk|pontos árat adunk|Ár kiszámítása|Árajánlat elküldése|send final quote|provider call/i);
 });

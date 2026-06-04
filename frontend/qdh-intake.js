@@ -14,38 +14,23 @@
   const LIVE_RECOGNITION_ITEMS = Object.freeze([
     {
       key: "request",
-      label: "Igény",
-      idleDetail: "várja",
-      detectedDetail: "észlelve",
-      capturedDetail: "rögzítve",
+      label: "Igény észlelve",
     },
     {
       key: "location",
-      label: "Helyszín",
-      idleDetail: "várja",
-      detectedDetail: "észlelve",
-      capturedDetail: "rögzítve",
+      label: "Helyszín észlelve",
     },
     {
       key: "timing",
-      label: "Időzítés",
-      idleDetail: "várja",
-      detectedDetail: "észlelve",
-      capturedDetail: "rögzítve",
+      label: "Időzítés észlelve",
     },
     {
       key: "name",
-      label: "Név",
-      idleDetail: "várja",
-      detectedDetail: "észlelve",
-      capturedDetail: "rögzítve",
+      label: "Név megvan",
     },
     {
       key: "contact",
-      label: "Elérhetőség",
-      idleDetail: "várja",
-      detectedDetail: "észlelve",
-      capturedDetail: "rögzítve",
+      label: "Elérhetőség megvan",
     },
   ]);
 
@@ -366,32 +351,6 @@
 
   function isRecentlyCaptured(...keys) {
     return keys.some((key) => recentlyCapturedKeys.has(key));
-  }
-
-  function hasCapturedRecognitionCategory(key, nextFields = fields) {
-    const normalized = normalizeFields(nextFields);
-
-    if (key === "request") {
-      return Boolean(normalized.requestedService || normalized.projectDetails);
-    }
-
-    if (key === "location") {
-      return Boolean(normalized.locationText);
-    }
-
-    if (key === "timing") {
-      return Boolean(normalized.urgency);
-    }
-
-    if (key === "name") {
-      return Boolean(normalized.customerName);
-    }
-
-    if (key === "contact") {
-      return Boolean(normalized.customerEmail || normalized.customerPhone);
-    }
-
-    return false;
   }
 
   function isRecentlyCapturedRecognitionCategory(key) {
@@ -718,45 +677,41 @@
   }
 
   function getLiveRecognitionItems() {
-    return LIVE_RECOGNITION_ITEMS.map((item) => {
-      const captured = hasCapturedRecognitionCategory(item.key);
-      const detected = !captured && draftRecognition[item.key] === true;
-      return {
-        ...item,
-        state: captured ? "captured" : detected ? "detected" : "idle",
-        detail: captured ? item.capturedDetail : detected ? item.detectedDetail : item.idleDetail,
-        fresh: isRecentlyCapturedRecognitionCategory(item.key),
-      };
-    });
+    if (!trimText(draftMessage)) {
+      return [];
+    }
+
+    return LIVE_RECOGNITION_ITEMS.filter((item) => draftRecognition[item.key] === true);
+  }
+
+  function hasLiveRecognitionItems() {
+    return getLiveRecognitionItems().length > 0;
+  }
+
+  function isAssistantInputActive() {
+    return Boolean(trimText(draftMessage) || hasLiveRecognitionItems());
   }
 
   function renderLiveRecognitionContent() {
     const items = getLiveRecognitionItems();
+    if (!items.length) {
+      return "";
+    }
 
     return `
-      <div class="qdh-live-recognition-heading">
-        <span>Felismert részletek</span>
-        <small>Csak egyértelmű jel esetén változik.</small>
-      </div>
-      <div class="qdh-live-recognition-grid">
-        ${items.map((item) => `
-          <span
-            class="${item.fresh ? "is-new" : ""}"
-            data-state="${escapeHtml(item.state)}"
-            data-recognition-key="${escapeHtml(item.key)}"
-          >
-            <i aria-hidden="true"></i>
-            <strong>${escapeHtml(item.label)}</strong>
-            <small>${escapeHtml(item.detail)}</small>
-          </span>
-        `).join("")}
-      </div>
+      ${items.map((item) => `
+        <span class="qdh-recognition-chip">
+          <i aria-hidden="true"></i>
+          ${escapeHtml(item.label)}
+        </span>
+      `).join("")}
     `;
   }
 
   function renderLiveRecognitionPreview() {
+    const isEmpty = !hasLiveRecognitionItems();
     return `
-      <div class="qdh-live-recognition" data-qdh-recognition-preview aria-live="polite">
+      <div class="qdh-live-recognition ${isEmpty ? "is-empty" : ""}" data-qdh-recognition-preview aria-live="polite">
         ${renderLiveRecognitionContent()}
       </div>
     `;
@@ -764,6 +719,7 @@
 
   function renderChatPanel() {
     const intakeCopy = getIntakeCopy();
+    const inputActive = isAssistantInputActive();
 
     return `
       <section class="qdh-ai-chat-panel" aria-label="Ajánlatkérési asszisztens">
@@ -774,7 +730,7 @@
           </div>
         </div>
         ${renderMessages()}
-        <form class="qdh-ai-input" data-qdh-chat-form>
+        <form class="qdh-ai-input ${inputActive ? "is-active" : ""}" data-qdh-chat-form>
           <label for="qdh-ai-message">Írja le, mire lenne szüksége</label>
           <textarea
             id="qdh-ai-message"
@@ -989,7 +945,16 @@
 
     const recognitionRoot = root.querySelector("[data-qdh-recognition-preview]");
     if (recognitionRoot) {
-      recognitionRoot.innerHTML = renderLiveRecognitionContent();
+      const recognitionHtml = renderLiveRecognitionContent();
+      if (recognitionRoot.innerHTML !== recognitionHtml) {
+        recognitionRoot.innerHTML = recognitionHtml;
+      }
+      recognitionRoot.className = `qdh-live-recognition ${hasLiveRecognitionItems() ? "" : "is-empty"}`.trim();
+    }
+
+    const inputForm = root.querySelector("[data-qdh-chat-form]");
+    if (inputForm?.classList && typeof inputForm.classList.toggle === "function") {
+      inputForm.classList.toggle("is-active", isAssistantInputActive());
     }
 
     const progressRoot = root.querySelector("[data-qdh-progress-root]");

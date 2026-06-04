@@ -45,7 +45,7 @@ Phase 9 keeps the Phase 7/8 customer intake layout and adds a restrained interac
 
 Customer page behavior:
 
-- the main textarea has frontend-only live recognition cues for obvious request, location, timing, name, and email or phone details;
+- the main textarea has frontend-only, hidden-until-useful recognition chips for obvious request, location, timing, name, and email or phone details;
 - typing recognition is deterministic, local to the browser draft, and does not call the model, submit data, persist data, or create requests;
 - while an assistant turn is in flight, the chat shows a calm organizing state with `Átnézem a részleteket...`;
 - newly extracted details briefly highlight in the progress strip and captured-details summary, with `prefers-reduced-motion` support;
@@ -61,6 +61,18 @@ Safety and data behavior remain unchanged:
 - no external send/provider call;
 - no widget/embed behavior change;
 - no schema or migration change.
+
+## Phase 10 Recognition Cue Polish
+
+Phase 10 preserves the Phase 9 recognition behavior, but removes the always-visible recognition row. The initial customer intake screen stays clean: no empty waiting boxes, no "recognized details" heading, and no system explanation text.
+
+Current cue behavior:
+
+- compact chips appear only for confident local draft signals such as `Igény észlelve`, `Helyszín észlelve`, `Időzítés észlelve`, `Név megvan`, and `Elérhetőség megvan`;
+- unrecognized or casual draft text renders no recognition UI;
+- the numbered progress strip remains the primary progress model, while recognition chips stay secondary under the textarea;
+- the active textarea state uses a soft border tint and small check animation, with the existing `prefers-reduced-motion` guard;
+- backend behavior remains request-only and safe.
 
 ## Phase 8 Shared Front Desk Conversation Layer
 
