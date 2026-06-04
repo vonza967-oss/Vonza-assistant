@@ -39,6 +39,34 @@ Current public customer-intake API routes:
 
 Public QDH intake creation is server-mediated and requires an active public agent key plus a saved QDH setup for that agent owner. It does not grant anonymous database insert access and does not accept owner IDs, agent IDs, package metadata, policy metadata, or arbitrary public write scope. Public quote request creation from generic chat remains separately feature-flagged by `QUOTE_REQUESTS_FROM_CHAT_ENABLED`.
 
+## Phase 7 Business-Specific Intake Copy
+
+Phase 7 polishes the customer-facing intake so the first-screen copy matches the business context instead of showing generic or mismatched examples.
+
+The copy system is deterministic and layered:
+
+- public setup context is the only input: business name, service type, service area, and services offered;
+- a small broad-category map chooses Hungarian service groups such as takarítás, építés/felújítás/otthoni szolgáltatás, garázskapuk/kapuk, web/marketing/kreatív stúdió, egészség/klinika, szépség/wellness, javítás/szerviz, oktatás/tanácsadás, rendezvény/vendéglátás, or general services;
+- each category supplies a natural textarea placeholder, opening assistant line, short "what helps us answer faster" hint, and optional wording for missing details;
+- when no category matches, the generic fallback remains natural and safe;
+- OpenAI can refine the conversation when configured, but the baseline UI copy and deterministic follow-up wording do not depend on OpenAI.
+
+Phase 7 also tightens customer polish:
+
+- the initial intake UI shows the exact-pricing safety line once;
+- progress copy uses natural Hungarian such as `Elküldés előtt ellenőrzi`;
+- assistant bubbles are labeled `Asszisztens`, not the business name speaking as a person;
+- the manual editor remains available as a secondary connected disclosure under the main assistant surface.
+
+Safety and data behavior remain unchanged:
+
+- no final quote calculation;
+- no guaranteed pricing;
+- no automatic customer message send;
+- no email, WhatsApp, CRM, proposal, booking, or provider call;
+- no widget/embed behavior change;
+- no schema or migration change.
+
 ## Phase 6 Business-Branded Intake Receptionist
 
 Phase 6 rebuilds the customer-facing intake page as a business-branded AI receptionist surface for the website "Ajánlatkérés" destination.

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 import express from "express";
@@ -144,6 +145,46 @@ function buildCompleteQdhAiPayload(overrides = {}) {
   };
 }
 
+function renderQdhIntakeFixtureHtml(contextOrFixture = "webstudio") {
+  const intakeSource = readFileSync(path.join(repoRoot, "frontend", "qdh-intake.js"), "utf8");
+  const rootElement = {
+    innerHTML: "",
+    querySelector: () => null,
+  };
+  const statusElement = { textContent: "" };
+  const fixtureContext = typeof contextOrFixture === "string" ? null : contextOrFixture;
+  const fixtureQuery = typeof contextOrFixture === "string" ? `?fixture=${contextOrFixture}` : "";
+  const windowObject = {
+    location: { search: fixtureQuery },
+    setTimeout: (callback) => {
+      callback();
+      return 0;
+    },
+    VONZA_LOCAL_QDH_INTAKE_FIXTURE: true,
+    VONZA_LOCAL_QDH_INTAKE_FIXTURE_CONTEXT: fixtureContext,
+  };
+  const documentObject = {
+    getElementById: (id) => {
+      if (id === "qdh-intake-root") return rootElement;
+      if (id === "qdh-intake-status") return statusElement;
+      return null;
+    },
+    addEventListener: () => {},
+  };
+  const context = vm.createContext({
+    window: windowObject,
+    document: documentObject,
+    URLSearchParams,
+    FormData,
+    fetch: async () => {
+      throw new Error("fixture render should not fetch");
+    },
+  });
+
+  vm.runInContext(intakeSource, context);
+  return rootElement.innerHTML;
+}
+
 test("QDH dashboard route renders a separate Hungarian product shell", async () => {
   const server = await startServer(createFullApp({ rootDir: repoRoot }));
 
@@ -237,8 +278,8 @@ test("QDH customer intake source is business-first receptionist UI", () => {
 
   assert.match(intakeHtml, /qdh-intake-stage/);
   assert.match(intakeSource, /renderBusinessIdentity/);
-  assert.match(intakeSource, /Minta Szolgáltató Kft\./);
-  assert.match(intakeSource, /Budapest és Pest megye/);
+  assert.match(intakeSource, /Minta Webstúdió Kft\./);
+  assert.match(intakeSource, /Budapest és online/);
   assert.match(intakeSource, /Üdvözlöm, miben segíthetünk ajánlatot adni\?/);
   assert.match(intakeSource, /Írja le, mire lenne szüksége/);
   assert.match(intakeSource, /qdh-intake-progress/);
@@ -256,6 +297,72 @@ test("QDH customer intake source is business-first receptionist UI", () => {
 
   assert.doesNotMatch(productCss, /qdh-intake-copy|qdh-intake-layout|qdh-ai-details-panel|qdh-ai-workspace|qdh-ai-detail-row/);
   assert.doesNotMatch(productCss, /orb|bokeh|purple/i);
+});
+
+test("QDH intake business copy uses webstudio context without roof or cleaning mismatch", () => {
+  const html = renderQdhIntakeFixtureHtml("webstudio");
+
+  assert.match(html, /Minta Webstúdió Kft\./);
+  assert.match(html, /Weboldalt szeretnék készíttetni egy budapesti vállalkozásnak/);
+  assert.match(html, /webes vagy marketing feladatot/);
+  assert.match(html, /Weboldal, webshop, kampány vagy arculati munka/);
+  assert.doesNotMatch(html, /Tetőjavításra kérek ajánlatot|Beázik a tető|Nagytakarításra szeretnék/i);
+});
+
+test("QDH intake business copy uses cleaning context", () => {
+  const html = renderQdhIntakeFixtureHtml("cleaning");
+
+  assert.match(html, /Minta Takarítás Kft\./);
+  assert.match(html, /Nagytakarításra szeretnék ajánlatot kérni Budapesten/);
+  assert.match(html, /70 m²-es lakásról van szó/);
+  assert.match(html, /alapterület, helyiségek típusa, kért takarítás/);
+  assert.doesNotMatch(html, /Weboldalt szeretnék készíttetni|Garázskapu beépítésre/i);
+});
+
+test("QDH intake business copy uses garage door context", () => {
+  const html = renderQdhIntakeFixtureHtml("garage");
+
+  assert.match(html, /Minta Kaputechnika Kft\./);
+  assert.match(html, /Garázskapu beépítésre kérek ajánlatot családi házhoz/);
+  assert.match(html, /kapuval vagy garázskapuval kapcsolatos feladatot/);
+  assert.match(html, /típus, méret, helyszín, meglévő szerkezet/);
+  assert.doesNotMatch(html, /Weboldalt szeretnék készíttetni|Nagytakarításra szeretnék/i);
+});
+
+test("QDH intake business copy falls back naturally for unknown service type", () => {
+  const html = renderQdhIntakeFixtureHtml({
+    business: {
+      businessName: "Minta Szakértő Kft.",
+      serviceType: "egyedi üzleti megoldás",
+      serviceArea: "Magyarország",
+      servicesOffered: ["Egyedi egyeztetés", "Ügyféligény felmérés"],
+    },
+  });
+
+  assert.match(html, /Minta Szakértő Kft\./);
+  assert.match(html, /Szeretnék ajánlatot kérni a szolgáltatásra/);
+  assert.match(html, /mire van szükségem, hol lenne a munka, és mikor lenne aktuális/);
+  assert.doesNotMatch(html, /Weboldalt szeretnék készíttetni|Nagytakarításra szeretnék|Garázskapu beépítésre/i);
+});
+
+test("QDH intake initial UI has one safety line, natural progress wording, and secondary manual editor", () => {
+  const intakeHtml = readFileSync(path.join(repoRoot, "frontend", "qdh-intake.html"), "utf8");
+  const intakeSource = readFileSync(path.join(repoRoot, "frontend", "qdh-intake.js"), "utf8");
+  const productCss = readFileSync(path.join(repoRoot, "frontend", "qdh-product.css"), "utf8");
+  const rendered = renderQdhIntakeFixtureHtml("webstudio");
+  const initialUi = `${intakeHtml}\n${rendered}`;
+  const safetyLineMatches = initialUi.match(/A pontos árat a vállalkozás erősíti meg\./g) || [];
+
+  assert.equal(safetyLineMatches.length, 1);
+  assert.match(rendered, /Elküldés előtt ellenőrzi/);
+  assert.doesNotMatch(rendered, /A végén ellenőrzi/);
+  assert.doesNotMatch(intakeSource, /A végén ellenőrzi/);
+  assert.match(rendered, />Asszisztens</);
+  assert.doesNotMatch(rendered, /Minta Webstúdió Kft\.<\/span>\s*<p>Üdvözlöm/);
+  assert.ok(rendered.indexOf("qdh-ai-chat-panel") < rendered.indexOf("qdh-manual-panel"));
+  assert.doesNotMatch(rendered, /qdh-intake-form|Kért szolgáltatás|Projekt részletei/);
+  assert.match(productCss, /\.qdh-ai-chat-panel \{[\s\S]*border-bottom-right-radius: 0;/);
+  assert.match(productCss, /\.qdh-manual-panel \{[\s\S]*margin-top: -1px;/);
 });
 
 test("QDH frontend stays request-review only and avoids generic dashboard/widget dependencies", () => {
@@ -770,6 +877,41 @@ test("QDH AI intake assistant asks for missing information instead of creating p
     assert.doesNotMatch(response.json.assistant.reply, /staff review|request-only|qdh_ai_intake|AI-assisted|Hiányos/i);
     assert.equal(response.json.request, null);
     assert.equal(createCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("QDH AI intake assistant aligns deterministic follow-up wording to webstudio context", async () => {
+  const server = await startServer(createApiApp({
+    getQuoteDeskHuSetup: async () => ({
+      ownerUserId: "owner-1",
+      businessName: "Web Műhely Kft.",
+      websiteUrl: "https://webmuhely.hu",
+      serviceType: "weboldal készítés és online marketing",
+      serviceArea: "Budapest és online",
+      handlingPreference: "staff_review",
+      ownerContactEmail: "owner@example.hu",
+      servicesOffered: ["Weboldal készítés", "Webshop fejlesztés", "Online marketing"],
+      setupStatus: "ready_for_review",
+    }),
+  }));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildCompleteQdhAiPayload({
+        message: "Szeretnék weboldalt készíttetni.",
+      })),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.readyToSubmit, false);
+    assert.ok(response.json.missingFields.includes("project_details"));
+    assert.match(response.json.assistant.reply, /cél|meglévő anyagok|fontos funkciók|határidő/i);
+    assert.doesNotMatch(response.json.assistant.reply, /tető|takarítás|garázskapu|staff review|request-only|qdh_ai_intake/i);
+    assert.equal(response.json.request, null);
   } finally {
     await server.close();
   }

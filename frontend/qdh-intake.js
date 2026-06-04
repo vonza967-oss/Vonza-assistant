@@ -11,6 +11,163 @@
     customer_contact: "email vagy telefon",
   };
 
+  const CATEGORY_COPY = Object.freeze({
+    web_creative: {
+      categoryLabel: "web / marketing / kreatív stúdió",
+      placeholder: "pl. Weboldalt szeretnék készíttetni egy budapesti vállalkozásnak. Fontos a gyors indulás, és szeretném tudni, milyen információkra lesz szükség az ajánlathoz.",
+      opening: "Üdvözlöm, írja le röviden a webes vagy marketing feladatot, és összeszedem, milyen információkra lesz szükség {businessName} számára.",
+      hint: "Weboldal, webshop, kampány vagy arculati munka esetén a cél, határidő, meglévő anyagok és fontos funkciók segítenek gyorsabban válaszolni.",
+      manualDetailsPlaceholder: "Írja le a célt, meglévő weboldalt vagy anyagokat, fontos funkciókat, határidőt és minden lényeges elvárást.",
+      missingInfo: {
+        requested_service: "milyen webes vagy marketing feladatról van szó",
+        project_details: "cél, meglévő anyagok, fontos funkciók vagy határidő",
+      },
+    },
+    cleaning: {
+      categoryLabel: "takarítás",
+      placeholder: "pl. Nagytakarításra szeretnék ajánlatot kérni Budapesten. Egy 70 m²-es lakásról van szó, lehetőleg jövő héten.",
+      opening: "Üdvözlöm, írja le röviden, milyen takarításra van szüksége, hol és mikor lenne aktuális. Összeszedem a fontos részleteket {businessName} számára.",
+      hint: "A helyszín, alapterület, helyiségek típusa, kért takarítás és ideális időpont segít gyorsabban pontosítani.",
+      manualDetailsPlaceholder: "Írja le az alapterületet, helyiségeket, kért takarítást, hozzáférést, időpontot és minden fontos körülményt.",
+      missingInfo: {
+        requested_service: "milyen takarításra van szükség",
+        project_details: "alapterület, helyiségek, állapot vagy időpont",
+      },
+    },
+    garage_doors: {
+      categoryLabel: "garázskapuk / kapuk",
+      placeholder: "pl. Garázskapu beépítésre kérek ajánlatot családi házhoz. Kérem, jelezzék, milyen adatok kellenek a pontos egyeztetéshez.",
+      opening: "Üdvözlöm, írja le röviden a kapuval vagy garázskapuval kapcsolatos feladatot. Összeszedem, milyen adatokra lesz szüksége {businessName} számára.",
+      hint: "Kapu vagy garázskapu esetén a típus, méret, helyszín, meglévő szerkezet és sürgősség segít gyorsabban egyeztetni.",
+      manualDetailsPlaceholder: "Írja le a kapu típusát, méretét, meglévő szerkezetet, helyszínt, határidőt és minden fontos körülményt.",
+      missingInfo: {
+        requested_service: "beépítésről, cseréről, javításról vagy automatizálásról van-e szó",
+        project_details: "kaputípus, méret, meglévő szerkezet vagy helyszíni körülmény",
+      },
+    },
+    construction_home: {
+      categoryLabel: "építés / felújítás / otthoni szolgáltatás",
+      placeholder: "pl. Felújításra vagy javításra szeretnék ajánlatot kérni Budapesten. Röviden leírom a munkát, a helyszínt és mikorra lenne aktuális.",
+      opening: "Üdvözlöm, írja le röviden az elvégzendő munkát, a helyszínt és az időzítést. Összeszedem a fontos részleteket {businessName} számára.",
+      hint: "A munka típusa, méret vagy mennyiség, helyszín, fotózható állapot és határidő segít gyorsabban pontosítani.",
+      manualDetailsPlaceholder: "Írja le a feladatot, méretet vagy mennyiséget, helyszínt, határidőt és minden fontos körülményt.",
+      missingInfo: {
+        requested_service: "milyen munkára kér ajánlatot",
+        project_details: "méret, mennyiség, állapot, anyag vagy határidő",
+      },
+    },
+    health_clinic: {
+      categoryLabel: "egészség / klinika",
+      placeholder: "pl. Konzultációra szeretnék ajánlatot vagy időpont-egyeztetést kérni. Leírom röviden, milyen szolgáltatás érdekel és mikor lenne megfelelő.",
+      opening: "Üdvözlöm, írja le röviden, melyik szolgáltatás érdekli és mikor lenne aktuális. Összeszedem a szükséges egyeztetési adatokat {businessName} számára.",
+      hint: "A kért szolgáltatás, preferált időpont, helyszín és elérhetőség segít gyorsabban visszajelezni.",
+      manualDetailsPlaceholder: "Írja le a kért szolgáltatást, preferált időpontot, helyszínt és minden fontos egyeztetési körülményt.",
+      missingInfo: {
+        requested_service: "melyik szolgáltatás érdekli",
+        project_details: "preferált időpont vagy fontos egyeztetési részlet",
+      },
+    },
+    beauty_wellness: {
+      categoryLabel: "szépség / wellness",
+      placeholder: "pl. Időpontot és ajánlatot szeretnék kérni egy kezelésre Budapesten. Leírom, milyen szolgáltatás érdekel és mikor lenne jó.",
+      opening: "Üdvözlöm, írja le röviden, melyik kezelés vagy szolgáltatás érdekli, és mikor lenne megfelelő. Összeszedem a részleteket {businessName} számára.",
+      hint: "A szolgáltatás típusa, preferált időpont, helyszín és esetleges kérések segítenek gyorsabban egyeztetni.",
+      manualDetailsPlaceholder: "Írja le a szolgáltatást, preferált időpontot, helyszínt és minden fontos kérést.",
+      missingInfo: {
+        requested_service: "melyik kezelés vagy szolgáltatás érdekli",
+        project_details: "preferált időpont, alkalom vagy külön kérés",
+      },
+    },
+    repair_service: {
+      categoryLabel: "javítás / szerviz",
+      placeholder: "pl. Javításra szeretnék ajánlatot kérni. Leírom, mi hibásodott meg, hol lenne a munka, és mennyire sürgős.",
+      opening: "Üdvözlöm, írja le röviden, mit kell javítani vagy szervizelni, hol lenne a munka és mennyire sürgős. Összeszedem a részleteket {businessName} számára.",
+      hint: "A hiba leírása, eszköz vagy típus, helyszín, sürgősség és fotózható állapot segít gyorsabban válaszolni.",
+      manualDetailsPlaceholder: "Írja le a hibát, típust vagy eszközt, helyszínt, sürgősséget és minden fontos körülményt.",
+      missingInfo: {
+        requested_service: "mit kell javítani vagy szervizelni",
+        project_details: "hiba, típus, állapot vagy sürgősség",
+      },
+    },
+    education_consulting: {
+      categoryLabel: "oktatás / tanácsadás",
+      placeholder: "pl. Tanácsadásra szeretnék ajánlatot kérni. Leírom a témát, a célomat, a helyszínt vagy online formát, és mikor lenne aktuális.",
+      opening: "Üdvözlöm, írja le röviden a témát, a célt és az időzítést. Összeszedem a fontos egyeztetési adatokat {businessName} számára.",
+      hint: "A téma, cél, résztvevők száma, online vagy személyes forma és időzítés segít gyorsabban pontosítani.",
+      manualDetailsPlaceholder: "Írja le a témát, célt, résztvevőket, formát, időzítést és minden fontos körülményt.",
+      missingInfo: {
+        requested_service: "milyen oktatásról vagy tanácsadásról van szó",
+        project_details: "téma, cél, résztvevők, forma vagy időzítés",
+      },
+    },
+    events_hospitality: {
+      categoryLabel: "rendezvény / vendéglátás",
+      placeholder: "pl. Rendezvényhez szeretnék ajánlatot kérni Budapesten. Leírom a létszámot, időpontot, helyszínt és milyen szolgáltatásra lenne szükség.",
+      opening: "Üdvözlöm, írja le röviden a rendezvényt, létszámot, helyszínt és időpontot. Összeszedem a fontos részleteket {businessName} számára.",
+      hint: "A létszám, dátum, helyszín, szolgáltatás típusa és külön kérések segítenek gyorsabban válaszolni.",
+      manualDetailsPlaceholder: "Írja le a létszámot, dátumot, helyszínt, kért szolgáltatást és minden fontos kérést.",
+      missingInfo: {
+        requested_service: "milyen rendezvényhez vagy vendéglátási szolgáltatáshoz kér ajánlatot",
+        project_details: "létszám, dátum, helyszín vagy külön kérés",
+      },
+    },
+    general: {
+      categoryLabel: "általános szolgáltatás",
+      placeholder: "pl. Szeretnék ajánlatot kérni a szolgáltatásra. Röviden leírom, mire van szükségem, hol lenne a munka, és mikor lenne aktuális.",
+      opening: "Üdvözlöm, miben segíthetünk ajánlatot adni? Írja le röviden, mire lenne szüksége, és összeszedem a fontos részleteket {businessName} számára.",
+      hint: "A kért szolgáltatás, helyszín, sürgősség és elérhetőség segít gyorsabban válaszolni.",
+      manualDetailsPlaceholder: "Írja le röviden a feladatot, mennyiséget, határidőt és minden fontos körülményt.",
+      missingInfo: {},
+    },
+  });
+
+  const CATEGORY_RULES = Object.freeze([
+    ["garage_doors", ["garazskapu", "garazs kapu", "kaputechnika", "kapunyito", "kapu automatika", "sorompo", "gate automation", "garage door"]],
+    ["web_creative", ["weboldal", "honlap", "webshop", "landing page", "online marketing", "marketing", "seo", "hirdetes", "arculat", "branding", "design", "grafika", "kreativ", "studio", "studió"]],
+    ["cleaning", ["takaritas", "nagytakaritas", "irodatakaritas", "lakas takaritas", "cleaning", "cleaner", "maid"]],
+    ["health_clinic", ["klinika", "rendelo", "egeszseg", "orvos", "fogaszat", "dental", "terapia", "gyogytorna", "medical", "clinic"]],
+    ["beauty_wellness", ["szepseg", "fodrasz", "kozmetika", "masszazs", "wellness", "spa", "manikur", "pedikur", "barber", "salon"]],
+    ["education_consulting", ["oktatas", "tanfolyam", "kepzes", "trening", "tanacsadas", "konzultacio", "consulting", "coach", "konyveles"]],
+    ["events_hospitality", ["rendezveny", "eskuvo", "catering", "vendeglatas", "etterem", "hotel", "szallas", "konferencia", "event"]],
+    ["construction_home", ["epites", "epitoipar", "felujitas", "burkolas", "festes", "tetofedes", "teto", "badogozas", "villanyszereles", "vizvezetek", "klima", "nyilaszaró", "nyilaszaro", "kert", "home service"]],
+    ["repair_service", ["javitas", "szerviz", "karbantartas", "szereles", "hiba", "repair", "service"]],
+  ]);
+
+  const FIXTURE_CONTEXTS = Object.freeze({
+    webstudio: {
+      business: {
+        businessName: "Minta Webstúdió Kft.",
+        serviceType: "weboldal készítés és online marketing",
+        serviceArea: "Budapest és online",
+        servicesOffered: ["Weboldal készítés", "Webshop fejlesztés", "Online marketing"],
+      },
+    },
+    cleaning: {
+      business: {
+        businessName: "Minta Takarítás Kft.",
+        serviceType: "lakás és iroda takarítás",
+        serviceArea: "Budapest és Pest megye",
+        servicesOffered: ["Nagytakarítás", "Irodatakarítás", "Költözés utáni takarítás"],
+      },
+    },
+    garage: {
+      business: {
+        businessName: "Minta Kaputechnika Kft.",
+        serviceType: "garázskapu és kaputechnika",
+        serviceArea: "Budapest és Pest megye",
+        servicesOffered: ["Garázskapu beépítés", "Kapu automatizálás", "Garázskapu javítás"],
+      },
+    },
+    generic: {
+      business: {
+        businessName: "Minta Szakértő Kft.",
+        serviceType: "egyedi üzleti megoldás",
+        serviceArea: "Magyarország",
+        servicesOffered: ["Egyedi egyeztetés", "Ügyféligény felmérés"],
+      },
+    },
+  });
+
   let context = null;
   let agentKey = "";
   let submitting = false;
@@ -30,14 +187,7 @@
   let safetyFlags = {};
   let messages = [];
 
-  const FIXTURE_CONTEXT = Object.freeze({
-    business: {
-      businessName: "Minta Szolgáltató Kft.",
-      serviceType: "helyi szolgáltatás",
-      serviceArea: "Budapest és Pest megye",
-      servicesOffered: ["Tetőjavítás", "Klíma karbantartás", "Weboldal átalakítás"],
-    },
-  });
+  const FIXTURE_CONTEXT = FIXTURE_CONTEXTS.webstudio;
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -50,6 +200,31 @@
 
   function trimText(value) {
     return String(value ?? "").trim();
+  }
+
+  function normalizeSearchText(value) {
+    return trimText(value)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  }
+
+  function escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function matchesCategoryKeyword(searchText, keyword) {
+    const normalizedKeyword = normalizeSearchText(keyword);
+
+    if (!normalizedKeyword) {
+      return false;
+    }
+
+    if (normalizedKeyword.length <= 4 && !/\s/.test(normalizedKeyword)) {
+      return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedKeyword)}($|[^a-z0-9])`).test(searchText);
+    }
+
+    return searchText.includes(normalizedKeyword);
   }
 
   function setStatus(message = "") {
@@ -127,6 +302,55 @@
     return context?.business || {};
   }
 
+  function getBusinessSearchText(business = {}) {
+    const services = Array.isArray(business.servicesOffered) ? business.servicesOffered : [];
+    return normalizeSearchText([
+      business.businessName,
+      business.serviceType,
+      business.serviceArea,
+      ...services,
+    ].join(" "));
+  }
+
+  function detectBusinessCategory(business = {}) {
+    const searchText = getBusinessSearchText(business);
+    const match = CATEGORY_RULES.find(([, keywords]) =>
+      keywords.some((keyword) => matchesCategoryKeyword(searchText, keyword))
+    );
+
+    return match?.[0] || "general";
+  }
+
+  function formatCopy(template = "", values = {}) {
+    return String(template).replace(/\{([a-zA-Z]+)\}/g, (_match, key) =>
+      trimText(values[key]) || ""
+    );
+  }
+
+  function buildBusinessIntakeCopy(business = {}) {
+    const businessName = trimText(business.businessName) || "a vállalkozás";
+    const serviceArea = trimText(business.serviceArea) || "";
+    const category = detectBusinessCategory(business);
+    const template = CATEGORY_COPY[category] || CATEGORY_COPY.general;
+
+    return {
+      category,
+      categoryLabel: template.categoryLabel,
+      placeholder: template.placeholder,
+      opening: formatCopy(template.opening, { businessName, serviceArea }),
+      hint: formatCopy(template.hint, { businessName, serviceArea }),
+      manualDetailsPlaceholder: template.manualDetailsPlaceholder,
+      missingInfo: {
+        ...CATEGORY_COPY.general.missingInfo,
+        ...(template.missingInfo || {}),
+      },
+    };
+  }
+
+  function getIntakeCopy() {
+    return buildBusinessIntakeCopy(getBusiness());
+  }
+
   function hasStartedIntake(nextFields = fields) {
     const normalized = normalizeFields(nextFields);
     return messages.some((message) => message.role === "user")
@@ -158,6 +382,12 @@
 
   function getNextMissingLabel(nextMissing = missingFields) {
     const firstMissing = Array.isArray(nextMissing) ? nextMissing[0] : "";
+    const categoryLabel = getIntakeCopy().missingInfo?.[firstMissing];
+
+    if (categoryLabel) {
+      return categoryLabel;
+    }
+
     return FIELD_LABELS[firstMissing] || "";
   }
 
@@ -173,10 +403,9 @@
   }
 
   function buildWelcomeMessage() {
-    const businessName = trimText(getBusiness().businessName) || "a vállalkozás";
     return {
       role: "assistant",
-      content: `Üdvözlöm, miben segíthetünk ajánlatot adni? Írja le röviden, mire lenne szüksége, és összeszedem a fontos részleteket ${businessName} számára.`,
+      content: getIntakeCopy().opening,
     };
   }
 
@@ -226,7 +455,7 @@
   }
 
   function renderMessages() {
-    const assistantName = trimText(getBusiness().businessName) || "Asszisztens";
+    const assistantName = "Asszisztens";
 
     return `
       <div class="qdh-ai-messages" data-qdh-ai-messages aria-label="Ajánlatkérési beszélgetés">
@@ -269,7 +498,7 @@
       },
       {
         label: "Továbbítás",
-        detail: readyToSubmit ? "Beküldhető" : "A végén ellenőrzi",
+        detail: readyToSubmit ? "Beküldhető" : "Elküldés előtt ellenőrzi",
         complete: readyToSubmit,
       },
     ];
@@ -293,14 +522,15 @@
   }
 
   function renderChatPanel() {
+    const intakeCopy = getIntakeCopy();
+
     return `
       <section class="qdh-ai-chat-panel" aria-label="Ajánlatkérési asszisztens">
         <div class="qdh-ai-surface-top">
           <div>
             <h2>Ajánlatkérés</h2>
-            <p>Írjon természetesen, akár egy üzenetben. Ha valami fontos hiányzik, egyesével kérdezünk rá.</p>
+            <p>${escapeHtml(intakeCopy.hint)}</p>
           </div>
-          <span>A pontos árat a vállalkozás erősíti meg.</span>
         </div>
         ${renderMessages()}
         <form class="qdh-ai-input" data-qdh-chat-form>
@@ -310,15 +540,12 @@
             name="message"
             rows="5"
             maxlength="2000"
-            placeholder="pl. Tetőjavításra kérek ajánlatot Budapesten. Beázik a tető a kémény mellett, ezen a héten lenne sürgős."
+            placeholder="${escapeHtml(intakeCopy.placeholder)}"
             ${assistantBusy || submitting ? "disabled" : ""}
           ></textarea>
           <div class="qdh-ai-input-actions">
             <button class="qdh-button qdh-button-primary" type="submit" ${assistantBusy || submitting ? "disabled" : ""}>
               Üzenet küldése
-            </button>
-            <button class="qdh-button" type="button" data-qdh-toggle-manual>
-              ${manualOpen ? "Részletek elrejtése" : "Részletek szerkesztése"}
             </button>
           </div>
         </form>
@@ -427,6 +654,7 @@
   function renderManualForm() {
     const business = getBusiness();
     const services = Array.isArray(business.servicesOffered) ? business.servicesOffered : [];
+    const intakeCopy = getIntakeCopy();
 
     return `
       <section class="qdh-manual-panel ${manualOpen ? "is-open" : ""}" aria-label="Részletek szerkesztése">
@@ -464,7 +692,7 @@
               </label>
               <label class="qdh-field qdh-field-wide">
                 Projekt részletei
-                <textarea name="project_details" placeholder="Írja le röviden a feladatot, mennyiséget, határidőt és minden fontos körülményt." required>${escapeHtml(fields.projectDetails)}</textarea>
+                <textarea name="project_details" placeholder="${escapeHtml(intakeCopy.manualDetailsPlaceholder)}" required>${escapeHtml(fields.projectDetails)}</textarea>
                 <small>Ne adjon meg jelszót, kulcsot, titkos belső adatot vagy vészhelyzeti bejelentést.</small>
               </label>
               <label class="qdh-field">
@@ -486,7 +714,7 @@
             </div>
             <div class="qdh-form-actions">
               <button class="qdh-button qdh-button-primary" type="submit">Ajánlatkérés továbbítása</button>
-              <span class="qdh-intake-form-note">A pontos árat a vállalkozás erősíti meg.</span>
+              <span class="qdh-intake-form-note">A beküldés után a vállalkozás külön jelzi a következő lépést.</span>
             </div>
           </form>
         ` : ""}
@@ -762,7 +990,12 @@
     agentKey = getAgentKeyFromUrl();
     if (window.VONZA_LOCAL_QDH_INTAKE_FIXTURE === true) {
       agentKey = agentKey || "local-qdh-fixture";
-      context = FIXTURE_CONTEXT;
+      const params = new URLSearchParams(window.location.search);
+      const fixtureKey = normalizeSearchText(params.get("fixture") || params.get("business") || "");
+      const externalFixtureContext = window.VONZA_LOCAL_QDH_INTAKE_FIXTURE_CONTEXT;
+      context = externalFixtureContext && typeof externalFixtureContext === "object"
+        ? externalFixtureContext
+        : FIXTURE_CONTEXTS[fixtureKey] || FIXTURE_CONTEXT;
       messages = [buildWelcomeMessage()];
       updateReadiness(getLocalMissing(fields));
       renderApp();

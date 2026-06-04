@@ -50,6 +50,70 @@ const REQUIRED_LABELS_HU = Object.freeze({
   customer_contact: "email vagy telefon",
 });
 
+const BUSINESS_CATEGORY_LABELS = Object.freeze({
+  web_creative: "web / marketing / creative studio",
+  cleaning: "cleaning / takarítás",
+  garage_doors: "garage doors / gates",
+  construction_home: "construction / renovation / home services",
+  health_clinic: "health / clinic",
+  beauty_wellness: "beauty / wellness",
+  repair_service: "repair / service",
+  education_consulting: "education / consulting",
+  events_hospitality: "events / hospitality",
+  general: "general services",
+});
+
+const BUSINESS_CATEGORY_RULES = Object.freeze([
+  ["garage_doors", ["garazskapu", "garazs kapu", "kaputechnika", "kapunyito", "kapu automatika", "sorompo", "gate automation", "garage door"]],
+  ["web_creative", ["weboldal", "honlap", "webshop", "landing page", "online marketing", "marketing", "seo", "hirdetes", "arculat", "branding", "design", "grafika", "kreativ", "studio", "studió"]],
+  ["cleaning", ["takaritas", "nagytakaritas", "irodatakaritas", "lakas takaritas", "cleaning", "cleaner", "maid"]],
+  ["health_clinic", ["klinika", "rendelo", "egeszseg", "orvos", "fogaszat", "dental", "terapia", "gyogytorna", "medical", "clinic"]],
+  ["beauty_wellness", ["szepseg", "fodrasz", "kozmetika", "masszazs", "wellness", "spa", "manikur", "pedikur", "barber", "salon"]],
+  ["education_consulting", ["oktatas", "tanfolyam", "kepzes", "trening", "tanacsadas", "konzultacio", "consulting", "coach", "konyveles"]],
+  ["events_hospitality", ["rendezveny", "eskuvo", "catering", "vendeglatas", "etterem", "hotel", "szallas", "konferencia", "event"]],
+  ["construction_home", ["epites", "epitoipar", "felujitas", "burkolas", "festes", "tetofedes", "teto", "badogozas", "villanyszereles", "vizvezetek", "klima", "nyilaszaró", "nyilaszaro", "kert", "home service"]],
+  ["repair_service", ["javitas", "szerviz", "karbantartas", "szereles", "hiba", "repair", "service"]],
+]);
+
+const CATEGORY_MISSING_WORDING_HU = Object.freeze({
+  web_creative: {
+    requested_service: "milyen webes vagy marketing feladatról van szó",
+    project_details: "a cél, meglévő anyagok, fontos funkciók vagy határidő",
+  },
+  cleaning: {
+    requested_service: "milyen takarításra van szükség",
+    project_details: "az alapterület, helyiségek, állapot vagy ideális időpont",
+  },
+  garage_doors: {
+    requested_service: "beépítésről, cseréről, javításról vagy automatizálásról van-e szó",
+    project_details: "a kaputípus, méret, meglévő szerkezet vagy helyszíni körülmény",
+  },
+  construction_home: {
+    requested_service: "milyen munkára kér ajánlatot",
+    project_details: "a méret, mennyiség, állapot, anyag vagy határidő",
+  },
+  health_clinic: {
+    requested_service: "melyik szolgáltatás érdekli",
+    project_details: "a preferált időpont vagy fontos egyeztetési részlet",
+  },
+  beauty_wellness: {
+    requested_service: "melyik kezelés vagy szolgáltatás érdekli",
+    project_details: "a preferált időpont, alkalom vagy külön kérés",
+  },
+  repair_service: {
+    requested_service: "mit kell javítani vagy szervizelni",
+    project_details: "a hiba, típus, állapot vagy sürgősség",
+  },
+  education_consulting: {
+    requested_service: "milyen oktatásról vagy tanácsadásról van szó",
+    project_details: "a téma, cél, résztvevők, forma vagy időzítés",
+  },
+  events_hospitality: {
+    requested_service: "milyen rendezvényhez vagy vendéglátási szolgáltatáshoz kér ajánlatot",
+    project_details: "a létszám, dátum, helyszín vagy külön kérés",
+  },
+});
+
 const KNOWN_CITY_PATTERN =
   /\b(Budapest(?:\s?(?:[IVXLCDM]+\.?|\d{1,2}\.?\s?ker(?:ület)?|belváros|Buda|Pest))?|Debrecen|Szeged|Miskolc|Pécs|Győr|Nyíregyháza|Kecskemét|Székesfehérvár|Szombathely|Szolnok|Tatabánya|Kaposvár|Békéscsaba|Érd|Veszprém|Sopron|Eger|Nagykanizsa|Dunaújváros|Hódmezővásárhely|Dunakeszi|Szigetszentmiklós|Cegléd|Baja|Vác|Gödöllő|Pest megye)\b/i;
 const PRICE_AMOUNT_PATTERN =
@@ -65,6 +129,48 @@ const CONTACT_ADJACENT_NAME_PATTERN =
 
 function limitText(value, maxLength) {
   return cleanText(String(value ?? "")).slice(0, maxLength);
+}
+
+function normalizeSearchText(value = "") {
+  return cleanText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function escapeRegExp(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function matchesBusinessCategoryKeyword(searchText = "", keyword = "") {
+  const normalizedKeyword = normalizeSearchText(keyword);
+
+  if (!normalizedKeyword) {
+    return false;
+  }
+
+  if (normalizedKeyword.length <= 4 && !/\s/.test(normalizedKeyword)) {
+    return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedKeyword)}($|[^a-z0-9])`).test(searchText);
+  }
+
+  return searchText.includes(normalizedKeyword);
+}
+
+function resolveQuoteDeskHuBusinessCategory(businessContext = {}) {
+  const services = Array.isArray(businessContext.servicesOffered)
+    ? businessContext.servicesOffered
+    : [];
+  const searchText = normalizeSearchText([
+    businessContext.businessName,
+    businessContext.serviceType,
+    businessContext.serviceArea,
+    ...services,
+  ].join(" "));
+  const match = BUSINESS_CATEGORY_RULES.find(([, keywords]) =>
+    keywords.some((keyword) => matchesBusinessCategoryKeyword(searchText, keyword))
+  );
+
+  return match?.[0] || "general";
 }
 
 function readAliasedField(source = {}, aliases = []) {
@@ -345,32 +451,39 @@ function hasUnsafeAssistantOutput(text = "") {
     || PRICE_AMOUNT_PATTERN.test(normalized);
 }
 
-function formatNextMissingField(missingFields = []) {
+function formatNextMissingField(missingFields = [], businessContext = {}) {
   const firstMissing = Array.isArray(missingFields) ? missingFields[0] : "";
+  const category = resolveQuoteDeskHuBusinessCategory(businessContext);
+  const categoryWording = CATEGORY_MISSING_WORDING_HU[category]?.[firstMissing];
+
+  if (categoryWording) {
+    return categoryWording;
+  }
+
   return REQUIRED_LABELS_HU[firstMissing] || "";
 }
 
-function buildFallbackReply({ fields, missingFields, safetyFlags, confirmSubmit = false } = {}) {
+function buildFallbackReply({ fields, missingFields, safetyFlags, confirmSubmit = false, businessContext = {} } = {}) {
   if (safetyFlags.emergency) {
     return "Ez vészhelyzetnek hangzik. Kérlek, közvetlenül hívd a megfelelő sürgősségi számot vagy szakembert. Ezen az oldalon ajánlatkérést tudunk továbbítani, pontos árat nem adunk.";
   }
 
   if (safetyFlags.promptInjection) {
-    const missing = formatNextMissingField(missingFields);
+    const missing = formatNextMissingField(missingFields, businessContext);
     return missing
       ? `Az ajánlatkérés adataiban tudok segíteni. Kérlek, add meg még ezt: ${missing}.`
       : "Az ajánlatkérés adatai megvannak. Ellenőrizd az összegyűjtött részleteket, majd továbbíthatod a vállalkozásnak.";
   }
 
   if (safetyFlags.pricingGuaranteeRequested) {
-    const missing = formatNextMissingField(missingFields);
+    const missing = formatNextMissingField(missingFields, businessContext);
     return missing
       ? `Pontos vagy garantált árat itt nem adok. A vállalkozás munkatársa a részletek alapján erősíti meg az ajánlatot. Kérlek, add meg még ezt: ${missing}.`
       : "Pontos vagy garantált árat itt nem adok. Minden szükséges adat megvan az ajánlatkérés rögzítéséhez; a végső ajánlatot a vállalkozás munkatársa erősíti meg.";
   }
 
   if (missingFields.length) {
-    return `Rögzítettem, amit megadtál. Kérlek, add meg még ezt: ${formatNextMissingField(missingFields)}.`;
+    return `Rögzítettem, amit megadtál. Kérlek, add meg még ezt: ${formatNextMissingField(missingFields, businessContext)}.`;
   }
 
   if (safetyFlags.outOfScope) {
@@ -410,6 +523,7 @@ function buildModelPrompt({ businessContext = {}, fields = {}, message = "", con
   const services = Array.isArray(businessContext.servicesOffered)
     ? businessContext.servicesOffered.map(cleanText).filter(Boolean).slice(0, 12)
     : [];
+  const category = resolveQuoteDeskHuBusinessCategory(businessContext);
 
   return [
     "You are the Quote Desk HU customer intake assistant for Hungarian quote requests.",
@@ -422,11 +536,13 @@ function buildModelPrompt({ businessContext = {}, fields = {}, message = "", con
     "If required fields are missing, ask exactly one concise professional clarification question for the next most important missing detail.",
     "The customer-facing assistant_reply_hu must not expose internal labels such as staff review, request-only, QDH, qdh_ai_intake, package, policy, metadata, model, prompt, or system.",
     "Use natural Hungarian business wording: the business will review details and confirm exact pricing.",
+    "Use the broad service category only to make follow-up questions relevant to the business. Do not expose setup metadata or internal category logic.",
     "JSON shape: {\"assistant_reply_hu\":\"...\",\"extracted_fields\":{\"requested_service\":\"\",\"project_details\":\"\",\"location_text\":\"\",\"urgency\":\"\",\"budget_text\":\"\",\"customer_name\":\"\",\"customer_email\":\"\",\"customer_phone\":\"\"},\"missing_fields\":[],\"ready_to_submit\":false,\"staff_summary_hu\":\"...\",\"safety_flags\":{\"prompt_injection\":false,\"secret_like_input\":false,\"emergency\":false,\"pricing_guarantee_requested\":false,\"out_of_scope\":false}}",
     `Business name: ${cleanText(businessContext.businessName) || "ismeretlen"}`,
     `Service type: ${cleanText(businessContext.serviceType) || "ismeretlen"}`,
     `Service area: ${cleanText(businessContext.serviceArea) || "ismeretlen"}`,
     `Known services: ${services.join(", ") || "nincs megadva"}`,
+    `Broad service category: ${BUSINESS_CATEGORY_LABELS[category] || BUSINESS_CATEGORY_LABELS.general}`,
     `Current captured fields: ${JSON.stringify(normalizeFields(fields))}`,
     `Recent conversation: ${JSON.stringify(conversation.slice(-6))}`,
     `Latest visitor message: ${cleanText(message)}`,
@@ -495,6 +611,7 @@ function normalizeAssistantResult({
   safetyFlags,
   modelResult,
   confirmSubmit,
+  businessContext,
 } = {}) {
   const modelFields = modelResult ? normalizeModelFields(modelResult.extracted_fields || {}) : {};
   const mergedFields = mergeFields(fields, modelFields);
@@ -511,6 +628,7 @@ function normalizeAssistantResult({
     missingFields,
     safetyFlags: mergedFlags,
     confirmSubmit,
+    businessContext,
   });
   const assistantReply = modelReply && !hasUnsafeAssistantOutput(modelReply)
     ? modelReply
@@ -552,6 +670,7 @@ export function buildDeterministicQuoteDeskHuIntakeAnalysis(options = {}) {
     safetyFlags,
     modelResult: null,
     confirmSubmit: options.confirmSubmit === true,
+    businessContext: options.businessContext || {},
   });
 }
 
@@ -593,6 +712,7 @@ export async function analyzeQuoteDeskHuIntakeTurn(options = {}) {
       safetyFlags: baseAnalysis.safetyFlags,
       modelResult,
       confirmSubmit: options.confirmSubmit === true,
+      businessContext,
     });
   } catch {
     return baseAnalysis;

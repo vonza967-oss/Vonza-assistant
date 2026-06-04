@@ -735,7 +735,7 @@ a {
 
 #qdh-intake-root {
   display: grid;
-  gap: 12px;
+  gap: 0;
 }
 
 .qdh-intake-loading,
@@ -881,6 +881,11 @@ a {
   overflow: hidden;
 }
 
+.qdh-ai-chat-panel {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
 .qdh-ai-surface-top {
   display: flex;
   align-items: flex-start;
@@ -903,16 +908,6 @@ a {
   color: #53615a;
   font-size: 0.88rem;
   line-height: 1.45;
-}
-
-.qdh-ai-surface-top > span {
-  flex: 0 0 auto;
-  max-width: 260px;
-  color: #607068;
-  font-size: 0.78rem;
-  font-weight: 720;
-  line-height: 1.35;
-  text-align: right;
 }
 
 .qdh-ai-messages {
@@ -1218,9 +1213,12 @@ a {
 }
 
 .qdh-manual-panel {
-  margin-top: 12px;
-  background: rgba(255, 254, 251, 0.76);
-  box-shadow: none;
+  margin-top: -1px;
+  border-top-color: #e2e5dd;
+  border-top-right-radius: 0;
+  border-top-left-radius: 0;
+  background: rgba(255, 254, 251, 0.7);
+  box-shadow: 0 22px 54px rgba(27, 41, 34, 0.07);
 }
 
 .qdh-manual-summary {
@@ -1230,7 +1228,7 @@ a {
   align-items: center;
   width: 100%;
   min-width: 0;
-  padding: 16px 18px;
+  padding: 14px 18px;
   border: 0;
   background: transparent;
   color: #1d2d26;
@@ -1239,7 +1237,7 @@ a {
 
 .qdh-manual-summary:hover,
 .qdh-manual-summary:focus-visible {
-  background: rgba(239, 248, 243, 0.72);
+  background: rgba(239, 248, 243, 0.62);
   outline: none;
 }
 
