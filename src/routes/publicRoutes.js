@@ -93,6 +93,32 @@ function renderDashboardDocument(rootDir, { localFixture = false } = {}) {
   return html;
 }
 
+function renderQuoteDeskHuDashboardDocument(rootDir, { localFixture = false } = {}) {
+  const version = getDashboardAssetVersion();
+  let html = readFileSync(path.join(rootDir, "frontend", "qdh-dashboard.html"), "utf8");
+
+  [
+    "/qdh-dashboard.css",
+    "/public-config.js",
+    "/supabase-auth.js",
+    "/qdh-dashboard.js",
+  ].forEach((assetPath) => {
+    html = html.replaceAll(
+      `${assetPath}"`,
+      `${assetPath}?v=${version}"`
+    );
+  });
+
+  if (localFixture) {
+    html = html.replace(
+      '<script src="/qdh-dashboard.js',
+      '<script>window.VONZA_LOCAL_QDH_FIXTURE = true;</script>\n  <script src="/qdh-dashboard.js'
+    );
+  }
+
+  return html;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -1514,6 +1540,21 @@ export function createPublicRouter({ rootDir }) {
   router.get(["/dashboard", "/dashboard/front-desk", "/dashboard/widget", "/dashboard/voice"], (_req, res) => {
     setDashboardNoStoreHeaders(res);
     res.type("html").send(renderDashboardDocument(rootDir));
+  });
+
+  router.get(["/qdh/dashboard", "/quote-desk-hu/dashboard"], (_req, res) => {
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderQuoteDeskHuDashboardDocument(rootDir));
+  });
+
+  router.get(["/qdh/dashboard-fixture", "/quote-desk-hu/dashboard-fixture"], (req, res) => {
+    if (!isLocalDashboardFixtureAllowed(req)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderQuoteDeskHuDashboardDocument(rootDir, { localFixture: true }));
   });
 
   router.get("/dashboard-v2-fixture", (req, res) => {

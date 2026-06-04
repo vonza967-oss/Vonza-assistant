@@ -8,6 +8,7 @@ import { createChatRouter } from "../routes/chatRoutes.js";
 import { createIntegrationRouter } from "../routes/integrationRoutes.js";
 import { createPhoneRouter } from "../routes/phoneRoutes.js";
 import { createPublicRouter } from "../routes/publicRoutes.js";
+import { createQuoteDeskHuRouter } from "../routes/quoteDeskHuRoutes.js";
 import { createVoiceRouter } from "../routes/voiceRoutes.js";
 import { applyRouteCors } from "../utils/corsPolicy.js";
 import { applySecurityHeaders } from "../utils/securityHeaders.js";
@@ -49,6 +50,8 @@ export function createApp({ rootDir }) {
         || normalizedPath.endsWith("/frontend/dashboardAnalytics.js")
         || normalizedPath.endsWith("/frontend/dashboardToday.js")
         || normalizedPath.endsWith("/frontend/i18n/dashboardI18n.js")
+        || normalizedPath.endsWith("/frontend/qdh-dashboard.css")
+        || normalizedPath.endsWith("/frontend/qdh-dashboard.js")
         || normalizedPath.endsWith("/frontend/settings/SettingsShell.js")
         || normalizedPath.endsWith("/frontend/settings/settings.css")
       ) {
@@ -61,6 +64,7 @@ export function createApp({ rootDir }) {
   app.use(createPublicRouter({ rootDir }));
   app.use(createBookingRouter());
   app.use(createIntegrationRouter());
+  app.use(createQuoteDeskHuRouter());
   app.use(createAgentRouter());
   app.use(createChatRouter());
   app.use(createPhoneRouter());

@@ -2,7 +2,7 @@
 
 Plan date: 2026-06-04
 
-This document defines the request-only foundation for the Hungarian Quote Desk. It prepares Vonza to collect and review quote requests without launching the final public product page and without turning chat into a pricing engine.
+This document defines the request-only foundation for the Hungarian Quote Desk. It prepares Vonza to collect and review quote requests without turning chat into a pricing engine. The Phase 1 QDH product shell is documented separately in `docs/architecture/qdh-product-plan.md`.
 
 ## Contract Terms
 
@@ -91,6 +91,8 @@ Authenticated owner routes:
 
 - `GET /agents/quote-requests`
 - `POST /agents/quote-requests/status`
+- `GET /quote-desk-hu/requests`
+- `POST /quote-desk-hu/requests/status`
 
 The list route supports optional `agentId`/`agent_id`, `status`, and `limit`. Agent filters are owner-access checked before listing.
 
@@ -98,7 +100,7 @@ The status route delegates transitions and proof requirements to the service. It
 
 There is no public create route and no authenticated owner create route. Public chat creation exists only through the feature-flagged chat producer described below.
 
-The dashboard renders a compact "Quote requests" review card near operational request queues. It uses request/review wording and exposes only safe review statuses:
+The generic Vonza dashboard renders a compact "Quote requests" review card near operational request queues. It uses request/review wording and exposes only safe review statuses:
 
 - `needs_info`
 - `needs_staff_review`
@@ -107,6 +109,25 @@ The dashboard renders a compact "Quote requests" review card near operational re
 - `archived`
 
 It does not expose casual "quote sent" or "accepted" buttons.
+
+Quote Desk HU Phase 1 adds a separate QDH dashboard at `/qdh/dashboard` and `/quote-desk-hu/dashboard`. It reuses the same quote request service, but it is a distinct product experience with Hungarian-first copy, QDH navigation, a pipeline workspace, request detail panel, setup/readiness checklist, and QDH-specific authenticated API wrappers. It is not a generic `/dashboard` card and it is not presented as AI Front Desk.
+
+The QDH wrapper displays newly received requests plus current request-review statuses:
+
+- `request_received`
+- `needs_info`
+- `needs_staff_review`
+- `declined`
+- `archived`
+
+It allows staff status actions only for current request-review statuses:
+
+- `needs_info`
+- `needs_staff_review`
+- `declined`
+- `archived`
+
+It does not expose `quoted_externally` or `accepted_externally` as Phase 1 dashboard actions.
 
 ## Feature Flag
 
@@ -149,6 +170,8 @@ Do not apply remote migrations as part of this task unless a separate deploy/smo
 Required migration for this layer:
 
 - `supabase/migrations/20260604120000_agent_quote_requests.sql`
+
+QDH Phase 1 adds no new migration. It depends on the quote request table above.
 
 Current adjacent engine migrations that must already be deployed before relying on their surfaces:
 
