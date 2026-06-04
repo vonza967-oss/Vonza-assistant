@@ -8129,6 +8129,152 @@ function buildBookingRequestReviewCard(bookingRequests = createEmptyActionQueue(
   `;
 }
 
+const QUOTE_REQUEST_REVIEW_STATUSES = Object.freeze([
+  "needs_info",
+  "needs_staff_review",
+  "declined",
+  "expired",
+  "archived",
+]);
+
+function getQuoteRequestStatusLabel(status = "") {
+  const normalized = trimText(status).toLowerCase();
+  const labels = {
+    request_received: "Request received",
+    needs_info: "Needs info",
+    needs_staff_review: "Needs staff review",
+    quoted_externally: "Quoted externally",
+    declined: "Declined",
+    accepted_externally: "Accepted externally",
+    cancel_requested: "Cancel requested",
+    expired: "Expired",
+    archived: "Archived",
+  };
+
+  return labels[normalized] || "Request received";
+}
+
+function getQuoteRequestBadgeTone(status = "") {
+  const normalized = trimText(status).toLowerCase();
+
+  if (normalized === "quoted_externally" || normalized === "accepted_externally") return "Ready";
+  if (normalized === "declined" || normalized === "expired" || normalized === "archived") return "Limited";
+  return "Pending";
+}
+
+function buildQuoteRequestStatusButton(record, status) {
+  const isCurrent = trimText(record.status).toLowerCase() === status;
+  return `
+    <button
+      class="glass-mini-button"
+      type="button"
+      data-quote-request-status-action
+      data-request-id="${escapeHtml(record.id || "")}"
+      data-next-status="${escapeHtml(status)}"
+      ${isCurrent ? "disabled" : ""}
+    >${escapeHtml(getQuoteRequestStatusLabel(status))}</button>
+  `;
+}
+
+function getQuoteRequestContactSummary(record = {}) {
+  return [
+    record.customerName || record.customer_name,
+    record.customerEmail || record.customer_email,
+    record.customerPhone || record.customer_phone,
+  ].map(trimText).filter(Boolean).join(" · ") || "Customer contact not captured";
+}
+
+function getQuoteRequestRelationSummary(record = {}) {
+  const agentLabel = trimText(record.agentName || record.agentLabel || record.agent_name || record.agent_label);
+  const businessLabel = trimText(record.businessName || record.businessLabel || record.business_name || record.business_label);
+  const parts = [
+    agentLabel ? `Agent: ${agentLabel}` : (trimText(record.agentId || record.agent_id) ? "Agent linked" : ""),
+    businessLabel ? `Business: ${businessLabel}` : (trimText(record.businessId || record.business_id) ? "Business linked" : ""),
+  ].filter(Boolean);
+
+  return parts.join(" · ");
+}
+
+function buildQuoteRequestDetailRows(record = {}) {
+  return [
+    ["Project details", record.projectDetails || record.project_details],
+    ["Location", record.locationText || record.location_text],
+    ["Urgency", record.urgency],
+    ["Budget noted", record.budgetText || record.budget_text],
+    ["Language", record.language],
+  ].flatMap(([label, value]) => {
+    const text = trimText(value);
+    return text ? [`<p>${escapeHtml(label)}: ${escapeHtml(text)}</p>`] : [];
+  }).join("");
+}
+
+function buildQuoteRequestReviewCard(quoteRequests = createEmptyActionQueue().quoteRequests) {
+  const records = Array.isArray(quoteRequests.records) ? quoteRequests.records : [];
+  const summary = {
+    ...createEmptyActionQueue().quoteRequests.summary,
+    ...(quoteRequests.summary || {}),
+  };
+  const summaryCopy = records.length
+    ? `${summary.requestReceived || 0} request received · ${summary.needsStaffReview || 0} needs staff review · ${summary.needsInfo || 0} needs info`
+    : "There are no quote requests awaiting review.";
+  const recordMarkup = records.slice(0, 6).map((record) => {
+    const status = trimText(record.status).toLowerCase() || "request_received";
+    const service = trimText(record.requestedService || record.requested_service) || "Service not specified";
+    const statusReasonId = `quote-request-reason-${escapeHtml(record.id || "")}`;
+    const notesId = `quote-request-notes-${escapeHtml(record.id || "")}`;
+    const statusReason = trimText(record.statusReason || record.status_reason);
+    const staffNotes = trimText(record.staffNotes || record.staff_notes);
+    const relationSummary = getQuoteRequestRelationSummary(record);
+    const proofRequired = status === "quoted_externally" || status === "accepted_externally";
+
+    return `
+      <article class="insight-item insight-item--teal" data-quote-request-record data-request-id="${escapeHtml(record.id || "")}">
+        <span aria-hidden="true">${buildV2Icon(status === "quoted_externally" ? "check" : "sparkle")}</span>
+        <div>
+          <div class="workspace-record-row-top">
+            <strong>${escapeHtml(service)}</strong>
+            <span class="${getBadgeClass(getQuoteRequestBadgeTone(status))}">${escapeHtml(getQuoteRequestStatusLabel(status))}</span>
+          </div>
+          ${buildQuoteRequestDetailRows(record)}
+          <p>${escapeHtml(getQuoteRequestContactSummary(record))}</p>
+          ${statusReason ? `<p>Status reason: ${escapeHtml(statusReason)}</p>` : ""}
+          ${staffNotes ? `<p>Staff notes: ${escapeHtml(staffNotes)}</p>` : ""}
+          ${relationSummary ? `<p>${escapeHtml(relationSummary)}</p>` : ""}
+          ${record.createdAt || record.created_at ? `<p class="workspace-record-row-meta">${escapeHtml(formatSeenAt(record.createdAt || record.created_at))}</p>` : ""}
+          ${proofRequired ? `<p class="workspace-record-row-meta">Proof-required status. Only trusted staff/operator/customer proof should mark final quote outcomes.</p>` : ""}
+          <label class="field" for="${statusReasonId}">
+            <span>Status reason</span>
+            <textarea id="${statusReasonId}" data-quote-request-status-reason data-request-id="${escapeHtml(record.id || "")}" rows="2">${escapeHtml(statusReason)}</textarea>
+          </label>
+          <label class="field" for="${notesId}">
+            <span>Staff review notes</span>
+            <textarea id="${notesId}" data-quote-request-staff-notes data-request-id="${escapeHtml(record.id || "")}" rows="2">${escapeHtml(staffNotes)}</textarea>
+          </label>
+          <div class="workspace-badge-row">
+            ${QUOTE_REQUEST_REVIEW_STATUSES.map((nextStatus) => buildQuoteRequestStatusButton(record, nextStatus)).join("")}
+          </div>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  return `
+    <section class="glass-home-bottom">
+      <article class="glass-card" data-quote-request-review>
+        <div class="glass-card-header">
+          <div>
+            <h2 class="glass-card-title">Quote requests</h2>
+            <p class="glass-card-copy">${escapeHtml(summaryCopy)} Review requests only; exact prices and final quotes must be confirmed by staff.</p>
+          </div>
+        </div>
+        <div class="insight-list">
+          ${records.length ? recordMarkup : `<div class="glass-empty-state">There are no quote requests awaiting review.</div>`}
+        </div>
+      </article>
+    </section>
+  `;
+}
+
 function formatStaffRequestFieldLabel(key = "") {
   return trimText(key)
     .replace(/[_-]+/g, " ")
@@ -8989,6 +9135,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
           </section>
           ${buildStaffRequestQueueCard(actionQueue.staffRequests)}
           ${buildBookingRequestReviewCard(actionQueue.bookingRequests)}
+          ${buildQuoteRequestReviewCard(actionQueue.quoteRequests)}
           ${legacyHomeContractMarkup}
         </div>
       </div>
@@ -10226,6 +10373,20 @@ function createEmptyActionQueue() {
         offered: 0,
         declined: 0,
         expired: 0,
+      },
+      persistenceAvailable: true,
+    },
+    quoteRequests: {
+      records: [],
+      summary: {
+        total: 0,
+        requestReceived: 0,
+        needsInfo: 0,
+        needsStaffReview: 0,
+        quotedExternally: 0,
+        declined: 0,
+        expired: 0,
+        archived: 0,
       },
       persistenceAvailable: true,
     },
@@ -14228,6 +14389,37 @@ async function loadBookingRequests() {
   return normalizeBookingRequestQueue(data);
 }
 
+function normalizeQuoteRequestQueue(data = null) {
+  const empty = createEmptyActionQueue().quoteRequests;
+  const records = Array.isArray(data?.records) ? data.records : [];
+  const countByStatus = (status) => records.filter((record) => trimText(record.status).toLowerCase() === status).length;
+
+  return {
+    ...empty,
+    records,
+    summary: {
+      ...empty.summary,
+      total: records.length,
+      requestReceived: countByStatus("request_received"),
+      needsInfo: countByStatus("needs_info"),
+      needsStaffReview: countByStatus("needs_staff_review"),
+      quotedExternally: countByStatus("quoted_externally"),
+      declined: countByStatus("declined"),
+      expired: countByStatus("expired"),
+      archived: countByStatus("archived"),
+    },
+    persistenceAvailable: data?.persistenceAvailable !== false,
+  };
+}
+
+async function loadQuoteRequests() {
+  const url = new URL("/agents/quote-requests", window.location.origin);
+  url.searchParams.set("client_id", getClientId());
+  url.searchParams.set("limit", "25");
+  const data = await fetchJson(url.toString());
+  return normalizeQuoteRequestQueue(data);
+}
+
 function createEmptyConnectedAppsState(overrides = {}) {
   return {
     capabilities: [],
@@ -14688,11 +14880,12 @@ function coalesceWorkspaceLoadState({
   actionQueueResult,
   actionRequestsResult,
   bookingRequestsResult,
+  quoteRequestsResult,
   ownerAnalyticsResult,
   operatorResult,
   connectedAppsResult,
 } = {}) {
-  const partialErrors = [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult]
+  const partialErrors = [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, quoteRequestsResult, ownerAnalyticsResult, operatorResult]
     .filter((result) => result?.status === "rejected")
     .map((result) => trimText(result.reason?.message || result.reason))
     .filter(Boolean);
@@ -14705,6 +14898,9 @@ function coalesceWorkspaceLoadState({
   const bookingRequests = bookingRequestsResult?.status === "fulfilled"
     ? bookingRequestsResult.value
     : createEmptyActionQueue().bookingRequests;
+  const quoteRequests = quoteRequestsResult?.status === "fulfilled"
+    ? quoteRequestsResult.value
+    : createEmptyActionQueue().quoteRequests;
 
   return {
     messages: messagesResult?.status === "fulfilled" ? messagesResult.value : [],
@@ -14713,6 +14909,7 @@ function coalesceWorkspaceLoadState({
       ...actionQueue,
       staffRequests,
       bookingRequests,
+      quoteRequests,
       ownerAnalyticsDashboard: ownerAnalyticsResult?.status === "fulfilled"
         ? ownerAnalyticsResult.value
         : actionQueue.ownerAnalyticsDashboard || null,
@@ -14731,7 +14928,7 @@ function coalesceWorkspaceLoadState({
       : createEmptyConnectedAppsState({
         error: "Connected apps could not load right now.",
       }),
-    hasPartialFailure: [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult].some((result) => result?.status === "rejected"),
+    hasPartialFailure: [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, quoteRequestsResult, ownerAnalyticsResult, operatorResult].some((result) => result?.status === "rejected"),
     partialErrors,
   };
 }
@@ -14773,13 +14970,14 @@ async function refreshAgentInstallState(agentId, options = {}) {
 
   setDashboardBackgroundRefreshing(true, options.activeAction || "workspace-refresh");
   try {
-    const [agentResult, messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult, connectedAppsResult] = await Promise.allSettled([
+    const [agentResult, messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, quoteRequestsResult, ownerAnalyticsResult, operatorResult, connectedAppsResult] = await Promise.allSettled([
       loadAgentInstallSnapshot(agentId),
       loadAgentMessages(agentId),
       loadFrontDeskTraining(agentId),
       loadActionQueue(agentId),
       loadStaffActionRequests(agentId),
       loadBookingRequests(),
+      loadQuoteRequests(),
       loadOwnerAnalyticsDashboard(agentId),
       loadOperatorWorkspaceSafe(agentId, {
         forceSync: options.forceSync === true,
@@ -14798,6 +14996,9 @@ async function refreshAgentInstallState(agentId, options = {}) {
         bookingRequests: bookingRequestsResult.status === "fulfilled"
           ? bookingRequestsResult.value
           : createEmptyActionQueue().bookingRequests,
+        quoteRequests: quoteRequestsResult.status === "fulfilled"
+          ? quoteRequestsResult.value
+          : createEmptyActionQueue().quoteRequests,
         ownerAnalyticsDashboard: ownerAnalyticsResult.status === "fulfilled"
           ? ownerAnalyticsResult.value
           : actionQueueResult.value?.ownerAnalyticsDashboard || null,
@@ -14806,6 +15007,7 @@ async function refreshAgentInstallState(agentId, options = {}) {
         ...createEmptyActionQueue(),
         staffRequests: actionRequestsResult.status === "fulfilled" ? actionRequestsResult.value : createEmptyActionQueue().staffRequests,
         bookingRequests: bookingRequestsResult.status === "fulfilled" ? bookingRequestsResult.value : createEmptyActionQueue().bookingRequests,
+        quoteRequests: quoteRequestsResult.status === "fulfilled" ? quoteRequestsResult.value : createEmptyActionQueue().quoteRequests,
         ownerAnalyticsDashboard: ownerAnalyticsResult.status === "fulfilled" ? ownerAnalyticsResult.value : null,
       };
     const operatorWorkspace = operatorResult.status === "fulfilled"
@@ -14845,7 +15047,7 @@ async function refreshAgentInstallState(agentId, options = {}) {
     };
     renderWorkspaceFromState();
 
-    if (messagesResult.status === "rejected" || trainingResult.status === "rejected" || actionQueueResult.status === "rejected" || actionRequestsResult.status === "rejected" || bookingRequestsResult.status === "rejected" || ownerAnalyticsResult.status === "rejected" || operatorResult.status === "rejected") {
+    if (messagesResult.status === "rejected" || trainingResult.status === "rejected" || actionQueueResult.status === "rejected" || actionRequestsResult.status === "rejected" || bookingRequestsResult.status === "rejected" || quoteRequestsResult.status === "rejected" || ownerAnalyticsResult.status === "rejected" || operatorResult.status === "rejected") {
       setStatus("Some workspace panels could not refresh, but the dashboard stayed open.");
     }
   } finally {
@@ -16668,6 +16870,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const actionQueueToggleButtons = document.querySelectorAll("[data-action-queue-toggle]");
   const staffRequestStatusButtons = document.querySelectorAll("[data-staff-request-status-action]");
   const bookingRequestStatusButtons = document.querySelectorAll("[data-booking-request-status-action]");
+  const quoteRequestStatusButtons = document.querySelectorAll("[data-quote-request-status-action]");
   const followUpForms = document.querySelectorAll("[data-follow-up-form]");
   const followUpStatusButtons = document.querySelectorAll("[data-follow-up-status-action]");
   const knowledgeFixForms = document.querySelectorAll("[data-knowledge-fix-form]");
@@ -18745,6 +18948,40 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   });
 
+  quoteRequestStatusButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const requestId = button.dataset.requestId || "";
+      const nextStatus = button.dataset.nextStatus || "";
+      const reasonInput = document.querySelector(`[data-quote-request-status-reason][data-request-id="${requestId}"]`);
+      const notesInput = document.querySelector(`[data-quote-request-staff-notes][data-request-id="${requestId}"]`);
+      const previousDisabled = button.disabled;
+
+      button.disabled = true;
+      setStatus("Updating quote request...");
+
+      try {
+        await fetchJson("/agents/quote-requests/status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            request_id: requestId,
+            status: nextStatus,
+            status_reason: trimText(reasonInput?.value || ""),
+            staff_notes: trimText(notesInput?.value || ""),
+          }),
+        });
+        setStatus(`Quote request marked ${getQuoteRequestStatusLabel(nextStatus).toLowerCase()}.`);
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "quote-request-status" });
+      } catch (error) {
+        setStatus(error.message || "We couldn't update that quote request.");
+      } finally {
+        button.disabled = previousDisabled;
+      }
+    });
+  });
+
   followUpForms.forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -20530,12 +20767,13 @@ async function boot(options = {}) {
       setStatus(t("language.settingsError"));
     }
 
-    const [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult, activationWizardResult, connectedAppsResult] = await Promise.allSettled([
+    const [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, quoteRequestsResult, ownerAnalyticsResult, operatorResult, activationWizardResult, connectedAppsResult] = await Promise.allSettled([
       loadAgentMessages(agent.id),
       loadFrontDeskTraining(agent.id),
       loadActionQueue(agent.id),
       loadStaffActionRequests(agent.id),
       loadBookingRequests(),
+      loadQuoteRequests(),
       loadOwnerAnalyticsDashboard(agent.id),
       loadOperatorWorkspaceSafe(agent.id),
       loadActivationWizard(agent.id),
@@ -20555,6 +20793,7 @@ async function boot(options = {}) {
       actionQueueResult,
       actionRequestsResult,
       bookingRequestsResult,
+      quoteRequestsResult,
       ownerAnalyticsResult,
       operatorResult,
       connectedAppsResult,

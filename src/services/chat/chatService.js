@@ -56,6 +56,11 @@ import {
   buildChatBookingRequestDraft,
   isBookingRequestsFromChatEnabled,
 } from "../bookings/bookingRequestDraftService.js";
+import { createAgentQuoteRequest } from "../quotes/agentQuoteRequestService.js";
+import {
+  buildChatQuoteRequestDraft,
+  isQuoteRequestsFromChatEnabled,
+} from "../quotes/quoteRequestDraftService.js";
 import {
   buildEffectiveUserText,
   cleanText,
@@ -375,6 +380,7 @@ async function buildChatResponse({
   webCallSessionId = "",
   actionRequest = null,
   bookingRequest = null,
+  quoteRequest = null,
 }) {
   const entries = [
     storeUserMessage ? { role: "user", content: userMessage, createdAt: userMessageCreatedAt || undefined } : null,
@@ -412,6 +418,7 @@ async function buildChatResponse({
     visitorIdentity: buildPublicVisitorIdentity(visitorIdentity),
     ...(actionRequest ? { actionRequest } : {}),
     ...(bookingRequest ? { bookingRequest } : {}),
+    ...(quoteRequest ? { quoteRequest } : {}),
     ...(speech ? { speech } : {}),
   };
 }
@@ -441,6 +448,8 @@ function resolveChatServiceDependencies(deps = {}) {
     createAgentActionRequest: deps.createAgentActionRequest || createAgentActionRequest,
     buildChatBookingRequestDraft: deps.buildChatBookingRequestDraft || buildChatBookingRequestDraft,
     createAgentBookingRequest: deps.createAgentBookingRequest || createAgentBookingRequest,
+    buildChatQuoteRequestDraft: deps.buildChatQuoteRequestDraft || buildChatQuoteRequestDraft,
+    createAgentQuoteRequest: deps.createAgentQuoteRequest || createAgentQuoteRequest,
     hotelConciergeActionRequestsEnabled:
       Object.prototype.hasOwnProperty.call(deps, "hotelConciergeActionRequestsEnabled")
         ? deps.hotelConciergeActionRequestsEnabled
@@ -449,6 +458,10 @@ function resolveChatServiceDependencies(deps = {}) {
       Object.prototype.hasOwnProperty.call(deps, "bookingRequestsFromChatEnabled")
         ? deps.bookingRequestsFromChatEnabled
         : isBookingRequestsFromChatEnabled,
+    quoteRequestsFromChatEnabled:
+      Object.prototype.hasOwnProperty.call(deps, "quoteRequestsFromChatEnabled")
+        ? deps.quoteRequestsFromChatEnabled
+        : isQuoteRequestsFromChatEnabled,
     onEvidencePack: typeof deps.onEvidencePack === "function" ? deps.onEvidencePack : null,
     onAnswerContract: typeof deps.onAnswerContract === "function" ? deps.onAnswerContract : null,
     answerContractEnabled: deps.answerContractMode === true
@@ -468,6 +481,12 @@ function resolveBookingRequestsFromChatFlag(value) {
   const resolvedValue = typeof value === "function" ? value() : value;
 
   return resolvedValue === true || isBookingRequestsFromChatEnabled(resolvedValue);
+}
+
+function resolveQuoteRequestsFromChatFlag(value) {
+  const resolvedValue = typeof value === "function" ? value() : value;
+
+  return resolvedValue === true || isQuoteRequestsFromChatEnabled(resolvedValue);
 }
 
 function hasBlockingHotelConciergeActionSafetyNote(draft = {}) {
@@ -570,6 +589,62 @@ function buildBookingRequestCreateFailedReply(draft, language) {
   return requestedTimeText
     ? `I couldn’t send this request to staff from this chat (${phrase}). I cannot confirm ${requestedTimeText} from here; no time is confirmed in this chat. Please contact the business directly.`
     : `I couldn’t send this request to staff from this chat (${phrase}). Please contact the business directly; no time is confirmed in this chat.`;
+}
+
+function quoteRequestIntentPhrase(intentType, language) {
+  const hungarian = language === "Hungarian";
+  const phrases = {
+    quote_intent: hungarian ? "ajánlatkérés" : "quote request",
+    pricing_question: hungarian ? "árazási kérdés" : "pricing question",
+    quote_mutation_request: hungarian ? "ajánlatmódosítási kérés" : "quote change request",
+  };
+
+  return phrases[intentType] || (hungarian ? "ajánlatkérés" : "quote request");
+}
+
+function quoteRequestMissingDetailsPrompt(draft = {}, language) {
+  const missing = [];
+
+  if (!cleanText(draft.requestedService)) {
+    missing.push(language === "Hungarian" ? "milyen szolgáltatásról vagy munkáról van szó" : "what service or work this is for");
+  }
+
+  if (!cleanText(draft.locationText)) {
+    missing.push(language === "Hungarian" ? "a helyszínt" : "the location");
+  }
+
+  if (!cleanText(draft.customerEmail) && !cleanText(draft.customerPhone)) {
+    missing.push(language === "Hungarian" ? "egy biztonságos elérhetőséget" : "a safe contact detail");
+  }
+
+  if (!missing.length) {
+    return "";
+  }
+
+  return language === "Hungarian"
+    ? ` Ha szeretnéd, add meg még: ${missing.join(", ")}.`
+    : ` If you want, share: ${missing.join(", ")}.`;
+}
+
+function buildQuoteRequestCreatedReply(draft, language) {
+  const phrase = quoteRequestIntentPhrase(draft.intentType, language);
+  const missingDetailsPrompt = quoteRequestMissingDetailsPrompt(draft, language);
+
+  if (language === "Hungarian") {
+    return `Megkaptuk az ajánlatkérésedet, és elküldtük a munkatársaknak átnézésre (${phrase}). A pontos árat vagy végleges ajánlatot a vállalkozásnak kell megerősítenie. Ebben a chatben nincs végleges ajánlat vagy ár megerősítve.${missingDetailsPrompt}`;
+  }
+
+  return `I received your quote request and sent it to staff for review (${phrase}). The exact price or final quote must be confirmed by the business. No final quote or price is confirmed in this chat.${missingDetailsPrompt}`;
+}
+
+function buildQuoteRequestCreateFailedReply(draft, language) {
+  const phrase = quoteRequestIntentPhrase(draft.intentType, language);
+
+  if (language === "Hungarian") {
+    return `Nem tudtam elküldeni ezt az ajánlatkérést a munkatársaknak ebből a chatből (${phrase}). Kérlek, keresd közvetlenül a vállalkozást. Pontos árat vagy végleges ajánlatot csak a vállalkozás erősíthet meg.`;
+  }
+
+  return `I couldn’t send this quote request to staff from this chat (${phrase}). Please contact the business directly. Only the business can confirm an exact price or final quote.`;
 }
 
 export function normalizeChatRequestBody(body) {
@@ -1021,6 +1096,87 @@ async function maybeBuildChatBookingRequestResponse({
   }
 }
 
+async function maybeBuildChatQuoteRequestResponse({
+  supabase,
+  request,
+  publicContext,
+  services,
+}) {
+  const {
+    agent,
+    business,
+    widgetConfig,
+    webCallSession,
+  } = publicContext;
+
+  if (!resolveQuoteRequestsFromChatFlag(services.quoteRequestsFromChatEnabled)) {
+    return null;
+  }
+
+  const draft = services.buildChatQuoteRequestDraft({
+    message: request.message,
+    visitorIdentity: request.visitorIdentity,
+    ownerUserId: agent.ownerUserId,
+    agentId: agent.id,
+    businessId: business.id,
+    sessionKey: request.sessionKey,
+    displayMode: request.displayMode,
+    conversationSource: request.conversationSource,
+  });
+
+  if (!draft?.matched) {
+    return null;
+  }
+
+  const userMessageCreatedAt = new Date().toISOString();
+
+  try {
+    const createdRequest = await services.createAgentQuoteRequest(supabase, draft.createPayload);
+
+    return services.buildChatResponse({
+      supabase,
+      agent,
+      businessId: business.id,
+      widgetConfig,
+      userMessage: request.message,
+      reply: buildQuoteRequestCreatedReply(draft, request.language),
+      sessionKey: request.sessionKey,
+      visitorIdentity: request.visitorIdentity,
+      userMessageCreatedAt,
+      storeMessages: services.storeMessages,
+      displayMode: request.displayMode,
+      conversationSource: request.conversationSource,
+      webCallSessionId: webCallSession?.id || "",
+      quoteRequest: {
+        created: true,
+        status: createdRequest?.status || draft.status,
+      },
+    });
+  } catch (error) {
+    console.warn("[quote request] Chat request creation failed; returning safe fallback.", {
+      agentId: agent.id,
+      intentType: draft.intentType,
+      message: error?.message || "Unknown quote request error",
+    });
+
+    return services.buildChatResponse({
+      supabase,
+      agent,
+      businessId: business.id,
+      widgetConfig,
+      userMessage: request.message,
+      reply: buildQuoteRequestCreateFailedReply(draft, request.language),
+      sessionKey: request.sessionKey,
+      visitorIdentity: request.visitorIdentity,
+      userMessageCreatedAt,
+      storeMessages: services.storeMessages,
+      displayMode: request.displayMode,
+      conversationSource: request.conversationSource,
+      webCallSessionId: webCallSession?.id || "",
+    });
+  }
+}
+
 async function assembleChatKnowledge({
   supabase,
   openai,
@@ -1439,6 +1595,17 @@ export async function handleChatRequest({
 
   if (hotelConciergeActionResponse) {
     return hotelConciergeActionResponse;
+  }
+
+  const quoteRequestResponse = await maybeBuildChatQuoteRequestResponse({
+    supabase,
+    request,
+    publicContext,
+    services,
+  });
+
+  if (quoteRequestResponse) {
+    return quoteRequestResponse;
   }
 
   const bookingRequestResponse = await maybeBuildChatBookingRequestResponse({

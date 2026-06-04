@@ -185,6 +185,10 @@ import {
   updateAgentBookingRequestStatus,
 } from "../services/bookings/agentBookingRequestService.js";
 import {
+  listAgentQuoteRequests,
+  updateAgentQuoteRequestStatus,
+} from "../services/quotes/agentQuoteRequestService.js";
+import {
   listConnectedAppCapabilities,
 } from "../services/integrations/connectedAppRegistry.js";
 import {
@@ -743,6 +747,10 @@ export function createAgentRouter(deps = {}) {
     deps.listAgentBookingRequests || listAgentBookingRequests;
   const updateAgentBookingRequestStatusImpl =
     deps.updateAgentBookingRequestStatus || updateAgentBookingRequestStatus;
+  const listAgentQuoteRequestsImpl =
+    deps.listAgentQuoteRequests || listAgentQuoteRequests;
+  const updateAgentQuoteRequestStatusImpl =
+    deps.updateAgentQuoteRequestStatus || updateAgentQuoteRequestStatus;
   const listConnectedAppCapabilitiesImpl =
     deps.listConnectedAppCapabilities || listConnectedAppCapabilities;
   const createConnectedAppConnectionImpl =
@@ -830,6 +838,12 @@ export function createAgentRouter(deps = {}) {
   }
 
   function buildBookingRequestRouteError(message, statusCode = 400) {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+  }
+
+  function buildQuoteRequestRouteError(message, statusCode = 400) {
     const error = new Error(message);
     error.statusCode = statusCode;
     return error;
@@ -2489,6 +2503,88 @@ export function createAgentRouter(deps = {}) {
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/agents/booking-requests/status" });
+    }
+  });
+
+  router.get("/agents/quote-requests", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = cleanText(req.query.agent_id || req.query.agentId);
+
+      if (agentId) {
+        await requireActiveAgentAccessImpl(supabase, {
+          agentId,
+          ownerUserId: user.id,
+          clientId: req.query.client_id || req.query.clientId,
+        });
+      }
+
+      const records = await listAgentQuoteRequestsImpl(supabase, {
+        ownerUserId: user.id,
+        agentId,
+        status: req.query.status,
+        limit: req.query.limit,
+      });
+
+      res.json({
+        ok: true,
+        records,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/quote-requests" });
+    }
+  });
+
+  router.post("/agents/quote-requests/status", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const requestId = readBodyField(req.body, "request_id", "requestId");
+      const status = readBodyField(req.body, "status");
+
+      if (!cleanText(requestId)) {
+        throw buildQuoteRequestRouteError("request_id is required", 400);
+      }
+
+      if (!cleanText(status)) {
+        throw buildQuoteRequestRouteError("status is required", 400);
+      }
+
+      const updateOptions = {
+        ownerUserId: user.id,
+        requestId,
+        status,
+      };
+      const statusReason = readBodyField(req.body, "status_reason", "statusReason");
+      const staffNotes = readBodyField(req.body, "staff_notes", "staffNotes");
+      const evidence = readBodyField(req.body, "evidence");
+      const metadata = readBodyField(req.body, "metadata");
+
+      if (statusReason !== undefined) {
+        updateOptions.statusReason = statusReason;
+      }
+
+      if (staffNotes !== undefined) {
+        updateOptions.staffNotes = staffNotes;
+      }
+
+      if (evidence !== undefined) {
+        updateOptions.evidence = evidence;
+      }
+
+      if (metadata !== undefined) {
+        updateOptions.metadata = metadata;
+      }
+
+      const request = await updateAgentQuoteRequestStatusImpl(supabase, updateOptions);
+
+      res.json({
+        ok: true,
+        request,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/quote-requests/status" });
     }
   });
 

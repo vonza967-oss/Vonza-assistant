@@ -415,6 +415,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds tightly constrained WhatsApp-only inbound text context for staff-approved AI reply drafts; feature-flagged off by default and no automatic replies, provider sends, public chat, widget, embed, Meta OAuth, or Twilio WhatsApp behavior.",
   }),
+  Object.freeze({
+    id: "agent_quote_requests",
+    version: "20260604120000",
+    name: "agent_quote_requests",
+    file: "supabase/migrations/20260604120000_agent_quote_requests.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds owner-scoped request-only quote intake persistence with owner-select RLS, service/internal writes, and no automatic pricing, final quote, provider, widget, or embed behavior.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

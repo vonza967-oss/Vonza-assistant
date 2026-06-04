@@ -202,3 +202,31 @@ test("generic booking request schema is present in canonical schema and migratio
     assert.doesNotMatch(sql, /on public\.agent_booking_requests\s+for update/i);
   });
 });
+
+test("generic quote request schema is present in canonical schema and migration", () => {
+  const schemaSql = readFileSync("db/schema.sql", "utf8");
+  const migrationSql = readFileSync(
+    "supabase/migrations/20260604120000_agent_quote_requests.sql",
+    "utf8"
+  );
+
+  [schemaSql, migrationSql].forEach((sql) => {
+    assert.match(sql, /create table if not exists public\.agent_quote_requests/i);
+    assert.match(sql, /owner_user_id uuid not null/i);
+    assert.match(sql, /agent_id uuid not null references public\.agents \(id\) on delete cascade/i);
+    assert.match(sql, /requested_service text/i);
+    assert.match(sql, /project_details text/i);
+    assert.match(sql, /location_text text/i);
+    assert.match(sql, /budget_text text/i);
+    assert.match(sql, /language text/i);
+    assert.match(sql, /status text not null default 'request_received'/i);
+    assert.match(sql, /quoted_externally/i);
+    assert.match(sql, /accepted_externally/i);
+    assert.match(sql, /evidence jsonb not null default '\{\}'::jsonb/i);
+    assert.match(sql, /metadata jsonb not null default '\{\}'::jsonb/i);
+    assert.match(sql, /agent_quote_requests_owner_agent_idempotency_idx/i);
+    assert.match(sql, /Owners can read quote requests/i);
+    assert.doesNotMatch(sql, /on public\.agent_quote_requests\s+for insert/i);
+    assert.doesNotMatch(sql, /on public\.agent_quote_requests\s+for update/i);
+  });
+});

@@ -10,6 +10,7 @@ export const LEAD_CAPTURE_TABLE = "agent_contact_leads";
 export const CONVERSION_OUTCOME_TABLE = "agent_conversion_outcomes";
 export const BOOKING_INTEGRATION_TABLE = "agent_booking_integrations";
 export const AGENT_BOOKING_REQUEST_TABLE = "agent_booking_requests";
+export const AGENT_QUOTE_REQUEST_TABLE = "agent_quote_requests";
 export const CONNECTED_APP_CONNECTION_TABLE = "connected_app_connections";
 export const AGENT_CONNECTED_APP_ENABLEMENT_TABLE = "agent_connected_app_enablements";
 export const CONNECTED_APP_INBOUND_EVENT_TABLE = "connected_app_inbound_events";

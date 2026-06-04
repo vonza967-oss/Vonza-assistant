@@ -52,6 +52,10 @@ const agentBookingRequestsMigrationSql = readFileSync(
   "supabase/migrations/20260602135522_agent_booking_requests.sql",
   "utf8"
 );
+const agentQuoteRequestsMigrationSql = readFileSync(
+  "supabase/migrations/20260604120000_agent_quote_requests.sql",
+  "utf8"
+);
 const connectedAppConnectionFoundationMigrationSql = readFileSync(
   "supabase/migrations/20260602150000_connected_app_connection_foundation.sql",
   "utf8"
@@ -72,7 +76,7 @@ const whatsappAiReplyDraftContextMigrationSql = readFileSync(
   "supabase/migrations/20260603143000_whatsapp_ai_reply_draft_context.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}\n${connectedAppInboundEventsMigrationSql}\n${connectedAppInboundThreadsMigrationSql}\n${connectedAppOutboundMessagesMigrationSql}\n${whatsappAiReplyDraftContextMigrationSql}`;
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}\n${connectedAppInboundEventsMigrationSql}\n${connectedAppInboundThreadsMigrationSql}\n${connectedAppOutboundMessagesMigrationSql}\n${whatsappAiReplyDraftContextMigrationSql}\n${agentQuoteRequestsMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]
@@ -121,6 +125,7 @@ test("critical owner and customer tables have authenticated owner-scoped policie
     "agent_action_queue_statuses",
     "agent_action_requests",
     "agent_booking_requests",
+    "agent_quote_requests",
     "agent_follow_up_workflows",
     "agent_contact_leads",
     "agent_knowledge_fix_workflows",

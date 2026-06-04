@@ -248,6 +248,16 @@ function createDashboardHarness({
       });
     }
 
+    if (resolvedUrl.pathname === "/agents/quote-requests") {
+      return buildResponse({
+        status: 200,
+        body: {
+          ok: true,
+          records: [],
+        },
+      });
+    }
+
     if (resolvedUrl.pathname === "/agents/front-desk/training-items") {
       return buildResponse({
         status: 200,
@@ -1424,6 +1434,78 @@ test("dashboard fetches booking requests from the owner API", async () => {
   assert.equal(bookingFetch.options.method || "GET", "GET");
 });
 
+test("dashboard renders authenticated quote request review surface", async () => {
+  const harness = createDashboardHarness({
+    agents: [createActiveAgent()],
+    customFetch: ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/quote-requests") {
+        return buildResponse({
+          status: 200,
+          body: {
+            ok: true,
+            records: [
+              {
+                id: "quote-request-1",
+                requestedService: "Roof repair",
+                projectDetails: "Leak near chimney",
+                locationText: "Budapest",
+                urgency: "this week",
+                budgetText: "not sure",
+                customerName: "Ada Lovelace",
+                customerEmail: "ada@example.com",
+                language: "Hungarian",
+                status: "needs_staff_review",
+                statusReason: "Quote request received from Front Desk.",
+                staffNotes: "Review before sending any price.",
+                createdAt: "2026-06-01T10:00:00.000Z",
+                agentLabel: "Main Front Desk",
+                businessLabel: "Example Studio",
+              },
+            ],
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+
+  assert.match(html, /Quote requests/);
+  assert.match(html, /Roof repair/);
+  assert.match(html, /Leak near chimney/);
+  assert.match(html, /Budapest/);
+  assert.match(html, /this week/);
+  assert.match(html, /not sure/);
+  assert.match(html, /Ada Lovelace/);
+  assert.match(html, /ada@example\.com/);
+  assert.match(html, /Hungarian/);
+  assert.match(html, /Needs staff review/);
+  assert.match(html, /Quote request received from Front Desk/);
+  assert.match(html, /Review before sending any price/);
+  assert.match(html, /Review requests only; exact prices and final quotes must be confirmed by staff/);
+  assert.match(html, /data-quote-request-status-action/);
+  assert.match(html, />Needs info</);
+  assert.match(html, />Declined</);
+  assert.match(html, />Expired</);
+  assert.match(html, />Archived</);
+  assert.doesNotMatch(html, /Quote sent|Accepted quote|data-next-status="quoted_externally"|data-next-status="accepted_externally"/i);
+});
+
+test("dashboard fetches quote requests from the owner API", async () => {
+  const harness = createDashboardHarness({
+    agents: [createActiveAgent()],
+  });
+  await harness.settle();
+
+  const quoteFetch = harness.fetchCalls.find((call) => call.pathname === "/agents/quote-requests");
+
+  assert.ok(quoteFetch);
+  assert.equal(quoteFetch.options.method || "GET", "GET");
+});
+
 test("dashboard booking request status updates post to the owner API only", () => {
   const bundle = readFileSync(dashboardBundlePath, "utf8");
 
@@ -1442,12 +1524,38 @@ test("dashboard booking request status updates post to the owner API only", () =
   assert.doesNotMatch(reviewStatusBlock, /confirmed_externally|cancelled_externally|Confirm booking|Cancel booking/i);
 });
 
+test("dashboard quote request status updates post to the owner API only", () => {
+  const bundle = readFileSync(dashboardBundlePath, "utf8");
+
+  assert.match(bundle, /loadQuoteRequests[\s\S]*\/agents\/quote-requests/);
+  assert.match(bundle, /data-quote-request-status-action/);
+  assert.match(bundle, /fetchJson\("\/agents\/quote-requests\/status"/);
+  assert.match(bundle, /status_reason/);
+  assert.match(bundle, /staff_notes/);
+  assert.doesNotMatch(bundle, /fetchJson\("\/agents\/quote-requests",\s*\{[\s\S]{0,200}method:\s*"POST"/);
+  const reviewStatusBlock = bundle.match(/const QUOTE_REQUEST_REVIEW_STATUSES = Object\.freeze\(\[[\s\S]*?\]\);/)?.[0] || "";
+  assert.match(reviewStatusBlock, /needs_info/);
+  assert.match(reviewStatusBlock, /needs_staff_review/);
+  assert.match(reviewStatusBlock, /declined/);
+  assert.match(reviewStatusBlock, /expired/);
+  assert.match(reviewStatusBlock, /archived/);
+  assert.doesNotMatch(reviewStatusBlock, /quoted_externally|accepted_externally|Quote sent|Accepted quote/i);
+});
+
 test("dashboard booking request surface keeps package keys and public creation hidden", () => {
   const bundle = readFileSync(dashboardBundlePath, "utf8");
 
   assert.doesNotMatch(bundle, /name="package_key"|name="packageKey"|data-package-key|data-agent-package/i);
   assert.doesNotMatch(bundle, /createAgentBookingRequest|agentBookingRequestService/);
   assert.doesNotMatch(bundle, /fetchJson\("\/booking-requests/);
+});
+
+test("dashboard quote request surface keeps package keys and public creation hidden", () => {
+  const bundle = readFileSync(dashboardBundlePath, "utf8");
+
+  assert.doesNotMatch(bundle, /name="package_key"|name="packageKey"|data-package-key|data-agent-package/i);
+  assert.doesNotMatch(bundle, /createAgentQuoteRequest|agentQuoteRequestService/);
+  assert.doesNotMatch(bundle, /fetchJson\("\/quote-requests/);
 });
 
 test("Customers labels separate guest review from reachable follow-up", async () => {

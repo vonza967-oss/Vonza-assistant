@@ -206,7 +206,15 @@ function enablement(overrides = {}) {
   };
 }
 
+function recentInboundTimestamp() {
+  return new Date(Date.now() - 60 * 60 * 1000).toISOString();
+}
+
 function inboundThread(overrides = {}) {
+  const lastInboundAt = overrides.last_event_at
+    || overrides.metadata?.lastInboundMessageAt
+    || recentInboundTimestamp();
+
   return {
     id: "thread-1",
     owner_user_id: "owner-1",
@@ -219,7 +227,7 @@ function inboundThread(overrides = {}) {
     external_thread_label: "WhatsApp conversation",
     status: "open",
     last_event_id: "event-1",
-    last_event_at: "2026-06-03T10:00:00.000Z",
+    last_event_at: lastInboundAt,
     last_event_type: "message",
     last_message_type: "text",
     unread_count: 1,
@@ -229,15 +237,20 @@ function inboundThread(overrides = {}) {
       noAutomaticWhatsAppMessages: true,
       noAiReplies: true,
       noAiHandoff: true,
-      lastInboundMessageAt: "2026-06-03T10:00:00.000Z",
+      lastInboundMessageAt: lastInboundAt,
     },
-    created_at: "2026-06-03T10:00:00.000Z",
-    updated_at: "2026-06-03T10:00:00.000Z",
+    created_at: lastInboundAt,
+    updated_at: lastInboundAt,
     ...overrides,
   };
 }
 
 function inboundEvent(overrides = {}) {
+  const receivedAt = overrides.received_at
+    || overrides.receivedAt
+    || overrides.provider_timestamp
+    || recentInboundTimestamp();
+
   return {
     id: "event-1",
     owner_user_id: "owner-1",
@@ -249,7 +262,7 @@ function inboundEvent(overrides = {}) {
     provider_event_id: null,
     provider_event_type: "message",
     provider_message_id: "wamid.safe",
-    provider_timestamp: "2026-06-03T10:00:00.000Z",
+    provider_timestamp: receivedAt,
     source_account_id: "123456789012345",
     source_channel_id: "987654321098765",
     event_direction: "inbound",
@@ -274,8 +287,8 @@ function inboundEvent(overrides = {}) {
     metadata: {
       signatureStatus: "not_configured",
     },
-    received_at: "2026-06-03T10:00:00.000Z",
-    created_at: "2026-06-03T10:00:00.000Z",
+    received_at: receivedAt,
+    created_at: receivedAt,
     ...overrides,
   };
 }
@@ -1059,7 +1072,7 @@ test("connected app manual reply route sends owner-scoped staff text through inj
       env: {
         WHATSAPP_MANUAL_REPLIES_ENABLED: "true",
       },
-      now: "2026-06-03T10:30:00.000Z",
+      now: () => new Date().toISOString(),
       getWhatsAppDestinationRef: async () => ({ destinationRef: "+15551234567" }),
       getWhatsAppCloudApiCredentials: async () => ({ accessToken: "server-token" }),
       whatsappProviderClient: async (request) => {

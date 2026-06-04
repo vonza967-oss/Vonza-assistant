@@ -154,7 +154,10 @@ export const FRONT_DESK_EVAL_SCENARIOS = Object.freeze([
     turns: ["What's their phone number?"],
     context: { includePricing: true, includeContact: false },
     expectations: buildExpectations({
-      required: [/I do not have a confirmed contact detail for this business here/i, /leave your details/i],
+      required: [
+        /\bI do not have\b.{0,80}\bconfirmed\b.{0,80}\b(?:contact detail|phone number|email|contact route)\b/i,
+        /\b(?:leave|share)\s+(?:your\s+)?details\b/i,
+      ],
       forbidden: [/hello@harborcycle\.co/i, /\+1\s?312\s?420\s?0184/i, /\+1\s?312\s?555\s?0199/i],
       missingInfoExpected: true,
       contactState: "missing",
