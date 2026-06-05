@@ -122,6 +122,8 @@ const LANE_DEFINITION_INPUTS = [
       "karbantartas",
       "üzemeltetés",
       "uzemeltetes",
+      "hibabejelentés",
+      "hibabejelentes",
       "takarítás",
       "takaritas",
       "maintenance",

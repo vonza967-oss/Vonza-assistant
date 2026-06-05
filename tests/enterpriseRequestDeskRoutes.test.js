@@ -370,7 +370,7 @@ test("Enterprise assistant classifies tech, FM, audit, and refuses exact price g
         expectedLane: "security_technology",
       },
       {
-        message: "Facility hibabejelentést szeretnék egy budapesti telephelyen, minél hamarabb. fm@client.hu",
+        message: "Facility hibabejelentést szeretnék rögzíteni egy budapesti irodaházhoz. fm@client.hu",
         expectedLane: "facility_management",
       },
       {
