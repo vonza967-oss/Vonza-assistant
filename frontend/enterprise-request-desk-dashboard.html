@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESG Request Desk dashboard</title>
+  <meta name="description" content="Owner-scoped Enterprise Request Desk review dashboard beérkező vállalati megkeresésekhez.">
+  <link rel="stylesheet" href="/enterprise-request-desk.css">
+</head>
+<body>
+  <main class="erdp-dashboard-shell" data-erdp-dashboard-shell>
+    <aside class="erdp-sidebar" aria-label="ESG Request Desk navigáció">
+      <a class="erdp-brand" href="/enterprise-request-desk/dashboard" aria-label="ESG Request Desk dashboard">
+        <span class="erdp-mark" aria-hidden="true">E</span>
+        <span>
+          <strong>ESG Request Desk</strong>
+          <small>Pilot review</small>
+        </span>
+      </a>
+      <nav class="erdp-nav" aria-label="Dashboard navigáció">
+        <a href="#queue" aria-current="page">Queue</a>
+        <a href="#detail">Brief</a>
+        <a href="#safety">Határok</a>
+      </nav>
+      <div class="erdp-sidebar-note" id="safety">
+        <strong>Kontrollált pilot</strong>
+        <p>Csak intake, strukturált brief és staff review. Az operatív döntések a piloton kívül maradnak.</p>
+      </div>
+    </aside>
+
+    <section class="erdp-dashboard-main">
+      <header class="erdp-topbar">
+        <div>
+          <p class="erdp-product-label">Enterprise Request Desk</p>
+          <h1>Vállalati megkeresések review felülete</h1>
+          <p>Beérkező ESG-style kérések lane, brief, hiányzó adatok és staff jegyzet alapján.</p>
+        </div>
+        <div class="erdp-account" id="erdp-account"></div>
+      </header>
+
+      <div class="erdp-status" id="erdp-dashboard-status" role="status" aria-live="polite" aria-atomic="true"></div>
+
+      <div id="erdp-dashboard-root">
+        <section class="erdp-loading" aria-label="ESG Request Desk dashboard betöltése">
+          <span class="erdp-loader" aria-hidden="true"></span>
+          <div>
+            <h2>Review queue betöltése</h2>
+            <p>Owner-scoped megkeresések előkészítése.</p>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script src="/public-config.js"></script>
+  <script src="/supabase-auth.js"></script>
+  <script src="/enterprise-request-desk-dashboard.js"></script>
+</body>
+</html>

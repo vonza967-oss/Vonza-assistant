@@ -433,6 +433,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-scoped Quote Desk HU setup-readiness persistence for self-serve access; no final quote calculation, external sends, provider calls, widget changes, or generic dashboard coupling.",
   }),
+  Object.freeze({
+    id: "enterprise_request_desk_requests",
+    version: "20260605120000",
+    name: "enterprise_request_desk_requests",
+    file: "supabase/migrations/20260605120000_enterprise_request_desk_requests.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds owner-scoped Enterprise Request Desk pilot request persistence with owner-select RLS, service/internal writes, request-review states only, and no QDH merge, provider calls, final quote guarantees, widget, or embed behavior.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

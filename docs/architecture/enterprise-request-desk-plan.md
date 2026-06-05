@@ -36,6 +36,37 @@ Phase 2 still does not register `enterprise_request_desk` in the runtime package
 
 The Phase 2 surface is a product demonstration of qualified intake plus structured handoff. Operations cockpit work remains deferred.
 
+## Phase 3 Working Pilot Loop
+
+Phase 3 adds the minimum controlled end-to-end pilot loop:
+
+- public ESG-style intake page:
+  - `/enterprise-request-desk/intake?agent_key=...`
+  - `/esg-request-desk/intake?agent_key=...`
+- public intake API:
+  - `POST /enterprise-request-desk/intake-requests`
+  - `POST /esg-request-desk/intake-requests`
+- owner/staff review dashboard:
+  - `/enterprise-request-desk/dashboard`
+  - `/esg-request-desk/dashboard`
+- owner-scoped review APIs:
+  - `GET /enterprise-request-desk/requests`
+  - `POST /enterprise-request-desk/requests/status`
+  - ESG aliases under `/esg-request-desk/...`
+
+The public intake requires a valid active `agent_key`. The server resolves the key to an owner-scoped agent, runs the Enterprise Request Desk classifier/assistant, sanitizes all public text, and persists a request-only row. The public response returns only safe request outcome fields: created/deduped state, lane label, missing fields, missing-field labels, and a boundary-safe message.
+
+The owner dashboard is separate from QDH and from the generic `/dashboard`. It shows a queue, lane, structured brief, missing fields, contact need, review statuses, status reason, and staff notes. It does not include SLA clocks, QR reporting, vendor panels, provider actions, compliance document generation, final pricing, or quote guarantees.
+
+Local-only browser QA fixtures are available outside production:
+
+- `/enterprise-request-desk/intake-fixture`
+- `/enterprise-request-desk/dashboard-fixture`
+- `/esg-request-desk/intake-fixture`
+- `/esg-request-desk/dashboard-fixture`
+
+The fixture stores rows in browser local storage only. It is not a production bypass for auth, RLS, or server-side persistence.
+
 ## Shared Engine vs Product Layer
 
 Shared Vonza Engine patterns:
@@ -51,6 +82,7 @@ Enterprise-specific layer:
 - ESG-style intake lane taxonomy;
 - enterprise request field extraction for service need, location/site, timing/urgency, and contact route;
 - structured owner/staff handoff brief;
+- owner-scoped Phase 3 request persistence in `enterprise_request_desk_requests`;
 - Enterprise eval scenarios and CLI command.
 
 The adapter can accept an injected shared Front Desk turn for service questions, but default behavior is deterministic and report-only.
@@ -67,7 +99,7 @@ The fixture does not scrape ESG, use private data, claim customer references, cl
 
 ## Lane Taxonomy
 
-Phase 1 lanes:
+Phase 1 through Phase 3 lanes:
 
 - `security_guarding`: őrzés-védelem, vagyonőr, élőerős guarding, járőr.
 - `reception_object_protection`: portaszolgálat, objektumvédelem, recepciós/beléptetési security.
@@ -77,11 +109,52 @@ Phase 1 lanes:
 - `mixed_enterprise_request`: több lane-t érintő enterprise igény.
 - `general_enquiry`: biztonságos fallback általános kérdésekre vagy hiányos megkeresésre.
 
-Each lane defines Hungarian label, coverage notes, qualifying questions, safe required fields, and the handoff summary shape. The required Phase 1 brief fields are service need, location/site, timing/urgency, and contact route.
+Each lane defines Hungarian label, coverage notes, qualifying questions, safe required fields, and the handoff summary shape. The required brief fields are service need, location/site, timing/urgency, and contact route.
+
+## Persistence
+
+Phase 3 adds `public.enterprise_request_desk_requests` through:
+
+- canonical schema: `db/schema.sql`;
+- migration: `supabase/migrations/20260605120000_enterprise_request_desk_requests.sql`;
+- catalog entry: `enterprise_request_desk_requests`;
+- schema hint: `PERSISTENCE_SCHEMA_HINTS.enterprise_request_desk_requests`.
+
+The table stores request-only intake fields:
+
+- owner and routed agent scope: `owner_user_id`, `agent_id`, `business_id`;
+- safe source fingerprint: `source_key_hash` rather than raw public key;
+- lane, lane label, confidence;
+- request text, site/object, location, service need, timing, urgency;
+- contact name/email/phone;
+- missing fields, structured brief, safe evidence, safe metadata;
+- request-review status, staff notes, status reason, idempotency key, timestamps.
+
+Allowed statuses are intentionally limited to:
+
+- `request_received`
+- `needs_info`
+- `needs_staff_review`
+- `routed`
+- `declined`
+- `archived`
+
+There are no quote-sent, accepted, expired, cancellation, pricing, contract, or provider execution states.
+
+RLS is enabled. Direct Supabase access grants authenticated owner select only. There is no anon select/write policy and no authenticated insert/update/delete policy; server-side service/internal code writes through the existing backend Supabase path.
+
+Indexes:
+
+- owner created queue;
+- agent created queue;
+- owner/status created queue;
+- agent/status created queue;
+- owner/lane created queue;
+- owner/agent/idempotency unique dedupe.
 
 ## Explicit Deferrals
 
-Deferred out of Phase 1:
+Deferred out of Phase 3:
 
 - operations cockpit;
 - QR site reporting;
@@ -91,7 +164,7 @@ Deferred out of Phase 1:
 - external integrations or provider calls;
 - final quote calculation, exact pricing, or guaranteed pricing;
 - QDH request creation or QDH dashboard integration;
-- schema/persistence until review shape is proven.
+- customer self-serve setup flow beyond active `agent_key` routing.
 
 ## Activation Boundary
 
@@ -104,15 +177,28 @@ This means:
 - no dashboard package selector is added;
 - no public package switching is added;
 - no widget/embed behavior changes;
-- no schema migration is needed for Phase 1.
+- Phase 3 persistence exists only for the separate request loop.
 
-Future public activation requires a separate scoped PR covering route/auth decisions, persistence design, review UI, eval gates, RLS/owner scoping, and deployment checks.
+Future broader activation requires a separate scoped PR covering onboarding/setup decisions, entitlement, dashboard selector behavior, operational lifecycle design, eval gates, RLS/owner scoping, and deployment checks.
+
+## Migration / Deploy Notes
+
+Deploy the migration before pitching the working pilot:
+
+1. Apply `supabase/migrations/20260605120000_enterprise_request_desk_requests.sql`.
+2. Verify the PostgREST schema cache sees `enterprise_request_desk_requests`.
+3. Deploy `main` so Render serves the new route and frontend assets.
+4. Use an active agent with `public_agent_key`, `access_status = 'active'`, and `is_active = true`.
+5. Share `/enterprise-request-desk/intake?agent_key=<public_agent_key>` or `/esg-request-desk/intake?agent_key=<public_agent_key>` for pilot intake.
+6. Owners review rows at `/enterprise-request-desk/dashboard` or `/esg-request-desk/dashboard` after signing in.
 
 ## Verification Surface
 
 Focused checks:
 
 - `node --test tests/enterpriseRequestDeskProduct.test.js`
+- `node --test tests/enterpriseRequestDeskRequestService.test.js`
+- `node --test tests/enterpriseRequestDeskRoutes.test.js`
 - `npm run eval:enterprise-request-desk:json`
 
 Broader regression checks still include QDH, Front Desk, smoke, schema sync, lint, and diff checks before commit.

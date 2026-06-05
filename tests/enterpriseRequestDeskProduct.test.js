@@ -39,6 +39,15 @@ function readRepoFile(relativePath) {
   return readFileSync(path.join(REPO_ROOT, relativePath), "utf8");
 }
 
+function extractEnterpriseRouteLines(source) {
+  return source
+    .split("\n")
+    .filter((line) =>
+      /enterprise-request-desk|esg-request-desk|EnterpriseRequestDesk|ENTERPRISE_REQUEST_DESK|VONZA_LOCAL_ENTERPRISE/i.test(line)
+    )
+    .join("\n");
+}
+
 function createDemoRouteApp() {
   const app = express();
   app.use(express.json({ limit: "8kb" }));
@@ -73,7 +82,7 @@ async function postDemoAnalysis(baseUrl, pathname, message) {
   };
 }
 
-test("Enterprise Request Desk metadata exists but is not runtime-registered or production-activated", () => {
+test("Enterprise Request Desk metadata exists with Phase 3 persistence but no runtime package activation", () => {
   assert.equal(enterpriseRequestDeskManifest.key, "enterprise_request_desk");
   assert.equal(enterpriseRequestDeskManifest.label, "Enterprise Request Desk");
   assert.deepEqual(enterpriseRequestDeskManifest.supportedSurfaces, ["full_page"]);
@@ -81,7 +90,7 @@ test("Enterprise Request Desk metadata exists but is not runtime-registered or p
   assert.deepEqual(enterpriseRequestDeskManifest.tools, []);
   assert.deepEqual(enterpriseRequestDeskManifest.connectedAppRequirements, []);
   assert.equal(enterpriseRequestDeskManifest.activation.registeredInRuntimePackageRegistry, false);
-  assert.equal(enterpriseRequestDeskManifest.activation.persistenceEnabled, false);
+  assert.equal(enterpriseRequestDeskManifest.activation.persistenceEnabled, true);
   assert.equal(enterpriseRequestDeskManifest.activation.publicByDefault, false);
   assert.equal(enterpriseRequestDeskManifest.activation.dashboardSelectorEnabled, false);
   assert.equal(enterpriseRequestDeskManifest.activation.externalExecutionEnabled, false);
@@ -370,40 +379,52 @@ test("Enterprise Request Desk demo analyzer uses lane service without exposing i
   }
 });
 
-test("Enterprise Request Desk demo does not add a public persistence or write surface", () => {
+test("Enterprise Request Desk Phase 3 adds only controlled pilot persistence and review routes", () => {
   const publicRoutesSource = readRepoFile("src/routes/publicRoutes.js");
-  const demoPostMatches = publicRoutesSource.match(/\/enterprise-request-desk\/demo\/analyze/g) || [];
+  const enterpriseRouteSource = readRepoFile("src/routes/enterpriseRequestDeskRoutes.js");
+  const requestServiceSource = readRepoFile("src/services/enterprise/enterpriseRequestDeskRequestService.js");
+  const schemaSql = readRepoFile("db/schema.sql");
 
-  assert.equal(demoPostMatches.length, 1);
-  assert.doesNotMatch(
-    publicRoutesSource,
-    /enterprise-request-desk\/(?:requests|tickets|setup|dashboard|operations|vendors|sla|qr)/i
-  );
-  assert.doesNotMatch(
-    publicRoutesSource,
-    /agent_quote_requests|createAgentQuoteRequest|createTicket|insert\s*\(|upsert\s*\(|\.from\s*\(/i
-  );
+  assert.match(publicRoutesSource, /\/enterprise-request-desk\/intake/);
+  assert.match(publicRoutesSource, /\/enterprise-request-desk\/dashboard/);
+  assert.match(enterpriseRouteSource, /\/enterprise-request-desk\/intake-requests/);
+  assert.match(enterpriseRouteSource, /\/enterprise-request-desk\/requests/);
+  assert.match(enterpriseRouteSource, /createEnterpriseRequestDeskRequest/);
+  assert.match(requestServiceSource, /ENTERPRISE_REQUEST_DESK_REVIEW_STATUSES/);
+  assert.match(schemaSql, /create table if not exists public\.enterprise_request_desk_requests/i);
+  assert.doesNotMatch(`${publicRoutesSource}\n${enterpriseRouteSource}\n${requestServiceSource}`, /agent_quote_requests|createAgentQuoteRequest|quoted_externally|accepted_externally|qdh_ai_intake/i);
+  assert.doesNotMatch(`${extractEnterpriseRouteLines(publicRoutesSource)}\n${enterpriseRouteSource}\n${requestServiceSource}`, /\/widget|\/embed\.js|\/embed-lite\.js|assistant-embed/i);
+  assert.doesNotMatch(`${publicRoutesSource}\n${enterpriseRouteSource}\n${requestServiceSource}`, /vendor panel|QR reporting|SLA clock|compliance document generator/i);
 });
 
 test("Enterprise Request Desk demo remains separate from QDH routes, dashboard, widget, and embed surfaces", () => {
   const enterpriseAssistantSource = readRepoFile("src/services/enterprise/enterpriseRequestDeskAssistantService.js");
+  const enterpriseRouteSource = readRepoFile("src/routes/enterpriseRequestDeskRoutes.js");
   const qdhRouteSource = readRepoFile("src/routes/quoteDeskHuRoutes.js");
   const appSource = readRepoFile("src/app/createApp.js");
   const publicRoutesSource = readRepoFile("src/routes/publicRoutes.js");
   const demoHtmlSource = readRepoFile("frontend/enterprise-request-desk-demo.html");
   const demoScriptSource = readRepoFile("frontend/enterprise-request-desk-demo.js");
+  const intakeHtmlSource = readRepoFile("frontend/enterprise-request-desk-intake.html");
+  const dashboardHtmlSource = readRepoFile("frontend/enterprise-request-desk-dashboard.html");
+  const intakeScriptSource = readRepoFile("frontend/enterprise-request-desk-intake.js");
+  const dashboardScriptSource = readRepoFile("frontend/enterprise-request-desk-dashboard.js");
   const assistantEmbedSource = readRepoFile("assistant-embed.js");
   const embedSource = readRepoFile("embed.js");
   const embedLiteSource = readRepoFile("embed-lite.js");
   const qdhDashboardSource = readRepoFile("frontend/qdh-dashboard.js");
 
   assert.doesNotMatch(enterpriseAssistantSource, /quoteDeskHu|agent_quote_requests|qdh_ai_intake|quote-desk-hu/i);
+  assert.doesNotMatch(enterpriseRouteSource, /quoteDeskHu|agent_quote_requests|qdh_ai_intake|quote-desk-hu/i);
   assert.doesNotMatch(qdhRouteSource, /enterprise[_-]request/i);
-  assert.doesNotMatch(appSource, /enterprise_request_desk|agent_quote_requests|qdh_ai_intake/i);
+  assert.match(appSource, /createEnterpriseRequestDeskRouter/);
+  assert.doesNotMatch(appSource, /agent_quote_requests|qdh_ai_intake/i);
   assert.match(publicRoutesSource, /\/enterprise-request-desk\/demo/);
   assert.doesNotMatch(publicRoutesSource, /quoteDeskHu.*enterprise|enterprise.*quoteDeskHu|agent_quote_requests/i);
-  assert.doesNotMatch(demoHtmlSource, /\bQDH\b|Quote Desk HU|quote[-_]desk|qdh[_-]/i);
-  assert.doesNotMatch(demoScriptSource, /\bQDH\b|Quote Desk HU|quote[-_]desk|qdh[_-]/i);
+  [demoHtmlSource, demoScriptSource, intakeHtmlSource, dashboardHtmlSource, intakeScriptSource, dashboardScriptSource].forEach((source) => {
+    assert.doesNotMatch(source, /\bQDH\b|Quote Desk HU|quote[-_]desk|qdh[_-]/i);
+    assert.doesNotMatch(source, /quoted_externally|accepted_externally|agent_quote_requests/i);
+  });
   assert.doesNotMatch(assistantEmbedSource, /enterprise[_-]request/i);
   assert.doesNotMatch(embedSource, /enterprise[_-]request/i);
   assert.doesNotMatch(embedLiteSource, /enterprise[_-]request/i);

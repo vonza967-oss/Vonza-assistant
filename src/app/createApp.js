@@ -5,6 +5,7 @@ import { createAgentRouter } from "../routes/agentRoutes.js";
 import { createBookingRouter } from "../routes/bookingRoutes.js";
 import { createBusinessRouter } from "../routes/businessRoutes.js";
 import { createChatRouter } from "../routes/chatRoutes.js";
+import { createEnterpriseRequestDeskRouter } from "../routes/enterpriseRequestDeskRoutes.js";
 import { createIntegrationRouter } from "../routes/integrationRoutes.js";
 import { createPhoneRouter } from "../routes/phoneRoutes.js";
 import { createPublicRouter } from "../routes/publicRoutes.js";
@@ -57,6 +58,9 @@ export function createApp({ rootDir }) {
         || normalizedPath.endsWith("/frontend/qdh-setup.js")
         || normalizedPath.endsWith("/frontend/enterprise-request-desk-demo.css")
         || normalizedPath.endsWith("/frontend/enterprise-request-desk-demo.js")
+        || normalizedPath.endsWith("/frontend/enterprise-request-desk.css")
+        || normalizedPath.endsWith("/frontend/enterprise-request-desk-intake.js")
+        || normalizedPath.endsWith("/frontend/enterprise-request-desk-dashboard.js")
         || normalizedPath.endsWith("/frontend/settings/SettingsShell.js")
         || normalizedPath.endsWith("/frontend/settings/settings.css")
       ) {
@@ -69,6 +73,7 @@ export function createApp({ rootDir }) {
   app.use(createPublicRouter({ rootDir }));
   app.use(createBookingRouter());
   app.use(createIntegrationRouter());
+  app.use(createEnterpriseRequestDeskRouter());
   app.use(createQuoteDeskHuRouter());
   app.use(createAgentRouter());
   app.use(createChatRouter());

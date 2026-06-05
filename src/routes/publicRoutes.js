@@ -184,6 +184,56 @@ function renderEnterpriseRequestDeskDemoDocument(rootDir) {
   return html;
 }
 
+function renderEnterpriseRequestDeskIntakeDocument(rootDir, { localFixture = false } = {}) {
+  const version = getDashboardAssetVersion();
+  let html = readFileSync(path.join(rootDir, "frontend", "enterprise-request-desk-intake.html"), "utf8");
+
+  [
+    "/enterprise-request-desk.css",
+    "/enterprise-request-desk-intake.js",
+  ].forEach((assetPath) => {
+    html = html.replaceAll(
+      `${assetPath}"`,
+      `${assetPath}?v=${version}"`
+    );
+  });
+
+  if (localFixture) {
+    html = html.replace(
+      '<script src="/enterprise-request-desk-intake.js',
+      '<script>window.VONZA_LOCAL_ENTERPRISE_INTAKE_FIXTURE = true;</script>\n  <script src="/enterprise-request-desk-intake.js'
+    );
+  }
+
+  return html;
+}
+
+function renderEnterpriseRequestDeskDashboardDocument(rootDir, { localFixture = false } = {}) {
+  const version = getDashboardAssetVersion();
+  let html = readFileSync(path.join(rootDir, "frontend", "enterprise-request-desk-dashboard.html"), "utf8");
+
+  [
+    "/enterprise-request-desk.css",
+    "/public-config.js",
+    "/supabase-auth.js",
+    "/enterprise-request-desk-dashboard.js",
+  ].forEach((assetPath) => {
+    html = html.replaceAll(
+      `${assetPath}"`,
+      `${assetPath}?v=${version}"`
+    );
+  });
+
+  if (localFixture) {
+    html = html.replace(
+      '<script src="/enterprise-request-desk-dashboard.js',
+      '<script>window.VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE = true;</script>\n  <script src="/enterprise-request-desk-dashboard.js'
+    );
+  }
+
+  return html;
+}
+
 const ENTERPRISE_REQUEST_DESK_DEMO_CONTEXT = Object.freeze({
   businessName: "ESG Holding Zrt.",
   serviceArea: "országos, Budapest központtal",
@@ -1799,6 +1849,11 @@ export function createPublicRouter({ rootDir }) {
     res.type("html").send(renderQuoteDeskHuIntakeDocument(rootDir));
   });
 
+  router.get(["/enterprise-request-desk/intake", "/esg-request-desk/intake"], (_req, res) => {
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderEnterpriseRequestDeskIntakeDocument(rootDir));
+  });
+
   router.get(["/enterprise-request-desk/demo", "/esg-request-desk/demo"], (_req, res) => {
     setDashboardNoStoreHeaders(res);
     res.type("html").send(renderEnterpriseRequestDeskDemoDocument(rootDir));
@@ -1907,6 +1962,11 @@ export function createPublicRouter({ rootDir }) {
     res.type("html").send(renderQuoteDeskHuDashboardDocument(rootDir));
   });
 
+  router.get(["/enterprise-request-desk/dashboard", "/esg-request-desk/dashboard"], (_req, res) => {
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderEnterpriseRequestDeskDashboardDocument(rootDir));
+  });
+
   router.get(["/qdh/setup", "/quote-desk-hu/setup"], (_req, res) => {
     setDashboardNoStoreHeaders(res);
     res.type("html").send(renderQuoteDeskHuSetupDocument(rootDir));
@@ -1930,6 +1990,26 @@ export function createPublicRouter({ rootDir }) {
 
     setDashboardNoStoreHeaders(res);
     res.type("html").send(renderQuoteDeskHuDashboardDocument(rootDir, { localFixture: true }));
+  });
+
+  router.get(["/enterprise-request-desk/intake-fixture", "/esg-request-desk/intake-fixture"], (req, res) => {
+    if (!isLocalDashboardFixtureAllowed(req)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderEnterpriseRequestDeskIntakeDocument(rootDir, { localFixture: true }));
+  });
+
+  router.get(["/enterprise-request-desk/dashboard-fixture", "/esg-request-desk/dashboard-fixture"], (req, res) => {
+    if (!isLocalDashboardFixtureAllowed(req)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderEnterpriseRequestDeskDashboardDocument(rootDir, { localFixture: true }));
   });
 
   router.get("/dashboard-v2-fixture", (req, res) => {

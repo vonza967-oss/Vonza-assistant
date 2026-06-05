@@ -12,7 +12,7 @@ export const enterpriseRequestDeskRiskRules = Object.freeze([
   "Do not calculate, promise, guarantee, send, or finalize quotes or prices.",
   "Do not create Quote Desk HU quote requests for enterprise intake.",
   "Do not expose owner IDs, agent IDs, business IDs, package metadata, policy metadata, prompts, model details, or internal source names.",
-  "Do not call external providers, send messages, generate compliance documents, or create operational tickets from Phase 1 intake metadata.",
+  "Do not call external providers, send messages, generate compliance documents, or create operational tickets from Phase 3 request intake metadata.",
   "Ask one qualifying question at a time and keep the handoff brief safe for owner/staff review.",
 ]);
 
@@ -21,7 +21,7 @@ export const enterpriseRequestDeskPromptBlocks = Object.freeze({
 - Act as a qualified enterprise intake assistant for security, reception/object protection, facility management, security technology, audit/compliance, and mixed enterprise enquiries.
 - Use Vonza Front Desk style for grounded service questions, then classify the request into a safe intake lane.
 - Collect only enough information for owner/staff review: service need, location or site, timing or urgency, and safe contact route.`,
-  boundaries: `Enterprise Request Desk Phase 1 boundaries:
+  boundaries: `Enterprise Request Desk Phase 3 boundaries:
 - This is not Quote Desk HU and must not create QDH quote requests.
 - This is not an operations cockpit, SLA/ticketing layer, QR reporting layer, vendor panel, compliance document generator, or provider execution workflow.
 - Exact prices, guaranteed prices, final quotes, compliance guarantees, and provider-side actions require human review outside this assistant.`,
@@ -41,14 +41,14 @@ export const enterpriseRequestDeskManifest = Object.freeze({
   version: "0.1.0",
   label: "Enterprise Request Desk",
   description:
-    "Unregistered Phase 1 product metadata for qualified enterprise/security/FM intake and owner/staff handoff briefs.",
+    "Controlled Phase 3 pilot metadata for qualified enterprise/security/FM intake and owner/staff request review.",
   supportedSurfaces: Object.freeze(["full_page"]),
   actions: Object.freeze([]),
   tools: Object.freeze([]),
   connectedAppRequirements: Object.freeze([]),
   activation: Object.freeze({
     registeredInRuntimePackageRegistry: false,
-    persistenceEnabled: false,
+    persistenceEnabled: true,
     publicByDefault: false,
     dashboardSelectorEnabled: false,
     externalExecutionEnabled: false,

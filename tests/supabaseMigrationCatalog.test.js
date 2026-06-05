@@ -14,6 +14,14 @@ import {
   getManifestMigrationFiles,
 } from "../src/services/schema/deployReadinessManifest.js";
 
+function extractEnterpriseRequestTableDefinition(sql) {
+  const match = sql.match(
+    /create table if not exists public\.enterprise_request_desk_requests \([\s\S]*?\n\);/i
+  );
+  assert.ok(match?.[0], "expected Enterprise Request Desk table definition");
+  return match[0];
+}
+
 test("legacy db sql files are mapped into ordered supabase migrations exactly once", () => {
   const legacyDbFiles = readdirSync("db")
     .filter((fileName) => fileName.endsWith(".sql"))
@@ -229,6 +237,45 @@ test("generic quote request schema is present in canonical schema and migration"
     assert.doesNotMatch(sql, /on public\.agent_quote_requests\s+for insert/i);
     assert.doesNotMatch(sql, /on public\.agent_quote_requests\s+for update/i);
   });
+});
+
+test("Enterprise Request Desk request schema is present in canonical schema and migration", () => {
+  const schemaSql = readFileSync("db/schema.sql", "utf8");
+  const migrationSql = readFileSync(
+    "supabase/migrations/20260605120000_enterprise_request_desk_requests.sql",
+    "utf8"
+  );
+
+  [schemaSql, migrationSql].forEach((sql) => {
+    const tableSql = extractEnterpriseRequestTableDefinition(sql);
+
+    assert.match(sql, /create table if not exists public\.enterprise_request_desk_requests/i);
+    assert.match(sql, /owner_user_id uuid not null/i);
+    assert.match(sql, /agent_id uuid not null references public\.agents \(id\) on delete cascade/i);
+    assert.match(sql, /business_id uuid references public\.businesses \(id\) on delete set null/i);
+    assert.match(sql, /source_key_hash text/i);
+    assert.match(sql, /lane text not null default 'general_enquiry'/i);
+    assert.match(sql, /lane_label text not null/i);
+    assert.match(sql, /confidence text not null default 'low'/i);
+    assert.match(sql, /request_text text/i);
+    assert.match(sql, /site_or_object text/i);
+    assert.match(sql, /location_text text/i);
+    assert.match(sql, /service_need text/i);
+    assert.match(sql, /timing_text text/i);
+    assert.match(sql, /urgency text/i);
+    assert.match(sql, /missing_fields text\[\] not null default '\{\}'::text\[\]/i);
+    assert.match(sql, /structured_brief jsonb not null default '\{\}'::jsonb/i);
+    assert.match(sql, /status text not null default 'request_received'/i);
+    assert.match(sql, /routed/i);
+    assert.doesNotMatch(tableSql, /quoted_externally|accepted_externally|cancel_requested|expired/i);
+    assert.match(sql, /enterprise_request_desk_requests_owner_agent_idempotency_idx/i);
+    assert.match(sql, /enterprise_request_desk_requests_owner_status_created_idx/i);
+    assert.match(sql, /Owners can read Enterprise Request Desk requests/i);
+    assert.doesNotMatch(sql, /on public\.enterprise_request_desk_requests\s+for insert/i);
+    assert.doesNotMatch(sql, /on public\.enterprise_request_desk_requests\s+for update/i);
+  });
+
+  assert.doesNotMatch(migrationSql, /to anon/i);
 });
 
 test("QDH setup readiness schema is present in canonical schema and migration", () => {
