@@ -775,7 +775,10 @@
 
   async function handleAuthSubmit(event) {
     event.preventDefault();
-    const form = event.currentTarget;
+    const form = event.target.closest("[data-erdp-auth-form]");
+    if (!form) {
+      return;
+    }
     const email = trimText(new FormData(form).get("email"));
     const password = String(new FormData(form).get("password") || "");
     const submitter = event.submitter;
