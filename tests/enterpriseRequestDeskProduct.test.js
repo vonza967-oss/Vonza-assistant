@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import http from "node:http";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+
+import express from "express";
 
 import {
   DEFAULT_AGENT_PACKAGE_KEY,
@@ -9,6 +12,7 @@ import {
   isKnownAgentPackageKey,
   listAgentPackages,
 } from "../src/agentPackages/index.js";
+import { createPublicRouter } from "../src/routes/publicRoutes.js";
 import enterpriseRequestDeskManifest from "../src/agentPackages/enterprise_request_desk/manifest.js";
 import {
   classifyEnterpriseRequestDeskLane,
@@ -35,7 +39,41 @@ function readRepoFile(relativePath) {
   return readFileSync(path.join(REPO_ROOT, relativePath), "utf8");
 }
 
-test("Enterprise Request Desk metadata exists but is not runtime-registered or publicly activated", () => {
+function createDemoRouteApp() {
+  const app = express();
+  app.use(express.json({ limit: "8kb" }));
+  app.use(express.static(path.join(REPO_ROOT, "frontend"), { index: false }));
+  app.use(createPublicRouter({ rootDir: REPO_ROOT }));
+  return app;
+}
+
+async function startServer(app) {
+  const server = http.createServer(app);
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    close: () => new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve()))),
+  };
+}
+
+async function postDemoAnalysis(baseUrl, pathname, message) {
+  const response = await fetch(`${baseUrl}${pathname}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+  const text = await response.text();
+
+  return {
+    status: response.status,
+    text,
+    json: text ? JSON.parse(text) : null,
+  };
+}
+
+test("Enterprise Request Desk metadata exists but is not runtime-registered or production-activated", () => {
   assert.equal(enterpriseRequestDeskManifest.key, "enterprise_request_desk");
   assert.equal(enterpriseRequestDeskManifest.label, "Enterprise Request Desk");
   assert.deepEqual(enterpriseRequestDeskManifest.supportedSurfaces, ["full_page"]);
@@ -234,11 +272,126 @@ test("Enterprise Request Desk refuses exact pricing and prompt injection without
   assert.doesNotMatch(injection.assistantReply, /system prompt|developer message|package|metadata/i);
 });
 
-test("Enterprise Request Desk does not touch QDH routes, dashboard, widget, or embed surfaces", () => {
+test("Enterprise Request Desk demo routes render a separate ESG pilot surface", async () => {
+  const server = await startServer(createDemoRouteApp());
+
+  try {
+    for (const pathname of ["/enterprise-request-desk/demo", "/esg-request-desk/demo"]) {
+      const response = await fetch(`${server.baseUrl}${pathname}`);
+      const html = await response.text();
+
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get("content-type") || "", /html/i);
+      assert.match(html, /ESG Request Desk/);
+      assert.match(html, /Vállalati megkeresések előszűrése/);
+      assert.match(html, /Demo \/ belső pilot/);
+      assert.match(html, /őrzés-védelem/);
+      assert.match(html, /facility management/);
+      assert.match(html, /audit \/ compliance/);
+      assert.match(html, /Nem ment adatot/);
+      assert.doesNotMatch(html, /\bQDH\b|Quote Desk HU|quote[-_]desk|qdh[_-]/i);
+      assert.doesNotMatch(html, INTERNAL_LEAK_PATTERN);
+    }
+
+    for (const assetPath of [
+      "/enterprise-request-desk-demo.css",
+      "/enterprise-request-desk-demo.js",
+    ]) {
+      const response = await fetch(`${server.baseUrl}${assetPath}`);
+      const text = await response.text();
+
+      assert.equal(response.status, 200);
+      assert.doesNotMatch(text, /\bQDH\b|Quote Desk HU|quote[-_]desk|qdh[_-]/i);
+      assert.doesNotMatch(text, INTERNAL_LEAK_PATTERN);
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test("Enterprise Request Desk demo analyzer uses lane service without exposing internals", async () => {
+  const server = await startServer(createDemoRouteApp());
+  const examples = [
+    {
+      message:
+        "Irodaház őrzés-védelemre van szükség Budapesten, jövő hónaptól. Kapcsolattartó: Kovács Anna, anna@client.hu.",
+      expectedLabel: "Őrzés-védelem",
+    },
+    {
+      message:
+        "Facility management támogatás kell egy budapesti telephelyre, karbantartás és takarítás egyeztetéssel, jövő héten. Telefon: +36 30 123 4567.",
+      expectedLabel: "Facility management",
+    },
+    {
+      message:
+        "CCTV kamerarendszer és beléptető felmérés kell egy raktárhoz Győrben, 1-2 héten belül. Email: security@client.hu.",
+      expectedLabel: "Biztonságtechnika",
+    },
+    {
+      message:
+        "Audit / compliance előkészítés érdekel vagyonvédelmi szabályzat kapcsán Budapesten, a negyedév végéig. Kapcsolat: compliance@client.hu.",
+      expectedLabel: "Audit / compliance",
+    },
+    {
+      message:
+        "Komplex őrzés és facility management megoldást keresünk több telephelyre országosan, jövő hónaptól. Email: ops@client.hu.",
+      expectedLabel: "Vegyes vállalati megkeresés",
+    },
+  ];
+
+  try {
+    for (const example of examples) {
+      const response = await postDemoAnalysis(
+        server.baseUrl,
+        "/enterprise-request-desk/demo/analyze",
+        example.message
+      );
+      const bodyText = JSON.stringify(response.json);
+
+      assert.equal(response.status, 200);
+      assert.equal(response.json.lane.labelHu, example.expectedLabel);
+      assert.equal(response.json.brief.lane, example.expectedLabel);
+      assert.equal(typeof response.json.brief.recommendedNextQuestion, "string");
+      assert.match(response.json.brief.recommendedNextQuestion, /\?$/);
+      assert.equal(Array.isArray(response.json.missingFields), true);
+      assert.doesNotMatch(bodyText, INTERNAL_LEAK_PATTERN);
+      assert.doesNotMatch(bodyText, /\bSUPABASE_SERVICE_ROLE|OPENAI_API_KEY|STRIPE_SECRET|sk-[A-Za-z0-9_-]{16,}/i);
+    }
+
+    const aliasResponse = await postDemoAnalysis(
+      server.baseUrl,
+      "/esg-request-desk/demo/analyze",
+      examples[2].message
+    );
+    assert.equal(aliasResponse.status, 200);
+    assert.equal(aliasResponse.json.lane.labelHu, "Biztonságtechnika");
+  } finally {
+    await server.close();
+  }
+});
+
+test("Enterprise Request Desk demo does not add a public persistence or write surface", () => {
+  const publicRoutesSource = readRepoFile("src/routes/publicRoutes.js");
+  const demoPostMatches = publicRoutesSource.match(/\/enterprise-request-desk\/demo\/analyze/g) || [];
+
+  assert.equal(demoPostMatches.length, 1);
+  assert.doesNotMatch(
+    publicRoutesSource,
+    /enterprise-request-desk\/(?:requests|tickets|setup|dashboard|operations|vendors|sla|qr)/i
+  );
+  assert.doesNotMatch(
+    publicRoutesSource,
+    /agent_quote_requests|createAgentQuoteRequest|createTicket|insert\s*\(|upsert\s*\(|\.from\s*\(/i
+  );
+});
+
+test("Enterprise Request Desk demo remains separate from QDH routes, dashboard, widget, and embed surfaces", () => {
   const enterpriseAssistantSource = readRepoFile("src/services/enterprise/enterpriseRequestDeskAssistantService.js");
   const qdhRouteSource = readRepoFile("src/routes/quoteDeskHuRoutes.js");
   const appSource = readRepoFile("src/app/createApp.js");
   const publicRoutesSource = readRepoFile("src/routes/publicRoutes.js");
+  const demoHtmlSource = readRepoFile("frontend/enterprise-request-desk-demo.html");
+  const demoScriptSource = readRepoFile("frontend/enterprise-request-desk-demo.js");
   const assistantEmbedSource = readRepoFile("assistant-embed.js");
   const embedSource = readRepoFile("embed.js");
   const embedLiteSource = readRepoFile("embed-lite.js");
@@ -246,8 +399,11 @@ test("Enterprise Request Desk does not touch QDH routes, dashboard, widget, or e
 
   assert.doesNotMatch(enterpriseAssistantSource, /quoteDeskHu|agent_quote_requests|qdh_ai_intake|quote-desk-hu/i);
   assert.doesNotMatch(qdhRouteSource, /enterprise[_-]request/i);
-  assert.doesNotMatch(appSource, /enterprise[_-]request/i);
-  assert.doesNotMatch(publicRoutesSource, /enterprise[_-]request/i);
+  assert.doesNotMatch(appSource, /enterprise_request_desk|agent_quote_requests|qdh_ai_intake/i);
+  assert.match(publicRoutesSource, /\/enterprise-request-desk\/demo/);
+  assert.doesNotMatch(publicRoutesSource, /quoteDeskHu.*enterprise|enterprise.*quoteDeskHu|agent_quote_requests/i);
+  assert.doesNotMatch(demoHtmlSource, /\bQDH\b|Quote Desk HU|quote[-_]desk|qdh[_-]/i);
+  assert.doesNotMatch(demoScriptSource, /\bQDH\b|Quote Desk HU|quote[-_]desk|qdh[_-]/i);
   assert.doesNotMatch(assistantEmbedSource, /enterprise[_-]request/i);
   assert.doesNotMatch(embedSource, /enterprise[_-]request/i);
   assert.doesNotMatch(embedLiteSource, /enterprise[_-]request/i);

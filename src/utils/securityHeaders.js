@@ -48,6 +48,13 @@ function isDashboardPrivateAssetPath(pathname) {
   ].includes(pathname);
 }
 
+function isEnterpriseRequestDeskDemoPath(pathname) {
+  return pathname === "/enterprise-request-desk/demo"
+    || pathname === "/esg-request-desk/demo"
+    || pathname === "/enterprise-request-desk-demo.css"
+    || pathname === "/enterprise-request-desk-demo.js";
+}
+
 function isHostedFrontDeskPath(pathname) {
   return pathname.startsWith("/a/") || pathname.startsWith("/assistant/");
 }
@@ -178,7 +185,11 @@ export function applySecurityHeaders(req, res, next) {
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", buildPermissionsPolicy(pathname, requestUrl));
 
-  if (isDashboardTopLevelPath(pathname) || isDashboardPrivateAssetPath(pathname)) {
+  if (
+    isDashboardTopLevelPath(pathname)
+    || isDashboardPrivateAssetPath(pathname)
+    || isEnterpriseRequestDeskDemoPath(pathname)
+  ) {
     res.setHeader("Content-Security-Policy", buildDashboardCsp());
     res.setHeader("X-Frame-Options", "DENY");
   } else if (isEmbeddedWidgetRequest(requestUrl) || isEmbedScriptAssetPath(pathname)) {

@@ -23,6 +23,19 @@ Phase 1 creates a qualified enterprise intake layer for ESG-style enquiries:
 
 No public route, dashboard selector, persistence table, schema migration, widget/embed change, external provider call, quote calculation, or operations cockpit is added in this phase.
 
+## Phase 2 Demo / Pilot Surface
+
+Phase 2 adds the first visible pilot surface for the same ESG-style enterprise intake:
+
+- `/enterprise-request-desk/demo` and `/esg-request-desk/demo` render a static internal/demo intake page.
+- `/enterprise-request-desk/demo/analyze` and `/esg-request-desk/demo/analyze` run a rate-limited, non-persistent demo analysis against the deterministic Enterprise Request Desk assistant/lane service.
+- The page classifies broad Hungarian enterprise, security, FM, and compliance enquiries into lanes and shows missing fields, one qualifying question, and a structured internal brief preview.
+- The API response intentionally returns only public-safe lane labels, missing-field labels, and brief fields. It does not expose owner IDs, agent IDs, package/policy metadata, prompts, model information, internal source labels, or secrets.
+
+Phase 2 still does not register `enterprise_request_desk` in the runtime package registry, add a dashboard selector, create persistence, add a schema migration, activate customer self-serve onboarding, touch widget/embed behavior, call external providers, create tickets, generate compliance documents, or produce final pricing/quote guarantees.
+
+The Phase 2 surface is a product demonstration of qualified intake plus structured handoff. Operations cockpit work remains deferred.
+
 ## Shared Engine vs Product Layer
 
 Shared Vonza Engine patterns:

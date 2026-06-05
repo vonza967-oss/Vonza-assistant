@@ -18,8 +18,13 @@ import {
 } from "../config/billingPlans.js";
 import { getPublicLaunchProfile } from "../config/publicLaunch.js";
 import { renderLegalPage } from "../config/legalContent.js";
-import { getDistributedRateLimitReadiness } from "../utils/rateLimiter.js";
+import {
+  createRateLimitMiddleware,
+  getDistributedRateLimitReadiness,
+} from "../utils/rateLimiter.js";
+import { cleanText } from "../utils/text.js";
 import { getReadinessStatus } from "../services/operations/readinessService.js";
+import { generateEnterpriseRequestDeskAssistantTurn } from "../services/enterprise/enterpriseRequestDeskAssistantService.js";
 
 const SETUP_DOCTOR_KEYS = [
   "PUBLIC_APP_URL",
@@ -160,6 +165,135 @@ function renderQuoteDeskHuIntakeDocument(rootDir, { localFixture = false } = {})
   }
 
   return html;
+}
+
+function renderEnterpriseRequestDeskDemoDocument(rootDir) {
+  const version = getDashboardAssetVersion();
+  let html = readFileSync(path.join(rootDir, "frontend", "enterprise-request-desk-demo.html"), "utf8");
+
+  [
+    "/enterprise-request-desk-demo.css",
+    "/enterprise-request-desk-demo.js",
+  ].forEach((assetPath) => {
+    html = html.replaceAll(
+      `${assetPath}"`,
+      `${assetPath}?v=${version}"`
+    );
+  });
+
+  return html;
+}
+
+const ENTERPRISE_REQUEST_DESK_DEMO_CONTEXT = Object.freeze({
+  businessName: "ESG Holding Zrt.",
+  serviceArea: "országos, Budapest központtal",
+  serviceTypes: Object.freeze([
+    "őrzés-védelem",
+    "portaszolgálat / objektumvédelem",
+    "facility management",
+    "biztonságtechnika",
+    "audit / compliance",
+  ]),
+});
+
+const ENTERPRISE_REQUEST_DESK_DEMO_MESSAGE_LIMIT = 1800;
+const ENTERPRISE_REQUEST_DESK_DEMO_MISSING_FIELD_LABELS_HU = Object.freeze({
+  service_need: "szolgáltatási igény",
+  location_or_site: "helyszín vagy objektum",
+  urgency_or_timing: "időzítés vagy sürgősség",
+  contact_need: "biztonságos kapcsolati adat",
+});
+const ENTERPRISE_REQUEST_DESK_DEMO_CONFIDENCE_LABELS_HU = Object.freeze({
+  high: "magas",
+  medium: "közepes",
+  low: "alacsony",
+});
+const limitEnterpriseRequestDeskDemo = createRateLimitMiddleware("public_enterprise_request_desk_demo", {
+  windowMs: 60_000,
+  max: 10,
+});
+
+function labelEnterpriseRequestDeskMissingFields(fields = []) {
+  return fields
+    .map((field) => ENTERPRISE_REQUEST_DESK_DEMO_MISSING_FIELD_LABELS_HU[field] || "")
+    .filter(Boolean);
+}
+
+function extractEnterpriseRequestDeskDemoQuestion(reply = "") {
+  const normalized = cleanText(reply);
+  const question = normalized.match(/(?:^|[.!?\n]\s*)([^.!?\n][^?\n]{8,220}\?)/u)?.[1];
+
+  return cleanText(question || "");
+}
+
+function buildEnterpriseRequestDeskDemoFallbackQuestion(missingFields = []) {
+  const firstMissing = missingFields[0];
+
+  if (firstMissing === "service_need") {
+    return "Melyik szolgáltatási területhez kapcsolódik a megkeresés?";
+  }
+
+  if (firstMissing === "location_or_site") {
+    return "Melyik településen vagy helyszínen lenne a feladat, és milyen típusú objektumról van szó?";
+  }
+
+  if (firstMissing === "urgency_or_timing") {
+    return "Mikor indulna a feladat, vagy meddig kell visszajelzést kapniuk?";
+  }
+
+  if (firstMissing === "contact_need") {
+    return "Milyen biztonságos elérhetőségen kérhetnek visszajelzést?";
+  }
+
+  return "Van még olyan helyszíni vagy szervezeti részlet, amit a belső csapatnak látnia kell?";
+}
+
+function buildEnterpriseRequestDeskDemoHandoffNote(result = {}) {
+  const brief = result.structuredBrief || {};
+
+  if (brief.readyForOwnerReview) {
+    return "A minimális intake adatok megvannak; a belső csapat ellenőrizheti a vállalhatóságot és a következő lépést.";
+  }
+
+  if (brief.safetyFlags?.pricingGuaranteeRequested) {
+    return "Ár- vagy garanciakérés szerepel a megkeresésben; ezt csak belső ellenőrzés után szabad kezelni.";
+  }
+
+  if (brief.safetyFlags?.deferredOperationsRequested) {
+    return "A demó nem indít operatív műveletet; előbb a megkeresés pontosítása szükséges.";
+  }
+
+  return "Előszűrt belső brief; a hiányzó adatok tisztázása után adható tovább feldolgozásra.";
+}
+
+function buildEnterpriseRequestDeskDemoPayload(result = {}) {
+  const brief = result.structuredBrief || {};
+  const missingFields = Array.isArray(result.missingFields) ? result.missingFields : [];
+  const missingFieldLabels = labelEnterpriseRequestDeskMissingFields(missingFields);
+  const recommendedQuestion =
+    extractEnterpriseRequestDeskDemoQuestion(result.assistantReply)
+    || buildEnterpriseRequestDeskDemoFallbackQuestion(missingFields);
+
+  return {
+    surface: "ESG Request Desk demo",
+    pilotScope: "belső demo intake",
+    lane: {
+      labelHu: cleanText(brief.laneLabelHu) || "Általános érdeklődés",
+      confidenceHu: ENTERPRISE_REQUEST_DESK_DEMO_CONFIDENCE_LABELS_HU[brief.confidence] || "alacsony",
+    },
+    missingFields: missingFieldLabels,
+    readyForInternalReview: brief.readyForOwnerReview === true,
+    brief: {
+      lane: cleanText(brief.laneLabelHu) || "Általános érdeklődés",
+      siteLocation: cleanText(brief.locationOrSite) || "Nincs megadva",
+      serviceNeed: cleanText(brief.serviceNeed) || "Nincs megadva",
+      timingUrgency: cleanText(brief.urgencyOrTiming) || "Nincs megadva",
+      contactNeeded: cleanText(brief.contactNeed) || "Kapcsolati adat hiányzik a visszajelzéshez.",
+      missingFields: missingFieldLabels,
+      recommendedNextQuestion: recommendedQuestion,
+      handoffNote: buildEnterpriseRequestDeskDemoHandoffNote(result),
+    },
+  };
 }
 
 function escapeHtml(value) {
@@ -1664,6 +1798,44 @@ export function createPublicRouter({ rootDir }) {
     setDashboardNoStoreHeaders(res);
     res.type("html").send(renderQuoteDeskHuIntakeDocument(rootDir));
   });
+
+  router.get(["/enterprise-request-desk/demo", "/esg-request-desk/demo"], (_req, res) => {
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderEnterpriseRequestDeskDemoDocument(rootDir));
+  });
+
+  router.post(
+    ["/enterprise-request-desk/demo/analyze", "/esg-request-desk/demo/analyze"],
+    limitEnterpriseRequestDeskDemo,
+    async (req, res, next) => {
+      try {
+        const message = cleanText(req.body?.message || "");
+
+        setDashboardNoStoreHeaders(res);
+
+        if (!message) {
+          res.status(400).json({ error: "Írjon be egy vállalati megkeresést a demo elemzéshez." });
+          return;
+        }
+
+        if (message.length > ENTERPRISE_REQUEST_DESK_DEMO_MESSAGE_LIMIT) {
+          res.status(400).json({
+            error: `A demo megkeresés legfeljebb ${ENTERPRISE_REQUEST_DESK_DEMO_MESSAGE_LIMIT} karakter lehet.`,
+          });
+          return;
+        }
+
+        const result = await generateEnterpriseRequestDeskAssistantTurn({
+          message,
+          businessContext: ENTERPRISE_REQUEST_DESK_DEMO_CONTEXT,
+        });
+
+        res.json(buildEnterpriseRequestDeskDemoPayload(result));
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
 
   router.get("/how-it-works", (_req, res) => {
     res.redirect(302, "/product");
