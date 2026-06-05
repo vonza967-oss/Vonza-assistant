@@ -18,6 +18,26 @@ export const ESG_HOLDING_ENTERPRISE_REQUEST_DESK_FIXTURE = Object.freeze({
 
 export const ENTERPRISE_REQUEST_DESK_EVAL_SCENARIOS = Object.freeze([
   Object.freeze({
+    id: "service-question-then-request",
+    title: "Service question first, then concrete request",
+    conversation: Object.freeze([
+      Object.freeze({
+        role: "user",
+        content: "Milyen szolgáltatásokra használható ez?",
+      }),
+      Object.freeze({
+        role: "assistant",
+        content:
+          "Használható őrzés-védelem, portaszolgálat, facility management, biztonságtechnika és audit/compliance jellegű megkeresések előkészítésére.",
+      }),
+    ]),
+    message:
+      "Portaszolgálat kell egy irodaházhoz Budapest XI. kerületben, jövő héttől. Kovács Anna vagyok, anna@client.hu.",
+    expectedLane: "reception_object_protection",
+    expectReady: true,
+    expectHungarian: true,
+  }),
+  Object.freeze({
     id: "guarding-office-building",
     title: "Need guarding for an office building",
     message:
@@ -27,10 +47,28 @@ export const ENTERPRISE_REQUEST_DESK_EVAL_SCENARIOS = Object.freeze([
     expectHungarian: true,
   }),
   Object.freeze({
+    id: "reception-object-protection",
+    title: "Need reception/object protection",
+    message:
+      "Portaszolgálat és beléptetési rend kell egy irodaházhoz Budapest XI. kerületben, jövő héttől. Kapcsolat: porta@client.hu.",
+    expectedLane: "reception_object_protection",
+    expectReady: true,
+    expectHungarian: true,
+  }),
+  Object.freeze({
     id: "facility-maintenance-support",
     title: "Need facility maintenance support",
     message:
       "Facility management támogatás kell egy budapesti telephelyre, karbantartás és takarítás egyeztetéssel, jövő héten. Telefon: +36 30 123 4567.",
+    expectedLane: "facility_management",
+    expectReady: true,
+    expectHungarian: true,
+  }),
+  Object.freeze({
+    id: "facility-issue-report",
+    title: "Facility issue report",
+    message:
+      "Facility hibabejelentést szeretnék egy budapesti telephelyen, minél hamarabb. Kapcsolat: fm@client.hu.",
     expectedLane: "facility_management",
     expectReady: true,
     expectHungarian: true,
@@ -88,6 +126,24 @@ export const ENTERPRISE_REQUEST_DESK_EVAL_SCENARIOS = Object.freeze([
     expectedLane: "mixed_enterprise_request",
     expectReady: false,
     expectedMissingFields: ["location_or_site", "contact_need"],
+    expectHungarian: true,
+  }),
+  Object.freeze({
+    id: "missing-contact",
+    title: "Missing contact",
+    message: "Őrzés-védelem kell egy budapesti irodaházhoz jövő hónaptól.",
+    expectedLane: "security_guarding",
+    expectReady: false,
+    expectedMissingFields: ["contact_need"],
+    expectHungarian: true,
+  }),
+  Object.freeze({
+    id: "missing-location",
+    title: "Missing location",
+    message: "Kamerarendszer és beléptető felmérés kell 1-2 héten belül. Email: security@client.hu.",
+    expectedLane: "security_technology",
+    expectReady: false,
+    expectedMissingFields: ["location_or_site"],
     expectHungarian: true,
   }),
   Object.freeze({

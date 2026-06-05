@@ -32,6 +32,8 @@ import { readBodyField } from "./agentRouteHelpers.js";
 const AGENTS_TABLE = "agents";
 const ENTERPRISE_PUBLIC_INTAKE_SOURCE_CHANNEL = "enterprise_request_desk_public_intake";
 const ENTERPRISE_PUBLIC_INTAKE_PHASE = "pilot_request_loop";
+const ENTERPRISE_AI_INTAKE_SOURCE_CHANNEL = "enterprise_request_desk_ai_intake";
+const ENTERPRISE_AI_INTAKE_PHASE = "conversational_ai_intake";
 const ENTERPRISE_DISPLAY_MODE = "enterprise_request_desk_intake";
 const ENTERPRISE_PUBLIC_INTAKE_ALLOWED_FIELDS = new Set([
   "agent_key",
@@ -59,6 +61,21 @@ const ENTERPRISE_PUBLIC_INTAKE_ALLOWED_FIELDS = new Set([
   "consent_acknowledged",
   "consentAcknowledged",
   "acknowledgement",
+  "language",
+]);
+const ENTERPRISE_PUBLIC_ASSISTANT_ALLOWED_FIELDS = new Set([
+  "agent_key",
+  "agentKey",
+  "message",
+  "conversation",
+  "history",
+  "fields",
+  "current_fields",
+  "currentFields",
+  "confirm_submit",
+  "confirmSubmit",
+  "consent_acknowledged",
+  "consentAcknowledged",
   "language",
 ]);
 const ENTERPRISE_PUBLIC_INTAKE_UNSAFE_FIELD_PATTERN =
@@ -261,6 +278,75 @@ function assertPublicIntakeFieldSafety(body) {
   }
 }
 
+function assertNoUnsafeNestedAssistantKeys(value, depth = 0) {
+  if (depth > 5 || value === null || value === undefined) {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => assertNoUnsafeNestedAssistantKeys(item, depth + 1));
+    return;
+  }
+
+  if (typeof value !== "object") {
+    return;
+  }
+
+  Object.entries(value).forEach(([key, nested]) => {
+    if (ENTERPRISE_PUBLIC_INTAKE_UNSAFE_FIELD_PATTERN.test(key)) {
+      throw buildRouteError(
+        "Unsafe Enterprise Request Desk assistant field rejected.",
+        400,
+        "enterprise_intake_field_not_allowed"
+      );
+    }
+    assertNoUnsafeNestedAssistantKeys(nested, depth + 1);
+  });
+}
+
+function assertPublicAssistantBodySafety(body) {
+  assertPlainBody(body);
+
+  Object.keys(body).forEach((key) => {
+    if (!ENTERPRISE_PUBLIC_ASSISTANT_ALLOWED_FIELDS.has(key)) {
+      throw buildRouteError(
+        ENTERPRISE_PUBLIC_INTAKE_UNSAFE_FIELD_PATTERN.test(key)
+          ? "Unsafe Enterprise Request Desk assistant field rejected."
+          : "Unsupported Enterprise Request Desk assistant field.",
+        400,
+        "enterprise_intake_field_not_allowed"
+      );
+    }
+  });
+
+  assertNoUnsafeNestedAssistantKeys(body);
+
+  const bodyText = collectBodyStrings(body).join(" ");
+  if (bodyText.length > 9000) {
+    throw buildRouteError(
+      "Enterprise Request Desk assistant payload is too long.",
+      413,
+      "enterprise_intake_payload_too_large"
+    );
+  }
+
+  if (ENTERPRISE_PUBLIC_INTAKE_UNSAFE_VALUE_PATTERN.test(bodyText)) {
+    throw buildRouteError(
+      "Unsafe or secret-looking assistant value rejected.",
+      400,
+      "enterprise_intake_unsafe_value_rejected"
+    );
+  }
+
+  if (ENTERPRISE_PUBLIC_INTAKE_URL_PATTERN.test(bodyText)) {
+    throw buildRouteError(
+      "Assistant intake payload must not include URLs in this intake surface.",
+      400,
+      "enterprise_intake_url_rejected"
+    );
+  }
+}
+
 function assertSetupBodySafety(body) {
   assertPlainBody(body);
 
@@ -284,6 +370,66 @@ function assertSetupBodySafety(body) {
       "enterprise_request_desk_setup_unsafe_value_rejected"
     );
   }
+}
+
+function normalizeAssistantConversation(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((entry) => entry && typeof entry === "object")
+    .map((entry) => ({
+      role: cleanText(String(entry.role ?? "")) === "assistant" ? "assistant" : "user",
+      content: cleanText(String(entry.content ?? "")).slice(0, 1200),
+    }))
+    .filter((entry) => entry.content)
+    .slice(-8);
+}
+
+function normalizePublicAssistantBody(body = {}) {
+  assertPublicAssistantBodySafety(body);
+
+  const agentKey = normalizeText(
+    readAnyBodyField(body, ["agent_key", "agentKey"]),
+    "agent_key",
+    { maxLength: ENTERPRISE_FIELD_LIMITS.agentKey }
+  );
+
+  if (!agentKey) {
+    throw buildRouteError(
+      "agent_key is required for Enterprise Request Desk public intake.",
+      400,
+      "enterprise_intake_agent_key_required"
+    );
+  }
+
+  const message = normalizeText(
+    readAnyBodyField(body, ["message"]),
+    "message",
+    { maxLength: ENTERPRISE_FIELD_LIMITS.requestText }
+  );
+  const confirmSubmit = normalizeBoolean(readAnyBodyField(body, ["confirm_submit", "confirmSubmit"]));
+
+  if (!message && !confirmSubmit) {
+    throw buildRouteError(
+      "message is required",
+      400,
+      "enterprise_intake_message_required"
+    );
+  }
+
+  return {
+    agentKey,
+    message,
+    fields: readAnyBodyField(body, ["fields", "current_fields", "currentFields"]) || {},
+    conversation: normalizeAssistantConversation(readAnyBodyField(body, ["conversation", "history"])),
+    confirmSubmit,
+    consentAcknowledged: normalizeBoolean(readAnyBodyField(body, [
+      "consent_acknowledged",
+      "consentAcknowledged",
+    ])),
+  };
 }
 
 function normalizePublicIntakeBody(body = {}) {
@@ -543,6 +689,196 @@ function buildSafePublicResponse(request = {}) {
   };
 }
 
+function extractQuestionFromReply(reply = "") {
+  const normalized = cleanText(reply);
+  const match = normalized.match(/(?:^|[.!?\n]\s*)([^.!?\n][^?\n]{8,220}\?)/u);
+
+  return cleanText(match?.[1] || "");
+}
+
+function buildAssistantNextQuestion(analysis = {}) {
+  const parsedQuestion = extractQuestionFromReply(analysis.assistantReply);
+
+  if (parsedQuestion) {
+    return parsedQuestion;
+  }
+
+  const firstMissing = Array.isArray(analysis.missingFields) ? analysis.missingFields[0] : "";
+
+  if (firstMissing === "service_need") {
+    return "Melyik szolgáltatási területhez kapcsolódik az igény?";
+  }
+
+  if (firstMissing === "location_or_site") {
+    return "Melyik településen vagy helyszínen lenne a feladat, és milyen típusú objektumról van szó?";
+  }
+
+  if (firstMissing === "urgency_or_timing") {
+    return "Mikor indulna a feladat, vagy meddig kell visszajelzést kapniuk?";
+  }
+
+  if (firstMissing === "contact_need") {
+    return "Milyen biztonságos elérhetőségen kérhetnek visszajelzést?";
+  }
+
+  return analysis.readyForOwnerReview === true
+    ? "Rögzíthető a megkeresés belső feldolgozásra?"
+    : "";
+}
+
+function buildStructuredBriefPreview(brief = {}) {
+  return {
+    laneLabel: cleanText(brief.laneLabelHu) || "Általános érdeklődés",
+    serviceNeed: cleanText(brief.serviceNeed),
+    locationOrSite: cleanText(brief.locationOrSite),
+    urgencyOrTiming: cleanText(brief.urgencyOrTiming),
+    contactNeed: cleanText(brief.contactNeed),
+    contactName: cleanText(brief.contactName),
+    organizationName: cleanText(brief.organizationName),
+    siteType: cleanText(brief.siteType),
+    notes: cleanText(brief.notes).slice(0, 700),
+  };
+}
+
+function buildSafeAssistantResponse(analysis = {}, request = null) {
+  const brief = analysis.structuredBrief || {};
+  const missingFields = Array.isArray(analysis.missingFields)
+    ? analysis.missingFields.map(cleanText).filter(Boolean)
+    : [];
+  const readyToCreate = analysis.readyForOwnerReview === true && missingFields.length === 0;
+  const requestMessage = request
+    ? "A megkeresést rögzítettük belső feldolgozásra. A csapat a megadott adatok alapján tud visszajelezni a következő lépésről."
+    : "";
+
+  return {
+    ok: true,
+    assistant: {
+      reply: requestMessage || cleanText(analysis.assistantReply),
+    },
+    lane: {
+      key: cleanText(brief.lane),
+      label: cleanText(brief.laneLabelHu) || "Általános érdeklődés",
+    },
+    extractedFields: {
+      organizationName: cleanText(analysis.fields?.organizationName),
+      serviceNeed: cleanText(analysis.fields?.serviceNeed),
+      locationOrSite: cleanText(analysis.fields?.locationOrSite),
+      urgencyOrTiming: cleanText(analysis.fields?.urgencyOrTiming),
+      contactName: cleanText(analysis.fields?.contactName),
+      contactEmail: cleanText(analysis.fields?.contactEmail),
+      contactPhone: cleanText(analysis.fields?.contactPhone),
+      contactPreference: cleanText(analysis.fields?.contactPreference),
+      siteType: cleanText(analysis.fields?.siteType),
+      notes: cleanText(analysis.fields?.notes).slice(0, 700),
+    },
+    missingFields,
+    missingFieldLabels: labelMissingFields(missingFields),
+    structuredBriefPreview: buildStructuredBriefPreview(brief),
+    nextQuestion: buildAssistantNextQuestion(analysis),
+    readyToCreate,
+    needsConfirmation: readyToCreate && !request,
+    request: request
+      ? {
+          created: request.wasExisting !== true,
+          laneLabel: cleanText(request.laneLabel) || cleanText(brief.laneLabelHu) || "Általános érdeklődés",
+          message: requestMessage,
+        }
+      : null,
+  };
+}
+
+function buildAssistantRequestText(intakeTurn = {}, analysis = {}) {
+  const userMessages = [
+    ...normalizeAssistantConversation(intakeTurn.conversation).filter((entry) => entry.role === "user").map((entry) => entry.content),
+    intakeTurn.message,
+  ].map(cleanText).filter(Boolean);
+  const fields = analysis.fields || {};
+  const brief = analysis.structuredBrief || {};
+
+  return cleanText(
+    userMessages.join("\n")
+    || fields.notes
+    || brief.notes
+    || fields.serviceNeed
+    || brief.serviceNeed
+    || "Enterprise Request Desk megkeresés"
+  ).slice(0, ENTERPRISE_FIELD_LIMITS.requestText);
+}
+
+function buildAssistantIdempotencyKey(agent, analysis = {}) {
+  const fields = analysis.fields || {};
+  const brief = analysis.structuredBrief || {};
+  const digest = createHash("sha256")
+    .update([
+      cleanText(agent.id),
+      cleanText(fields.contactEmail || fields.contactPhone || fields.contactPreference).toLowerCase(),
+      cleanText(fields.serviceNeed || brief.serviceNeed).toLowerCase(),
+      cleanText(fields.locationOrSite || brief.locationOrSite).toLowerCase(),
+      cleanText(fields.urgencyOrTiming || brief.urgencyOrTiming).toLowerCase(),
+      cleanText(brief.lane).toLowerCase(),
+      ENTERPRISE_AI_INTAKE_SOURCE_CHANNEL,
+    ].join(":"))
+    .digest("hex")
+    .slice(0, 32);
+
+  return `erd-ai-intake:${digest}`;
+}
+
+function buildAssistantRequestOptions({
+  agent,
+  intakeTurn,
+  analysis,
+} = {}) {
+  const fields = analysis.fields || {};
+  const brief = analysis.structuredBrief || {};
+
+  return {
+    ownerUserId: agent.ownerUserId,
+    agentId: agent.id,
+    businessId: agent.businessId,
+    sourceKeyHash: sourceKeyHash(intakeTurn.agentKey),
+    lane: brief.lane || "general_enquiry",
+    laneLabel: brief.laneLabelHu,
+    confidence: brief.confidence,
+    requestText: buildAssistantRequestText(intakeTurn, analysis),
+    siteOrObject: fields.siteType || brief.siteType,
+    locationText: fields.locationOrSite || brief.locationOrSite,
+    serviceNeed: fields.serviceNeed || brief.serviceNeed,
+    timingText: fields.urgencyOrTiming || brief.urgencyOrTiming,
+    urgency: fields.urgencyOrTiming || brief.urgencyOrTiming,
+    contactName: fields.contactName || brief.contactName,
+    contactEmail: fields.contactEmail || brief.contactEmail,
+    contactPhone: fields.contactPhone || brief.contactPhone,
+    missingFields: analysis.missingFields || [],
+    structuredBrief: brief,
+    status: "request_received",
+    statusReason: "Enterprise Request Desk conversational intake received for internal processing.",
+    evidence: {
+      proof_source_type: "request_only",
+      classification_reason: cleanText(analysis.laneClassification?.reason),
+      conversational_intake: {
+        safety_flags: {
+          prompt_injection: analysis.safetyFlags?.promptInjection === true,
+          secret_like_input: analysis.safetyFlags?.secretLikeInput === true,
+          pricing_boundary_requested: analysis.safetyFlags?.pricingGuaranteeRequested === true,
+          deferred_operations_requested: analysis.safetyFlags?.deferredOperationsRequested === true,
+        },
+        missing_fields_at_submit: analysis.missingFields || [],
+      },
+    },
+    metadata: {
+      product: "enterprise_request_desk",
+      phase: ENTERPRISE_AI_INTAKE_PHASE,
+      source: ENTERPRISE_AI_INTAKE_SOURCE_CHANNEL,
+      display_mode: ENTERPRISE_DISPLAY_MODE,
+      request_only: true,
+      consent_acknowledged: true,
+      assistant_version: "enterprise_conversational_intake_v1",
+    },
+    idempotencyKey: buildAssistantIdempotencyKey(agent, analysis),
+  };
+}
+
 function buildSummary(records = []) {
   const countByStatus = (statuses) => records.filter((record) =>
     statuses.includes(cleanText(record?.status).toLowerCase())
@@ -584,6 +920,13 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
     deps.saveEnterpriseRequestDeskSetup || saveEnterpriseRequestDeskSetup;
   const limitPublicIntake =
     deps.limitEnterpriseRequestDeskIntake || createRateLimitMiddleware("public_enterprise_request_desk_intake", {
+      windowMs: 60_000,
+      max: 8,
+    });
+  const limitIntakeAssistant =
+    deps.limitEnterpriseRequestDeskIntakeAssistant
+    || deps.limitEnterpriseRequestDeskIntake
+    || createRateLimitMiddleware("public_enterprise_request_desk_intake_assistant", {
       windowMs: 60_000,
       max: 8,
     });
@@ -694,6 +1037,57 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
         res.status(request.wasExisting ? 200 : 201).json(buildSafePublicResponse(request));
       } catch (err) {
         sendRouteError(req, res, err, { route: "/enterprise-request-desk/intake-requests" });
+      }
+    }
+  );
+
+  router.post(
+    ["/enterprise-request-desk/intake-assistant", "/esg-request-desk/intake-assistant"],
+    limitIntakeAssistant,
+    async (req, res) => {
+      try {
+        const supabase = getSupabase();
+        const intakeTurn = normalizePublicAssistantBody(req.body);
+        const agent = await resolvePublicAgentImpl(supabase, {
+          agentKey: intakeTurn.agentKey,
+        });
+        const analysis = await generateAssistantTurnImpl({
+          supabase,
+          agent,
+          message: intakeTurn.message,
+          conversation: intakeTurn.conversation,
+          fields: intakeTurn.fields,
+          businessContext: buildBusinessContext(agent),
+          confirmSubmit: intakeTurn.confirmSubmit,
+        });
+        const readyToCreate =
+          intakeTurn.confirmSubmit === true
+          && analysis.readyForOwnerReview === true
+          && Array.isArray(analysis.missingFields)
+          && analysis.missingFields.length === 0;
+
+        if (!readyToCreate) {
+          res.json(buildSafeAssistantResponse(analysis));
+          return;
+        }
+
+        if (!intakeTurn.consentAcknowledged) {
+          throw buildRouteError(
+            "Request acknowledgement is required.",
+            400,
+            "enterprise_intake_acknowledgement_required"
+          );
+        }
+
+        const request = await createRequestImpl(supabase, buildAssistantRequestOptions({
+          agent,
+          intakeTurn,
+          analysis,
+        }));
+
+        res.status(request.wasExisting ? 200 : 201).json(buildSafeAssistantResponse(analysis, request));
+      } catch (err) {
+        sendRouteError(req, res, err, { route: "/enterprise-request-desk/intake-assistant" });
       }
     }
   );

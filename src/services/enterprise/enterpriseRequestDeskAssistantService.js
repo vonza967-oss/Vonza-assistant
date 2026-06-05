@@ -70,7 +70,7 @@ const REQUIRED_FIELD_LABELS_HU = Object.freeze({
 const KNOWN_LOCATION_PATTERN =
   /\b(Budapest(?:\s?(?:[IVXLCDM]+\.?|\d{1,2}\.?\s?ker(?:ület)?|belváros|Buda|Pest))?|Debrecen|Szeged|Miskolc|Pécs|Győr|Nyíregyháza|Kecskemét|Székesfehérvár|Szombathely|Szolnok|Tatabánya|Kaposvár|Békéscsaba|Érd|Veszprém|Sopron|Eger|Nagykanizsa|Dunaújváros|Hódmezővásárhely|Dunakeszi|Szigetszentmiklós|Pest megye|országos|orsz[aá]gos|nationwide)(?:en|on|ban|ben|i|an|re|ra|hoz|hez|höz)?\b/i;
 const SERVICE_QUESTION_PATTERN =
-  /\b(milyen szolg[aá]ltat[aá]s(?:ok|okat)?|mit v[aá]llal(?:tok|nak)?|mivel foglalkoz|services|what do you offer|what services)\b/i;
+  /\b(milyen szolg[aá]ltat[aá]s(?:ok|okra|okat)?|mire haszn[aá]lhat[oó]|mit v[aá]llal(?:tok|nak)?|mivel foglalkoz|services|what do you offer|what services)\b/i;
 const SERVICE_AREA_QUESTION_PATTERN =
   /\b(szolg[aá]ltat[aá]si ter[uü]let|hol v[aá]llal|orsz[aá]gos|budapest|nationwide|service area|where do you serve|do you serve)\b/i;
 const PRICE_AMOUNT_PATTERN =

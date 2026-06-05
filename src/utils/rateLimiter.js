@@ -10,6 +10,7 @@ const DEFAULT_LIMITS = Object.freeze({
   public_voice_speech: { windowMs: 60_000, max: 10 },
   public_voice_realtime: { windowMs: 60_000, max: 8 },
   public_qdh_intake_assistant: { windowMs: 60_000, max: 8 },
+  public_enterprise_request_desk_intake_assistant: { windowMs: 60_000, max: 8 },
   public_enterprise_request_desk_demo: { windowMs: 60_000, max: 10 },
   phone_webhook: { windowMs: 60_000, max: 60 },
   widget_bootstrap: { windowMs: 60_000, max: 60 },
@@ -61,6 +62,8 @@ function isPublicAssistantRoute(req) {
     || path === "/api/voice/speech"
     || path === "/api/voice/realtime/session"
     || path === "/quote-desk-hu/intake-assistant"
+    || path === "/enterprise-request-desk/intake-assistant"
+    || path === "/esg-request-desk/intake-assistant"
     || path === "/enterprise-request-desk/demo/analyze"
     || path === "/esg-request-desk/demo/analyze"
     || path === "/phone/twilio/inbound"

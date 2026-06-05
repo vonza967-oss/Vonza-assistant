@@ -274,6 +274,10 @@ const EXPLICIT_MIXED_PATTERN =
   /\b(vegyes|komplex|t[oö]bb szolg[aá]ltat[aá]s|multi[-\s]?service|multiple services|guarding and facility|security and fm)\b/i;
 const GENERAL_ENQUIRY_PATTERN =
   /\b(mivel foglalkoz|milyen szolg[aá]ltat[aá]s|mit v[aá]llal|services|what do you offer|general enquiry|általános|altalanos)\b/i;
+const SECURITY_TECH_DOMINANT_PATTERN =
+  /\b(kamera\w*|kamerarendszer\w*|cctv|riaszt[oó]\w*|bel[eé]ptet\w*|access control|biztons[aá]gtechnika\w*|vide[oó]megfigyel[eé]s\w*)\b/i;
+const RECEPTION_DOMINANT_PATTERN =
+  /\b(porta|portaszolg[aá]lat|recepci[oó]|objektumv[eé]delem|gatehouse|front desk security|access desk)\b/i;
 
 function normalizeForMatching(value = "") {
   return cleanText(value)
@@ -373,6 +377,25 @@ export function classifyEnterpriseRequestDeskLane(input = {}) {
   const matchedLaneKeys = laneScores.map((entry) => entry.laneKey);
   const matchedKeywords = laneScores.flatMap((entry) => entry.matchedKeywords);
   const explicitMixed = EXPLICIT_MIXED_PATTERN.test(text);
+  const hasSecurityTechnology = laneScores.some((entry) => entry.laneKey === "security_technology");
+  const hasReception = laneScores.some((entry) => entry.laneKey === "reception_object_protection");
+
+  if (
+    !explicitMixed
+    && laneScores.length === 2
+    && hasSecurityTechnology
+    && hasReception
+    && SECURITY_TECH_DOMINANT_PATTERN.test(text)
+    && !RECEPTION_DOMINANT_PATTERN.test(text)
+  ) {
+    return deepFreeze({
+      laneKey: "security_technology",
+      confidence: "high",
+      matchedLaneKeys,
+      matchedKeywords,
+      reason: "security_technology_dominant_access_control",
+    });
+  }
 
   if ((explicitMixed && laneScores.length > 0) || laneScores.length >= 2) {
     return deepFreeze({

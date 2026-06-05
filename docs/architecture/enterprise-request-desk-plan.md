@@ -102,6 +102,34 @@ Phase 4 setup APIs:
 
 The setup DTO intentionally excludes internal owner IDs, agent IDs, business IDs, raw public keys outside the URL, evidence, policy metadata, prompts, service secrets, and provider credentials. Setup input rejects unsupported fields and secret-looking values.
 
+## Phase 6 Conversational AI Intake
+
+Phase 6 makes the public intake an AI-guided request desk instead of a static form-first surface:
+
+- public assistant endpoints:
+  - `POST /enterprise-request-desk/intake-assistant`
+  - `POST /esg-request-desk/intake-assistant`
+- customer-facing chat UI on the existing intake pages;
+- compact recognized-detail progress chips;
+- structured brief preview;
+- secondary manual details editor;
+- confirmation-only request creation into `enterprise_request_desk_requests`.
+
+The assistant endpoint requires a valid active `agent_key`, accepts bounded conversation history plus current extracted fields, and returns only a safe DTO: assistant reply, lane key/label, extracted public fields, missing fields, missing-field labels, structured brief preview, next question, readiness/confirmation state, and a recorded-request acknowledgement when a request is created.
+
+Request creation happens only when the deterministic Enterprise readiness layer has all required fields and the visitor explicitly confirms. The persisted row remains owner-scoped through the resolved public agent, stores a hashed source key rather than the raw public key, and uses the existing `enterprise_request_desk_requests` table. No schema or migration is added in Phase 6.
+
+The service layer reuses Vonza/QDH engine patterns where safe:
+
+- bounded public conversation history;
+- deterministic extraction and fallback before any generated wording;
+- service-question handling separate from request creation;
+- safe public DTO shaping;
+- prompt-injection, secret-looking input, and exact-price boundary handling;
+- optional shared Front Desk turn injection remains available for service tests, while the production public endpoint does not add an external provider call.
+
+The frontend keeps Enterprise Request Desk visual identity and does not expose customer-visible internal terms such as source labels, metadata, package/policy details, model details, or owner/agent identifiers. It does not create QDH quote requests and does not touch widget/embed behavior.
+
 ## Shared Engine vs Product Layer
 
 Shared Vonza Engine patterns:
@@ -109,7 +137,8 @@ Shared Vonza Engine patterns:
 - Front Desk business-context grounding for supported service questions;
 - package prompt-block shape and risk-rule metadata;
 - deterministic safety boundaries for missing facts, exact pricing, prompt injection, and internal metadata;
-- report-only eval and readiness style.
+- report-only eval and readiness style;
+- QDH-style public assistant turn orchestration, bounded history, confirmation gate, and safe response shaping.
 
 Enterprise-specific layer:
 
@@ -118,9 +147,10 @@ Enterprise-specific layer:
 - enterprise request field extraction for service need, location/site, timing/urgency, and contact route;
 - structured owner/staff handoff brief;
 - owner-scoped Phase 3 request persistence in `enterprise_request_desk_requests`;
+- Phase 6 conversational readiness and confirmation layer for public intake;
 - Enterprise eval scenarios and CLI command.
 
-The adapter can accept an injected shared Front Desk turn for service questions, but default behavior is deterministic and report-only.
+The adapter can accept an injected shared Front Desk turn for service questions, but default public intake behavior is deterministic and does not add external provider calls.
 
 ## ESG-Style First Pilot
 
@@ -237,6 +267,18 @@ Deferred out of Phase 4:
 - QDH merge or QDH setup reuse;
 - website widget, embed, or chat behavior changes.
 
+Deferred out of Phase 6:
+
+- full operations cockpit;
+- QR reporting;
+- SLA clocks, tickets, and operational lifecycle;
+- vendor panels;
+- compliance or audit document generation;
+- external provider calls;
+- final quote/pricing guarantees;
+- QDH merge or QDH setup reuse;
+- website widget, embed, or chat behavior changes.
+
 ## Activation Boundary
 
 `src/agentPackages/enterprise_request_desk/manifest.js` is intentionally not imported by `src/agentPackages/index.js`.
@@ -264,6 +306,8 @@ Deploy the migrations before pitching the product shell:
 6. Use an active agent with `public_agent_key`, `access_status = 'active'`, and `is_active = true`.
 7. Share `/enterprise-request-desk/intake?agent_key=<public_agent_key>` or `/esg-request-desk/intake?agent_key=<public_agent_key>` for intake after setup.
 8. Owners process rows at `/enterprise-request-desk/dashboard` or `/esg-request-desk/dashboard` after signing in.
+
+Phase 6 has no migration step. Deploying `main` is enough after the Phase 3/4 tables already exist.
 
 First-client readiness after Phase 4:
 

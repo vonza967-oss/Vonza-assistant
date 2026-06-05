@@ -182,6 +182,16 @@ function validIntakePayload(overrides = {}) {
   };
 }
 
+function validAssistantPayload(overrides = {}) {
+  return {
+    agent_key: "valid-enterprise-key",
+    message: "Portaszolgálatra lenne szükségünk egy irodaházban.",
+    conversation: [],
+    fields: {},
+    ...overrides,
+  };
+}
+
 test("Enterprise public intake requires a valid routing context", async () => {
   let createCalled = false;
   const server = await startServer(createApiApp({
@@ -208,6 +218,267 @@ test("Enterprise public intake requires a valid routing context", async () => {
     assert.equal(invalid.status, 404);
     assert.equal(invalid.json.code, "enterprise_intake_link_unavailable");
     assert.equal(createCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("Enterprise assistant endpoint requires valid agent_key and rejects unsafe payloads", async () => {
+  let createCalled = false;
+  const server = await startServer(createApiApp({
+    createEnterpriseRequestDeskRequest: async () => {
+      createCalled = true;
+      return {};
+    },
+  }));
+
+  try {
+    const missingContext = await requestJson(server.baseUrl, "/enterprise-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({ agent_key: "" })),
+    });
+    const invalidContext = await requestJson(server.baseUrl, "/enterprise-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({ agent_key: "bad-key" })),
+    });
+    const unsafeField = await requestJson(server.baseUrl, "/enterprise-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify({ ...validAssistantPayload(), metadata: { product: "x" } }),
+    });
+    const unsafeNestedField = await requestJson(server.baseUrl, "/enterprise-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({ fields: { owner_user_id: "owner-1" } })),
+    });
+    const unsafeValue = await requestJson(server.baseUrl, "/enterprise-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({
+        message: "OPENAI_API_KEY=sk-secretsecretsecretsecret",
+      })),
+    });
+
+    assert.equal(missingContext.status, 400);
+    assert.equal(missingContext.json.code, "enterprise_intake_agent_key_required");
+    assert.equal(invalidContext.status, 404);
+    assert.equal(invalidContext.json.code, "enterprise_intake_link_unavailable");
+    assert.equal(unsafeField.status, 400);
+    assert.equal(unsafeField.json.code, "enterprise_intake_field_not_allowed");
+    assert.equal(unsafeNestedField.status, 400);
+    assert.equal(unsafeNestedField.json.code, "enterprise_intake_field_not_allowed");
+    assert.equal(unsafeValue.status, 400);
+    assert.equal(unsafeValue.json.code, "enterprise_intake_unsafe_value_rejected");
+    assert.equal(createCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("Enterprise assistant answers service questions safely without creating a request", async () => {
+  let createCalled = false;
+  const server = await startServer(createApiApp({
+    createEnterpriseRequestDeskRequest: async () => {
+      createCalled = true;
+      return {};
+    },
+  }));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/enterprise-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({
+        message: "Milyen szolgáltatásokra használható ez?",
+      })),
+    });
+    const bodyText = JSON.stringify(response.json);
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.equal(response.json.readyToCreate, false);
+    assert.equal(response.json.request, null);
+    assert.match(response.json.assistant.reply, /őrzés-védelem|facility management|biztonságtechnika/i);
+    assert.match(response.json.nextQuestion, /\?/);
+    assert.doesNotMatch(bodyText, INTERNAL_LEAK_PATTERN);
+    assert.doesNotMatch(bodyText, /owner-1|agent-1|business-1|valid-enterprise-key|sourceChannel|source_channel/i);
+    assert.equal(createCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("Enterprise assistant carries bounded follow-up history into a ready brief", async () => {
+  let createCalled = false;
+  const server = await startServer(createApiApp({
+    createEnterpriseRequestDeskRequest: async () => {
+      createCalled = true;
+      return {};
+    },
+  }));
+
+  try {
+    const partial = await requestJson(server.baseUrl, "/enterprise-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({
+        message: "Portaszolgálatra lenne szükségünk egy irodaházban.",
+      })),
+    });
+    const followUp = await requestJson(server.baseUrl, "/enterprise-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({
+        message: "Budapest XI. kerület, jövő héttől. Kovács Anna vagyok, anna@client.hu.",
+        fields: partial.json.extractedFields,
+        conversation: [
+          { role: "user", content: "Portaszolgálatra lenne szükségünk egy irodaházban." },
+          { role: "assistant", content: partial.json.assistant.reply },
+        ],
+      })),
+    });
+
+    assert.equal(partial.status, 200);
+    assert.equal(partial.json.lane.key, "reception_object_protection");
+    assert.equal(partial.json.readyToCreate, false);
+    assert.ok(partial.json.missingFields.includes("location_or_site"));
+    assert.match(partial.json.nextQuestion, /helysz/i);
+
+    assert.equal(followUp.status, 200);
+    assert.equal(followUp.json.lane.key, "reception_object_protection");
+    assert.deepEqual(followUp.json.missingFields, []);
+    assert.equal(followUp.json.readyToCreate, true);
+    assert.equal(followUp.json.needsConfirmation, true);
+    assert.match(followUp.json.extractedFields.locationOrSite, /Budapest/i);
+    assert.equal(followUp.json.extractedFields.contactEmail, "anna@client.hu");
+    assert.equal(followUp.json.request, null);
+    assert.equal(createCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("Enterprise assistant classifies tech, FM, audit, and refuses exact price guarantees", async () => {
+  const server = await startServer(createApiApp());
+
+  try {
+    const examples = [
+      {
+        message: "Kamerarendszert és beléptetést szeretnénk egy győri raktárba, 1-2 héten belül. security@client.hu",
+        expectedLane: "security_technology",
+      },
+      {
+        message: "Facility hibabejelentést szeretnék egy budapesti telephelyen, minél hamarabb. fm@client.hu",
+        expectedLane: "facility_management",
+      },
+      {
+        message: "Audit/compliance anyaghoz kérnénk segítséget Budapesten, a negyedév végéig. compliance@client.hu",
+        expectedLane: "audit_compliance",
+      },
+    ];
+
+    for (const example of examples) {
+      const response = await requestJson(server.baseUrl, "/esg-request-desk/intake-assistant", {
+        method: "POST",
+        auth: false,
+        body: JSON.stringify(validAssistantPayload({ message: example.message })),
+      });
+
+      assert.equal(response.status, 200);
+      assert.equal(response.json.lane.key, example.expectedLane);
+      assert.doesNotMatch(JSON.stringify(response.json), INTERNAL_LEAK_PATTERN);
+    }
+
+    const pricing = await requestJson(server.baseUrl, "/enterprise-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({
+        message: "Adj pontos garantált árat portaszolgálatra egy budapesti irodaházhoz, jövő héttől. Email: price@client.hu.",
+      })),
+    });
+
+    assert.equal(pricing.status, 200);
+    assert.equal(pricing.json.lane.key, "reception_object_protection");
+    assert.match(pricing.json.assistant.reply, /Pontos vagy garantált árat itt nem adok/i);
+    assert.doesNotMatch(pricing.json.assistant.reply, /\b\d+\s?(?:ft|forint|eur|euro|huf)\b/i);
+    assert.equal(pricing.json.request, null);
+  } finally {
+    await server.close();
+  }
+});
+
+test("Enterprise assistant creates a request only after ready brief and explicit confirmation", async () => {
+  let capturedOptions = null;
+  const server = await startServer(createApiApp({
+    createEnterpriseRequestDeskRequest: async (_supabase, options) => {
+      capturedOptions = options;
+      return {
+        id: "internal-request-id",
+        ownerUserId: options.ownerUserId,
+        agentId: options.agentId,
+        businessId: options.businessId,
+        laneLabel: options.laneLabel,
+        missingFields: options.missingFields,
+        status: options.status,
+        metadata: options.metadata,
+        evidence: options.evidence,
+        wasExisting: false,
+      };
+    },
+  }));
+
+  try {
+    const ready = await requestJson(server.baseUrl, "/enterprise-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({
+        message:
+          "Portaszolgálat kell egy irodaházhoz Budapest XI. kerületben, jövő héten. Kovács Anna vagyok, anna@client.hu.",
+      })),
+    });
+    const confirmed = await requestJson(server.baseUrl, "/enterprise-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({
+        message: "",
+        fields: ready.json.extractedFields,
+        conversation: [
+          {
+            role: "user",
+            content:
+              "Portaszolgálat kell egy irodaházhoz Budapest XI. kerületben, jövő héten. Kovács Anna vagyok, anna@client.hu.",
+          },
+          { role: "assistant", content: ready.json.assistant.reply },
+        ],
+        confirm_submit: true,
+        consent_acknowledged: true,
+      })),
+    });
+    const bodyText = JSON.stringify(confirmed.json);
+
+    assert.equal(ready.status, 200);
+    assert.equal(ready.json.readyToCreate, true);
+    assert.equal(ready.json.needsConfirmation, true);
+    assert.equal(ready.json.request, null);
+
+    assert.equal(confirmed.status, 201);
+    assert.equal(confirmed.json.request.created, true);
+    assert.match(confirmed.json.request.message, /rögzítettük belső feldolgozásra/i);
+    assert.doesNotMatch(bodyText, INTERNAL_LEAK_PATTERN);
+    assert.doesNotMatch(bodyText, /internal-request-id|owner-1|agent-1|business-1|valid-enterprise-key/i);
+
+    assert.equal(capturedOptions.ownerUserId, "owner-1");
+    assert.equal(capturedOptions.agentId, "agent-1");
+    assert.equal(capturedOptions.businessId, "business-1");
+    assert.equal(capturedOptions.metadata.product, "enterprise_request_desk");
+    assert.equal(capturedOptions.metadata.source, "enterprise_request_desk_ai_intake");
+    assert.equal(capturedOptions.metadata.request_only, true);
+    assert.equal(capturedOptions.evidence.proof_source_type, "request_only");
+    assert.match(capturedOptions.idempotencyKey, /^erd-ai-intake:/);
+    assert.match(capturedOptions.sourceKeyHash, /^sha256:/);
+    assert.doesNotMatch(JSON.stringify(capturedOptions), /agent_quote_requests|qdh_ai_intake|quoted_externally|accepted_externally/i);
   } finally {
     await server.close();
   }

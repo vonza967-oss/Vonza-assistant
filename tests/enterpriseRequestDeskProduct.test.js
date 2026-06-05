@@ -434,7 +434,7 @@ test("Enterprise Request Desk demo remains separate from QDH routes, dashboard, 
 test("Enterprise Request Desk eval suite passes", async () => {
   const report = await runEnterpriseRequestDeskEvaluation();
 
-  assert.equal(report.summary.total, 10);
+  assert.equal(report.summary.total, 15);
   assert.equal(report.summary.failed, 0);
-  assert.equal(report.summary.passed, 10);
+  assert.equal(report.summary.passed, 15);
 });
