@@ -10,6 +10,8 @@ QDH reuses Vonza engine services where they fit, especially `public.agent_quote_
 
 QDH owns its product shell, dashboard route, visual language, copy, and workflows.
 
+Enterprise Request Desk / ESG Request Desk is a separate product layer. It must not be merged into QDH naming, QDH setup, QDH dashboard, QDH customer intake routes, or `agent_quote_requests`. QDH remains the Hungarian quote-request product; Enterprise Request Desk handles ESG-style security/FM/compliance qualified intake through its own Phase 1 skeleton and future product decisions.
+
 Current owner routes:
 
 - `/qdh`

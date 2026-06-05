@@ -4,13 +4,14 @@
 
 Agent packages describe a customer-facing assistant surface without changing the shared chat runtime by themselves. The package layer is a small contract for prompt blocks, metadata, report-only policy checks, and eval ownership.
 
-The current production default is `front_desk_general`. The internal `hotel_concierge` package exists for code, eval testing, and controlled service-level assignment only. It is not sellable and not selectable in the dashboard.
+The current production default is `front_desk_general`. The internal `hotel_concierge` package exists for code, eval testing, and controlled service-level assignment only. It is not sellable and not selectable in the dashboard. The `enterprise_request_desk` skeleton exists as unregistered Phase 1 product metadata, tests, and eval scaffolding only.
 
 ## Current Registry and Database Contract
 
 - `src/agentPackages/index.js` imports the registered package manifests and exports `DEFAULT_AGENT_PACKAGE_KEY = "front_desk_general"`.
 - `front_desk_general` remains the fallback for unknown, missing, or unset package keys.
 - `hotel_concierge` is registered in code so tests, eval runners, and controlled internal assignment can exercise package selection.
+- `enterprise_request_desk` is intentionally not imported by `src/agentPackages/index.js`; it is not a known runtime package key, not persistable, and not dashboard-selectable.
 - Persisted agents are constrained to `package_key in ('front_desk_general', 'hotel_concierge')` in `db/schema.sql` and the PR 14 constraint-widening migration. The default remains `front_desk_general`.
 - The non-runtime `_template` folder is documentation scaffolding only and must not be imported by `src/agentPackages/index.js`.
 
@@ -157,6 +158,8 @@ Answer Contract and Claim Verifier enforcement must remain off until report-only
 `front_desk_general` is the production AI Front Desk package. It preserves the existing public chat, full-page Front Desk, widget, web-call, lead capture, direct routing, approved-answer, RAG, Evidence Pack, Answer Contract, Claim Verifier, missing-info, multilingual, and factuality behavior.
 
 `hotel_concierge` is internal-only. It documents hotel-specific role, intents, prompt blocks, risk rules, action request declarations, tool declarations, and knowledge policy, and it is exercised by the hotel concierge eval suite through injected package selection. It can be persisted only through controlled internal/service assignment and must not be offered to customers until product controls, docs, and eval gates are completed in a later PR.
+
+`enterprise_request_desk` is unregistered Phase 1 product metadata for ESG-style qualified enterprise intake. It documents role, intake lanes, safe boundaries, and eval requirements, and is exercised through deterministic service tests/evals only. It is not imported into the runtime registry, not allowed by the current DB `agents.package_key` constraint, not exposed through dashboard selection, and not wired to public routes, QDH, widget/embed, persistence, external providers, or final quote/pricing behavior.
 
 ## Future Product Runtime Contract
 
