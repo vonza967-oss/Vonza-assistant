@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise Request Desk setup</title>
+  <meta name="description" content="Enterprise Request Desk owner setup vállalati, security és FM megkeresésekhez.">
+  <link rel="stylesheet" href="/enterprise-request-desk.css">
+</head>
+<body>
+  <main class="erdp-setup-shell" data-erdp-setup-shell>
+    <aside class="erdp-setup-aside" aria-label="Enterprise Request Desk setup áttekintés">
+      <a class="erdp-brand" href="/enterprise-request-desk" aria-label="Enterprise Request Desk">
+        <span class="erdp-mark" aria-hidden="true">E</span>
+        <span>
+          <strong>Enterprise Request Desk</strong>
+          <small>Vállalati intake pult</small>
+        </span>
+      </a>
+      <div class="erdp-setup-copy">
+        <h1>Setup vállalati, security és FM megkeresésekhez.</h1>
+        <p>Add meg a szervezet alapadatait, a szolgáltatási területet és a belső továbbítási módot. A mentés után a külön Enterprise dashboard nyílik meg.</p>
+        <div class="erdp-setup-boundary" aria-label="Enterprise Request Desk jelenlegi határai">
+          <span>Előszűrés és összefoglaló belső feldolgozáshoz.</span>
+          <span>Nem készít végleges árat, szerződést vagy compliance dokumentumot.</span>
+          <span>Nem indít külső szolgáltatói vagy operatív műveletet.</span>
+        </div>
+      </div>
+    </aside>
+    <section class="erdp-setup-main">
+      <div class="erdp-status" id="erdp-setup-status" role="status" aria-live="polite" aria-atomic="true"></div>
+      <div id="erdp-setup-root">
+        <section class="erdp-empty" aria-label="Enterprise Request Desk setup betöltése">
+          <h2>Hozzáférés ellenőrzése</h2>
+          <p>A biztonságos auth session és a setup állapot betöltése folyamatban.</p>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script src="/public-config.js"></script>
+  <script src="/supabase-auth.js"></script>
+  <script src="/enterprise-request-desk-setup.js"></script>
+</body>
+</html>

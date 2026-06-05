@@ -5,7 +5,7 @@
   const FIXTURE_STORAGE_KEY = "VONZA_ENTERPRISE_REQUEST_DESK_FIXTURE_REQUESTS";
   const REVIEW_ACTIONS = Object.freeze([
     ["needs_info", "Hiányzó adat"],
-    ["needs_staff_review", "Staff review"],
+    ["needs_staff_review", "Belső ellenőrzés"],
     ["routed", "Belső továbbítás"],
     ["declined", "Elutasítva"],
     ["archived", "Archiválás"],
@@ -18,6 +18,9 @@
   let state = {
     records: [],
     summary: null,
+    setup: null,
+    setupComplete: false,
+    customerIntake: null,
     selectedId: "",
     requestError: null,
   };
@@ -203,7 +206,7 @@
       case "needs_info":
         return "Hiányzó adat";
       case "needs_staff_review":
-        return "Staff review";
+        return "Belső ellenőrzés";
       case "routed":
         return "Belső továbbítás";
       case "declined":
@@ -211,7 +214,7 @@
       case "archived":
         return "Archivált";
       default:
-        return "Review";
+        return "Belső ellenőrzés";
     }
   }
 
@@ -299,7 +302,7 @@
     }
 
     accountRoot.innerHTML = `
-      <span class="erdp-account-email">${escapeHtml(authUser.email)}</span>
+      <span class="erdp-account-email">Bejelentkezve: ${escapeHtml(authUser.email)}</span>
       <button class="erdp-button" type="button" data-erdp-sign-out>Kilépés</button>
     `;
   }
@@ -309,7 +312,7 @@
       <section class="erdp-auth-card" aria-label="ESG Request Desk belépés">
         <div>
           <h2>Belépés szükséges</h2>
-          <p>Az Enterprise Request Desk review felület owner-scoped és csak bejelentkezett felhasználóknak érhető el.</p>
+          <p>Az Enterprise Request Desk dashboard tulajdonosi session alatt érhető el. Jelentkezz be, hozz létre fiókot, vagy kérj varázslinket.</p>
           ${message ? `<p>${escapeHtml(message)}</p>` : ""}
         </div>
         <form class="erdp-auth-form" data-erdp-auth-form>
@@ -323,6 +326,7 @@
           </label>
           <div class="erdp-auth-actions">
             <button class="erdp-button erdp-button-primary" type="submit" data-erdp-auth-mode="password">Belépés</button>
+            <button class="erdp-button" type="submit" data-erdp-auth-mode="signup">Fiók létrehozása</button>
             <button class="erdp-button" type="button" data-erdp-auth-mode="magic">Varázslink küldése</button>
           </div>
         </form>
@@ -356,7 +360,7 @@
         ${metric("Összes kérés", summary.total || 0)}
         ${metric("Új", summary.requestReceived || 0)}
         ${metric("Hiányzó adat", summary.needsInfo || 0)}
-        ${metric("Staff review", summary.needsStaffReview || 0)}
+        ${metric("Belső ellenőrzés", summary.needsStaffReview || 0)}
         ${metric("Belső továbbítás / lezárt", (summary.routed || 0) + (summary.closed || 0))}
       </section>
     `;
@@ -379,11 +383,11 @@
 
   function renderQueue(records, selectedRecord) {
     return `
-      <section class="erdp-panel" id="queue" aria-label="Request queue">
+      <section class="erdp-panel" id="queue" aria-label="Megkeresések">
         <div class="erdp-panel-header">
           <div>
-            <h2>Request queue</h2>
-            <p>Request-only Enterprise intake. A queue csak briefet, hiányzó adatot és staff review állapotot kezel.</p>
+            <h2>Megkeresések</h2>
+            <p>Beérkező vállalati igények előszűrt összefoglalóval, hiányzó adattal és feldolgozási állapottal.</p>
           </div>
           <button class="erdp-button" type="button" data-erdp-refresh>Frissítés</button>
         </div>
@@ -433,11 +437,11 @@
   function renderDetail(record) {
     if (!record) {
       return `
-        <section class="erdp-panel" id="detail" aria-label="Structured brief">
+        <section class="erdp-panel" id="detail" aria-label="Összefoglaló">
           <div class="erdp-panel-header">
             <div>
-              <h2>Structured brief</h2>
-              <p>Válasszon ki egy kérést a részletekhez.</p>
+              <h2>Összefoglaló</h2>
+              <p>Válassz ki egy megkeresést a részletekhez.</p>
             </div>
           </div>
           <div class="erdp-panel-body">
@@ -452,11 +456,11 @@
     const saveStatus = REVIEW_ACTION_SET.has(record.status) ? record.status : "needs_staff_review";
 
     return `
-      <section class="erdp-panel" id="detail" aria-label="Structured brief">
+        <section class="erdp-panel" id="detail" aria-label="Összefoglaló">
         <div class="erdp-panel-header">
           <div>
-            <h2>Structured brief</h2>
-            <p>Lane, hiányzó mezők, kapcsolat és staff jegyzet request review-hoz.</p>
+            <h2>Összefoglaló</h2>
+            <p>Szolgáltatási terület, hiányzó adatok, kapcsolat és belső jegyzet a feldolgozáshoz.</p>
           </div>
         </div>
         <div class="erdp-panel-body">
@@ -465,9 +469,9 @@
             <span class="erdp-badge ${escapeHtml(statusBadgeClass(record.status))}">${escapeHtml(statusLabel(record.status))}</span>
           </div>
           <div class="erdp-detail-grid">
-            ${detailItem("Lane", record.laneLabel)}
-            ${detailItem("Confidence", record.confidence)}
-            ${detailItem("Objektum / site", record.siteOrObject)}
+            ${detailItem("Szolgáltatási terület", record.laneLabel)}
+            ${detailItem("Bizonyosság", record.confidence)}
+            ${detailItem("Objektum / helyszín", record.siteOrObject)}
             ${detailItem("Helyszín", record.locationText)}
             ${detailItem("Szolgáltatási igény", record.serviceNeed)}
             ${detailItem("Időzítés", record.timingText || record.urgency)}
@@ -491,10 +495,10 @@
             <textarea data-erdp-status-reason>${escapeHtml(record.statusReason)}</textarea>
           </label>
           <label class="erdp-field">
-            Staff jegyzet
+            Belső jegyzet
             <textarea data-erdp-staff-notes>${escapeHtml(record.staffNotes)}</textarea>
           </label>
-          <div class="erdp-actions" aria-label="Biztonságos review státuszok">
+          <div class="erdp-actions" aria-label="Biztonságos feldolgozási státuszok">
             ${REVIEW_ACTIONS.map(([status, label]) => `
               <button
                 class="erdp-button ${status === "declined" ? "erdp-button-danger" : ""}"
@@ -522,8 +526,8 @@
       <section class="erdp-panel" aria-label="Legutóbbi Enterprise Request Desk kérések">
         <div class="erdp-panel-header">
           <div>
-            <h2>Legutóbbi kérések</h2>
-            <p>Tényleges request rekordokból épül, nem demo pitch lista.</p>
+            <h2>Legutóbbi megkeresések</h2>
+            <p>A feldolgozási lista ténylegesen rögzített vállalati megkeresésekből épül.</p>
           </div>
         </div>
         <div class="erdp-panel-body erdp-recent">
@@ -543,6 +547,60 @@
     `;
   }
 
+  function renderIntakeAccess() {
+    const intake = state.customerIntake || {};
+    const path = trimText(intake.path);
+    const aliasPath = trimText(intake.aliasPath);
+
+    if (intake.available && path) {
+      return `
+        <section class="erdp-customer-link" aria-label="Ügyféloldali intake link">
+          <strong>Ügyféloldali intake link</strong>
+          <p>${escapeHtml(intake.guidanceHu || "Ezt a linket add meg a vállalati megkeresések belépési pontjaként.")}</p>
+          <code>${escapeHtml(path)}</code>
+          <div class="erdp-link-actions">
+            <a class="erdp-button" href="${escapeHtml(path)}" target="_blank" rel="noreferrer">Megnyitás</a>
+            <button class="erdp-button" type="button" data-erdp-copy-intake-link="${escapeHtml(path)}">Másolás</button>
+          </div>
+          ${aliasPath ? `<small>Alias: ${escapeHtml(aliasPath)}</small>` : ""}
+        </section>
+      `;
+    }
+
+    return `
+      <section class="erdp-customer-link erdp-customer-link-muted" aria-label="Ügyféloldali intake link előfeltétel">
+        <strong>Ügyféloldali intake link</strong>
+        <p>${escapeHtml(intake.guidanceHu || "Aktív public agent kulcs szükséges, mielőtt az ügyféloldali intake link használható.")}</p>
+        <code>/enterprise-request-desk/intake?agent_key=&lt;public_agent_key&gt;</code>
+      </section>
+    `;
+  }
+
+  function renderSetupRequired() {
+    root.innerHTML = `
+      <section class="erdp-auth-card" aria-label="Enterprise Request Desk setup szükséges">
+        <div>
+          <h2>Setup szükséges</h2>
+          <p>Bejelentkezve: ${escapeHtml(authUser?.email || "tulajdonosi fiók")}</p>
+          <p>A dashboard megnyitása előtt add meg a szervezet nevét, szolgáltatási területét, szolgáltatási vonalait és a belső továbbítási módot.</p>
+        </div>
+        <div class="erdp-auth-actions">
+          <a class="erdp-button erdp-button-primary" href="${escapeHtml(getApiPrefix())}/setup">Setup megnyitása</a>
+          <button class="erdp-button" type="button" data-erdp-sign-out>Kilépés</button>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderSetupUnavailable(message = "") {
+    root.innerHTML = `
+      <section class="erdp-empty" aria-label="Enterprise Request Desk setup állapot hiba">
+        <h2>Setup állapot nem érhető el</h2>
+        <p>${escapeHtml(message || "A setup tábla vagy az auth állapot nem tölthető be.")}</p>
+      </section>
+    `;
+  }
+
   function renderDashboard() {
     const records = state.records;
     const summary = state.summary || buildSummary(records);
@@ -552,14 +610,15 @@
       <div class="erdp-dashboard">
         <section class="erdp-safety-strip" aria-label="Enterprise Request Desk határok">
           <div>
-            <strong>Working pilot loop: public intake -> structured request -> owner review.</strong>
-            <p>Különálló pilot felület, amely intake rekordot és owner review munkát kezel.</p>
+            <strong>Setup teljes. A beérkező megkeresések belső feldolgozásra kerülnek.</strong>
+            <p>Különálló Enterprise Request Desk felület előszűréshez, összefoglalóhoz és belső továbbításhoz.</p>
           </div>
-          <span>Request intake / review</span>
+          <span>Enterprise setup aktív</span>
         </section>
+        ${renderIntakeAccess()}
         ${state.requestError ? `
           <section class="erdp-error-strip" aria-label="Enterprise Request Desk betöltési hiba">
-            <strong>A request queue nem tölthető be.</strong>
+            <strong>A megkeresések listája nem tölthető be.</strong>
             <p>${escapeHtml(state.requestError.message)}</p>
           </section>
         ` : ""}
@@ -578,6 +637,19 @@
       const records = seedFixtureRowsIfNeeded().map(normalizeRecord);
       state = {
         ...state,
+        setup: {
+          organizationName: "Local fixture",
+          serviceArea: "Budapest",
+          serviceLines: ["őrzés-védelem", "facility management"],
+          routingPreference: "internal_handoff",
+        },
+        setupComplete: true,
+        customerIntake: {
+          available: true,
+          path: "/enterprise-request-desk/intake-fixture",
+          aliasPath: "/esg-request-desk/intake-fixture",
+          guidanceHu: "Local fixture link böngészős ellenőrzéshez.",
+        },
         records,
         summary: buildSummary(records),
         selectedId: state.selectedId || records[0]?.id || "",
@@ -616,6 +688,36 @@
     renderDashboard();
   }
 
+  async function loadSetupStateThenRequests() {
+    setStatus("Enterprise Request Desk setup állapot betöltése...");
+
+    try {
+      const data = await fetchJson(`${getApiPrefix()}/setup-state`);
+      state = {
+        ...state,
+        setup: data.setup || null,
+        setupComplete: data.setupComplete === true,
+        customerIntake: data.customerIntake || null,
+      };
+
+      if (!state.setupComplete) {
+        renderSetupRequired();
+        setStatus("Setup szükséges a dashboard megnyitásához.");
+        return;
+      }
+
+      await loadRequests();
+    } catch (error) {
+      if (error.code === "enterprise_request_desk_setup_table_missing") {
+        renderSetupUnavailable(error.message);
+        setStatus("Enterprise setup tábla hiányzik.");
+        return;
+      }
+      renderAuthGate(error.message || "");
+      setStatus(error.message || "Setup állapot nem tölthető be.");
+    }
+  }
+
   async function updateRequestStatus(button) {
     const requestId = trimText(button.dataset.erdpRequestId);
     const status = trimText(button.dataset.erdpStatusAction);
@@ -627,7 +729,7 @@
     }
 
     button.disabled = true;
-    setStatus("Review állapot mentése...");
+    setStatus("Feldolgozási állapot mentése...");
 
     try {
       if (window.VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE === true) {
@@ -663,7 +765,7 @@
         state.selectedId = nextRecord.id;
       }
 
-      setStatus("Review állapot mentve.");
+      setStatus("Feldolgozási állapot mentve.");
       renderDashboard();
     } catch (error) {
       setStatus(error.message || "Nem sikerült menteni az állapotot.");
@@ -675,24 +777,44 @@
     event.preventDefault();
     const form = event.currentTarget;
     const email = trimText(new FormData(form).get("email"));
-    const password = trimText(new FormData(form).get("password"));
+    const password = String(new FormData(form).get("password") || "");
+    const submitter = event.submitter;
+    const mode = submitter?.dataset.erdpAuthMode || "password";
 
-    if (!email || !password) {
-      setStatus("Email és jelszó szükséges a belépéshez.");
+    if (!email) {
+      setStatus("Email szükséges a hozzáféréshez.");
       return;
     }
 
-    setStatus("Belépés...");
-    const { data, error } = await authClient.auth.signInWithPassword({ email, password });
+    if (!password) {
+      setStatus("Jelszó szükséges ehhez a művelethez, vagy használj varázslinket.");
+      return;
+    }
+
+    setStatus(mode === "signup" ? "Fiók létrehozása..." : "Belépés...");
+    const authCall = mode === "signup"
+      ? authClient.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}${getApiPrefix()}/dashboard`,
+          },
+        })
+      : authClient.auth.signInWithPassword({ email, password });
+    const { data, error } = await authCall;
     if (error) {
-      setStatus(error.message || "Belépés sikertelen.");
+      setStatus(error.message || "Auth hiba.");
       return;
     }
 
     authSession = data.session || null;
-    authUser = authSession?.user || null;
+    authUser = data.user || authSession?.user || null;
+    if (!authSession && mode === "signup") {
+      setStatus("Fiók létrehozva. Ha email megerősítés szükséges, nyisd meg a megerősítő linket.");
+      return;
+    }
     renderAccount();
-    await loadRequests();
+    await loadSetupStateThenRequests();
   }
 
   async function handleMagicLink(button) {
@@ -711,7 +833,7 @@
       const { error } = await authClient.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: window.location.href,
+          emailRedirectTo: `${window.location.origin}${getApiPrefix()}/dashboard`,
         },
       });
 
@@ -726,8 +848,30 @@
     }
   }
 
+  async function copyIntakeLink(button) {
+    const path = trimText(button.dataset.erdpCopyIntakeLink);
+    if (!path) {
+      return;
+    }
+
+    const absoluteUrl = `${window.location.origin}${path}`;
+    try {
+      await navigator.clipboard.writeText(absoluteUrl);
+      setStatus("Ügyféloldali intake link másolva.");
+    } catch {
+      setStatus(absoluteUrl);
+    }
+  }
+
   async function boot() {
     if (window.VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE === true) {
+      if (window.VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE_MODE === "setup_missing") {
+        authUser = { email: "fixture-owner@example.test" };
+        renderAccount();
+        renderSetupRequired();
+        setStatus("Local fixture: setup szükséges.");
+        return;
+      }
       await loadRequests();
       return;
     }
@@ -742,11 +886,11 @@
       await ensureAuthSession();
       if (!authSession || !authUser) {
         renderAuthGate();
-        setStatus("Jelentkezzen be az Enterprise Request Desk review felülethez.");
+        setStatus("Jelentkezz be az Enterprise Request Desk dashboardhoz.");
         return;
       }
 
-      await loadRequests();
+      await loadSetupStateThenRequests();
     } catch (error) {
       renderAuthGate(error.message || "");
       setStatus(error.message || "Enterprise Request Desk dashboard nem tölthető be.");
@@ -760,6 +904,7 @@
     const refreshButton = target.closest?.("[data-erdp-refresh]");
     const signOutButton = target.closest?.("[data-erdp-sign-out]");
     const magicButton = target.closest?.('[data-erdp-auth-mode="magic"]');
+    const copyIntakeButton = target.closest?.("[data-erdp-copy-intake-link]");
 
     if (selectButton) {
       state.selectedId = trimText(selectButton.dataset.erdpSelectRequest);
@@ -784,6 +929,9 @@
       await authClient.auth.signOut();
       authSession = null;
       authUser = null;
+      state.setup = null;
+      state.setupComplete = false;
+      state.customerIntake = null;
       renderAccount();
       renderAuthGate();
       setStatus("Kilépve.");
@@ -792,6 +940,11 @@
 
     if (magicButton) {
       await handleMagicLink(magicButton);
+      return;
+    }
+
+    if (copyIntakeButton) {
+      await copyIntakeLink(copyIntakeButton);
     }
   });
 

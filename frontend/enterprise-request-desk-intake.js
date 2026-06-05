@@ -166,7 +166,7 @@
         staffSummaryHu: `Belső brief: ${lane.labelHu}. Igény: ${trimText(payload.service_need) || lane.labelHu}. Helyszín/objektum: ${trimText(payload.location_text) || trimText(payload.site_or_object) || "nincs megadva"}.`,
       },
       status: missingFields.length ? "needs_info" : "request_received",
-      statusReason: "Local fixture request received for staff review only.",
+      statusReason: "Local fixture megkeresés rögzítve belső feldolgozáshoz.",
       staffNotes: "",
       createdAt: now,
       updatedAt: now,
@@ -183,7 +183,7 @@
       laneLabel: record.laneLabel,
       missingFields: record.missingFields,
       missingFieldLabels: record.missingFields.map((field) => MISSING_FIELD_LABELS[field]).filter(Boolean),
-      message: "A local fixture megkeresést rögzítettük. Nyissa meg a dashboard fixture oldalt a review felülethez.",
+      message: "A local fixture megkeresést rögzítettük. Nyissa meg a dashboard fixture oldalt a feldolgozási nézethez.",
     };
   }
 
@@ -204,9 +204,9 @@
     return `
       <div class="erdp-success" aria-label="Megkeresés rögzítve">
         <strong>${escapeHtml(payload.created === false ? "A megkeresés már rögzítve volt." : "Megkeresés rögzítve.")}</strong>
-        <p>${escapeHtml(payload.message || "A megkeresés staff review-ra került.")}</p>
+        <p>${escapeHtml(payload.message || "A megkeresés belső feldolgozásra került.")}</p>
         <div class="erdp-missing-list">
-          <span>Lane: ${escapeHtml(payload.laneLabel || "Általános érdeklődés")}</span>
+          <span>Terület: ${escapeHtml(payload.laneLabel || "Általános érdeklődés")}</span>
           ${labels.length ? labels.map((label) => `<span>Hiányzik: ${escapeHtml(label)}</span>`).join("") : "<span>Minimális adatok megvannak</span>"}
         </div>
         ${window.VONZA_LOCAL_ENTERPRISE_INTAKE_FIXTURE === true ? `
@@ -227,9 +227,9 @@
         <section class="erdp-intake-copy">
           <div>
             <h1>Vállalati security, FM vagy compliance igény beküldése.</h1>
-            <p>${escapeHtml(businessName)} staff review-ra kapja meg a strukturált megkeresést. A csapat külön ellenőrzi a vállalhatóságot és a következő lépést.</p>
+            <p>${escapeHtml(businessName)} strukturált összefoglalóként kapja meg a megkeresést. A csapat külön ellenőrzi a vállalhatóságot és a következő lépést.</p>
           </div>
-          <div class="erdp-lane-strip" aria-label="ESG Request Desk lane-ek">
+          <div class="erdp-lane-strip" aria-label="Enterprise Request Desk szolgáltatási területek">
             ${lanes.map((lane) => `<span>${escapeHtml(lane.labelHu)}</span>`).join("")}
           </div>
           <p>Terület: ${escapeHtml(serviceArea)}</p>
@@ -249,7 +249,7 @@
             </label>
             <div class="erdp-field-grid">
               <label class="erdp-field">
-                Objektum / site
+                Objektum / helyszín típusa
                 <input name="site_or_object" autocomplete="off" value="irodaház">
               </label>
               <label class="erdp-field">
@@ -266,7 +266,7 @@
               </label>
               <label class="erdp-field">
                 Sürgősség
-                <input name="urgency" autocomplete="off" value="staff review után egyeztethető">
+                <input name="urgency" autocomplete="off" value="belső ellenőrzés után egyeztethető">
               </label>
               <label class="erdp-field">
                 Kapcsolattartó
@@ -283,13 +283,13 @@
             </div>
             <label class="erdp-check">
               <input name="consent_acknowledged" type="checkbox" checked>
-              <span>Tudomásul veszem, hogy ez request-only beküldés. A csapat külön ellenőrzi a vállalhatóságot és a következő lépést.</span>
+              <span>Tudomásul veszem, hogy ez megkeresés-beküldés. A csapat külön ellenőrzi a vállalhatóságot és a következő lépést.</span>
             </label>
             <div class="erdp-form-actions">
               <button class="erdp-button erdp-button-primary" type="submit" ${submitting ? "disabled" : ""}>
                 Megkeresés beküldése
               </button>
-              <span class="erdp-submit-note">A beküldés intake rekordot hoz létre staff review-hoz.</span>
+              <span class="erdp-submit-note">A beküldés előszűrt megkeresést hoz létre belső feldolgozáshoz.</span>
             </div>
           </form>
           ${successPayload ? renderSuccess(successPayload) : ""}

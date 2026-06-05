@@ -208,7 +208,7 @@ function renderEnterpriseRequestDeskIntakeDocument(rootDir, { localFixture = fal
   return html;
 }
 
-function renderEnterpriseRequestDeskDashboardDocument(rootDir, { localFixture = false } = {}) {
+function renderEnterpriseRequestDeskDashboardDocument(rootDir, { localFixture = false, localFixtureMode = "" } = {}) {
   const version = getDashboardAssetVersion();
   let html = readFileSync(path.join(rootDir, "frontend", "enterprise-request-desk-dashboard.html"), "utf8");
 
@@ -225,11 +225,33 @@ function renderEnterpriseRequestDeskDashboardDocument(rootDir, { localFixture = 
   });
 
   if (localFixture) {
+    const fixtureModeScript = localFixtureMode
+      ? `\n  <script>window.VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE_MODE = ${JSON.stringify(localFixtureMode)};</script>`
+      : "";
     html = html.replace(
       '<script src="/enterprise-request-desk-dashboard.js',
-      '<script>window.VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE = true;</script>\n  <script src="/enterprise-request-desk-dashboard.js'
+      `<script>window.VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE = true;</script>${fixtureModeScript}\n  <script src="/enterprise-request-desk-dashboard.js`
     );
   }
+
+  return html;
+}
+
+function renderEnterpriseRequestDeskSetupDocument(rootDir) {
+  const version = getDashboardAssetVersion();
+  let html = readFileSync(path.join(rootDir, "frontend", "enterprise-request-desk-setup.html"), "utf8");
+
+  [
+    "/enterprise-request-desk.css",
+    "/public-config.js",
+    "/supabase-auth.js",
+    "/enterprise-request-desk-setup.js",
+  ].forEach((assetPath) => {
+    html = html.replaceAll(
+      `${assetPath}"`,
+      `${assetPath}?v=${version}"`
+    );
+  });
 
   return html;
 }
@@ -536,6 +558,143 @@ function renderQuoteDeskHuAcquisitionPage() {
         <div class="qdh-final-actions">
           <a class="qdh-button qdh-button-primary" href="/qdh/setup">QDH indítása</a>
           <a class="qdh-button" href="/qdh/dashboard">Dashboard</a>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>`;
+}
+
+function renderEnterpriseRequestDeskAcquisitionPage() {
+  return `<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise Request Desk | Vállalati megkeresési pult</title>
+  <meta name="description" content="Enterprise Request Desk vállalati, security és facility management megkeresések előszűréséhez és strukturált belső továbbításához.">
+  <link rel="stylesheet" href="/enterprise-request-desk.css">
+</head>
+<body>
+  <main class="erdp-site">
+    <header class="erdp-site-header">
+      <a class="erdp-public-brand" href="/enterprise-request-desk" aria-label="Enterprise Request Desk">
+        <span class="erdp-mark" aria-hidden="true">E</span>
+        <span>
+          <strong>Enterprise Request Desk</strong>
+          <small>Vállalati intake pult</small>
+        </span>
+      </a>
+      <nav class="erdp-site-nav" aria-label="Enterprise Request Desk hozzáférés">
+        <a class="erdp-button" href="/enterprise-request-desk/dashboard">Dashboard</a>
+        <a class="erdp-button erdp-button-primary" href="/enterprise-request-desk/setup">Setup indítása</a>
+      </nav>
+    </header>
+
+    <section class="erdp-site-stage">
+      <div class="erdp-hero-copy">
+        <h1>Enterprise Request Desk.</h1>
+        <p class="erdp-hero-text">Vállalati, security és facility management megkeresések előszűrése egy külön termékfelületen. Nem generikus chatbot: strukturált adatokból készít belső összefoglalót a feldolgozáshoz.</p>
+        <div class="erdp-site-actions">
+          <a class="erdp-button erdp-button-primary" href="/enterprise-request-desk/setup">Setup indítása</a>
+          <a class="erdp-button" href="/enterprise-request-desk/dashboard">Belépés dashboardra</a>
+        </div>
+        <div class="erdp-scope-note">
+          <strong>Kontrollált intake és belső feldolgozás.</strong>
+          <span>Az Enterprise Request Desk nem készít végleges árat, szerződést, compliance anyagot vagy operatív ticketet. A végső döntést és választ a belső csapat kezeli.</span>
+        </div>
+      </div>
+
+      <div class="erdp-product-panel" aria-label="Enterprise Request Desk működési előnézet">
+        <div class="erdp-product-panel-top">
+          <div>
+            <strong>Megkeresések előszűrése</strong>
+            <span>Security, portaszolgálat, objektumvédelem, FM és audit jellegű igények.</span>
+          </div>
+          <span class="erdp-product-status">Setup után aktív</span>
+        </div>
+        <div class="erdp-preview-list">
+          ${[
+            ["Portaszolgálat", "Budapest XI. · irodaház beléptetés és recepciós jelenlét", "Összefoglaló kész"],
+            ["Facility management", "Több telephely · karbantartás és takarítás egyeztetése", "Kapcsolat tisztázva"],
+            ["Biztonságtechnika", "Kamera és beléptető felmérés · indulási időzítés hiányzik", "Visszakérdezés"],
+          ].map(([title, copy, status]) => `
+            <div class="erdp-preview-row">
+              <div>
+                <strong>${escapeHtml(title)}</strong>
+                <span>${escapeHtml(copy)}</span>
+              </div>
+              <em>${escapeHtml(status)}</em>
+            </div>
+          `).join("")}
+        </div>
+        <div class="erdp-product-panel-footer" aria-label="Enterprise Request Desk határok">
+          <span>Előszűrés</span>
+          <span>Összefoglaló</span>
+          <span>Belső továbbítás</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="erdp-site-content">
+      <section class="erdp-site-section">
+        <div>
+          <h2>Mire való?</h2>
+          <p>Olyan szervezeteknek készült, ahol a beérkező vállalati megkeresésből előbb biztonságos, áttekinthető brief kell a csapatnak.</p>
+        </div>
+        <ul class="erdp-step-list">
+          ${[
+            ["Minősített intake", "Szolgáltatási igény, helyszín vagy objektum, sürgősség és kapcsolati út külön értelmezve."],
+            ["Strukturált handoff", "A dashboard összefoglalót, hiányzó adatot és belső feldolgozási állapotot mutat."],
+            ["Külön termékfelület", "A setup, intake link és dashboard önálló Enterprise Request Desk útvonalakon fut."],
+          ].map(([title, copy]) => `
+            <li><strong>${escapeHtml(title)}</strong><span>${escapeHtml(copy)}</span></li>
+          `).join("")}
+        </ul>
+      </section>
+
+      <section class="erdp-site-section">
+        <div>
+          <h2>Tulajdonosi út.</h2>
+          <p>A bejelentkezés és a setup állapot minden lépésben látható, így nincs rejtett vagy meglepő automatikus belépés.</p>
+        </div>
+        <ul class="erdp-step-list">
+          ${[
+            ["1. Setup vagy belépés", "/enterprise-request-desk/setup és /esg-request-desk/setup kezeli az auth és setup állapotot."],
+            ["2. Szervezet beállítása", "Szervezet neve, weboldal, szolgáltatási terület, szolgáltatási vonalak és belső továbbítás."],
+            ["3. Ügyféloldali intake link", "/enterprise-request-desk/intake?agent_key=... vagy /esg-request-desk/intake?agent_key=... setup után jelenik meg."],
+            ["4. Belső dashboard", "/enterprise-request-desk/dashboard és /esg-request-desk/dashboard mutatja a feldolgozási nézetet."],
+          ].map(([title, copy]) => `
+            <li><strong>${escapeHtml(title)}</strong><span>${escapeHtml(copy)}</span></li>
+          `).join("")}
+        </ul>
+      </section>
+
+      <section class="erdp-site-section">
+        <div>
+          <h2>Mi marad kívül?</h2>
+          <p>A termék jelenlegi fázisa a megkeresések előkészítése. Nem bővül teljes operációs irányítófelületté ebben a körben.</p>
+        </div>
+        <ul class="erdp-boundary-list">
+          ${[
+            ["Nincs végleges árgarancia", "A felület nem ad végső árat és nem állít ki ajánlatot."],
+            ["Nincs QR, SLA vagy compliance generálás", "A jelentések, SLA órák és dokumentumgenerálás későbbi, külön döntést igényel."],
+            ["Nincs widget vagy embed módosítás", "Az Enterprise Request Desk a full-page termékútvonalakon fut."],
+          ].map(([title, copy]) => `
+            <li><strong>${escapeHtml(title)}</strong><span>${escapeHtml(copy)}</span></li>
+          `).join("")}
+        </ul>
+      </section>
+
+      <section class="erdp-final">
+        <div>
+          <h2>Indíts önálló Enterprise Request Desk setupot.</h2>
+          <p>A meglévő auth rendszert használja, külön setup táblába ment, és setup után a dashboard mutatja az ügyféloldali intake linket.</p>
+        </div>
+        <div class="erdp-final-actions">
+          <a class="erdp-button erdp-button-primary" href="/enterprise-request-desk/setup">Setup indítása</a>
+          <a class="erdp-button" href="/esg-request-desk/setup">ESG alias</a>
         </div>
       </section>
     </div>
@@ -1844,6 +2003,10 @@ export function createPublicRouter({ rootDir }) {
     res.type("html").send(renderQuoteDeskHuAcquisitionPage());
   });
 
+  router.get(["/enterprise-request-desk", "/esg-request-desk"], (_req, res) => {
+    res.type("html").send(renderEnterpriseRequestDeskAcquisitionPage());
+  });
+
   router.get(["/qdh/intake", "/quote-desk-hu/intake"], (_req, res) => {
     setDashboardNoStoreHeaders(res);
     res.type("html").send(renderQuoteDeskHuIntakeDocument(rootDir));
@@ -1972,6 +2135,11 @@ export function createPublicRouter({ rootDir }) {
     res.type("html").send(renderQuoteDeskHuSetupDocument(rootDir));
   });
 
+  router.get(["/enterprise-request-desk/setup", "/esg-request-desk/setup"], (_req, res) => {
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderEnterpriseRequestDeskSetupDocument(rootDir));
+  });
+
   router.get(["/qdh/intake-fixture", "/quote-desk-hu/intake-fixture"], (req, res) => {
     if (!isLocalDashboardFixtureAllowed(req)) {
       res.status(404).json({ error: "Not found" });
@@ -2009,7 +2177,11 @@ export function createPublicRouter({ rootDir }) {
     }
 
     setDashboardNoStoreHeaders(res);
-    res.type("html").send(renderEnterpriseRequestDeskDashboardDocument(rootDir, { localFixture: true }));
+    const localFixtureMode = req.query.state === "setup-missing" ? "setup_missing" : "";
+    res.type("html").send(renderEnterpriseRequestDeskDashboardDocument(rootDir, {
+      localFixture: true,
+      localFixtureMode,
+    }));
   });
 
   router.get("/dashboard-v2-fixture", (req, res) => {

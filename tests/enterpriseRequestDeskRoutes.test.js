@@ -97,6 +97,31 @@ function createApiApp(deps = {}) {
       statusReason: options.statusReason || null,
       staffNotes: options.staffNotes || null,
     }),
+    getEnterpriseRequestDeskSetup: async () => ({
+      ownerUserId: "owner-1",
+      organizationName: "ESG Holding Zrt.",
+      websiteUrl: "https://esg.example",
+      serviceArea: "Budapest és országos telephelyek",
+      serviceLines: ["őrzés-védelem", "facility management"],
+      intakePositioning: "Vállalati megkeresések előszűrése.",
+      routingPreference: "internal_handoff",
+      ownerContactEmail: "owner@example.com",
+      setupStatus: "ready_for_review",
+    }),
+    getEnterpriseRequestDeskPublicAgentForOwner: async () => ({
+      publicAgentKey: "valid-enterprise-key",
+    }),
+    saveEnterpriseRequestDeskSetup: async (_supabase, options) => ({
+      ownerUserId: options.ownerUserId,
+      organizationName: options.organizationName,
+      websiteUrl: "https://esg.example",
+      serviceArea: options.serviceArea,
+      serviceLines: options.serviceLines,
+      intakePositioning: options.intakePositioning,
+      routingPreference: options.routingPreference,
+      ownerContactEmail: options.ownerContactEmail,
+      setupStatus: "ready_for_review",
+    }),
     limitEnterpriseRequestDeskIntake: (_req, _res, next) => next(),
     ...deps,
   }));
@@ -369,17 +394,171 @@ test("Enterprise owner status route allows only request-review states", async ()
   }
 });
 
+test("Enterprise setup APIs require auth and persist owner-scoped safe setup", async () => {
+  const authError = new Error("Unauthorized");
+  authError.statusCode = 401;
+  const unauthenticatedServer = await startServer(createApiApp({
+    getAuthenticatedUser: async () => {
+      throw authError;
+    },
+    getEnterpriseRequestDeskSetup: async () => {
+      throw new Error("setup should not be read without auth");
+    },
+    saveEnterpriseRequestDeskSetup: async () => {
+      throw new Error("setup should not be saved without auth");
+    },
+  }));
+
+  try {
+    const unauthenticatedGet = await requestJson(
+      unauthenticatedServer.baseUrl,
+      "/enterprise-request-desk/setup-state",
+      { auth: false }
+    );
+    const unauthenticatedPost = await requestJson(unauthenticatedServer.baseUrl, "/enterprise-request-desk/setup", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify({
+        organization_name: "ESG Holding Zrt.",
+        website_url: "https://esg.example",
+        service_area: "Budapest",
+        service_lines: ["őrzés-védelem"],
+        owner_contact_email: "owner@example.com",
+      }),
+    });
+
+    assert.equal(unauthenticatedGet.status, 401);
+    assert.equal(unauthenticatedPost.status, 401);
+  } finally {
+    await unauthenticatedServer.close();
+  }
+
+  const setupCalls = [];
+  const server = await startServer(createApiApp({
+    getEnterpriseRequestDeskSetup: async (_supabase, options) => {
+      setupCalls.push(["get", options]);
+      return null;
+    },
+    getEnterpriseRequestDeskPublicAgentForOwner: async (_supabase, options) => {
+      setupCalls.push(["agent", options]);
+      return { publicAgentKey: "enterprise-public-key" };
+    },
+    saveEnterpriseRequestDeskSetup: async (_supabase, options) => {
+      setupCalls.push(["save", options]);
+      return {
+        ownerUserId: options.ownerUserId,
+        organizationName: options.organizationName,
+        websiteUrl: "https://esg.example",
+        serviceArea: options.serviceArea,
+        serviceLines: options.serviceLines,
+        intakePositioning: options.intakePositioning,
+        routingPreference: options.routingPreference,
+        ownerContactEmail: options.ownerContactEmail,
+        setupStatus: "ready_for_review",
+      };
+    },
+  }));
+
+  try {
+    const state = await requestJson(server.baseUrl, "/esg-request-desk/setup-state");
+    const saved = await requestJson(server.baseUrl, "/enterprise-request-desk/setup", {
+      method: "POST",
+      body: JSON.stringify({
+        organization_name: "ESG Holding Zrt.",
+        website_url: "https://esg.example",
+        service_area: "Budapest és országos telephelyek",
+        service_lines: ["őrzés-védelem", "facility management"],
+        intake_positioning: "Vállalati megkeresések előszűrése belső feldolgozáshoz.",
+        routing_preference: "internal_handoff",
+        owner_contact_email: "owner@example.com",
+      }),
+    });
+    const unsafeField = await requestJson(server.baseUrl, "/enterprise-request-desk/setup", {
+      method: "POST",
+      body: JSON.stringify({
+        organization_name: "ESG Holding Zrt.",
+        website_url: "https://esg.example",
+        service_area: "Budapest",
+        service_lines: ["őrzés-védelem"],
+        owner_contact_email: "owner@example.com",
+        metadata: { owner_user_id: "owner-2" },
+      }),
+    });
+
+    assert.equal(state.status, 200);
+    assert.equal(state.json.product, "enterprise_request_desk");
+    assert.equal(state.json.setupComplete, false);
+    assert.equal(state.json.nextUrl, "/enterprise-request-desk/setup");
+    assert.equal(state.json.customerIntake.available, false);
+
+    assert.equal(saved.status, 200);
+    assert.equal(saved.json.product, "enterprise_request_desk");
+    assert.equal(saved.json.setupComplete, true);
+    assert.equal(saved.json.nextUrl, "/enterprise-request-desk/dashboard");
+    assert.equal(saved.json.setup.organizationName, "ESG Holding Zrt.");
+    assert.deepEqual(saved.json.setup.serviceLines, ["őrzés-védelem", "facility management"]);
+    assert.equal(saved.json.customerIntake.path, "/enterprise-request-desk/intake?agent_key=enterprise-public-key");
+    assert.equal(saved.json.customerIntake.aliasPath, "/esg-request-desk/intake?agent_key=enterprise-public-key");
+    assert.doesNotMatch(JSON.stringify(saved.json), /owner-1|agent-1|business-1|valid-enterprise-key/i);
+
+    assert.equal(unsafeField.status, 400);
+    assert.equal(unsafeField.json.code, "enterprise_request_desk_setup_field_not_allowed");
+    assert.deepEqual(setupCalls, [
+      ["get", { ownerUserId: "owner-1" }],
+      ["save", {
+        ownerUserId: "owner-1",
+        organizationName: "ESG Holding Zrt.",
+        websiteUrl: "https://esg.example",
+        serviceArea: "Budapest és országos telephelyek",
+        serviceLines: ["őrzés-védelem", "facility management"],
+        intakePositioning: "Vállalati megkeresések előszűrése belső feldolgozáshoz.",
+        routingPreference: "internal_handoff",
+        ownerContactEmail: "owner@example.com",
+      }],
+      ["agent", { ownerUserId: "owner-1" }],
+    ]);
+  } finally {
+    await server.close();
+  }
+});
+
+test("Enterprise setup missing-table error is product-specific and safe", async () => {
+  const missingTableError = new Error("Enterprise Request Desk setup storage is not available.");
+  missingTableError.statusCode = 503;
+  missingTableError.code = "enterprise_request_desk_setup_table_missing";
+  const server = await startServer(createApiApp({
+    getEnterpriseRequestDeskSetup: async () => {
+      throw missingTableError;
+    },
+  }));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/enterprise-request-desk/setup-state");
+
+    assert.equal(response.status, 503);
+    assert.equal(response.json.code, "enterprise_request_desk_setup_table_missing");
+    assert.equal(response.json.error, "This service is temporarily unavailable. Please try again shortly.");
+  } finally {
+    await server.close();
+  }
+});
+
 test("Enterprise Request Desk public and dashboard pages render separately from QDH", async () => {
   const server = await startServer(createPublicRouteApp());
 
   try {
     for (const pathname of [
+      "/enterprise-request-desk",
+      "/esg-request-desk",
+      "/enterprise-request-desk/setup",
+      "/esg-request-desk/setup",
       "/enterprise-request-desk/intake",
       "/esg-request-desk/intake",
       "/enterprise-request-desk/dashboard",
       "/esg-request-desk/dashboard",
       "/enterprise-request-desk/intake-fixture",
       "/enterprise-request-desk/dashboard-fixture",
+      "/enterprise-request-desk/dashboard-fixture?state=setup-missing",
     ]) {
       const response = await fetch(`${server.baseUrl}${pathname}`);
       const html = await response.text();
@@ -395,12 +574,22 @@ test("Enterprise Request Desk public and dashboard pages render separately from 
 
     const intakeHtml = await (await fetch(`${server.baseUrl}/enterprise-request-desk/intake`)).text();
     const dashboardHtml = await (await fetch(`${server.baseUrl}/enterprise-request-desk/dashboard`)).text();
+    const productHtml = await (await fetch(`${server.baseUrl}/enterprise-request-desk`)).text();
+    const setupHtml = await (await fetch(`${server.baseUrl}/enterprise-request-desk/setup`)).text();
+    const setupMissingFixtureHtml = await (
+      await fetch(`${server.baseUrl}/enterprise-request-desk/dashboard-fixture?state=setup-missing`)
+    ).text();
 
     assert.match(intakeHtml, /enterprise-request-desk-intake\.js/);
     assert.doesNotMatch(intakeHtml, /enterprise-request-desk-dashboard\.js/);
     assert.match(dashboardHtml, /enterprise-request-desk-dashboard\.js/);
     assert.doesNotMatch(dashboardHtml, /enterprise-request-desk-intake\.js/);
     assert.doesNotMatch(dashboardHtml, /src="\/dashboard\.js/);
+    assert.match(productHtml, /href="\/enterprise-request-desk\/setup"/);
+    assert.match(productHtml, /\/enterprise-request-desk\/intake\?agent_key=\.\.\./);
+    assert.match(setupHtml, /enterprise-request-desk-setup\.js/);
+    assert.match(setupHtml, /Supabase Auth|auth session/i);
+    assert.match(setupMissingFixtureHtml, /VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE_MODE = "setup_missing"/);
   } finally {
     await server.close();
   }
@@ -410,8 +599,10 @@ test("Enterprise frontend sources avoid QDH naming, provider actions, and final 
   const sources = [
     "frontend/enterprise-request-desk-intake.html",
     "frontend/enterprise-request-desk-dashboard.html",
+    "frontend/enterprise-request-desk-setup.html",
     "frontend/enterprise-request-desk-intake.js",
     "frontend/enterprise-request-desk-dashboard.js",
+    "frontend/enterprise-request-desk-setup.js",
     "frontend/enterprise-request-desk.css",
   ].map((filePath) => readFileSync(path.join(repoRoot, filePath), "utf8")).join("\n");
 
@@ -419,4 +610,46 @@ test("Enterprise frontend sources avoid QDH naming, provider actions, and final 
   assert.doesNotMatch(sources, /quoted_externally|accepted_externally|Árajánlat elküldése|send final quote/i);
   assert.doesNotMatch(sources, /SLA clock|QR reporting|provider call|external provider/i);
   assert.doesNotMatch(sources, /\/widget|\/embed\.js|\/embed-lite\.js|assistant-embed/);
+});
+
+test("Enterprise dashboard source gates auth, setup, and setup-complete intake guidance explicitly", () => {
+  const dashboardSource = readFileSync(
+    path.join(repoRoot, "frontend", "enterprise-request-desk-dashboard.js"),
+    "utf8"
+  );
+
+  assert.match(dashboardSource, /renderAuthGate/);
+  assert.match(dashboardSource, /renderSetupRequired/);
+  assert.match(dashboardSource, /setup-state/);
+  assert.match(dashboardSource, /setupComplete/);
+  assert.match(dashboardSource, /data-erdp-copy-intake-link/);
+  assert.match(dashboardSource, /Bejelentkezve:/);
+  assert.match(dashboardSource, /await loadSetupStateThenRequests\(\);/);
+});
+
+test("Enterprise setup table is tracked in schema, migration, and RLS catalog", () => {
+  const schemaSql = readFileSync(path.join(repoRoot, "db", "schema.sql"), "utf8");
+  const migrationSql = readFileSync(
+    path.join(repoRoot, "supabase", "migrations", "20260605153000_enterprise_request_desk_owner_setups.sql"),
+    "utf8"
+  );
+  const catalogSource = readFileSync(
+    path.join(repoRoot, "src", "services", "schema", "supabaseMigrationCatalog.js"),
+    "utf8"
+  );
+  const persistenceSource = readFileSync(
+    path.join(repoRoot, "src", "services", "schema", "persistenceSchema.js"),
+    "utf8"
+  );
+  const combinedSql = `${schemaSql}\n${migrationSql}`;
+
+  assert.match(combinedSql, /create table if not exists public\.enterprise_request_desk_owner_setups/);
+  assert.match(combinedSql, /service_lines text\[\] not null default/);
+  assert.match(combinedSql, /alter table public\.enterprise_request_desk_owner_setups enable row level security/);
+  assert.match(combinedSql, /Owners can manage Enterprise Request Desk setup/);
+  assert.match(combinedSql, /owner_user_id = \(select auth\.uid\(\)\)/);
+  assert.match(migrationSql, /revoke all on table public\.enterprise_request_desk_owner_setups from anon/);
+  assert.doesNotMatch(migrationSql, /to anon/);
+  assert.match(catalogSource, /enterprise_request_desk_owner_setups/);
+  assert.match(persistenceSource, /enterprise_request_desk_owner_setups/);
 });

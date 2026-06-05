@@ -61,6 +61,7 @@ export function createApp({ rootDir }) {
         || normalizedPath.endsWith("/frontend/enterprise-request-desk.css")
         || normalizedPath.endsWith("/frontend/enterprise-request-desk-intake.js")
         || normalizedPath.endsWith("/frontend/enterprise-request-desk-dashboard.js")
+        || normalizedPath.endsWith("/frontend/enterprise-request-desk-setup.js")
         || normalizedPath.endsWith("/frontend/settings/SettingsShell.js")
         || normalizedPath.endsWith("/frontend/settings/settings.css")
       ) {

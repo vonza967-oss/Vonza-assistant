@@ -67,6 +67,41 @@ Local-only browser QA fixtures are available outside production:
 
 The fixture stores rows in browser local storage only. It is not a production bypass for auth, RLS, or server-side persistence.
 
+## Phase 4 Product Shell, Auth, And Setup Flow
+
+Phase 4 turns the working pilot loop into a standalone product journey:
+
+- public product/acquisition pages:
+  - `/enterprise-request-desk`
+  - `/esg-request-desk`
+- setup/auth pages:
+  - `/enterprise-request-desk/setup`
+  - `/esg-request-desk/setup`
+- customer-facing intake links:
+  - `/enterprise-request-desk/intake?agent_key=<public_agent_key>`
+  - `/esg-request-desk/intake?agent_key=<public_agent_key>`
+- staff dashboard pages:
+  - `/enterprise-request-desk/dashboard`
+  - `/esg-request-desk/dashboard`
+
+The setup and dashboard surfaces use the existing Supabase browser auth pattern. They support password sign-in, sign-up where Supabase auth allows it, and magic-link sign-in. The UI makes session state explicit with “Bejelentkezve: <email>” and a sign-out button, so an existing Vonza session no longer feels like unexplained auto-login.
+
+Dashboard access now follows the owner journey:
+
+- not logged in: render the branded Enterprise Request Desk auth gate;
+- logged in with no setup: render setup-required state and link to setup;
+- logged in with setup complete: load the dashboard and show the customer intake link guidance;
+- setup complete but no active public agent key: show the `/enterprise-request-desk/intake?agent_key=<public_agent_key>` requirement without exposing owner IDs.
+
+Phase 4 setup APIs:
+
+- `GET /enterprise-request-desk/setup-state`
+- `GET /esg-request-desk/setup-state`
+- `POST /enterprise-request-desk/setup`
+- `POST /esg-request-desk/setup`
+
+The setup DTO intentionally excludes internal owner IDs, agent IDs, business IDs, raw public keys outside the URL, evidence, policy metadata, prompts, service secrets, and provider credentials. Setup input rejects unsupported fields and secret-looking values.
+
 ## Shared Engine vs Product Layer
 
 Shared Vonza Engine patterns:
@@ -152,6 +187,30 @@ Indexes:
 - owner/lane created queue;
 - owner/agent/idempotency unique dedupe.
 
+Phase 4 adds `public.enterprise_request_desk_owner_setups` through:
+
+- canonical schema: `db/schema.sql`;
+- migration: `supabase/migrations/20260605153000_enterprise_request_desk_owner_setups.sql`;
+- catalog entry: `enterprise_request_desk_owner_setups`;
+- schema hint: `PERSISTENCE_SCHEMA_HINTS.enterprise_request_desk_owner_setups`;
+- recovery SQL: `docs/sql/prod_recovery_full_current_main.sql`.
+
+The setup table stores owner-scoped product readiness only:
+
+- `owner_user_id`;
+- `organization_name`;
+- `website_url`;
+- `service_area`;
+- `service_lines`;
+- `intake_positioning`;
+- `routing_preference`;
+- `owner_contact_email`;
+- `setup_status`;
+- `metadata`;
+- timestamps.
+
+RLS is enabled. Authenticated owners can manage only their own setup row where `auth.uid() = owner_user_id`. There is no anon access policy.
+
 ## Explicit Deferrals
 
 Deferred out of Phase 3:
@@ -165,6 +224,18 @@ Deferred out of Phase 3:
 - final quote calculation, exact pricing, or guaranteed pricing;
 - QDH request creation or QDH dashboard integration;
 - customer self-serve setup flow beyond active `agent_key` routing.
+
+Deferred out of Phase 4:
+
+- full operations cockpit;
+- QR reporting;
+- SLA clocks and operational lifecycle;
+- vendor panels;
+- compliance or audit document generation;
+- external provider calls;
+- final quote/pricing guarantees;
+- QDH merge or QDH setup reuse;
+- website widget, embed, or chat behavior changes.
 
 ## Activation Boundary
 
@@ -183,14 +254,22 @@ Future broader activation requires a separate scoped PR covering onboarding/setu
 
 ## Migration / Deploy Notes
 
-Deploy the migration before pitching the working pilot:
+Deploy the migrations before pitching the product shell:
 
 1. Apply `supabase/migrations/20260605120000_enterprise_request_desk_requests.sql`.
-2. Verify the PostgREST schema cache sees `enterprise_request_desk_requests`.
-3. Deploy `main` so Render serves the new route and frontend assets.
-4. Use an active agent with `public_agent_key`, `access_status = 'active'`, and `is_active = true`.
-5. Share `/enterprise-request-desk/intake?agent_key=<public_agent_key>` or `/esg-request-desk/intake?agent_key=<public_agent_key>` for pilot intake.
-6. Owners review rows at `/enterprise-request-desk/dashboard` or `/esg-request-desk/dashboard` after signing in.
+2. Apply `supabase/migrations/20260605153000_enterprise_request_desk_owner_setups.sql`.
+3. Verify the PostgREST schema cache sees both `enterprise_request_desk_requests` and `enterprise_request_desk_owner_setups`.
+4. Deploy `main` so Render serves the new route and frontend assets.
+5. Owners start at `/enterprise-request-desk/setup` or `/esg-request-desk/setup`.
+6. Use an active agent with `public_agent_key`, `access_status = 'active'`, and `is_active = true`.
+7. Share `/enterprise-request-desk/intake?agent_key=<public_agent_key>` or `/esg-request-desk/intake?agent_key=<public_agent_key>` for intake after setup.
+8. Owners process rows at `/enterprise-request-desk/dashboard` or `/esg-request-desk/dashboard` after signing in.
+
+First-client readiness after Phase 4:
+
+- ready for controlled first-client setup and intake review pilot;
+- not ready for final pricing, provider execution, QR/SLA reporting, vendor workflows, or compliance generation;
+- requires a deployed migration, active public agent key, Supabase auth configuration, and owner setup row.
 
 ## Verification Surface
 
@@ -199,6 +278,7 @@ Focused checks:
 - `node --test tests/enterpriseRequestDeskProduct.test.js`
 - `node --test tests/enterpriseRequestDeskRequestService.test.js`
 - `node --test tests/enterpriseRequestDeskRoutes.test.js`
+- `node --test tests/enterpriseRequestDeskSetupService.test.js`
 - `npm run eval:enterprise-request-desk:json`
 
 Broader regression checks still include QDH, Front Desk, smoke, schema sync, lint, and diff checks before commit.

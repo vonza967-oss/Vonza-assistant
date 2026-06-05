@@ -16,6 +16,11 @@ import {
 } from "../services/enterprise/enterpriseRequestDeskAssistantService.js";
 import { listEnterpriseRequestDeskLanes } from "../services/enterprise/enterpriseRequestDeskLaneService.js";
 import {
+  getEnterpriseRequestDeskPublicAgentForOwner,
+  getEnterpriseRequestDeskSetup,
+  saveEnterpriseRequestDeskSetup,
+} from "../services/enterprise/enterpriseRequestDeskSetupService.js";
+import {
   getRequestId,
   logRouteError,
   sendJsonError,
@@ -73,6 +78,22 @@ const ENTERPRISE_FIELD_LIMITS = Object.freeze({
   contactEmail: 180,
   contactPhone: 80,
 });
+const ENTERPRISE_SETUP_ALLOWED_FIELDS = new Set([
+  "organization_name",
+  "organizationName",
+  "website_url",
+  "websiteUrl",
+  "service_area",
+  "serviceArea",
+  "service_lines",
+  "serviceLines",
+  "intake_positioning",
+  "intakePositioning",
+  "routing_preference",
+  "routingPreference",
+  "owner_contact_email",
+  "ownerContactEmail",
+]);
 const STATUS_SET = new Set(ENTERPRISE_REQUEST_DESK_REQUEST_STATUSES);
 const REVIEW_STATUS_SET = new Set(ENTERPRISE_REQUEST_DESK_REVIEW_STATUSES);
 const MISSING_FIELD_LABELS_HU = Object.freeze({
@@ -236,6 +257,31 @@ function assertPublicIntakeFieldSafety(body) {
       "Unsafe or secret-looking intake value rejected.",
       400,
       "enterprise_intake_unsafe_value_rejected"
+    );
+  }
+}
+
+function assertSetupBodySafety(body) {
+  assertPlainBody(body);
+
+  Object.keys(body).forEach((key) => {
+    if (!ENTERPRISE_SETUP_ALLOWED_FIELDS.has(key)) {
+      throw buildRouteError(
+        ENTERPRISE_PUBLIC_INTAKE_UNSAFE_FIELD_PATTERN.test(key)
+          ? "Unsafe Enterprise Request Desk setup field rejected."
+          : "Unsupported Enterprise Request Desk setup field.",
+        400,
+        "enterprise_request_desk_setup_field_not_allowed"
+      );
+    }
+  });
+
+  const bodyText = collectBodyStrings(body).join(" ");
+  if (ENTERPRISE_PUBLIC_INTAKE_UNSAFE_VALUE_PATTERN.test(bodyText)) {
+    throw buildRouteError(
+      "Unsafe or secret-looking setup value rejected.",
+      400,
+      "enterprise_request_desk_setup_unsafe_value_rejected"
     );
   }
 }
@@ -417,6 +463,41 @@ function buildBusinessContext(agent = {}) {
   };
 }
 
+function buildEnterpriseCustomerIntakeInfo(_req, publicAgent = null) {
+  const agentKey = cleanText(publicAgent?.publicAgentKey || publicAgent?.public_agent_key);
+  const query = agentKey ? `?agent_key=${encodeURIComponent(agentKey)}` : "";
+
+  return {
+    available: Boolean(agentKey),
+    path: `/enterprise-request-desk/intake${query}`,
+    aliasPath: `/esg-request-desk/intake${query}`,
+    guidanceHu: agentKey
+      ? "Ezt a linket tedd a vállalati megkeresési, security vagy FM intake belépési pont mögé. A link nyilvános agent kulcsot használ, nem tulajdonosi azonosítót."
+      : "Customer intake linkhez aktív, nyilvános agent kulccsal rendelkező Enterprise Request Desk agent szükséges.",
+  };
+}
+
+function buildSafeSetupDto(setup) {
+  if (!setup) {
+    return null;
+  }
+
+  return {
+    organizationName: cleanText(setup.organizationName),
+    websiteUrl: cleanText(setup.websiteUrl),
+    serviceArea: cleanText(setup.serviceArea),
+    serviceLines: Array.isArray(setup.serviceLines)
+      ? setup.serviceLines.map((item) => cleanText(item)).filter(Boolean)
+      : [],
+    intakePositioning: cleanText(setup.intakePositioning),
+    routingPreference: cleanText(setup.routingPreference),
+    ownerContactEmail: cleanText(setup.ownerContactEmail),
+    setupStatus: cleanText(setup.setupStatus),
+    createdAt: setup.createdAt || null,
+    updatedAt: setup.updatedAt || null,
+  };
+}
+
 function sourceKeyHash(agentKey = "") {
   const digest = createHash("sha256")
     .update(cleanText(agentKey))
@@ -458,7 +539,7 @@ function buildSafePublicResponse(request = {}) {
     missingFieldLabels: labelMissingFields(missingFields),
     message: missingFields.length
       ? "A megkeresést rögzítettük előzetes áttekintésre. A csapat visszakérdezhet a hiányzó adatokra és ellenőrzi a következő lépést."
-      : "A megkeresést rögzítettük staff review-ra. A csapat ellenőrzi a vállalhatóságot és a következő lépést.",
+      : "A megkeresést rögzítettük belső feldolgozáshoz. A csapat ellenőrzi a vállalhatóságot és a következő lépést.",
   };
 }
 
@@ -495,6 +576,12 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
     deps.listEnterpriseRequestDeskRequests || listEnterpriseRequestDeskRequests;
   const updateRequestStatusImpl =
     deps.updateEnterpriseRequestDeskRequestStatus || updateEnterpriseRequestDeskRequestStatus;
+  const getEnterpriseRequestDeskSetupImpl =
+    deps.getEnterpriseRequestDeskSetup || getEnterpriseRequestDeskSetup;
+  const getEnterpriseRequestDeskPublicAgentForOwnerImpl =
+    deps.getEnterpriseRequestDeskPublicAgentForOwner || getEnterpriseRequestDeskPublicAgentForOwner;
+  const saveEnterpriseRequestDeskSetupImpl =
+    deps.saveEnterpriseRequestDeskSetup || saveEnterpriseRequestDeskSetup;
   const limitPublicIntake =
     deps.limitEnterpriseRequestDeskIntake || createRateLimitMiddleware("public_enterprise_request_desk_intake", {
       windowMs: 60_000,
@@ -581,7 +668,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
           missingFields: analysis.missingFields || [],
           structuredBrief: brief,
           status,
-          statusReason: "Enterprise Request Desk public intake received for staff review only.",
+          statusReason: "Enterprise Request Desk public intake received for internal processing.",
           evidence: {
             proof_source_type: "request_only",
             classification_reason: cleanText(analysis.laneClassification?.reason),
@@ -610,6 +697,72 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
       }
     }
   );
+
+  router.get(["/enterprise-request-desk/setup-state", "/esg-request-desk/setup-state"], async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const setup = await getEnterpriseRequestDeskSetupImpl(supabase, {
+        ownerUserId: user.id,
+      });
+      const publicAgent = setup
+        ? await getEnterpriseRequestDeskPublicAgentForOwnerImpl(supabase, { ownerUserId: user.id })
+        : null;
+
+      res.json({
+        ok: true,
+        product: "enterprise_request_desk",
+        phase: "self_serve_setup_readiness",
+        account: {
+          email: cleanText(user.email),
+        },
+        setupComplete: Boolean(setup),
+        setup: buildSafeSetupDto(setup),
+        customerIntake: buildEnterpriseCustomerIntakeInfo(req, publicAgent),
+        nextUrl: setup ? "/enterprise-request-desk/dashboard" : "/enterprise-request-desk/setup",
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/enterprise-request-desk/setup-state" });
+    }
+  });
+
+  router.post(["/enterprise-request-desk/setup", "/esg-request-desk/setup"], async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      assertSetupBodySafety(req.body);
+      const setup = await saveEnterpriseRequestDeskSetupImpl(supabase, {
+        ownerUserId: user.id,
+        organizationName: readBodyField(req.body, "organization_name", "organizationName"),
+        websiteUrl: readBodyField(req.body, "website_url", "websiteUrl"),
+        serviceArea: readBodyField(req.body, "service_area", "serviceArea"),
+        serviceLines: req.body?.service_lines || req.body?.serviceLines,
+        intakePositioning: readBodyField(req.body, "intake_positioning", "intakePositioning"),
+        routingPreference: readBodyField(req.body, "routing_preference", "routingPreference"),
+        ownerContactEmail: readBodyField(req.body, "owner_contact_email", "ownerContactEmail"),
+      });
+
+      res.json({
+        ok: true,
+        product: "enterprise_request_desk",
+        phase: "self_serve_setup_readiness",
+        account: {
+          email: cleanText(user.email),
+        },
+        setupComplete: true,
+        setup: buildSafeSetupDto(setup),
+        customerIntake: buildEnterpriseCustomerIntakeInfo(
+          req,
+          await getEnterpriseRequestDeskPublicAgentForOwnerImpl(supabase, {
+            ownerUserId: user.id,
+          })
+        ),
+        nextUrl: "/enterprise-request-desk/dashboard",
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/enterprise-request-desk/setup" });
+    }
+  });
 
   router.get(["/enterprise-request-desk/requests", "/esg-request-desk/requests"], async (req, res) => {
     try {

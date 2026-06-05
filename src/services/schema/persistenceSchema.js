@@ -393,6 +393,23 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
     ],
     migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.qdh_owner_setups],
   },
+  enterprise_request_desk_owner_setups: {
+    requiredColumns: [
+      "owner_user_id",
+      "organization_name",
+      "website_url",
+      "service_area",
+      "service_lines",
+      "intake_positioning",
+      "routing_preference",
+      "owner_contact_email",
+      "setup_status",
+      "metadata",
+      "created_at",
+      "updated_at",
+    ],
+    migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.enterprise_request_desk_owner_setups],
+  },
   connected_app_connections: {
     requiredColumns: [
       "id",

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ESG Request Desk dashboard</title>
-  <meta name="description" content="Owner-scoped Enterprise Request Desk review dashboard beérkező vállalati megkeresésekhez.">
+  <meta name="description" content="Enterprise Request Desk dashboard beérkező vállalati megkeresések feldolgozásához.">
   <link rel="stylesheet" href="/enterprise-request-desk.css">
 </head>
 <body>
@@ -14,17 +14,17 @@
         <span class="erdp-mark" aria-hidden="true">E</span>
         <span>
           <strong>ESG Request Desk</strong>
-          <small>Pilot review</small>
+          <small>Feldolgozási pult</small>
         </span>
       </a>
       <nav class="erdp-nav" aria-label="Dashboard navigáció">
-        <a href="#queue" aria-current="page">Queue</a>
-        <a href="#detail">Brief</a>
+        <a href="#queue" aria-current="page">Megkeresések</a>
+        <a href="#detail">Összefoglaló</a>
         <a href="#safety">Határok</a>
       </nav>
       <div class="erdp-sidebar-note" id="safety">
         <strong>Kontrollált pilot</strong>
-        <p>Csak intake, strukturált brief és staff review. Az operatív döntések a piloton kívül maradnak.</p>
+        <p>Előszűrés, strukturált összefoglaló és belső feldolgozás. Az operatív döntések a piloton kívül maradnak.</p>
       </div>
     </aside>
 
@@ -32,8 +32,8 @@
       <header class="erdp-topbar">
         <div>
           <p class="erdp-product-label">Enterprise Request Desk</p>
-          <h1>Vállalati megkeresések review felülete</h1>
-          <p>Beérkező ESG-style kérések lane, brief, hiányzó adatok és staff jegyzet alapján.</p>
+          <h1>Vállalati megkeresések feldolgozási felülete</h1>
+          <p>Beérkező security, FM és compliance jellegű kérések összefoglaló, hiányzó adatok és belső jegyzet alapján.</p>
         </div>
         <div class="erdp-account" id="erdp-account"></div>
       </header>
@@ -44,8 +44,8 @@
         <section class="erdp-loading" aria-label="ESG Request Desk dashboard betöltése">
           <span class="erdp-loader" aria-hidden="true"></span>
           <div>
-            <h2>Review queue betöltése</h2>
-            <p>Owner-scoped megkeresések előkészítése.</p>
+            <h2>Megkeresések betöltése</h2>
+            <p>Tulajdonosi hozzáférés és setup állapot ellenőrzése.</p>
           </div>
         </section>
       </div>

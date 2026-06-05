@@ -64,6 +64,10 @@ const enterpriseRequestDeskRequestsMigrationSql = readFileSync(
   "supabase/migrations/20260605120000_enterprise_request_desk_requests.sql",
   "utf8"
 );
+const enterpriseRequestDeskOwnerSetupsMigrationSql = readFileSync(
+  "supabase/migrations/20260605153000_enterprise_request_desk_owner_setups.sql",
+  "utf8"
+);
 const connectedAppConnectionFoundationMigrationSql = readFileSync(
   "supabase/migrations/20260602150000_connected_app_connection_foundation.sql",
   "utf8"
@@ -84,7 +88,7 @@ const whatsappAiReplyDraftContextMigrationSql = readFileSync(
   "supabase/migrations/20260603143000_whatsapp_ai_reply_draft_context.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}\n${connectedAppInboundEventsMigrationSql}\n${connectedAppInboundThreadsMigrationSql}\n${connectedAppOutboundMessagesMigrationSql}\n${whatsappAiReplyDraftContextMigrationSql}\n${agentQuoteRequestsMigrationSql}\n${qdhOwnerSetupsMigrationSql}\n${enterpriseRequestDeskRequestsMigrationSql}`;
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}\n${connectedAppInboundEventsMigrationSql}\n${connectedAppInboundThreadsMigrationSql}\n${connectedAppOutboundMessagesMigrationSql}\n${whatsappAiReplyDraftContextMigrationSql}\n${agentQuoteRequestsMigrationSql}\n${qdhOwnerSetupsMigrationSql}\n${enterpriseRequestDeskRequestsMigrationSql}\n${enterpriseRequestDeskOwnerSetupsMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]
@@ -135,6 +139,7 @@ test("critical owner and customer tables have authenticated owner-scoped policie
     "agent_booking_requests",
     "agent_quote_requests",
     "enterprise_request_desk_requests",
+    "enterprise_request_desk_owner_setups",
     "qdh_owner_setups",
     "agent_follow_up_workflows",
     "agent_contact_leads",
