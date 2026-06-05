@@ -310,6 +310,40 @@ test("Enterprise assistant answers service questions safely without creating a r
   }
 });
 
+test("ESG intake context returns ESG-specific profile and service lanes", async () => {
+  const server = await startServer(createApiApp());
+
+  try {
+    const response = await requestJson(
+      server.baseUrl,
+      "/esg-request-desk/intake-context?agent_key=valid-enterprise-key",
+      { auth: false }
+    );
+    const bodyText = JSON.stringify(response.json);
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.surface, "ESG Request Desk");
+    assert.equal(response.json.productProfile.key, "esg");
+    assert.equal(response.json.business.businessName, "ESG Holding Zrt.");
+    assert.deepEqual(response.json.productProfile.serviceTypes, [
+      "Őrzés-védelem",
+      "Portaszolgálat / objektumvédelem",
+      "Facility Management",
+      "Biztonságtechnika",
+      "Hatósági / audit támogatás",
+      "Vegyes vállalati megkeresés",
+    ]);
+    assert.equal(
+      response.json.lanes.some((lane) => lane.labelHu === "Hatósági / audit támogatás"),
+      true
+    );
+    assert.doesNotMatch(bodyText, /owner-1|agent-1|business-1|valid-enterprise-key/i);
+    assert.doesNotMatch(bodyText, INTERNAL_LEAK_PATTERN);
+  } finally {
+    await server.close();
+  }
+});
+
 test("Enterprise assistant carries bounded follow-up history into a ready brief", async () => {
   let createCalled = false;
   const server = await startServer(createApiApp({
@@ -759,11 +793,13 @@ test("Enterprise setup APIs require auth and persist owner-scoped safe setup", a
     assert.equal(state.status, 200);
     assert.equal(state.json.product, "enterprise_request_desk");
     assert.equal(state.json.setupComplete, false);
-    assert.equal(state.json.nextUrl, "/enterprise-request-desk/setup");
+    assert.equal(state.json.productProfile.key, "esg");
+    assert.equal(state.json.nextUrl, "/esg-request-desk/setup");
     assert.equal(state.json.customerIntake.available, false);
 
     assert.equal(saved.status, 200);
     assert.equal(saved.json.product, "enterprise_request_desk");
+    assert.equal(saved.json.productProfile.key, "enterprise");
     assert.equal(saved.json.setupComplete, true);
     assert.equal(saved.json.nextUrl, "/enterprise-request-desk/dashboard");
     assert.equal(saved.json.setup.organizationName, "ESG Holding Zrt.");
@@ -828,8 +864,11 @@ test("Enterprise Request Desk public and dashboard pages render separately from 
       "/enterprise-request-desk/dashboard",
       "/esg-request-desk/dashboard",
       "/enterprise-request-desk/intake-fixture",
+      "/esg-request-desk/intake-fixture",
       "/enterprise-request-desk/dashboard-fixture",
+      "/esg-request-desk/dashboard-fixture",
       "/enterprise-request-desk/dashboard-fixture?state=setup-missing",
+      "/esg-request-desk/dashboard-fixture?state=setup-missing",
     ]) {
       const response = await fetch(`${server.baseUrl}${pathname}`);
       const html = await response.text();
@@ -844,22 +883,33 @@ test("Enterprise Request Desk public and dashboard pages render separately from 
     }
 
     const intakeHtml = await (await fetch(`${server.baseUrl}/enterprise-request-desk/intake`)).text();
+    const esgIntakeHtml = await (await fetch(`${server.baseUrl}/esg-request-desk/intake`)).text();
     const dashboardHtml = await (await fetch(`${server.baseUrl}/enterprise-request-desk/dashboard`)).text();
+    const esgDashboardHtml = await (await fetch(`${server.baseUrl}/esg-request-desk/dashboard`)).text();
     const productHtml = await (await fetch(`${server.baseUrl}/enterprise-request-desk`)).text();
     const setupHtml = await (await fetch(`${server.baseUrl}/enterprise-request-desk/setup`)).text();
+    const esgSetupHtml = await (await fetch(`${server.baseUrl}/esg-request-desk/setup`)).text();
     const setupMissingFixtureHtml = await (
       await fetch(`${server.baseUrl}/enterprise-request-desk/dashboard-fixture?state=setup-missing`)
     ).text();
 
     assert.match(intakeHtml, /enterprise-request-desk-intake\.js/);
     assert.doesNotMatch(intakeHtml, /enterprise-request-desk-dashboard\.js/);
+    assert.match(esgIntakeHtml, /ESG Request Desk/);
+    assert.match(esgIntakeHtml, /Objektumvédelem, FM, biztonságtechnika|ESG megkeresés/);
+    assert.doesNotMatch(esgIntakeHtml, /Quote Desk HU|\bQDH\b|\/widget|\/embed\.js|\/embed-lite\.js/i);
     assert.match(dashboardHtml, /enterprise-request-desk-dashboard\.js/);
     assert.doesNotMatch(dashboardHtml, /enterprise-request-desk-intake\.js/);
     assert.doesNotMatch(dashboardHtml, /src="\/dashboard\.js/);
+    assert.match(esgDashboardHtml, /ESG Request Desk/);
+    assert.match(esgDashboardHtml, /ESG megkeresések feldolgozási felülete|Objektumvédelem, FM, biztonságtechnika/);
+    assert.doesNotMatch(esgDashboardHtml, /\bQDH\b|Quote Desk HU|\/widget|\/embed\.js|\/embed-lite\.js/i);
     assert.match(productHtml, /href="\/enterprise-request-desk\/setup"/);
     assert.match(productHtml, /\/enterprise-request-desk\/intake\?agent_key=\.\.\./);
     assert.match(setupHtml, /enterprise-request-desk-setup\.js/);
     assert.match(setupHtml, /Supabase Auth|auth session/i);
+    assert.match(esgSetupHtml, /ESG Request Desk/);
+    assert.match(esgSetupHtml, /ESG intake pult|Objektumvédelem, FM, biztonságtechnika/);
     assert.match(setupMissingFixtureHtml, /VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE_MODE = "setup_missing"/);
   } finally {
     await server.close();
@@ -871,6 +921,7 @@ test("Enterprise frontend sources avoid QDH naming, provider actions, and final 
     "frontend/enterprise-request-desk-intake.html",
     "frontend/enterprise-request-desk-dashboard.html",
     "frontend/enterprise-request-desk-setup.html",
+    "frontend/enterprise-request-desk-profile.js",
     "frontend/enterprise-request-desk-intake.js",
     "frontend/enterprise-request-desk-dashboard.js",
     "frontend/enterprise-request-desk-setup.js",

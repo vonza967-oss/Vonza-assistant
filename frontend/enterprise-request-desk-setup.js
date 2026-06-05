@@ -1,6 +1,20 @@
 (() => {
   const root = document.getElementById("erdp-setup-root");
   const statusRoot = document.getElementById("erdp-setup-status");
+  const profileApi = window.VonzaEnterpriseRequestDeskProfiles;
+  const profile = profileApi?.getProfile ? profileApi.getProfile() : null;
+  if (profileApi?.applyDocumentProfile && profile) {
+    profileApi.applyDocumentProfile(profile);
+    document.title = profile.setup?.title || profile.productName;
+    const heading = document.querySelector(".erdp-setup-copy h1");
+    if (heading) {
+      heading.textContent = profile.setup?.heading || heading.textContent;
+    }
+    const intro = document.querySelector(".erdp-setup-copy > p");
+    if (intro) {
+      intro.textContent = profile.setup?.intro || intro.textContent;
+    }
+  }
 
   let authClient = null;
   let authSession = null;
@@ -108,16 +122,16 @@
     root.innerHTML = `
       <section class="erdp-empty">
         <h2>A Supabase Auth nincs beállítva</h2>
-        <p>A setup oldal betöltött, de élő hozzáféréshez publikus Supabase URL és anon kulcs szükséges.</p>
+        <p>A ${escapeHtml(profile?.productName || "Enterprise Request Desk")} setup oldal betöltött, de élő hozzáféréshez publikus Supabase URL és anon kulcs szükséges.</p>
       </section>
     `;
   }
 
   function renderAuthGate(message = "") {
     root.innerHTML = `
-      <section class="erdp-auth-card" aria-label="Enterprise Request Desk hozzáférés">
+      <section class="erdp-auth-card" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} hozzáférés">
         <div>
-          <h2>Enterprise Request Desk hozzáférés</h2>
+          <h2>${escapeHtml(profile?.productName || "Enterprise Request Desk")} hozzáférés</h2>
           <p>Jelentkezz be, hozz létre fiókot, vagy kérj varázslinket. A setup csak bejelentkezett tulajdonosi session alatt menthető.</p>
           ${message ? `<p>${escapeHtml(message)}</p>` : ""}
         </div>
@@ -151,7 +165,7 @@
 
     if (intake.available && path) {
       return `
-        <div class="erdp-customer-link" aria-label="Enterprise Request Desk ügyféloldali intake link">
+        <div class="erdp-customer-link" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} ügyféloldali intake link">
           <strong>Ügyféloldali intake link</strong>
           <p>${escapeHtml(intake.guidanceHu || "Ezt a linket add meg a vállalati megkeresések belépési pontjaként.")}</p>
           <code>${escapeHtml(path)}</code>
@@ -165,10 +179,10 @@
     }
 
     return `
-      <div class="erdp-customer-link erdp-customer-link-muted" aria-label="Enterprise Request Desk intake link előfeltétel">
+      <div class="erdp-customer-link erdp-customer-link-muted" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} intake link előfeltétel">
         <strong>Ügyféloldali intake link</strong>
         <p>${escapeHtml(intake.guidanceHu || "Aktív public agent kulcs szükséges, mielőtt az ügyféloldali intake link használható.")}</p>
-        <code>/enterprise-request-desk/intake?agent_key=&lt;public_agent_key&gt;</code>
+        <code>${escapeHtml(getApiPrefix())}/intake?agent_key=&lt;public_agent_key&gt;</code>
       </div>
     `;
   }
@@ -183,9 +197,9 @@
         <span>Bejelentkezve: ${escapeHtml(authUser?.email || "tulajdonosi fiók")}</span>
         <button class="erdp-button" type="button" data-erdp-sign-out>Kilépés</button>
       </div>
-      <section class="erdp-setup-card" aria-label="Enterprise Request Desk setup űrlap">
-        <h2>Szervezet és feldolgozási alapok</h2>
-        <p>A mentett setup alapján válik egyértelművé, melyik szervezethez és szolgáltatási területhez tartozik a beérkező megkeresés. A dashboard csak setup után nyílik meg teljes nézetben.</p>
+      <section class="erdp-setup-card" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} setup űrlap">
+        <h2>${escapeHtml(profile?.setup?.formTitle || "Szervezet és feldolgozási alapok")}</h2>
+        <p>${escapeHtml(profile?.setup?.formIntro || "A mentett setup alapján válik egyértelművé, melyik szervezethez és szolgáltatási területhez tartozik a beérkező megkeresés.")}</p>
         ${renderCustomerIntakeGuidance()}
         <form data-erdp-setup-form>
           <div class="erdp-form-grid">
@@ -199,7 +213,7 @@
             </label>
             <label class="erdp-field">
               Szolgáltatási terület
-              <input name="service_area" value="${escapeHtml(currentSetup?.serviceArea || "")}" placeholder="pl. Budapest, országos telephelyek" required>
+              <input name="service_area" value="${escapeHtml(currentSetup?.serviceArea || "")}" placeholder="pl. Budapest, irodaházak, telephelyek vagy országos helyszínek" required>
             </label>
             <label class="erdp-field">
               Belső továbbítás
@@ -215,7 +229,7 @@
             </label>
             <label class="erdp-field erdp-field-wide">
               Intake pozicionálás
-              <textarea name="intake_positioning" placeholder="pl. Vállalati, security és FM megkeresések előszűrése belső feldolgozáshoz.">${escapeHtml(currentSetup?.intakePositioning || "Vállalati, security és FM megkeresések előszűrése belső feldolgozáshoz.")}</textarea>
+              <textarea name="intake_positioning" placeholder="${escapeHtml(profile?.setup?.intakePositioningDefault || "Vállalati objektumvédelmi, FM és biztonságtechnikai megkeresések előszűrése belső feldolgozáshoz.")}">${escapeHtml(currentSetup?.intakePositioning || profile?.setup?.intakePositioningDefault || "Vállalati objektumvédelmi, FM és biztonságtechnikai megkeresések előszűrése belső feldolgozáshoz.")}</textarea>
             </label>
             <label class="erdp-field">
               Tulajdonosi email
@@ -223,13 +237,13 @@
             </label>
             <label class="erdp-field erdp-field-wide">
               Szolgáltatási vonalak
-              <textarea name="service_lines" placeholder="Egy szolgáltatási vonal soronként" required>${escapeHtml(serviceLines)}</textarea>
-              <small>Security, portaszolgálat, objektumvédelem, facility management, biztonságtechnika vagy audit jellegű sorok.</small>
+              <textarea name="service_lines" placeholder="${escapeHtml(profile?.setup?.serviceLinesPlaceholder || "Egy szolgáltatási vonal soronként")}" required>${escapeHtml(serviceLines)}</textarea>
+              <small>${escapeHtml(profile?.setup?.serviceLinesHelp || "Őrzés-védelem, portaszolgálat, objektumvédelem, Facility Management, biztonságtechnika vagy hatósági/audit jellegű sorok.")}</small>
             </label>
           </div>
           <div class="erdp-form-actions">
             <button class="erdp-button erdp-button-primary" type="submit">Setup mentése</button>
-            <a class="erdp-button" href="${escapeHtml(getApiPrefix())}/dashboard">Dashboard</a>
+            <a class="erdp-button" href="${escapeHtml(getApiPrefix())}/dashboard">Megkeresések</a>
           </div>
         </form>
       </section>
@@ -253,7 +267,7 @@
   }
 
   async function loadSetup() {
-    setStatus("Enterprise Request Desk setup állapot betöltése...");
+    setStatus(`${profile?.productName || "Enterprise Request Desk"} setup állapot betöltése...`);
     try {
       const data = await fetchJson(`${getApiPrefix()}/setup-state`);
       currentSetup = data.setup || null;
@@ -264,11 +278,11 @@
       if (error.code === "enterprise_request_desk_setup_table_missing") {
         root.innerHTML = `
           <section class="erdp-empty">
-            <h2>Enterprise setup migráció szükséges</h2>
+            <h2>Setup migráció szükséges</h2>
             <p>${escapeHtml(error.message)}</p>
           </section>
         `;
-        setStatus("Enterprise setup tábla hiányzik.");
+        setStatus("Setup tábla hiányzik.");
         return;
       }
       renderAuthGate(error.message);
@@ -350,7 +364,7 @@
     }
 
     try {
-      setStatus("Enterprise Request Desk setup mentése...");
+      setStatus(`${profile?.productName || "Enterprise Request Desk"} setup mentése...`);
       const data = await fetchJson(`${getApiPrefix()}/setup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -358,7 +372,7 @@
       });
       currentSetup = data.setup || null;
       currentCustomerIntake = data.customerIntake || null;
-      setStatus("Setup mentve. Dashboard megnyitása...");
+      setStatus("Setup mentve. Megkereséslista megnyitása...");
       window.location.assign(data.nextUrl || `${getApiPrefix()}/dashboard`);
     } catch (error) {
       setStatus(error.message || "Setup mentése nem sikerült.");
@@ -432,7 +446,7 @@
       const session = await ensureAuthSession();
       if (!session) {
         renderAuthGate();
-        setStatus("Enterprise Request Desk hozzáféréshez jelentkezz be vagy indíts fiókot.");
+        setStatus(`${profile?.productName || "Enterprise Request Desk"} hozzáféréshez jelentkezz be vagy indíts fiókot.`);
         return;
       }
       await loadSetup();

@@ -18,7 +18,7 @@ Phase 1 creates a qualified enterprise intake layer for ESG-style enquiries:
 - public qualified intake behavior, represented in service/test/eval code only;
 - service-lane classification;
 - one qualifying follow-up question at a time;
-- structured internal brief DTO for owner/staff review;
+- structured internal summary DTO for owner review;
 - ESG-style fixture context for tests/evals only.
 
 No public route, dashboard selector, persistence table, schema migration, widget/embed change, external provider call, quote calculation, or operations cockpit is added in this phase.
@@ -29,8 +29,8 @@ Phase 2 adds the first visible pilot surface for the same ESG-style enterprise i
 
 - `/enterprise-request-desk/demo` and `/esg-request-desk/demo` render a static internal/demo intake page.
 - `/enterprise-request-desk/demo/analyze` and `/esg-request-desk/demo/analyze` run a rate-limited, non-persistent demo analysis against the deterministic Enterprise Request Desk assistant/lane service.
-- The page classifies broad Hungarian enterprise, security, FM, and compliance enquiries into lanes and shows missing fields, one qualifying question, and a structured internal brief preview.
-- The API response intentionally returns only public-safe lane labels, missing-field labels, and brief fields. It does not expose owner IDs, agent IDs, package/policy metadata, prompts, model information, internal source labels, or secrets.
+- The page classifies broad Hungarian enterprise, object-protection, FM, security-technology, and audit/authority enquiries into lanes and shows missing fields, one qualifying question, and a structured internal summary preview.
+- The API response intentionally returns only public-safe lane labels, missing-field labels, and summary fields. It does not expose owner IDs, agent IDs, package/policy metadata, prompts, model information, internal source labels, or secrets.
 
 Phase 2 still does not register `enterprise_request_desk` in the runtime package registry, add a dashboard selector, create persistence, add a schema migration, activate customer self-serve onboarding, touch widget/embed behavior, call external providers, create tickets, generate compliance documents, or produce final pricing/quote guarantees.
 
@@ -46,7 +46,7 @@ Phase 3 adds the minimum controlled end-to-end pilot loop:
 - public intake API:
   - `POST /enterprise-request-desk/intake-requests`
   - `POST /esg-request-desk/intake-requests`
-- owner/staff review dashboard:
+- owner review dashboard:
   - `/enterprise-request-desk/dashboard`
   - `/esg-request-desk/dashboard`
 - owner-scoped review APIs:
@@ -56,7 +56,7 @@ Phase 3 adds the minimum controlled end-to-end pilot loop:
 
 The public intake requires a valid active `agent_key`. The server resolves the key to an owner-scoped agent, runs the Enterprise Request Desk classifier/assistant, sanitizes all public text, and persists a request-only row. The public response returns only safe request outcome fields: created/deduped state, lane label, missing fields, missing-field labels, and a boundary-safe message.
 
-The owner dashboard is separate from QDH and from the generic `/dashboard`. It shows a queue, lane, structured brief, missing fields, contact need, review statuses, status reason, and staff notes. It does not include SLA clocks, QR reporting, vendor panels, provider actions, compliance document generation, final pricing, or quote guarantees.
+The owner dashboard is separate from QDH and from the generic `/dashboard`. It shows megkeresések, service area, structured summary, missing data, contact state, review statuses, status reason, and notes. It does not include SLA clocks, QR reporting, vendor panels, provider actions, compliance document generation, final pricing, or quote guarantees.
 
 Local-only browser QA fixtures are available outside production:
 
@@ -80,7 +80,7 @@ Phase 4 turns the working pilot loop into a standalone product journey:
 - customer-facing intake links:
   - `/enterprise-request-desk/intake?agent_key=<public_agent_key>`
   - `/esg-request-desk/intake?agent_key=<public_agent_key>`
-- staff dashboard pages:
+- owner dashboard pages:
   - `/enterprise-request-desk/dashboard`
   - `/esg-request-desk/dashboard`
 
@@ -111,11 +111,11 @@ Phase 6 makes the public intake an AI-guided request desk instead of a static fo
   - `POST /esg-request-desk/intake-assistant`
 - customer-facing chat UI on the existing intake pages;
 - compact recognized-detail progress chips;
-- structured brief preview;
+- structured summary preview;
 - secondary manual details editor;
 - confirmation-only request creation into `enterprise_request_desk_requests`.
 
-The assistant endpoint requires a valid active `agent_key`, accepts bounded conversation history plus current extracted fields, and returns only a safe DTO: assistant reply, lane key/label, extracted public fields, missing fields, missing-field labels, structured brief preview, next question, readiness/confirmation state, and a recorded-request acknowledgement when a request is created.
+The assistant endpoint requires a valid active `agent_key`, accepts bounded conversation history plus current extracted fields, and returns only a safe DTO: assistant reply, lane key/label, extracted public fields, missing fields, missing-field labels, structured summary preview, next question, readiness/confirmation state, and a recorded-request acknowledgement when a request is created.
 
 Request creation happens only when the deterministic Enterprise readiness layer has all required fields and the visitor explicitly confirms. The persisted row remains owner-scoped through the resolved public agent, stores a hashed source key rather than the raw public key, and uses the existing `enterprise_request_desk_requests` table. No schema or migration is added in Phase 6.
 
@@ -130,6 +130,37 @@ The service layer reuses Vonza/QDH engine patterns where safe:
 
 The frontend keeps Enterprise Request Desk visual identity and does not expose customer-visible internal terms such as source labels, metadata, package/policy details, model details, or owner/agent identifiers. It does not create QDH quote requests and does not touch widget/embed behavior.
 
+## Phase 7 ESG Product Profile
+
+Phase 7 keeps the shared Enterprise/Vonza engine but adds an explicit ESG-specific product profile for `/esg-request-desk/*`.
+
+Shared engine remains unchanged:
+
+- same `enterprise_request_desk_requests` persistence table;
+- same owner-scoped setup table;
+- same public agent key resolution, auth, RLS expectations, source key hashing, and safe public DTO shaping;
+- same deterministic lane classifier, field extraction, confirmation gate, and request-review statuses;
+- same no-provider-call, no-widget/embed-change, no-QDH-merge boundary.
+
+ESG profile customization lives in:
+
+- `src/services/enterprise/enterpriseRequestDeskProfileService.js` for backend route/profile DTOs, ESG business context, service lanes, and ESG intake links;
+- `frontend/enterprise-request-desk-profile.js` for route-based page copy, service choices, examples, setup labels, dashboard language, and ESG visual tone;
+- existing shared route handlers that resolve the profile from `/enterprise-request-desk/*` or `/esg-request-desk/*`.
+
+The ESG route is customized for ESG Holding with safe public positioning only:
+
+- product name: `ESG Request Desk` / `ESG Megkereséskezelő`;
+- service choices: `Őrzés-védelem`, `Portaszolgálat / objektumvédelem`, `Facility Management`, `Biztonságtechnika`, `Hatósági / audit támogatás`, `Vegyes vállalati megkeresés`;
+- intake headline and examples for irodaház portaszolgálat, raktár/telephely őrzés, CCTV/beléptető, FM karbantartás/épületüzemeltetés, and hatósági/audit/beszerzési támogatás;
+- dashboard terminology: `Megkeresések`, `Szolgáltatási terület`, `Összefoglaló`, `Hiányzó adatok`, `Belső feldolgozás`, `Megjegyzés`;
+- setup labels and placeholders for ESG service area, service lines, internal routing preference, and owner contact email;
+- a darker green/navy/neutral visual profile scoped with `body[data-erdp-profile="esg"]`.
+
+The generic `/enterprise-request-desk/*` route remains available as the reusable fallback product skin. It uses the same engine and can keep generic enterprise copy.
+
+Phase 7 does not add a migration, schema column, provider call, final pricing, quote guarantee, operations cockpit, QR/SLA/vendor flow, compliance document generation, widget/embed change, or QDH integration.
+
 ## Shared Engine vs Product Layer
 
 Shared Vonza Engine patterns:
@@ -143,24 +174,24 @@ Shared Vonza Engine patterns:
 Enterprise-specific layer:
 
 - `enterprise_request_desk` unregistered product/package metadata skeleton;
-- ESG-style intake lane taxonomy;
+- ESG-style intake lane taxonomy and route-specific product profile;
 - enterprise request field extraction for service need, location/site, timing/urgency, and contact route;
-- structured owner/staff handoff brief;
+- structured owner handoff summary;
 - owner-scoped Phase 3 request persistence in `enterprise_request_desk_requests`;
 - Phase 6 conversational readiness and confirmation layer for public intake;
+- Phase 7 ESG-specific route skin/workflow for `/esg-request-desk/*`;
 - Enterprise eval scenarios and CLI command.
 
 The adapter can accept an injected shared Front Desk turn for service questions, but default public intake behavior is deterministic and does not add external provider calls.
 
 ## ESG-Style First Pilot
 
-Fixture context is limited to safe test/eval positioning:
+ESG context is limited to safe public positioning:
 
 - business name: ESG Holding Zrt.;
-- service area: országos, Budapest központtal;
-- service types: őrzés-védelem, portaszolgálat / objektumvédelem, facility management, biztonságtechnika, audit / compliance.
+- service types: Őrzés-védelem, Portaszolgálat / objektumvédelem, Facility Management, Biztonságtechnika, Hatósági / audit támogatás.
 
-The fixture does not scrape ESG, use private data, claim customer references, claim certifications, or assert unverified proof. It exists only to exercise the first target use case.
+The profile does not scrape ESG, use private data, copy logo/image assets, claim customer references, claim certifications, or assert unverified proof. It exists to make the ESG route feel tailored while the underlying engine stays reusable.
 
 ## Lane Taxonomy
 
@@ -168,13 +199,13 @@ Phase 1 through Phase 3 lanes:
 
 - `security_guarding`: őrzés-védelem, vagyonőr, élőerős guarding, járőr.
 - `reception_object_protection`: portaszolgálat, objektumvédelem, recepciós/beléptetési security.
-- `facility_management`: létesítményüzemeltetés, karbantartás, takarítás, FM support.
-- `security_technology`: CCTV, kamera, beléptető, access control, riasztó, biztonságtechnika.
-- `audit_compliance`: audit, compliance, szabályzat, kockázatértékelés, megfelelőség.
+- `facility_management`: létesítményüzemeltetés, karbantartás, takarítás, soft FM, integrált védelem, FM support.
+- `security_technology`: CCTV, kamera, beléptető, access control, riasztó, tűzjelző, sorompó, közterületi/társasházi kamerarendszer, telefon/optikai/IT hálózat, biztonságtechnika.
+- `audit_compliance`: hatósági/audit támogatás, védelmi vagy külkereskedelmi engedély, NATO beszállítói feltételek, szabályzat, kockázatértékelés, beszerzési támogatás, biztonságtudatossági képzés.
 - `mixed_enterprise_request`: több lane-t érintő enterprise igény.
 - `general_enquiry`: biztonságos fallback általános kérdésekre vagy hiányos megkeresésre.
 
-Each lane defines Hungarian label, coverage notes, qualifying questions, safe required fields, and the handoff summary shape. The required brief fields are service need, location/site, timing/urgency, and contact route.
+Each lane defines Hungarian label, coverage notes, qualifying questions, safe required fields, and the handoff summary shape. The required summary fields are service need, location/site, timing/urgency, and contact route.
 
 ## Persistence
 
@@ -277,6 +308,20 @@ Deferred out of Phase 6:
 - external provider calls;
 - final quote/pricing guarantees;
 - QDH merge or QDH setup reuse;
+- website widget, embed, or chat behavior changes.
+
+Deferred out of Phase 7:
+
+- schema or migration changes;
+- full operations cockpit;
+- QR reporting;
+- SLA clocks, tickets, and operational lifecycle;
+- vendor panels;
+- compliance, authority, or audit document generation;
+- external integrations or provider calls;
+- final quote/pricing guarantees;
+- QDH merge or QDH setup reuse;
+- copied ESG logo/image assets;
 - website widget, embed, or chat behavior changes.
 
 ## Activation Boundary

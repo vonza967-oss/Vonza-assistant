@@ -3,36 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESG Request Desk intake</title>
-  <meta name="description" content="Vállalati biztonsági, facility management és compliance megkeresések kontrollált intake felülete.">
+  <title>Enterprise Request Desk intake</title>
+  <meta name="description" content="Vállalati objektumvédelmi, Facility Management, biztonságtechnikai és hatósági/audit megkeresések kontrollált intake felülete.">
   <link rel="stylesheet" href="/enterprise-request-desk.css">
 </head>
 <body>
   <main class="erdp-intake-shell" data-erdp-intake-shell>
     <header class="erdp-public-header">
-      <a class="erdp-public-brand" href="/enterprise-request-desk/intake" aria-label="ESG Request Desk intake">
-        <span class="erdp-mark" aria-hidden="true">E</span>
+      <a class="erdp-public-brand" href="/enterprise-request-desk/intake" aria-label="Enterprise Request Desk intake" data-erdp-route-prefix data-erdp-route-suffix="/intake">
+        <span class="erdp-mark" aria-hidden="true" data-erdp-brand-initial>E</span>
         <span>
-          <strong>ESG Request Desk</strong>
-          <small>Vállalati megkeresés</small>
+          <strong data-erdp-brand-name>Enterprise Request Desk</strong>
+          <small data-erdp-brand-subtitle>Vállalati intake pult</small>
         </span>
       </a>
-      <p>Megkeresés előszűrése belső feldolgozáshoz.</p>
+      <p data-erdp-header-note>Megkeresés előszűrése belső feldolgozáshoz.</p>
     </header>
 
-    <section class="erdp-intake-stage" aria-label="ESG Request Desk megkeresés">
+    <section class="erdp-intake-stage" aria-label="Enterprise Request Desk megkeresés">
       <div class="erdp-status" id="erdp-intake-status" role="status" aria-live="polite" aria-atomic="true"></div>
       <div id="erdp-intake-root">
-        <section class="erdp-loading" aria-label="ESG Request Desk betöltése">
+        <section class="erdp-loading" aria-label="Enterprise Request Desk betöltése">
           <span class="erdp-loader" aria-hidden="true"></span>
           <div>
-            <h1>ESG Request Desk betöltése</h1>
+            <h1>Enterprise Request Desk betöltése</h1>
             <p>Ellenőrizzük a publikus intake linket.</p>
           </div>
         </section>
       </div>
     </section>
   </main>
+  <script src="/enterprise-request-desk-profile.js"></script>
   <script src="/enterprise-request-desk-intake.js"></script>
 </body>
 </html>

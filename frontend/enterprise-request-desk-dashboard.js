@@ -2,10 +2,36 @@
   const root = document.getElementById("erdp-dashboard-root");
   const accountRoot = document.getElementById("erdp-account");
   const statusRoot = document.getElementById("erdp-dashboard-status");
+  const profileApi = window.VonzaEnterpriseRequestDeskProfiles;
+  const profile = profileApi?.getProfile ? profileApi.getProfile() : null;
+  if (profileApi?.applyDocumentProfile && profile) {
+    profileApi.applyDocumentProfile(profile);
+    document.title = profile.dashboard?.title || profile.productName;
+    const productLabel = document.querySelector("[data-erdp-dashboard-product-label]");
+    if (productLabel) {
+      productLabel.textContent = profile.dashboard?.productLabel || profile.productName;
+    }
+    const heading = document.querySelector("[data-erdp-dashboard-heading]");
+    if (heading) {
+      heading.textContent = profile.dashboard?.heading || heading.textContent;
+    }
+    const intro = document.querySelector("[data-erdp-dashboard-intro]");
+    if (intro) {
+      intro.textContent = profile.dashboard?.intro || intro.textContent;
+    }
+    const sideTitle = document.querySelector("[data-erdp-dashboard-side-title]");
+    if (sideTitle) {
+      sideTitle.textContent = profile.dashboard?.sideTitle || sideTitle.textContent;
+    }
+    const sideBody = document.querySelector("[data-erdp-dashboard-side-body]");
+    if (sideBody) {
+      sideBody.textContent = profile.dashboard?.sideBody || sideBody.textContent;
+    }
+  }
   const FIXTURE_STORAGE_KEY = "VONZA_ENTERPRISE_REQUEST_DESK_FIXTURE_REQUESTS";
   const REVIEW_ACTIONS = Object.freeze([
-    ["needs_info", "Hiányzó adat"],
-    ["needs_staff_review", "Belső ellenőrzés"],
+    ["needs_info", "Hiányzó adatok"],
+    ["needs_staff_review", "Belső feldolgozás"],
     ["routed", "Belső továbbítás"],
     ["declined", "Elutasítva"],
     ["archived", "Archiválás"],
@@ -147,12 +173,12 @@
       {
         id: "erd-fixture-seed-1",
         lane: "facility_management",
-        laneLabel: "Facility management",
+        laneLabel: "Facility Management",
         confidence: "medium",
-        requestText: "Facility management támogatás kell egy budapesti telephelyre, karbantartás és takarítás egyeztetéssel, jövő héten. Telefon: +36 30 123 4567.",
+        requestText: "Facility Management támogatás kell egy budapesti telephelyre, karbantartás és takarítás egyeztetéssel, jövő héten. Telefon: +36 30 123 4567.",
         siteOrObject: "telephely",
         locationText: "Budapest",
-        serviceNeed: "Facility management támogatás",
+        serviceNeed: "Facility Management támogatás",
         timingText: "jövő héten",
         urgency: "egyeztethető",
         contactName: "",
@@ -161,16 +187,16 @@
         missingFields: [],
         structuredBrief: {
           lane: "facility_management",
-          laneLabelHu: "Facility management",
-          serviceNeed: "Facility management támogatás",
+          laneLabelHu: "Facility Management",
+          serviceNeed: "Facility Management támogatás",
           locationOrSite: "Budapest telephely",
           urgencyOrTiming: "jövő héten",
           contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
-          staffSummaryHu: "Belső brief: Facility management. Igény: karbantartás és takarítás egyeztetés. Helyszín/objektum: budapesti telephely.",
+          staffSummaryHu: "Belső összefoglaló: Facility Management. Igény: karbantartás és takarítás egyeztetés. Helyszín/objektum: budapesti telephely.",
         },
         status: "request_received",
         statusReason: "",
-        staffNotes: "Fixture seed request.",
+        staffNotes: "Helyi minta megkeresés.",
         createdAt: "2026-06-05T09:00:00.000Z",
         updatedAt: "2026-06-05T09:00:00.000Z",
       },
@@ -204,9 +230,9 @@
       case "request_received":
         return "Új";
       case "needs_info":
-        return "Hiányzó adat";
+        return "Hiányzó adatok";
       case "needs_staff_review":
-        return "Belső ellenőrzés";
+        return "Belső feldolgozás";
       case "routed":
         return "Belső továbbítás";
       case "declined":
@@ -214,7 +240,7 @@
       case "archived":
         return "Archivált";
       default:
-        return "Belső ellenőrzés";
+        return "Belső feldolgozás";
     }
   }
 
@@ -292,7 +318,7 @@
     }
 
     if (window.VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE === true) {
-      accountRoot.innerHTML = `<span class="erdp-account-email">Local fixture</span>`;
+      accountRoot.innerHTML = `<span class="erdp-account-email">Helyi minta</span>`;
       return;
     }
 
@@ -309,10 +335,10 @@
 
   function renderAuthGate(message = "") {
     root.innerHTML = `
-      <section class="erdp-auth-card" aria-label="ESG Request Desk belépés">
+      <section class="erdp-auth-card" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} belépés">
         <div>
           <h2>Belépés szükséges</h2>
-          <p>Az Enterprise Request Desk dashboard tulajdonosi session alatt érhető el. Jelentkezz be, hozz létre fiókot, vagy kérj varázslinket.</p>
+          <p>A ${escapeHtml(profile?.productNameHu || profile?.productName || "Enterprise Request Desk")} tulajdonosi session alatt érhető el. Jelentkezz be, hozz létre fiókot, vagy kérj varázslinket.</p>
           ${message ? `<p>${escapeHtml(message)}</p>` : ""}
         </div>
         <form class="erdp-auth-form" data-erdp-auth-form>
@@ -339,7 +365,7 @@
       <section class="erdp-empty">
         <div>
           <h2>A Supabase Auth nincs beállítva</h2>
-          <p>A dashboard HTML betöltött, de az élő Enterprise Request Desk queue-hoz auth konfiguráció szükséges.</p>
+          <p>A feldolgozási felület betöltött, de az élő megkereséslistához auth konfiguráció szükséges.</p>
         </div>
       </section>
     `;
@@ -356,11 +382,11 @@
 
   function renderMetrics(summary) {
     return `
-      <section class="erdp-metrics" aria-label="Enterprise Request Desk áttekintés">
-        ${metric("Összes kérés", summary.total || 0)}
+      <section class="erdp-metrics" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} áttekintés">
+        ${metric("Összes megkeresés", summary.total || 0)}
         ${metric("Új", summary.requestReceived || 0)}
-        ${metric("Hiányzó adat", summary.needsInfo || 0)}
-        ${metric("Belső ellenőrzés", summary.needsStaffReview || 0)}
+        ${metric("Hiányzó adatok", summary.needsInfo || 0)}
+        ${metric("Belső feldolgozás", summary.needsStaffReview || 0)}
         ${metric("Belső továbbítás / lezárt", (summary.routed || 0) + (summary.closed || 0))}
       </section>
     `;
@@ -395,7 +421,7 @@
           <div class="erdp-request-list">
             ${records.length
               ? records.map((record) => renderRequestRow(record, record.id === selectedRecord?.id)).join("")
-              : `<div class="erdp-empty"><p>Még nincs beérkezett Enterprise Request Desk kérés.</p></div>`}
+              : `<div class="erdp-empty"><p>${escapeHtml(profile?.dashboard?.emptyQueue || "Még nincs beérkezett megkeresés.")}</p><p>${escapeHtml(profile?.dashboard?.emptyHint || "Nyissa meg az intake linket, és küldjön be egy tesztmegkeresést.")}</p></div>`}
           </div>
         </div>
       </section>
@@ -445,14 +471,15 @@
             </div>
           </div>
           <div class="erdp-panel-body">
-            <div class="erdp-empty"><p>A brief, missing fields, contact need és staff jegyzet itt jelenik meg.</p></div>
+            <div class="erdp-empty"><p>Az összefoglaló, a hiányzó adatok, a kapcsolati állapot és a belső megjegyzés itt jelenik meg.</p></div>
           </div>
         </section>
       `;
     }
 
     const missingFields = record.missingFields;
-    const staffSummary = trimText(record.structuredBrief?.staffSummaryHu || record.structuredBrief?.staff_summary_hu);
+    const staffSummary = trimText(record.structuredBrief?.staffSummaryHu || record.structuredBrief?.staff_summary_hu)
+      .replace(/^Belső brief:/i, "Belső összefoglaló:");
     const saveStatus = REVIEW_ACTION_SET.has(record.status) ? record.status : "needs_staff_review";
 
     return `
@@ -470,12 +497,12 @@
           </div>
           <div class="erdp-detail-grid">
             ${detailItem("Szolgáltatási terület", record.laneLabel)}
-            ${detailItem("Bizonyosság", record.confidence)}
+            ${detailItem("Besorolási jelzés", record.confidence)}
             ${detailItem("Objektum / helyszín", record.siteOrObject)}
             ${detailItem("Helyszín", record.locationText)}
             ${detailItem("Szolgáltatási igény", record.serviceNeed)}
             ${detailItem("Időzítés", record.timingText || record.urgency)}
-            ${detailItem("Kapcsolat szükséges", getContactNeeded(record))}
+            ${detailItem("Kapcsolati állapot", getContactNeeded(record))}
             ${detailItem("Kapcsolattartó", record.contactName)}
             ${detailItem("Email", record.contactEmail)}
             ${detailItem("Telefon", record.contactPhone)}
@@ -495,7 +522,7 @@
             <textarea data-erdp-status-reason>${escapeHtml(record.statusReason)}</textarea>
           </label>
           <label class="erdp-field">
-            Belső jegyzet
+            Megjegyzés
             <textarea data-erdp-staff-notes>${escapeHtml(record.staffNotes)}</textarea>
           </label>
           <div class="erdp-actions" aria-label="Biztonságos feldolgozási státuszok">
@@ -523,7 +550,7 @@
     const recent = records.slice(0, 5);
 
     return `
-      <section class="erdp-panel" aria-label="Legutóbbi Enterprise Request Desk kérések">
+      <section class="erdp-panel" aria-label="Legutóbbi megkeresések">
         <div class="erdp-panel-header">
           <div>
             <h2>Legutóbbi megkeresések</h2>
@@ -571,18 +598,18 @@
       <section class="erdp-customer-link erdp-customer-link-muted" aria-label="Ügyféloldali intake link előfeltétel">
         <strong>Ügyféloldali intake link</strong>
         <p>${escapeHtml(intake.guidanceHu || "Aktív public agent kulcs szükséges, mielőtt az ügyféloldali intake link használható.")}</p>
-        <code>/enterprise-request-desk/intake?agent_key=&lt;public_agent_key&gt;</code>
+        <code>${escapeHtml(getApiPrefix())}/intake?agent_key=&lt;public_agent_key&gt;</code>
       </section>
     `;
   }
 
   function renderSetupRequired() {
     root.innerHTML = `
-      <section class="erdp-auth-card" aria-label="Enterprise Request Desk setup szükséges">
+      <section class="erdp-auth-card" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} setup szükséges">
         <div>
           <h2>Setup szükséges</h2>
           <p>Bejelentkezve: ${escapeHtml(authUser?.email || "tulajdonosi fiók")}</p>
-          <p>A dashboard megnyitása előtt add meg a szervezet nevét, szolgáltatási területét, szolgáltatási vonalait és a belső továbbítási módot.</p>
+          <p>A megkereséslista megnyitása előtt add meg a szervezet nevét, szolgáltatási területét, szolgáltatási vonalait és a belső továbbítási módot.</p>
         </div>
         <div class="erdp-auth-actions">
           <a class="erdp-button erdp-button-primary" href="${escapeHtml(getApiPrefix())}/setup">Setup megnyitása</a>
@@ -594,7 +621,7 @@
 
   function renderSetupUnavailable(message = "") {
     root.innerHTML = `
-      <section class="erdp-empty" aria-label="Enterprise Request Desk setup állapot hiba">
+      <section class="erdp-empty" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} setup állapot hiba">
         <h2>Setup állapot nem érhető el</h2>
         <p>${escapeHtml(message || "A setup tábla vagy az auth állapot nem tölthető be.")}</p>
       </section>
@@ -608,16 +635,16 @@
 
     root.innerHTML = `
       <div class="erdp-dashboard">
-        <section class="erdp-safety-strip" aria-label="Enterprise Request Desk határok">
+        <section class="erdp-safety-strip" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} határok">
           <div>
-            <strong>Setup teljes. A beérkező megkeresések belső feldolgozásra kerülnek.</strong>
-            <p>Különálló Enterprise Request Desk felület előszűréshez, összefoglalóhoz és belső továbbításhoz.</p>
+            <strong>${escapeHtml(profile?.dashboard?.safetyTitle || "Setup teljes. A beérkező megkeresések belső feldolgozásra kerülnek.")}</strong>
+            <p>${escapeHtml(profile?.dashboard?.safetyBody || "Különálló megkereséskezelő felület előszűréshez, összefoglalóhoz és belső továbbításhoz.")}</p>
           </div>
-          <span>Enterprise setup aktív</span>
+          <span>${escapeHtml(profile?.dashboard?.setupActive || "Setup aktív")}</span>
         </section>
         ${renderIntakeAccess()}
         ${state.requestError ? `
-          <section class="erdp-error-strip" aria-label="Enterprise Request Desk betöltési hiba">
+          <section class="erdp-error-strip" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} betöltési hiba">
             <strong>A megkeresések listája nem tölthető be.</strong>
             <p>${escapeHtml(state.requestError.message)}</p>
           </section>
@@ -638,17 +665,19 @@
       state = {
         ...state,
         setup: {
-          organizationName: "Local fixture",
+          organizationName: profile?.fixtureBusiness?.businessName || "Helyi minta",
           serviceArea: "Budapest",
-          serviceLines: ["őrzés-védelem", "facility management"],
+          serviceLines: profile?.fixtureBusiness?.serviceTypes || ["őrzés-védelem", "Facility Management"],
           routingPreference: "internal_handoff",
         },
         setupComplete: true,
         customerIntake: {
           available: true,
-          path: "/enterprise-request-desk/intake-fixture",
-          aliasPath: "/esg-request-desk/intake-fixture",
-          guidanceHu: "Local fixture link böngészős ellenőrzéshez.",
+          path: `${getApiPrefix()}/intake-fixture`,
+          aliasPath: getApiPrefix() === "/esg-request-desk"
+            ? "/enterprise-request-desk/intake-fixture"
+            : "/esg-request-desk/intake-fixture",
+          guidanceHu: "Helyi minta link böngészős ellenőrzéshez.",
         },
         records,
         summary: buildSummary(records),
@@ -656,12 +685,12 @@
         requestError: null,
       };
       renderAccount();
-      setStatus(records.length ? "Local fixture queue betöltve." : "Nincs fixture request.");
+      setStatus(records.length ? "Helyi minta megkeresések betöltve." : "Nincs helyi minta megkeresés.");
       renderDashboard();
       return;
     }
 
-    setStatus("Enterprise Request Desk queue betöltése...");
+    setStatus(`${profile?.productName || "Enterprise Request Desk"} megkeresések betöltése...`);
     try {
       const data = await fetchJson(`${getApiPrefix()}/requests?limit=100`);
       const records = Array.isArray(data.records) ? data.records.map(normalizeRecord) : [];
@@ -672,7 +701,7 @@
         selectedId: state.selectedId || records[0]?.id || "",
         requestError: null,
       };
-      setStatus(records.length ? "Enterprise Request Desk queue betöltve." : "Még nincs beérkezett kérés.");
+      setStatus(records.length ? "Megkeresések betöltve." : "Még nincs beérkezett megkeresés.");
     } catch (error) {
       state = {
         ...state,
@@ -680,7 +709,7 @@
         summary: buildSummary([]),
         requestError: {
           code: error.code || "",
-          message: error.message || "Enterprise Request Desk queue nem tölthető be.",
+          message: error.message || "A megkeresések listája nem tölthető be.",
         },
       };
       setStatus(state.requestError.message);
@@ -689,7 +718,7 @@
   }
 
   async function loadSetupStateThenRequests() {
-    setStatus("Enterprise Request Desk setup állapot betöltése...");
+    setStatus(`${profile?.productName || "Enterprise Request Desk"} setup állapot betöltése...`);
 
     try {
       const data = await fetchJson(`${getApiPrefix()}/setup-state`);
@@ -702,7 +731,7 @@
 
       if (!state.setupComplete) {
         renderSetupRequired();
-        setStatus("Setup szükséges a dashboard megnyitásához.");
+        setStatus("Setup szükséges a megkereséslista megnyitásához.");
         return;
       }
 
@@ -710,7 +739,7 @@
     } catch (error) {
       if (error.code === "enterprise_request_desk_setup_table_missing") {
         renderSetupUnavailable(error.message);
-        setStatus("Enterprise setup tábla hiányzik.");
+        setStatus("Setup tábla hiányzik.");
         return;
       }
       renderAuthGate(error.message || "");
@@ -872,7 +901,7 @@
         authUser = { email: "fixture-owner@example.test" };
         renderAccount();
         renderSetupRequired();
-        setStatus("Local fixture: setup szükséges.");
+        setStatus("Helyi minta: setup szükséges.");
         return;
       }
       await loadRequests();
@@ -889,14 +918,14 @@
       await ensureAuthSession();
       if (!authSession || !authUser) {
         renderAuthGate();
-        setStatus("Jelentkezz be az Enterprise Request Desk dashboardhoz.");
+        setStatus(`Jelentkezz be a ${profile?.productNameHu || profile?.productName || "megkereséskezelő"} felülethez.`);
         return;
       }
 
       await loadSetupStateThenRequests();
     } catch (error) {
       renderAuthGate(error.message || "");
-      setStatus(error.message || "Enterprise Request Desk dashboard nem tölthető be.");
+      setStatus(error.message || "A megkereséskezelő felület nem tölthető be.");
     }
   }
 

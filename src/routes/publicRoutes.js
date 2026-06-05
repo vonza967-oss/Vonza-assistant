@@ -25,6 +25,7 @@ import {
 import { cleanText } from "../utils/text.js";
 import { getReadinessStatus } from "../services/operations/readinessService.js";
 import { generateEnterpriseRequestDeskAssistantTurn } from "../services/enterprise/enterpriseRequestDeskAssistantService.js";
+import { resolveEnterpriseRequestDeskProfile } from "../services/enterprise/enterpriseRequestDeskProfileService.js";
 
 const SETUP_DOCTOR_KEYS = [
   "PUBLIC_APP_URL",
@@ -190,6 +191,7 @@ function renderEnterpriseRequestDeskIntakeDocument(rootDir, { localFixture = fal
 
   [
     "/enterprise-request-desk.css",
+    "/enterprise-request-desk-profile.js",
     "/enterprise-request-desk-intake.js",
   ].forEach((assetPath) => {
     html = html.replaceAll(
@@ -214,6 +216,7 @@ function renderEnterpriseRequestDeskDashboardDocument(rootDir, { localFixture = 
 
   [
     "/enterprise-request-desk.css",
+    "/enterprise-request-desk-profile.js",
     "/public-config.js",
     "/supabase-auth.js",
     "/enterprise-request-desk-dashboard.js",
@@ -243,6 +246,7 @@ function renderEnterpriseRequestDeskSetupDocument(rootDir) {
 
   [
     "/enterprise-request-desk.css",
+    "/enterprise-request-desk-profile.js",
     "/public-config.js",
     "/supabase-auth.js",
     "/enterprise-request-desk-setup.js",
@@ -254,6 +258,26 @@ function renderEnterpriseRequestDeskSetupDocument(rootDir) {
   });
 
   return html;
+}
+
+function applyEnterpriseRequestDeskDocumentProfile(html, profile) {
+  if (profile?.key !== "esg") {
+    return html;
+  }
+
+  return html
+    .replaceAll("Enterprise Request Desk", "ESG Request Desk")
+    .replaceAll("Enterprise Megkereséskezelő", "ESG Megkereséskezelő")
+    .replaceAll("Vállalati intake pult", "Objektumvédelem, FM, biztonságtechnika")
+    .replaceAll("Vállalati megkeresések feldolgozási felülete", "ESG megkeresések feldolgozási felülete")
+    .replaceAll("Setup vállalati objektumvédelmi, FM és biztonságtechnikai megkeresésekhez.", "ESG intake pult beállítása objektumvédelmi, FM és biztonságtechnikai megkeresésekhez.")
+    .replaceAll("Beérkező security, FM és compliance jellegű kérések", "Beérkező objektumvédelmi, FM, biztonságtechnikai és hatósági/audit jellegű megkeresések")
+    .replaceAll("Vállalati biztonsági, facility management és compliance megkeresések", "ESG objektumvédelmi, Facility Management, biztonságtechnikai és hatósági/audit megkeresések")
+    .replaceAll("Megkeresés előszűrése belső feldolgozáshoz.", "ESG megkeresés előszűrése belső feldolgozáshoz.")
+    .replaceAll('href="/enterprise-request-desk', 'href="/esg-request-desk')
+    .replaceAll('href="/esg-request-desk.css', 'href="/enterprise-request-desk.css')
+    .replaceAll('content="Enterprise Request Desk', 'content="ESG Request Desk')
+    .replaceAll('aria-label="Enterprise Request Desk', 'aria-label="ESG Request Desk');
 }
 
 const ENTERPRISE_REQUEST_DESK_DEMO_CONTEXT = Object.freeze({
@@ -573,7 +597,7 @@ function renderEnterpriseRequestDeskAcquisitionPage() {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Enterprise Request Desk | Vállalati megkeresési pult</title>
-  <meta name="description" content="Enterprise Request Desk vállalati, security és facility management megkeresések előszűréséhez és strukturált belső továbbításához.">
+  <meta name="description" content="Enterprise Request Desk vállalati objektumvédelmi, facility management és biztonságtechnikai megkeresések előszűréséhez és strukturált belső továbbításához.">
   <link rel="stylesheet" href="/enterprise-request-desk.css">
 </head>
 <body>
@@ -595,14 +619,14 @@ function renderEnterpriseRequestDeskAcquisitionPage() {
     <section class="erdp-site-stage">
       <div class="erdp-hero-copy">
         <h1>Enterprise Request Desk.</h1>
-        <p class="erdp-hero-text">Vállalati, security és facility management megkeresések előszűrése egy külön termékfelületen. Nem generikus chatbot: strukturált adatokból készít belső összefoglalót a feldolgozáshoz.</p>
+        <p class="erdp-hero-text">Vállalati objektumvédelmi, Facility Management, biztonságtechnikai és hatósági/audit megkeresések előszűrése egy külön termékfelületen. Nem generikus chatbot: strukturált adatokból készít belső összefoglalót a feldolgozáshoz.</p>
         <div class="erdp-site-actions">
           <a class="erdp-button erdp-button-primary" href="/enterprise-request-desk/setup">Setup indítása</a>
           <a class="erdp-button" href="/enterprise-request-desk/dashboard">Belépés dashboardra</a>
         </div>
         <div class="erdp-scope-note">
           <strong>Kontrollált intake és belső feldolgozás.</strong>
-          <span>Az Enterprise Request Desk nem készít végleges árat, szerződést, compliance anyagot vagy operatív ticketet. A végső döntést és választ a belső csapat kezeli.</span>
+          <span>Az Enterprise Request Desk nem készít végleges árat, szerződést, hatósági/audit anyagot vagy operatív ticketet. A végső döntést és választ a belső csapat kezeli.</span>
         </div>
       </div>
 
@@ -610,14 +634,14 @@ function renderEnterpriseRequestDeskAcquisitionPage() {
         <div class="erdp-product-panel-top">
           <div>
             <strong>Megkeresések előszűrése</strong>
-            <span>Security, portaszolgálat, objektumvédelem, FM és audit jellegű igények.</span>
+            <span>Őrzés-védelem, portaszolgálat, objektumvédelem, FM, biztonságtechnika és hatósági/audit jellegű igények.</span>
           </div>
           <span class="erdp-product-status">Setup után aktív</span>
         </div>
         <div class="erdp-preview-list">
           ${[
             ["Portaszolgálat", "Budapest XI. · irodaház beléptetés és recepciós jelenlét", "Összefoglaló kész"],
-            ["Facility management", "Több telephely · karbantartás és takarítás egyeztetése", "Kapcsolat tisztázva"],
+            ["Facility Management", "Több telephely · karbantartás és takarítás egyeztetése", "Kapcsolat tisztázva"],
             ["Biztonságtechnika", "Kamera és beléptető felmérés · indulási időzítés hiányzik", "Visszakérdezés"],
           ].map(([title, copy, status]) => `
             <div class="erdp-preview-row">
@@ -641,12 +665,12 @@ function renderEnterpriseRequestDeskAcquisitionPage() {
       <section class="erdp-site-section">
         <div>
           <h2>Mire való?</h2>
-          <p>Olyan szervezeteknek készült, ahol a beérkező vállalati megkeresésből előbb biztonságos, áttekinthető brief kell a csapatnak.</p>
+          <p>Olyan szervezeteknek készült, ahol a beérkező vállalati megkeresésből előbb biztonságos, áttekinthető összefoglaló kell a csapatnak.</p>
         </div>
         <ul class="erdp-step-list">
           ${[
             ["Minősített intake", "Szolgáltatási igény, helyszín vagy objektum, sürgősség és kapcsolati út külön értelmezve."],
-            ["Strukturált handoff", "A dashboard összefoglalót, hiányzó adatot és belső feldolgozási állapotot mutat."],
+            ["Strukturált belső továbbítás", "A dashboard összefoglalót, hiányzó adatot és belső feldolgozási állapotot mutat."],
             ["Külön termékfelület", "A setup, intake link és dashboard önálló Enterprise Request Desk útvonalakon fut."],
           ].map(([title, copy]) => `
             <li><strong>${escapeHtml(title)}</strong><span>${escapeHtml(copy)}</span></li>
@@ -679,7 +703,7 @@ function renderEnterpriseRequestDeskAcquisitionPage() {
         <ul class="erdp-boundary-list">
           ${[
             ["Nincs végleges árgarancia", "A felület nem ad végső árat és nem állít ki ajánlatot."],
-            ["Nincs QR, SLA vagy compliance generálás", "A jelentések, SLA órák és dokumentumgenerálás későbbi, külön döntést igényel."],
+            ["Nincs QR, SLA vagy hatósági/audit dokumentumgenerálás", "A jelentések, SLA órák és dokumentumgenerálás későbbi, külön döntést igényel."],
             ["Nincs widget vagy embed módosítás", "Az Enterprise Request Desk a full-page termékútvonalakon fut."],
           ].map(([title, copy]) => `
             <li><strong>${escapeHtml(title)}</strong><span>${escapeHtml(copy)}</span></li>
@@ -2003,8 +2027,11 @@ export function createPublicRouter({ rootDir }) {
     res.type("html").send(renderQuoteDeskHuAcquisitionPage());
   });
 
-  router.get(["/enterprise-request-desk", "/esg-request-desk"], (_req, res) => {
-    res.type("html").send(renderEnterpriseRequestDeskAcquisitionPage());
+  router.get(["/enterprise-request-desk", "/esg-request-desk"], (req, res) => {
+    res.type("html").send(applyEnterpriseRequestDeskDocumentProfile(
+      renderEnterpriseRequestDeskAcquisitionPage(),
+      resolveEnterpriseRequestDeskProfile(req.path)
+    ));
   });
 
   router.get(["/qdh/intake", "/quote-desk-hu/intake"], (_req, res) => {
@@ -2012,9 +2039,12 @@ export function createPublicRouter({ rootDir }) {
     res.type("html").send(renderQuoteDeskHuIntakeDocument(rootDir));
   });
 
-  router.get(["/enterprise-request-desk/intake", "/esg-request-desk/intake"], (_req, res) => {
+  router.get(["/enterprise-request-desk/intake", "/esg-request-desk/intake"], (req, res) => {
     setDashboardNoStoreHeaders(res);
-    res.type("html").send(renderEnterpriseRequestDeskIntakeDocument(rootDir));
+    res.type("html").send(applyEnterpriseRequestDeskDocumentProfile(
+      renderEnterpriseRequestDeskIntakeDocument(rootDir),
+      resolveEnterpriseRequestDeskProfile(req.path)
+    ));
   });
 
   router.get(["/enterprise-request-desk/demo", "/esg-request-desk/demo"], (_req, res) => {
@@ -2125,9 +2155,12 @@ export function createPublicRouter({ rootDir }) {
     res.type("html").send(renderQuoteDeskHuDashboardDocument(rootDir));
   });
 
-  router.get(["/enterprise-request-desk/dashboard", "/esg-request-desk/dashboard"], (_req, res) => {
+  router.get(["/enterprise-request-desk/dashboard", "/esg-request-desk/dashboard"], (req, res) => {
     setDashboardNoStoreHeaders(res);
-    res.type("html").send(renderEnterpriseRequestDeskDashboardDocument(rootDir));
+    res.type("html").send(applyEnterpriseRequestDeskDocumentProfile(
+      renderEnterpriseRequestDeskDashboardDocument(rootDir),
+      resolveEnterpriseRequestDeskProfile(req.path)
+    ));
   });
 
   router.get(["/qdh/setup", "/quote-desk-hu/setup"], (_req, res) => {
@@ -2135,9 +2168,12 @@ export function createPublicRouter({ rootDir }) {
     res.type("html").send(renderQuoteDeskHuSetupDocument(rootDir));
   });
 
-  router.get(["/enterprise-request-desk/setup", "/esg-request-desk/setup"], (_req, res) => {
+  router.get(["/enterprise-request-desk/setup", "/esg-request-desk/setup"], (req, res) => {
     setDashboardNoStoreHeaders(res);
-    res.type("html").send(renderEnterpriseRequestDeskSetupDocument(rootDir));
+    res.type("html").send(applyEnterpriseRequestDeskDocumentProfile(
+      renderEnterpriseRequestDeskSetupDocument(rootDir),
+      resolveEnterpriseRequestDeskProfile(req.path)
+    ));
   });
 
   router.get(["/qdh/intake-fixture", "/quote-desk-hu/intake-fixture"], (req, res) => {
@@ -2167,7 +2203,10 @@ export function createPublicRouter({ rootDir }) {
     }
 
     setDashboardNoStoreHeaders(res);
-    res.type("html").send(renderEnterpriseRequestDeskIntakeDocument(rootDir, { localFixture: true }));
+    res.type("html").send(applyEnterpriseRequestDeskDocumentProfile(
+      renderEnterpriseRequestDeskIntakeDocument(rootDir, { localFixture: true }),
+      resolveEnterpriseRequestDeskProfile(req.path)
+    ));
   });
 
   router.get(["/enterprise-request-desk/dashboard-fixture", "/esg-request-desk/dashboard-fixture"], (req, res) => {
@@ -2178,10 +2217,13 @@ export function createPublicRouter({ rootDir }) {
 
     setDashboardNoStoreHeaders(res);
     const localFixtureMode = req.query.state === "setup-missing" ? "setup_missing" : "";
-    res.type("html").send(renderEnterpriseRequestDeskDashboardDocument(rootDir, {
-      localFixture: true,
-      localFixtureMode,
-    }));
+    res.type("html").send(applyEnterpriseRequestDeskDocumentProfile(
+      renderEnterpriseRequestDeskDashboardDocument(rootDir, {
+        localFixture: true,
+        localFixtureMode,
+      }),
+      resolveEnterpriseRequestDeskProfile(req.path)
+    ));
   });
 
   router.get("/dashboard-v2-fixture", (req, res) => {

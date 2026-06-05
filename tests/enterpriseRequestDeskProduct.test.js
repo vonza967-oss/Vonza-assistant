@@ -19,6 +19,10 @@ import {
   listEnterpriseRequestDeskLanes,
 } from "../src/services/enterprise/enterpriseRequestDeskLaneService.js";
 import {
+  buildEnterpriseRequestDeskProfileDto,
+  resolveEnterpriseRequestDeskProfile,
+} from "../src/services/enterprise/enterpriseRequestDeskProfileService.js";
+import {
   ENTERPRISE_REQUEST_DESK_SHARED_CONVERSATION_SOURCE,
   generateEnterpriseRequestDeskAssistantTurn,
 } from "../src/services/enterprise/enterpriseRequestDeskAssistantService.js";
@@ -167,6 +171,14 @@ test("Enterprise Request Desk classifier maps ESG-style enquiries deterministica
     "audit_compliance"
   );
   assert.equal(
+    classifyEnterpriseRequestDeskLane("Hatósági engedély és NATO beszállítói feltételek kapcsán kérnénk támogatást.").laneKey,
+    "audit_compliance"
+  );
+  assert.equal(
+    classifyEnterpriseRequestDeskLane("Tűzjelző, sorompó és IP kamera rendszer felmérése kell egy telephelyen.").laneKey,
+    "security_technology"
+  );
+  assert.equal(
     classifyEnterpriseRequestDeskLane("Őrzés-védelem és facility management együtt kell.").laneKey,
     "mixed_enterprise_request"
   );
@@ -175,6 +187,30 @@ test("Enterprise Request Desk classifier maps ESG-style enquiries deterministica
     "general_enquiry"
   );
   assert.equal(classifyEnterpriseRequestDeskLane("Szia, érdeklődöm.").laneKey, "general_enquiry");
+});
+
+test("Enterprise Request Desk has an explicit ESG product profile", () => {
+  const enterprise = buildEnterpriseRequestDeskProfileDto(
+    resolveEnterpriseRequestDeskProfile("/enterprise-request-desk/intake")
+  );
+  const esg = buildEnterpriseRequestDeskProfileDto(
+    resolveEnterpriseRequestDeskProfile("/esg-request-desk/intake")
+  );
+
+  assert.equal(enterprise.key, "enterprise");
+  assert.equal(enterprise.productName, "Enterprise Request Desk");
+  assert.equal(esg.key, "esg");
+  assert.equal(esg.productName, "ESG Request Desk");
+  assert.equal(esg.routePrefix, "/esg-request-desk");
+  assert.deepEqual(esg.serviceTypes, [
+    "Őrzés-védelem",
+    "Portaszolgálat / objektumvédelem",
+    "Facility Management",
+    "Biztonságtechnika",
+    "Hatósági / audit támogatás",
+    "Vegyes vállalati megkeresés",
+  ]);
+  assert.equal(esg.lanes.some((lane) => lane.labelHu === "Hatósági / audit támogatás"), true);
 });
 
 test("Enterprise Request Desk answers service questions without QDH or internal metadata", async () => {
@@ -235,7 +271,7 @@ test("Enterprise Request Desk builds a structured internal brief without creatin
   assert.equal(brief.contactNeed, "Biztonságos elérhetőség megadva a visszajelzéshez.");
   assert.deepEqual(brief.missingFields, []);
   assert.equal(brief.readyForOwnerReview, true);
-  assert.match(brief.staffSummaryHu, /Belső brief:/);
+  assert.match(brief.staffSummaryHu, /Belső összefoglaló:/);
   assert.doesNotMatch(JSON.stringify(brief), /agent_quote_requests|qdh_ai_intake|quoteDeskHu/i);
 });
 
@@ -296,7 +332,7 @@ test("Enterprise Request Desk demo routes render a separate ESG pilot surface", 
       assert.match(html, /Demo \/ belső pilot/);
       assert.match(html, /őrzés-védelem/);
       assert.match(html, /facility management/);
-      assert.match(html, /audit \/ compliance/);
+      assert.match(html, /audit|Hatósági/);
       assert.match(html, /Nem ment adatot/);
       assert.doesNotMatch(html, /\bQDH\b|Quote Desk HU|quote[-_]desk|qdh[_-]/i);
       assert.doesNotMatch(html, INTERNAL_LEAK_PATTERN);
@@ -329,7 +365,7 @@ test("Enterprise Request Desk demo analyzer uses lane service without exposing i
     {
       message:
         "Facility management támogatás kell egy budapesti telephelyre, karbantartás és takarítás egyeztetéssel, jövő héten. Telefon: +36 30 123 4567.",
-      expectedLabel: "Facility management",
+      expectedLabel: "Facility Management",
     },
     {
       message:
@@ -338,8 +374,8 @@ test("Enterprise Request Desk demo analyzer uses lane service without exposing i
     },
     {
       message:
-        "Audit / compliance előkészítés érdekel vagyonvédelmi szabályzat kapcsán Budapesten, a negyedév végéig. Kapcsolat: compliance@client.hu.",
-      expectedLabel: "Audit / compliance",
+        "Hatósági / audit támogatás érdekel vagyonvédelmi szabályzat kapcsán Budapesten, a negyedév végéig. Kapcsolat: compliance@client.hu.",
+      expectedLabel: "Hatósági / audit támogatás",
     },
     {
       message:

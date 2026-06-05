@@ -1,23 +1,29 @@
 (function initEnterpriseRequestDeskIntake() {
   const root = document.getElementById("erdp-intake-root");
   const statusRoot = document.getElementById("erdp-intake-status");
+  const profileApi = window.VonzaEnterpriseRequestDeskProfiles;
+  const profile = profileApi?.getProfile ? profileApi.getProfile() : null;
+  if (profileApi?.applyDocumentProfile && profile) {
+    profileApi.applyDocumentProfile(profile);
+    document.title = profile.intake?.title || profile.productName;
+  }
   const FIXTURE_STORAGE_KEY = "VONZA_ENTERPRISE_REQUEST_DESK_FIXTURE_REQUESTS";
-  const DEFAULT_LANES = Object.freeze([
+  const DEFAULT_LANES = Object.freeze(profile?.lanes || [
     { key: "security_guarding", labelHu: "Őrzés-védelem" },
     { key: "reception_object_protection", labelHu: "Portaszolgálat / objektumvédelem" },
-    { key: "facility_management", labelHu: "Facility management" },
+    { key: "facility_management", labelHu: "Facility Management" },
     { key: "security_technology", labelHu: "Biztonságtechnika" },
-    { key: "audit_compliance", labelHu: "Audit / compliance" },
+    { key: "audit_compliance", labelHu: "Hatósági / audit támogatás" },
     { key: "mixed_enterprise_request", labelHu: "Vegyes vállalati megkeresés" },
     { key: "general_enquiry", labelHu: "Általános érdeklődés" },
   ]);
-  const MISSING_FIELD_LABELS = Object.freeze({
+  const MISSING_FIELD_LABELS = Object.freeze(profile?.missingFieldLabels || {
     service_need: "szolgáltatási igény",
     location_or_site: "helyszín vagy objektum",
     urgency_or_timing: "időzítés vagy sürgősség",
     contact_need: "biztonságos kapcsolati adat",
   });
-  const DETAIL_LABELS = Object.freeze({
+  const DETAIL_LABELS = Object.freeze(profile?.detailLabels || {
     organizationName: "Szervezet",
     serviceNeed: "Igény",
     locationOrSite: "Helyszín",
@@ -28,21 +34,21 @@
     siteType: "Objektum",
   });
   const SAMPLE_FIXTURE = Object.freeze({
-    business: {
+    business: profile?.fixtureBusiness || {
       businessName: "ESG Holding Zrt.",
-      serviceArea: "országos, Budapest központtal",
+      serviceArea: "egyeztetett ESG vállalati helyszínek",
       serviceTypes: [
-        "őrzés-védelem",
-        "portaszolgálat / objektumvédelem",
-        "facility management",
-        "biztonságtechnika",
-        "audit / compliance",
+        "Őrzés-védelem",
+        "Portaszolgálat / objektumvédelem",
+        "Facility Management",
+        "Biztonságtechnika",
+        "Hatósági / audit támogatás",
       ],
     },
     lanes: DEFAULT_LANES,
   });
-  const OPENING_MESSAGE =
-    "Üdvözlöm. Írja le természetes mondatban a vállalati security, FM vagy compliance igényt, és összerakom a belső feldolgozáshoz szükséges rövid briefet.";
+  const OPENING_MESSAGE = profile?.intake?.openingMessage
+    || "Üdvözlöm. Írja le természetes mondatban a vállalati objektumvédelmi, FM, biztonságtechnikai vagy audit jellegű igényt, és összerakom a belső feldolgozáshoz szükséges rövid összefoglalót.";
 
   let context = null;
   let assistantBusy = false;
@@ -143,15 +149,15 @@
   function detectFixtureLane(text = "") {
     const search = normalizeSearch(text);
     const matches = [];
-    const hasSecurityTechnology = /\b(kamera\w*|cctv|belepteto\w*|beleptetes\w*|riaszto\w*|access control|biztonsagtechnika\w*)\b/.test(search);
+    const hasSecurityTechnology = /\b(kamera\w*|cctv|belepteto\w*|beleptetes\w*|riaszto\w*|tuzjelzo\w*|sorompo\w*|access control|biztonsagtechnika\w*|halozat\w*)\b/.test(search);
     const hasReceptionObjectProtection = /\b(porta\w*|portaszolgalat\w*|recepcio\w*|objektumvedelem\w*|objektumor\w*|reception|gatehouse)\b/.test(search)
       || (/\bbeleptetes\w*\b/.test(search) && /\b(porta\w*|recepcio\w*|objektum\w*)\b/.test(search) && !hasSecurityTechnology);
 
     if (/\b(orzes\w*|vagyonor\w*|guard|jaror\w*|eloeros)\b/.test(search)) matches.push("security_guarding");
     if (hasReceptionObjectProtection) matches.push("reception_object_protection");
-    if (/\b(facility|letesitmeny\w*|karbantartas\w*|takaritas\w*|uzemeltetes\w*|fm|hibabejelentes\w*)\b/.test(search)) matches.push("facility_management");
+    if (/\b(facility|letesitmeny\w*|epuletuzemeltetes\w*|karbantartas\w*|takaritas\w*|uzemeltetes\w*|soft fm|fm|hibabejelentes\w*)\b/.test(search)) matches.push("facility_management");
     if (hasSecurityTechnology) matches.push("security_technology");
-    if (/\b(audit\w*|compliance|megfeleloseg\w*|szabalyzat\w*|risk|kockazat\w*)\b/.test(search)) matches.push("audit_compliance");
+    if (/\b(audit\w*|compliance|hatosagi\w*|engedely\w*|kulkereskedelmi\w*|nato\w*|beszerzes\w*|kepzes\w*|megfeleloseg\w*|szabalyzat\w*|risk|kockazat\w*)\b/.test(search)) matches.push("audit_compliance");
 
     const key = matches.length > 1 ? "mixed_enterprise_request" : matches[0] || "general_enquiry";
     return DEFAULT_LANES.find((item) => item.key === key) || DEFAULT_LANES.at(-1);
@@ -189,7 +195,7 @@
       || []
     )[1] || "";
     const knownLocation = (
-      text.match(/\b(Budapest(?:\s?(?:[IVXLCDM]+\.?|\d{1,2}\.?\s?ker(?:ület)?))?|Debrecen|Szeged|Miskolc|Pécs|Győr|Pest megye|országos|orsz[aá]gos)\b/i)
+      text.match(/\b(Budapest(?:\s?(?:[IVXLCDM]+\.?|\d{1,2}\.?\s?ker(?:ület)?))?|Debrecen|Szeged|Miskolc|Pécs|Győr|Pest megye|országos|orsz[aá]gos)(?:en|on|ban|ben|i|an|re|ra|hoz|hez|höz)?\b/i)
       || []
     )[1] || "";
     const explicitLocation = (
@@ -197,7 +203,7 @@
       || []
     )[1] || "";
     const siteType = (
-      text.match(/\b(irodah[aá]z|iroda|rakt[aá]r|gy[aá]r|telephely|ipari park|logisztikai k[oö]zpont|facility|warehouse|office building)\b/i)
+      text.match(/\b(irodah[aá]z|iroda|rakt[aá]r|gy[aá]r|telephely|ipari park|logisztikai k[oö]zpont|kiskereskedelmi helysz[ií]n|sz[aá]lloda|sportl[eé]tes[ií]tm[eé]ny|oktat[aá]si int[eé]zm[eé]ny|[aá]llom[aá]s|facility|warehouse|office building)\b/i)
       || []
     )[1] || "";
     let urgency = "";
@@ -241,8 +247,8 @@
 
     if (firstMissing === "service_need") {
       return currentLane?.key === "general_enquiry"
-        ? "Melyik szolgáltatási terület érdekli: őrzés-védelem, porta, FM, biztonságtechnika vagy audit?"
-        : "Milyen konkrét feladatot kell lefedni az adott területen?";
+        ? profile?.intake?.nextQuestionDefault || "Melyik szolgáltatási terület érdekli: őrzés-védelem, porta, FM, biztonságtechnika vagy hatósági/audit támogatás?"
+        : "Milyen konkrét feladatot kell lefedni az adott szolgáltatási területen?";
     }
 
     if (firstMissing === "location_or_site") {
@@ -250,7 +256,7 @@
     }
 
     if (firstMissing === "urgency_or_timing") {
-      return "Mikor indulna a feladat, vagy meddig kell visszajelzést kapniuk?";
+      return "Mikor indulna a feladat, meddig kell visszajelzést kapniuk, és milyen lefedettségi időszak érintett?";
     }
 
     if (firstMissing === "contact_need") {
@@ -311,7 +317,7 @@
         notes: fields.notes,
         missingFields: [],
         readyForOwnerReview: true,
-        staffSummaryHu: `Belső brief: ${currentLane.labelHu}. Igény: ${fields.serviceNeed || currentLane.labelHu}. Helyszín: ${fields.locationOrSite}.`,
+        staffSummaryHu: `Belső összefoglaló: ${currentLane.labelHu}. Igény: ${fields.serviceNeed || currentLane.labelHu}. Helyszín: ${fields.locationOrSite}.`,
       },
       status: "request_received",
       statusReason: "Local fixture megkeresés rögzítve belső feldolgozáshoz.",
@@ -391,10 +397,10 @@
 
   function renderUnavailable(message = "") {
     root.innerHTML = `
-      <section class="erdp-empty" aria-label="ESG Request Desk link nem elérhető">
+      <section class="erdp-empty" aria-label="${escapeHtml(profile?.intake?.unavailableLabel || "Enterprise Request Desk link nem elérhető")}">
         <div>
           <h2>Ez az intake link nem használható</h2>
-          <p>${escapeHtml(message || "A link hiányzik vagy már nem aktív. Kérjen friss ESG Request Desk linket.")}</p>
+          <p>${escapeHtml(message || `A link hiányzik vagy már nem aktív. Kérjen friss ${profile?.productName || "Enterprise Request Desk"} linket.`)}</p>
         </div>
       </section>
     `;
@@ -423,7 +429,7 @@
     const lanes = Array.isArray(context?.lanes) && context.lanes.length ? context.lanes : DEFAULT_LANES;
 
     return `
-      <div class="erdp-lane-strip" aria-label="Enterprise Request Desk szolgáltatási területek">
+      <div class="erdp-lane-strip" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} szolgáltatási területek">
         ${lanes.map((item) => `<span>${escapeHtml(item.labelHu)}</span>`).join("")}
       </div>
     `;
@@ -440,7 +446,7 @@
         ${assistantBusy ? `
           <article class="erdp-message is-assistant is-thinking">
             <span class="erdp-loader" aria-hidden="true"></span>
-            <div>Rövid brief frissítése...</div>
+            <div>Rövid összefoglaló frissítése...</div>
           </article>
         ` : ""}
       </div>
@@ -473,7 +479,7 @@
           name="message"
           rows="3"
           maxlength="2200"
-          placeholder="pl. Portaszolgálatra lenne szükségünk egy irodaházban Budapesten, jövő héttől..."
+          placeholder="${escapeHtml(profile?.intake?.placeholder || "pl. Portaszolgálatra lenne szükségünk egy irodaházban Budapesten, jövő héttől...")}"
           ${assistantBusy ? "disabled" : ""}
         >${escapeHtml(draftMessage)}</textarea>
         <div class="erdp-chat-tools">
@@ -500,7 +506,7 @@
       <section class="erdp-brief-panel" aria-label="Rövid összefoglaló">
         <div class="erdp-panel-header">
           <div>
-            <h2>Rövid összefoglaló</h2>
+        <h2>Rövid összefoglaló</h2>
             <p>${readyToCreate ? "A minimális adatok megvannak." : "A hiányzó részleteket egyesével kérdezzük vissza."}</p>
           </div>
         </div>
@@ -515,7 +521,7 @@
             `).join("") : `
               <div class="erdp-detail-item">
                 <span>Állapot</span>
-                <strong>Még nincs elég adat a briefhez.</strong>
+                <strong>Még nincs elég adat az összefoglalóhoz.</strong>
               </div>
             `}
           </div>
@@ -605,7 +611,7 @@
 
   function renderSuccess() {
     const href = window.VONZA_LOCAL_ENTERPRISE_INTAKE_FIXTURE === true
-      ? "/enterprise-request-desk/dashboard-fixture"
+      ? `${getApiPrefix()}/dashboard-fixture`
       : "";
 
     return `
@@ -616,7 +622,7 @@
           <span>Terület: ${escapeHtml(successPayload.laneLabel || lane.label || "Általános érdeklődés")}</span>
           <span>Visszajelzés a megadott elérhetőségen</span>
         </div>
-        ${href ? `<a class="erdp-button erdp-button-primary" href="${href}">Dashboard fixture</a>` : ""}
+        ${href ? `<a class="erdp-button erdp-button-primary" href="${href}">Minta dashboard</a>` : ""}
       </div>
     `;
   }
@@ -624,13 +630,13 @@
   function renderQuickStarts() {
     return `
       <div class="erdp-quick-starts" aria-label="Példák">
-        ${[
+        ${(profile?.intake?.quickStarts || [
           "Milyen szolgáltatásokra használható ez?",
           "Portaszolgálatra lenne szükségünk egy irodaházban.",
           "Kamerarendszert és beléptetést szeretnénk.",
-          "Facility hibabejelentést szeretnék.",
-          "Audit/compliance anyaghoz kérnénk segítséget.",
-        ].map((text) => `
+          "Facility Management hibabejelentést szeretnék.",
+          "Hatósági vagy audit támogatáshoz kérnénk segítséget.",
+        ]).map((text) => `
           <button type="button" data-erdp-template="${escapeHtml(text)}">${escapeHtml(text)}</button>
         `).join("")}
       </div>
@@ -647,8 +653,8 @@
         <section class="erdp-chat-panel" aria-label="AI vezérelt intake beszélgetés">
           <div class="erdp-chat-hero">
             <div>
-              <h1>Írja le, mire van szükség. Az asszisztens pontosít.</h1>
-              <p>${escapeHtml(businessName)} strukturált rövid összefoglalót kap a megkeresésből. Terület: ${escapeHtml(serviceArea)}.</p>
+              <h1>${escapeHtml(profile?.intake?.heroTitle || "Írja le, mire van szükség. Az asszisztens pontosít.")}</h1>
+              <p>${escapeHtml(profile?.intake?.heroBody || `${businessName} strukturált rövid összefoglalót kap a megkeresésből. Terület: ${serviceArea}.`)}</p>
             </div>
             ${renderLaneStrip()}
           </div>
@@ -769,7 +775,7 @@
   async function boot() {
     if (window.VONZA_LOCAL_ENTERPRISE_INTAKE_FIXTURE === true) {
       context = SAMPLE_FIXTURE;
-      setStatus("Local-only Enterprise Request Desk fixture. Production API gates are not bypassed.");
+      setStatus(`${profile?.productName || "Enterprise Request Desk"} helyi minta. Az éles API kapuk nem kerülnek megkerülésre.`);
       render();
       return;
     }

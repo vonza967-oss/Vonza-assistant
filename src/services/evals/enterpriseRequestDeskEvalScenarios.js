@@ -6,9 +6,9 @@ export const ESG_HOLDING_ENTERPRISE_REQUEST_DESK_FIXTURE = Object.freeze({
   serviceTypes: Object.freeze([
     "őrzés-védelem",
     "portaszolgálat / objektumvédelem",
-    "facility management",
+    "Facility Management",
     "biztonságtechnika",
-    "audit / compliance",
+    "hatósági / audit támogatás",
   ]),
   safePositioning: Object.freeze([
     "Több szolgáltatási területet lefedő vállalati/security/FM jellegű intake fixture.",
@@ -28,7 +28,7 @@ export const ENTERPRISE_REQUEST_DESK_EVAL_SCENARIOS = Object.freeze([
       Object.freeze({
         role: "assistant",
         content:
-          "Használható őrzés-védelem, portaszolgálat, facility management, biztonságtechnika és audit/compliance jellegű megkeresések előkészítésére.",
+          "Használható őrzés-védelem, portaszolgálat, Facility Management, biztonságtechnika és hatósági/audit jellegű megkeresések előkészítésére.",
       }),
     ]),
     message:
@@ -59,7 +59,7 @@ export const ENTERPRISE_REQUEST_DESK_EVAL_SCENARIOS = Object.freeze([
     id: "facility-maintenance-support",
     title: "Need facility maintenance support",
     message:
-      "Facility management támogatás kell egy budapesti telephelyre, karbantartás és takarítás egyeztetéssel, jövő héten. Telefon: +36 30 123 4567.",
+      "Facility Management támogatás kell egy budapesti telephelyre, karbantartás és takarítás egyeztetéssel, jövő héten. Telefon: +36 30 123 4567.",
     expectedLane: "facility_management",
     expectReady: true,
     expectHungarian: true,
@@ -86,7 +86,7 @@ export const ENTERPRISE_REQUEST_DESK_EVAL_SCENARIOS = Object.freeze([
     id: "audit-compliance-material",
     title: "Need audit/compliance material",
     message:
-      "Audit / compliance előkészítés érdekel vagyonvédelmi szabályzat kapcsán Budapesten, a negyedév végéig. Kapcsolat: compliance@client.hu.",
+      "Hatósági / audit támogatás érdekel vagyonvédelmi szabályzat kapcsán Budapesten, a negyedév végéig. Kapcsolat: compliance@client.hu.",
     expectedLane: "audit_compliance",
     expectReady: true,
     expectHungarian: true,
@@ -95,7 +95,7 @@ export const ENTERPRISE_REQUEST_DESK_EVAL_SCENARIOS = Object.freeze([
     id: "mixed-guarding-fm",
     title: "Mixed guarding + FM request",
     message:
-      "Komplex őrzés és facility management megoldást keresünk több telephelyre országosan, jövő hónaptól. Email: ops@client.hu.",
+      "Komplex őrzés és Facility Management megoldást keresünk több telephelyre országosan, jövő hónaptól. Email: ops@client.hu.",
     expectedLane: "mixed_enterprise_request",
     expectReady: true,
     expectHungarian: true,

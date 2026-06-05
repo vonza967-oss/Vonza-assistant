@@ -34,6 +34,21 @@ body {
   color: var(--erdp-ink);
 }
 
+body[data-erdp-profile="esg"] {
+  --erdp-bg: #eef3f1;
+  --erdp-panel: #ffffff;
+  --erdp-panel-soft: #f6f9f7;
+  --erdp-ink: #0f1d1c;
+  --erdp-muted: #536761;
+  --erdp-line: #cfdad6;
+  --erdp-line-strong: #aebeb8;
+  --erdp-forest: #0b2f2c;
+  --erdp-green: #0f6a55;
+  --erdp-green-dark: #0a4d42;
+  --erdp-blue: #193f63;
+  --erdp-shadow: 0 14px 38px rgba(15, 29, 28, 0.09);
+}
+
 button,
 input,
 textarea,
@@ -169,6 +184,14 @@ a {
   background: var(--erdp-forest);
   color: #dffaf2;
   font-weight: 850;
+}
+
+body[data-erdp-profile="esg"] .erdp-mark {
+  border: 1px solid rgba(223, 250, 242, 0.18);
+  background: linear-gradient(135deg, #0b2f2c, #143c5a);
+  color: #e8fff8;
+  font-size: 0.82rem;
+  letter-spacing: 0;
 }
 
 .erdp-public-brand strong,
@@ -414,6 +437,13 @@ a {
     var(--erdp-panel-soft);
 }
 
+body[data-erdp-profile="esg"] .erdp-chat-hero {
+  background:
+    linear-gradient(135deg, rgba(11, 47, 44, 0.12), transparent 46%),
+    linear-gradient(90deg, rgba(25, 63, 99, 0.08), transparent 58%),
+    var(--erdp-panel-soft);
+}
+
 .erdp-chat-hero h1 {
   max-width: 800px;
   margin: 0 0 10px;
@@ -651,6 +681,19 @@ a {
   background: #eef4f1;
 }
 
+body[data-erdp-profile="esg"] .erdp-sidebar,
+body[data-erdp-profile="esg"] .erdp-setup-aside {
+  background: #e7efec;
+}
+
+body[data-erdp-profile="esg"] .erdp-sidebar-note,
+body[data-erdp-profile="esg"] .erdp-scope-note,
+body[data-erdp-profile="esg"] .erdp-setup-boundary span {
+  border-color: #9dbab2;
+  border-left-color: var(--erdp-forest);
+  background: #f5faf8;
+}
+
 .erdp-nav {
   display: grid;
   gap: 6px;
@@ -709,6 +752,10 @@ a {
   font-size: 0.82rem;
   font-weight: 820;
   text-transform: uppercase;
+}
+
+body[data-erdp-profile="esg"] .erdp-product-label {
+  color: var(--erdp-forest);
 }
 
 .erdp-topbar h1 {

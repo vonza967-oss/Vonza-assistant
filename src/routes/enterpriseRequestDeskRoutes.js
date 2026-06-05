@@ -14,7 +14,12 @@ import {
 import {
   generateEnterpriseRequestDeskAssistantTurn,
 } from "../services/enterprise/enterpriseRequestDeskAssistantService.js";
-import { listEnterpriseRequestDeskLanes } from "../services/enterprise/enterpriseRequestDeskLaneService.js";
+import {
+  buildEnterpriseRequestDeskBusinessContext,
+  buildEnterpriseRequestDeskProfileDto,
+  listEnterpriseRequestDeskProfileLanes,
+  resolveEnterpriseRequestDeskProfile,
+} from "../services/enterprise/enterpriseRequestDeskProfileService.js";
 import {
   getEnterpriseRequestDeskPublicAgentForOwner,
   getEnterpriseRequestDeskSetup,
@@ -119,14 +124,6 @@ const MISSING_FIELD_LABELS_HU = Object.freeze({
   urgency_or_timing: "időzítés vagy sürgősség",
   contact_need: "biztonságos kapcsolati adat",
 });
-const DEFAULT_SERVICE_TYPES = Object.freeze([
-  "őrzés-védelem",
-  "portaszolgálat / objektumvédelem",
-  "facility management",
-  "biztonságtechnika",
-  "audit / compliance",
-]);
-
 function buildRouteError(message, statusCode = 400, code = "enterprise_request_desk_route_invalid") {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -485,7 +482,7 @@ function normalizePublicIntakeBody(body = {}) {
 
   if (!consentAcknowledged) {
     throw buildRouteError(
-      "Request-only acknowledgement is required.",
+      "A belső feldolgozási tudomásulvétel szükséges.",
       400,
       "enterprise_intake_acknowledgement_required"
     );
@@ -601,25 +598,19 @@ async function resolveEnterpriseRequestDeskPublicAgent(supabase, options = {}) {
   return agent;
 }
 
-function buildBusinessContext(agent = {}) {
-  return {
-    businessName: agent.name || "Enterprise Request Desk",
-    serviceArea: "országos vagy egyeztetett vállalati helyszínek",
-    serviceTypes: DEFAULT_SERVICE_TYPES,
-  };
-}
-
-function buildEnterpriseCustomerIntakeInfo(_req, publicAgent = null) {
+function buildEnterpriseCustomerIntakeInfo(req, publicAgent = null, profile = resolveEnterpriseRequestDeskProfile(req?.path)) {
   const agentKey = cleanText(publicAgent?.publicAgentKey || publicAgent?.public_agent_key);
   const query = agentKey ? `?agent_key=${encodeURIComponent(agentKey)}` : "";
+  const routePrefix = cleanText(profile.routePrefix) || "/enterprise-request-desk";
+  const aliasPrefix = routePrefix === "/esg-request-desk" ? "/enterprise-request-desk" : "/esg-request-desk";
 
   return {
     available: Boolean(agentKey),
-    path: `/enterprise-request-desk/intake${query}`,
-    aliasPath: `/esg-request-desk/intake${query}`,
+    path: `${routePrefix}/intake${query}`,
+    aliasPath: `${aliasPrefix}/intake${query}`,
     guidanceHu: agentKey
-      ? "Ezt a linket tedd a vállalati megkeresési, security vagy FM intake belépési pont mögé. A link nyilvános agent kulcsot használ, nem tulajdonosi azonosítót."
-      : "Customer intake linkhez aktív, nyilvános agent kulccsal rendelkező Enterprise Request Desk agent szükséges.",
+      ? profile.customerIntakeGuidanceHu
+      : profile.missingCustomerIntakeGuidanceHu,
   };
 }
 
@@ -828,6 +819,7 @@ function buildAssistantRequestOptions({
   agent,
   intakeTurn,
   analysis,
+  productProfileKey = "enterprise",
 } = {}) {
   const fields = analysis.fields || {};
   const brief = analysis.structuredBrief || {};
@@ -868,6 +860,7 @@ function buildAssistantRequestOptions({
     },
     metadata: {
       product: "enterprise_request_desk",
+      product_profile: cleanText(productProfileKey) || "enterprise",
       phase: ENTERPRISE_AI_INTAKE_PHASE,
       source: ENTERPRISE_AI_INTAKE_SOURCE_CHANNEL,
       display_mode: ENTERPRISE_DISPLAY_MODE,
@@ -941,23 +934,22 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
     ["/enterprise-request-desk/intake-context", "/esg-request-desk/intake-context"],
     async (req, res) => {
       try {
+        const profile = resolveEnterpriseRequestDeskProfile(req.path);
         const supabase = getSupabase();
         const agent = await resolvePublicAgentImpl(supabase, {
           agentKey: req.query.agent_key || req.query.agentKey,
         });
-        const business = buildBusinessContext(agent);
+        const business = buildEnterpriseRequestDeskBusinessContext(agent, profile);
 
         res.json({
           ok: true,
-          surface: "ESG Request Desk",
+          surface: profile.productName,
+          productProfile: buildEnterpriseRequestDeskProfileDto(profile),
           business,
-          lanes: listEnterpriseRequestDeskLanes().map((lane) => ({
-            key: lane.key,
-            labelHu: lane.labelHu,
-          })),
+          lanes: listEnterpriseRequestDeskProfileLanes(profile),
           intake: {
             requestOnly: true,
-            staffReviewOnly: true,
+            internalReviewOnly: true,
           },
         });
       } catch (err) {
@@ -971,6 +963,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
     limitPublicIntake,
     async (req, res) => {
       try {
+        const profile = resolveEnterpriseRequestDeskProfile(req.path);
         const supabase = getSupabase();
         const intake = normalizePublicIntakeBody(req.body);
         const agent = await resolvePublicAgentImpl(supabase, {
@@ -987,7 +980,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
             contactPhone: intake.contactPhone,
             siteType: intake.siteOrObject,
           },
-          businessContext: buildBusinessContext(agent),
+          businessContext: buildEnterpriseRequestDeskBusinessContext(agent, profile),
         });
         const brief = analysis.structuredBrief || {};
         const status = analysis.missingFields?.length ? "needs_info" : "request_received";
@@ -1025,6 +1018,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
           },
           metadata: {
             product: "enterprise_request_desk",
+            product_profile: profile.key,
             phase: ENTERPRISE_PUBLIC_INTAKE_PHASE,
             source: ENTERPRISE_PUBLIC_INTAKE_SOURCE_CHANNEL,
             display_mode: ENTERPRISE_DISPLAY_MODE,
@@ -1046,6 +1040,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
     limitIntakeAssistant,
     async (req, res) => {
       try {
+        const profile = resolveEnterpriseRequestDeskProfile(req.path);
         const supabase = getSupabase();
         const intakeTurn = normalizePublicAssistantBody(req.body);
         const agent = await resolvePublicAgentImpl(supabase, {
@@ -1057,7 +1052,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
           message: intakeTurn.message,
           conversation: intakeTurn.conversation,
           fields: intakeTurn.fields,
-          businessContext: buildBusinessContext(agent),
+          businessContext: buildEnterpriseRequestDeskBusinessContext(agent, profile),
           confirmSubmit: intakeTurn.confirmSubmit,
         });
         const readyToCreate =
@@ -1073,7 +1068,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
 
         if (!intakeTurn.consentAcknowledged) {
           throw buildRouteError(
-            "Request acknowledgement is required.",
+            "A belső feldolgozási tudomásulvétel szükséges.",
             400,
             "enterprise_intake_acknowledgement_required"
           );
@@ -1083,6 +1078,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
           agent,
           intakeTurn,
           analysis,
+          productProfileKey: profile.key,
         }));
 
         res.status(request.wasExisting ? 200 : 201).json(buildSafeAssistantResponse(analysis, request));
@@ -1094,6 +1090,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
 
   router.get(["/enterprise-request-desk/setup-state", "/esg-request-desk/setup-state"], async (req, res) => {
     try {
+      const profile = resolveEnterpriseRequestDeskProfile(req.path);
       const supabase = getSupabase();
       const user = await authenticateUser(supabase, req);
       const setup = await getEnterpriseRequestDeskSetupImpl(supabase, {
@@ -1106,14 +1103,15 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
       res.json({
         ok: true,
         product: "enterprise_request_desk",
+        productProfile: buildEnterpriseRequestDeskProfileDto(profile),
         phase: "self_serve_setup_readiness",
         account: {
           email: cleanText(user.email),
         },
         setupComplete: Boolean(setup),
         setup: buildSafeSetupDto(setup),
-        customerIntake: buildEnterpriseCustomerIntakeInfo(req, publicAgent),
-        nextUrl: setup ? "/enterprise-request-desk/dashboard" : "/enterprise-request-desk/setup",
+        customerIntake: buildEnterpriseCustomerIntakeInfo(req, publicAgent, profile),
+        nextUrl: setup ? `${profile.routePrefix}/dashboard` : `${profile.routePrefix}/setup`,
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/enterprise-request-desk/setup-state" });
@@ -1122,6 +1120,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
 
   router.post(["/enterprise-request-desk/setup", "/esg-request-desk/setup"], async (req, res) => {
     try {
+      const profile = resolveEnterpriseRequestDeskProfile(req.path);
       const supabase = getSupabase();
       const user = await authenticateUser(supabase, req);
       assertSetupBodySafety(req.body);
@@ -1139,6 +1138,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
       res.json({
         ok: true,
         product: "enterprise_request_desk",
+        productProfile: buildEnterpriseRequestDeskProfileDto(profile),
         phase: "self_serve_setup_readiness",
         account: {
           email: cleanText(user.email),
@@ -1149,9 +1149,10 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
           req,
           await getEnterpriseRequestDeskPublicAgentForOwnerImpl(supabase, {
             ownerUserId: user.id,
-          })
+          }),
+          profile
         ),
-        nextUrl: "/enterprise-request-desk/dashboard",
+        nextUrl: `${profile.routePrefix}/dashboard`,
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/enterprise-request-desk/setup" });
@@ -1160,6 +1161,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
 
   router.get(["/enterprise-request-desk/requests", "/esg-request-desk/requests"], async (req, res) => {
     try {
+      const profile = resolveEnterpriseRequestDeskProfile(req.path);
       const supabase = getSupabase();
       const user = await authenticateUser(supabase, req);
       const agentId = cleanText(req.query.agent_id || req.query.agentId);
@@ -1183,6 +1185,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
       res.json({
         ok: true,
         product: "enterprise_request_desk",
+        productProfile: buildEnterpriseRequestDeskProfileDto(profile),
         phase: "pilot_request_review",
         reviewStatuses: ENTERPRISE_REQUEST_DESK_REVIEW_STATUSES,
         visibleStatuses: ENTERPRISE_REQUEST_DESK_REQUEST_STATUSES,
@@ -1196,6 +1199,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
 
   router.post(["/enterprise-request-desk/requests/status", "/esg-request-desk/requests/status"], async (req, res) => {
     try {
+      const profile = resolveEnterpriseRequestDeskProfile(req.path);
       const supabase = getSupabase();
       const user = await authenticateUser(supabase, req);
       const requestId = readBodyField(req.body, "request_id", "requestId");
@@ -1215,6 +1219,7 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
       res.json({
         ok: true,
         product: "enterprise_request_desk",
+        productProfile: buildEnterpriseRequestDeskProfileDto(profile),
         phase: "pilot_request_review",
         request,
       });

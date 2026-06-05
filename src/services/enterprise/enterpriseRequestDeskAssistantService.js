@@ -389,7 +389,7 @@ function buildStaffSummary({ lane, fields, missingFields, safetyFlags } = {}) {
   if (safetyFlags.deferredOperationsRequested) flags.push("Phase 1-en túli operatív művelet nem indítható");
 
   return [
-    `Belső brief: ${lane?.labelHu || "Általános érdeklődés"}.`,
+    `Belső összefoglaló: ${lane?.labelHu || "Általános érdeklődés"}.`,
     `Igény: ${fields.serviceNeed || "nincs megadva"}.`,
     `Helyszín/objektum: ${fields.locationOrSite || "nincs megadva"}.`,
     fields.siteType ? `Objektumtípus: ${fields.siteType}.` : "",
@@ -464,7 +464,7 @@ function buildBusinessQuestionReply({ message = "", businessContext = {}, laneKe
 
 function buildFallbackReply({ message, laneKey, missingFields, safetyFlags, businessContext } = {}) {
   if (!safeText(message)) {
-    return "Írja le röviden, milyen vállalati biztonsági, FM vagy compliance jellegű igényről van szó.";
+    return "Írja le röviden, milyen objektumvédelmi, FM, biztonságtechnikai vagy hatósági/audit jellegű igényről van szó.";
   }
 
   if (safetyFlags.secretLikeInput || safetyFlags.promptInjection) {
