@@ -613,9 +613,12 @@ test("Enterprise Request Desk demo remains separate from QDH routes, dashboard, 
   assert.doesNotMatch(qdhDashboardSource, /enterprise[_-]request/i);
 });
 
-test("Enterprise Request Desk Phase 10 dashboard workflow layer is fixture-gated and copy-only", async () => {
+test("Enterprise Request Desk dashboard is compact, fixture-gated, and copy-only", async () => {
   const dashboardSource = readRepoFile("frontend/enterprise-request-desk-dashboard.js");
   const dashboardCssSource = readRepoFile("frontend/enterprise-request-desk.css");
+  const profileSource = readRepoFile("frontend/enterprise-request-desk-profile.js");
+  const requestRowBlock = dashboardSource.match(/function renderRequestRow[\s\S]*?function renderQueue/)?.[0] || "";
+  const esgDashboardBlock = profileSource.match(/key: "esg"[\s\S]*?dashboard: \{([\s\S]*?)\n\s{6}setup:/)?.[1] || "";
   const fixtureSeedCount = (dashboardSource.match(/id: "erd-fixture-seed-/g) || []).length;
   const copyBriefBlock = dashboardSource.match(/data-erdp-copy-brief[\s\S]{0,320}/)?.[0] || "";
 
@@ -636,29 +639,59 @@ test("Enterprise Request Desk Phase 10 dashboard workflow layer is fixture-gated
   });
 
   [
-    "Eredeti megkeresés",
-    "Előszűrt összefoglaló",
-    "Hiányzó adatok",
-    "Javasolt következő kérdés",
-    "Javasolt belső továbbítás",
+    "Igény",
+    "Helyszín",
+    "Időzítés",
+    "Kapcsolat",
+    "Hiányzó adat",
+    "Belső jegyzet",
+    "Handoff",
   ].forEach((label) => {
     assert.match(dashboardSource, new RegExp(label));
   });
 
-  assert.match(dashboardSource, /Összefoglaló másolása/);
+  assert.match(dashboardSource, /data-erdp-copy-brief/);
   assert.match(dashboardSource, /writeClipboardText\(text\)/);
   assert.match(dashboardSource, /document\.execCommand\("copy"\)/);
   assert.doesNotMatch(copyBriefBlock, /Küldés|küldése|send|provider/i);
 
   assert.match(dashboardSource, /SERVICE_AREA_PLAYBOOKS/);
-  assert.match(dashboardSource, /Milyen objektumtípus érintett\?/);
-  assert.match(dashboardSource, /Kompakt operátori ellenőrzőlista lane-specifikus előszűréshez/);
+  assert.match(dashboardSource, /Objektumtípus\?/);
+  assert.match(dashboardSource, /Lane checklist\./);
   assert.match(dashboardSource, /buildMissingInfoCounts/);
   assert.match(dashboardSource, /data-erdp-overview-missing-counts/);
-  assert.match(dashboardSource, /Legutóbb frissített megkeresések/);
+  assert.match(dashboardSource, /Friss ügyek/);
+  assert.match(dashboardSource, /data-erdp-compact-dashboard="phase-13"/);
+  assert.match(dashboardSource, /data-erdp-compact-metrics/);
+  assert.match(dashboardSource, /data-erdp-dense-request-row/);
+  [
+    "service-area",
+    "location",
+    "contact-readiness",
+    "status",
+    "updated-at",
+  ].forEach((field) => {
+    assert.match(dashboardSource, new RegExp(`data-erdp-row-field="${field}"`));
+  });
+  assert.doesNotMatch(requestRowBlock, /requestText/);
+  assert.match(dashboardSource, /filterRecordsForView\(records, workspace\)/);
+  assert.match(dashboardSource, /data-erdp-active-lane/);
   assert.match(dashboardCssSource, /erdp-transformation/);
   assert.match(dashboardCssSource, /erdp-playbook-grid/);
   assert.match(dashboardCssSource, /erdp-missing-count-row/);
+  assert.match(dashboardCssSource, /--erdp-dashboard-sidebar-width:\s*204px/);
+  assert.match(dashboardCssSource, /erdp-panel-kpi/);
+  assert.match(esgDashboardBlock, /heading:\s*"ESG megkereséslista"/);
+  assert.match(esgDashboardBlock, /intro:\s*"Queue, brief, hiányzó adat, státusz\."/);
+  [
+    "Objektumvédelmi, portaszolgálati, FM, biztonságtechnikai és hatósági/audit megkeresések magyar nyelvű belső feldolgozáshoz.",
+    "Előszűrés, összefoglaló, hiányzó adatok és belső megjegyzés.",
+    "Nyissa meg az ESG intake linket, és küldjön be egy irodaház",
+    "Az eredeti szövegből szolgáltatási lane",
+    "A feldolgozási lista ténylegesen rögzített vállalati megkeresésekből épül.",
+  ].forEach((longCopy) => {
+    assert.doesNotMatch(`${dashboardSource}\n${esgDashboardBlock}`, new RegExp(longCopy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  });
 
   assert.doesNotMatch(dashboardSource, /\bQDH\b|Quote Desk HU|quote[-_]desk|qdh[_-]/i);
   assert.doesNotMatch(dashboardSource, /provider send|external send|garantált árként|végleges ajánlatot ad|full operations cockpit/i);
@@ -667,14 +700,19 @@ test("Enterprise Request Desk Phase 10 dashboard workflow layer is fixture-gated
   try {
     const realResponse = await fetch(`${server.baseUrl}/esg-request-desk/dashboard`);
     const fixtureResponse = await fetch(`${server.baseUrl}/esg-request-desk/dashboard-fixture`);
+    const enterpriseFixtureResponse = await fetch(`${server.baseUrl}/enterprise-request-desk/dashboard-fixture`);
     const realHtml = await realResponse.text();
     const fixtureHtml = await fixtureResponse.text();
+    const enterpriseFixtureHtml = await enterpriseFixtureResponse.text();
 
     assert.equal(realResponse.status, 200);
     assert.equal(fixtureResponse.status, 200);
+    assert.equal(enterpriseFixtureResponse.status, 200);
     assert.doesNotMatch(realHtml, /VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE = true/);
     assert.doesNotMatch(realHtml, /erd-fixture-seed-|ESG oldalon nyitnánk/i);
     assert.match(fixtureHtml, /VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE = true/);
+    assert.match(enterpriseFixtureHtml, /Enterprise Request Desk dashboard/);
+    assert.match(enterpriseFixtureHtml, /VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE = true/);
   } finally {
     await server.close();
   }

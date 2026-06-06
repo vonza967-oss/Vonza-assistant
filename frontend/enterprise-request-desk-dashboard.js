@@ -148,68 +148,68 @@
     security_guarding: {
       title: "Őrzés-védelem playbook",
       questions: [
-        "Milyen objektumot vagy területet kell őrizni?",
-        "Milyen lefedési idő kell hétköznap, hétvégén és éjszaka?",
-        "Van ismert kockázati előzmény vagy járőrözési feladat?",
-        "Mikortól indulna, és kell-e több helyszínre bontani?",
+        "Objektum / terület?",
+        "Lefedési idő?",
+        "Kockázat / járőrözés?",
+        "Kezdés és helyszínbontás?",
       ],
       missingInfo: ["objektum típusa", "pontos helyszín", "lefedési idő", "kezdés", "létszám / kockázat"],
-      routingHint: "Őrzés-védelem koordinátor előszűrése, szükség esetén helyszíni egyeztetési előkészítéssel.",
+      routingHint: "Őrzés-védelem koordinátor.",
     },
     reception_object_protection: {
       title: "Portaszolgálat / objektumvédelem playbook",
       questions: [
-        "Milyen objektumtípus érintett?",
-        "Mi a pontos helyszín?",
-        "Milyen lefedési idő és indulási dátum szükséges?",
-        "Recepciós, beléptetési, kulcskezelési vagy járőrözési feladat is van?",
+        "Objektumtípus?",
+        "Pontos helyszín?",
+        "Lefedés és indulás?",
+        "Recepció / beléptetés / kulcs?",
       ],
       missingInfo: ["objektum típusa", "pontos helyszín", "lefedési idő", "kezdés", "recepciós / beléptetési feladatok"],
-      routingHint: "Portaszolgálat / objektumvédelem koordinátor, beléptetési folyamat és helyszíni rend tisztázásával.",
+      routingHint: "Porta / objektum koordinátor.",
     },
     facility_management: {
       title: "Facility Management playbook",
       questions: [
-        "Mely telephelyek, épületek vagy üzemeltetési területek érintettek?",
-        "Karbantartás, takarítás, technikai üzemeltetés vagy vegyes FM keret kell?",
-        "Egyszeri hiba, ismétlődő szolgáltatás vagy több telephelyes keretigény?",
-        "Van sürgős hiba vagy priorizált indulási pont?",
+        "Telephelyek?",
+        "Feladattípus?",
+        "Egyszeri vagy keret?",
+        "Sürgős prioritás?",
       ],
       missingInfo: ["telephelylista", "érintett rendszer", "feladat típusa", "sürgősség", "belső prioritás"],
-      routingHint: "Facility Management koordinátor, telephely és feladatcsoport szerinti bontással.",
+      routingHint: "FM koordinátor.",
     },
     security_technology: {
       title: "Biztonságtechnika playbook",
       questions: [
-        "Kamera, beléptető, riasztó, tűzjelző vagy kombinált rendszer érintett?",
-        "Új telepítés, bővítés, csere, karbantartás vagy felmérés kell?",
-        "Hány kamera, ajtó, jogosultsági pont vagy telephely érintett?",
-        "Van meglévő rendszer vagy integrációs kötöttség?",
+        "Rendszertípus?",
+        "Új, bővítés, csere, karbantartás?",
+        "Pontszám / telephely?",
+        "Meglévő rendszer?",
       ],
       missingInfo: ["rendszertípus", "meglévő rendszer", "pontszám", "telephely", "felmérési határidő"],
-      routingHint: "Biztonságtechnikai felmérési előkészítés belső műszaki ellenőrzésre.",
+      routingHint: "Műszaki előszűrés.",
     },
     audit_compliance: {
       title: "Hatósági / audit playbook",
       questions: [
-        "Milyen audit, hatósági, engedélyezési vagy beszerzési ügyhöz kapcsolódik?",
-        "Mely szolgáltatási terület érintett: őrzés-védelem, FM vagy biztonságtechnika?",
-        "Van auditdátum, hatósági határidő vagy dokumentumlista?",
-        "Belső ellenőrzéshez, beszerzéshez vagy külső megfeleléshez kell a támogatás?",
+        "Ügy típusa?",
+        "Érintett szolgáltatás?",
+        "Határidő / dokumentumlista?",
+        "Belső vagy külső megfelelés?",
       ],
       missingInfo: ["ügy típusa", "határidő", "dokumentumlista", "érintett szolgáltatás", "belső felelős"],
-      routingHint: "Hatósági / audit szakmai ellenőrzés, dokumentumgenerálás nélkül.",
+      routingHint: "Audit szakmai ellenőrzés.",
     },
     mixed_enterprise_request: {
       title: "Vegyes megkeresés playbook",
       questions: [
-        "Mely szolgáltatási területeket kell szétválasztani?",
-        "Melyik helyszín vagy feladat a belső prioritás?",
-        "Egy döntéshozó kezeli, vagy lane-enként más belső felelős kell?",
-        "Mi az első tisztázó kérdés, amely minden lane-t érint?",
+        "Mely lane-ek?",
+        "Első prioritás?",
+        "Döntéshozó lane-enként?",
+        "Közös tisztázó kérdés?",
       ],
       missingInfo: ["lane bontás", "telephelyi prioritás", "időzítés", "belső döntéshozó", "kapcsolati út"],
-      routingHint: "Első körben belső szétválasztás, utána lane-specifikus koordinátorok.",
+      routingHint: "Belső szétválasztás.",
     },
   });
   const LANE_BRIEF_TEMPLATES = Object.freeze({
@@ -741,8 +741,38 @@
     }).format(date);
   }
 
+  function formatShortDateTime(value) {
+    if (!value) {
+      return "nincs dátum";
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return "nincs dátum";
+    }
+
+    return new Intl.DateTimeFormat("hu-HU", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  }
+
   function valueOrEmpty(value) {
     return trimText(value) || "Nincs megadva";
+  }
+
+  function contactReadinessLabel(record) {
+    if (record.contactEmail || record.contactPhone) {
+      return "Kapcsolat kész";
+    }
+
+    if (record.contactName) {
+      return "Név van";
+    }
+
+    return "Kapcsolat hiányzik";
   }
 
   function statusLabel(status) {
@@ -859,7 +889,7 @@
     }
 
     accountRoot.innerHTML = `
-      <span class="erdp-account-email">Bejelentkezve: ${escapeHtml(authUser.email)}</span>
+      <span class="erdp-account-email">${escapeHtml(authUser.email)}</span>
       <button class="erdp-button" type="button" data-erdp-sign-out>Kilépés</button>
     `;
   }
@@ -948,16 +978,21 @@
   }
 
   function renderRequestRow(record, selected) {
+    const updatedAt = record.updatedAt || record.createdAt;
+
     return `
       <button
         class="erdp-request-row ${selected ? "is-active" : ""}"
         type="button"
+        data-erdp-dense-request-row
         data-erdp-select-request="${escapeHtml(record.id)}"
       >
-        <strong>${escapeHtml(valueOrEmpty(record.serviceNeed || record.laneLabel))}</strong>
-        <span>${escapeHtml(valueOrEmpty(record.laneLabel))} · ${escapeHtml(valueOrEmpty(record.locationText || record.siteOrObject))}</span>
-        <span>${escapeHtml(valueOrEmpty(record.requestText))}</span>
-        <em>${escapeHtml(statusLabel(record.status))} · ${escapeHtml(formatDateTime(record.createdAt))}</em>
+        <strong class="erdp-request-row-title">${escapeHtml(valueOrEmpty(record.serviceNeed || record.laneLabel))}</strong>
+        <span class="erdp-request-row-field" data-erdp-row-field="service-area"><b>Terület</b>${escapeHtml(valueOrEmpty(record.laneLabel))}</span>
+        <span class="erdp-request-row-field" data-erdp-row-field="location"><b>Helyszín</b>${escapeHtml(valueOrEmpty(record.locationText || record.siteOrObject))}</span>
+        <span class="erdp-request-row-field" data-erdp-row-field="contact-readiness"><b>Kapcsolat</b>${escapeHtml(contactReadinessLabel(record))}</span>
+        <span class="erdp-request-row-field" data-erdp-row-field="status"><b>Státusz</b><em class="erdp-badge ${escapeHtml(statusBadgeClass(record.status))}">${escapeHtml(statusLabel(record.status))}</em></span>
+        <span class="erdp-request-row-field" data-erdp-row-field="updated-at"><b>Frissítve</b>${escapeHtml(formatShortDateTime(updatedAt))}</span>
       </button>
     `;
   }
@@ -965,25 +1000,28 @@
   function renderQueue(records, selectedRecord, workspace = getWorkspaceDefinition()) {
     const title = workspace.type === "service" ? workspace.label : "Megkeresések";
     const description = workspace.description
-      || "Beérkező vállalati igények előszűrt összefoglalóval, hiányzó adattal és feldolgozási állapottal.";
+      || "Queue állapot és feldolgozás.";
     const emptyText = workspace.type === "service"
       ? (workspace.emptyState || "Ebben a szolgáltatási nézetben még nincs megkeresés.")
       : (profile?.dashboard?.emptyQueue || "Még nincs beérkezett megkeresés.");
 
     return `
-      <section class="erdp-panel erdp-queue-panel" id="queue" aria-label="${escapeHtml(title)}" data-erdp-filter-lane="${escapeHtml(workspace.laneKey || "all")}">
+      <section class="erdp-panel erdp-queue-panel" id="queue" aria-label="${escapeHtml(title)}" data-erdp-compact-queue data-erdp-filter-lane="${escapeHtml(workspace.laneKey || "all")}">
         <div class="erdp-panel-header">
           <div>
             <h2>${escapeHtml(title)}</h2>
             <p>${escapeHtml(description)}</p>
           </div>
-          <button class="erdp-button" type="button" data-erdp-refresh>Frissítés</button>
+          <div class="erdp-panel-actions">
+            <span class="erdp-panel-kpi">${escapeHtml(records.length)} ügy</span>
+            <button class="erdp-button" type="button" data-erdp-refresh>Frissítés</button>
+          </div>
         </div>
         <div class="erdp-panel-body">
           <div class="erdp-request-list">
             ${records.length
               ? records.map((record) => renderRequestRow(record, record.id === selectedRecord?.id)).join("")
-              : `<div class="erdp-empty"><p>${escapeHtml(emptyText)}</p><p>${escapeHtml(profile?.dashboard?.emptyHint || "Nyissa meg az intake linket, és küldjön be egy tesztmegkeresést.")}</p></div>`}
+              : `<div class="erdp-empty"><p>${escapeHtml(emptyText)}</p></div>`}
           </div>
         </div>
       </section>
@@ -1117,8 +1155,7 @@
     return `
       <section class="erdp-lane-brief" aria-label="Lane-specifikus brief" data-erdp-lane-brief="${escapeHtml(record.lane || "general_enquiry")}">
         <div class="erdp-section-heading">
-          <h4>Strukturált belső brief</h4>
-          <p>Lane szerinti mezők a belső feldolgozáshoz.</p>
+          <h4>Lane brief</h4>
         </div>
         <dl class="erdp-lane-brief-list">
           ${items.map((item) => `
@@ -1209,31 +1246,39 @@
     const staffSummary = getStaffSummary(record);
 
     return `
-      <section class="erdp-transformation" aria-label="Megkeresésből belső átadás" data-erdp-transformation-view>
+      <section class="erdp-transformation erdp-handoff-summary" aria-label="Strukturált brief" data-erdp-transformation-view data-erdp-handoff-summary>
         <div class="erdp-section-heading">
-          <h4>Megkeresésből belső átadás</h4>
-          <p>Az eredeti szövegből szolgáltatási lane, rövid brief, hiánylista, következő kérdés és belső útvonal készül.</p>
+          <h4>Strukturált brief</h4>
         </div>
-        <div class="erdp-transformation-grid">
-          <article class="erdp-transform-card is-original">
-            <span>Eredeti megkeresés</span>
-            <p>${escapeHtml(valueOrEmpty(record.requestText || record.serviceNeed))}</p>
+        <div class="erdp-transformation-grid erdp-brief-section-grid">
+          <article class="erdp-transform-card is-summary" data-erdp-brief-section="need">
+            <span>Igény</span>
+            <p>${escapeHtml(valueOrEmpty(record.serviceNeed || staffSummary || record.requestText))}</p>
           </article>
-          <article class="erdp-transform-card is-summary">
-            <span>Előszűrt összefoglaló</span>
-            <p>${escapeHtml(valueOrEmpty(staffSummary || record.serviceNeed))}</p>
+          <article class="erdp-transform-card" data-erdp-brief-section="site-location">
+            <span>Helyszín</span>
+            <p>${escapeHtml(valueOrEmpty(record.locationText || record.siteOrObject))}</p>
           </article>
-          <article class="erdp-transform-card">
-            <span>Hiányzó adatok</span>
+          <article class="erdp-transform-card" data-erdp-brief-section="timing">
+            <span>Időzítés</span>
+            <p>${escapeHtml(valueOrEmpty(record.timingText || record.urgency))}</p>
+          </article>
+          <article class="erdp-transform-card" data-erdp-brief-section="contact">
+            <span>Kapcsolat</span>
+            <p>${escapeHtml([record.contactName, record.contactEmail || record.contactPhone, contactReadinessLabel(record)].map(trimText).filter(Boolean).join(" · ") || getContactNeeded(record))}</p>
+          </article>
+          <article class="erdp-transform-card" data-erdp-brief-section="missing-info">
+            <span>Hiányzó adat</span>
             ${renderMissingInfoChips(record)}
           </article>
-          <article class="erdp-transform-card">
-            <span>Javasolt következő kérdés</span>
-            <p>${escapeHtml(getSuggestedNextQuestion(record))}</p>
+          <article class="erdp-transform-card" data-erdp-brief-section="staff-notes">
+            <span>Belső jegyzet</span>
+            <p>${escapeHtml(valueOrEmpty(record.staffNotes || record.statusReason))}</p>
           </article>
-          <article class="erdp-transform-card is-route">
-            <span>Javasolt belső továbbítás</span>
+          <article class="erdp-transform-card is-route" data-erdp-brief-section="handoff">
+            <span>Handoff</span>
             <p>${escapeHtml(getRecommendedRoute(record))}</p>
+            <p>${escapeHtml(getSuggestedNextQuestion(record))}</p>
           </article>
         </div>
       </section>
@@ -1252,17 +1297,18 @@
       .join("\n");
 
     return [
-      `${profile?.productName || "Enterprise Request Desk"} belső összefoglaló`,
+      `${profile?.productName || "Enterprise Request Desk"} handoff`,
       `Státusz: ${statusLabel(record.status)}`,
-      `Szolgáltatási terület: ${valueOrEmpty(record.laneLabel)}`,
-      `Eredeti megkeresés: ${valueOrEmpty(record.requestText || record.serviceNeed)}`,
-      `Előszűrt összefoglaló: ${valueOrEmpty(staffSummary || record.serviceNeed)}`,
-      "Strukturált brief:",
+      `Terület: ${valueOrEmpty(record.laneLabel)}`,
+      `Igény: ${valueOrEmpty(staffSummary || record.serviceNeed || record.requestText)}`,
+      `Helyszín: ${valueOrEmpty(record.locationText || record.siteOrObject)}`,
+      `Időzítés: ${valueOrEmpty(record.timingText || record.urgency)}`,
+      `Kapcsolat: ${[record.contactName, record.contactEmail || record.contactPhone, contactReadinessLabel(record)].map(trimText).filter(Boolean).join(" · ") || getContactNeeded(record)}`,
       knownItems,
-      `Hiányzó adatok: ${missingLabels.length ? missingLabels.join(", ") : "nincs hiányzó minimális adat"}`,
-      `Javasolt következő kérdés: ${getSuggestedNextQuestion(record)}`,
-      `Javasolt belső továbbítás: ${getRecommendedRoute(record)}`,
-      `Belső megjegyzés: ${valueOrEmpty(record.staffNotes)}`,
+      `Hiányzó adat: ${missingLabels.length ? missingLabels.join(", ") : "nincs hiányzó minimális adat"}`,
+      `Következő kérdés: ${getSuggestedNextQuestion(record)}`,
+      `Belső útvonal: ${getRecommendedRoute(record)}`,
+      `Jegyzet: ${valueOrEmpty(record.staffNotes)}`,
     ].join("\n");
   }
 
@@ -1285,8 +1331,7 @@
     return `
       <section class="erdp-timeline" aria-label="Belső idővonal">
         <div class="erdp-section-heading">
-          <h4>Belső idővonal</h4>
-          <p>Rövid előzmény a beérkezés, előszűrés és operátori műveletek követéséhez.</p>
+          <h4>Idővonal</h4>
         </div>
         <div class="erdp-timeline-list">
           ${entries.map((entry) => `
@@ -1307,25 +1352,21 @@
         <section class="erdp-panel erdp-brief-workspace-panel" id="brief" aria-label="Kiválasztott megkeresés brief">
           <div class="erdp-panel-header">
             <div>
-              <h2>Kiválasztott brief</h2>
-              <p>Válassz ki egy megkeresést a részletekhez.</p>
+              <h2>Brief</h2>
             </div>
           </div>
           <div class="erdp-panel-body">
-            <div class="erdp-empty"><p>Az ügyféligény, ismert adatok és lane-specifikus checklist itt jelenik meg.</p></div>
+            <div class="erdp-empty"><p>Válassz ügyet.</p></div>
           </div>
         </section>
       `;
     }
 
-    const staffSummary = getStaffSummary(record);
-
     return `
       <section class="erdp-panel erdp-brief-workspace-panel" id="brief" aria-label="Kiválasztott megkeresés brief">
         <div class="erdp-panel-header">
           <div>
-            <h2>Kiválasztott brief</h2>
-            <p>Eredeti megkeresésből előszűrt belső átadás.</p>
+            <h2>Brief</h2>
           </div>
         </div>
         <div class="erdp-panel-body">
@@ -1334,24 +1375,6 @@
             <span class="erdp-badge ${escapeHtml(statusBadgeClass(record.status))}">${escapeHtml(statusLabel(record.status))}</span>
           </div>
           ${renderTransformationView(record)}
-          <div class="erdp-section-heading">
-            <h4>Ismert adatok</h4>
-          </div>
-          <div class="erdp-detail-grid">
-            ${detailItem("Szervezet", record.organizationName)}
-            ${detailItem("Szolgáltatási terület", record.laneLabel)}
-            ${detailItem("Besorolási jelzés", record.confidence)}
-            ${detailItem("Objektum / helyszín", record.siteOrObject)}
-            ${detailItem("Helyszín", record.locationText)}
-            ${detailItem("Szolgáltatási igény", record.serviceNeed)}
-            ${detailItem("Időzítés", record.timingText || record.urgency)}
-            ${detailItem("Kapcsolati állapot", getContactNeeded(record))}
-            ${detailItem("Kapcsolattartó", record.contactName)}
-            ${detailItem("Email", record.contactEmail)}
-            ${detailItem("Telefon", record.contactPhone)}
-            ${detailItem("Beérkezett", formatDateTime(record.createdAt))}
-            ${staffSummary ? detailItem("Belső összefoglaló", staffSummary) : ""}
-          </div>
           ${renderLaneBriefChecklist(record)}
         </div>
       </section>
@@ -1365,11 +1388,10 @@
           <div class="erdp-panel-header">
             <div>
               <h2>Feldolgozás</h2>
-              <p>Válassz ki egy megkeresést a hiányzó adatokhoz és státuszhoz.</p>
             </div>
           </div>
           <div class="erdp-panel-body">
-            <div class="erdp-empty"><p>A következő kérdés, belső útvonal, státusz és jegyzet mezők itt jelennek meg.</p></div>
+            <div class="erdp-empty"><p>Válassz ügyet.</p></div>
           </div>
         </section>
       `;
@@ -1382,7 +1404,6 @@
         <div class="erdp-panel-header">
           <div>
             <h2>Feldolgozás</h2>
-            <p>Hiányzó adat, következő kérdés, belső útvonal és biztonságos review státusz.</p>
           </div>
         </div>
         <div class="erdp-panel-body">
@@ -1397,14 +1418,15 @@
           </div>
           <div class="erdp-brief-copy-card">
             <div>
-              <span>Strukturált brief export</span>
-              <strong>Másolható belső összefoglaló operátori egyeztetéshez.</strong>
+              <span>Handoff summary</span>
+              <strong>Rövid, másolható átadás.</strong>
             </div>
             <button
               class="erdp-button erdp-button-primary"
               type="button"
+              aria-label="Összefoglaló másolása"
               data-erdp-copy-brief="${escapeHtml(record.id)}"
-            >Összefoglaló másolása</button>
+            >Másolás</button>
           </div>
           <label class="erdp-field">
             Státusz oka
@@ -1448,8 +1470,7 @@
       <section class="erdp-panel" aria-label="Legutóbb frissített megkeresések">
         <div class="erdp-panel-header">
           <div>
-            <h2>Legutóbb frissített megkeresések</h2>
-            <p>A feldolgozási lista ténylegesen rögzített vállalati megkeresésekből épül.</p>
+            <h2>Friss ügyek</h2>
           </div>
         </div>
         <div class="erdp-panel-body erdp-recent">
@@ -1476,9 +1497,8 @@
 
     if (intake.available && path) {
       return `
-        <section class="erdp-customer-link" aria-label="Ügyféloldali intake link">
-          <strong>Ügyféloldali intake link</strong>
-          <p>${escapeHtml(intake.guidanceHu || "Ezt a linket add meg a vállalati megkeresések belépési pontjaként.")}</p>
+        <section class="erdp-customer-link erdp-intake-access-compact" aria-label="Ügyféloldali intake link">
+          <strong>Intake link</strong>
           <code>${escapeHtml(path)}</code>
           <div class="erdp-link-actions">
             <a class="erdp-button" href="${escapeHtml(path)}" target="_blank" rel="noreferrer">Megnyitás</a>
@@ -1491,8 +1511,8 @@
 
     return `
       <section class="erdp-customer-link erdp-customer-link-muted" aria-label="Ügyféloldali intake link előfeltétel">
-        <strong>Ügyféloldali intake link</strong>
-        <p>${escapeHtml(intake.guidanceHu || "Aktív public agent kulcs szükséges, mielőtt az ügyféloldali intake link használható.")}</p>
+        <strong>Intake link</strong>
+        <p>${escapeHtml(intake.guidanceHu || "Public agent kulcs szükséges.")}</p>
         <code>${escapeHtml(getApiPrefix())}/intake?agent_key=&lt;public_agent_key&gt;</code>
       </section>
     `;
@@ -1525,12 +1545,9 @@
 
   function renderSafetyStrip() {
     return `
-      <section class="erdp-safety-strip" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} határok">
-        <div>
-          <strong>${escapeHtml(profile?.dashboard?.safetyTitle || "Setup teljes. A beérkező megkeresések belső feldolgozásra kerülnek.")}</strong>
-          <p>${escapeHtml(profile?.dashboard?.safetyBody || "Különálló megkereséskezelő felület előszűréshez, összefoglalóhoz és belső továbbításhoz.")}</p>
-        </div>
-        <span>${escapeHtml(profile?.dashboard?.setupActive || "Setup aktív")}</span>
+      <section class="erdp-safety-strip erdp-compact-status-strip" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} határok" data-erdp-compact-token="phase-13">
+        <strong>${escapeHtml(profile?.dashboard?.setupActive || "Setup aktív")}</strong>
+        <span>${escapeHtml(profile?.dashboard?.safetyTitle || "Belső feldolgozás")}</span>
       </section>
     `;
   }
@@ -1570,8 +1587,7 @@
       <section class="erdp-panel" aria-label="Leggyakoribb hiányzó adatok" data-erdp-overview-missing-counts>
         <div class="erdp-panel-header">
           <div>
-            <h2>Hiányzó adatok</h2>
-            <p>Top tisztázandó kategóriák az aktuális feldolgozási listából.</p>
+            <h2>Hiányzó adat</h2>
           </div>
         </div>
         <div class="erdp-panel-body erdp-missing-count-list">
@@ -1603,7 +1619,7 @@
         <div class="erdp-panel-header">
           <div>
             <h2>${escapeHtml(playbook.title)}</h2>
-            <p>Kompakt operátori ellenőrzőlista lane-specifikus előszűréshez.</p>
+            <p>Lane checklist.</p>
           </div>
         </div>
         <div class="erdp-panel-body erdp-playbook-grid">
@@ -1631,6 +1647,7 @@
   function renderOverview(records) {
     const laneCounts = buildLaneCounts(records);
     const statusCounts = buildStatusCounts(records);
+    const summary = state.summary || buildSummary(records);
 
     return `
       <section class="erdp-view-heading" aria-label="Áttekintés">
@@ -1643,15 +1660,21 @@
       ${!records.length ? `
         <section class="erdp-empty erdp-empty-wide" aria-label="Üres dashboard áttekintés">
           <h2>Még nincs beérkezett megkeresés</h2>
-          <p>Nyisd meg az intake linket, küldj be egy tesztmegkeresést, majd térj vissza ide. A kérés a közös queue-ban és a besorolt szolgáltatási workspace-ben is megjelenik.</p>
+          <p>Nyisd meg az intake linket.</p>
         </section>
       ` : ""}
+      <div class="erdp-metrics" data-erdp-compact-metrics>
+        <div class="erdp-metric"><span>Összes</span><strong>${escapeHtml(summary.total || 0)}</strong></div>
+        <div class="erdp-metric"><span>Új</span><strong>${escapeHtml(summary.requestReceived || 0)}</strong></div>
+        <div class="erdp-metric"><span>Hiányzó adat</span><strong>${escapeHtml(summary.needsInfo || 0)}</strong></div>
+        <div class="erdp-metric"><span>Review</span><strong>${escapeHtml(summary.needsStaffReview || 0)}</strong></div>
+        <div class="erdp-metric"><span>Továbbítva</span><strong>${escapeHtml(summary.routed || 0)}</strong></div>
+      </div>
       <div class="erdp-overview-grid erdp-overview-grid-three">
         <section class="erdp-panel" aria-label="Megkeresések szolgáltatási terület szerint" data-erdp-overview-lane-counts>
           <div class="erdp-panel-header">
             <div>
-              <h2>Szolgáltatási területek</h2>
-              <p>Ugyanaz a megkereséslista, lane szerinti munkanézetekre szűrve.</p>
+              <h2>Terület</h2>
             </div>
           </div>
           <div class="erdp-panel-body erdp-lane-count-list">
@@ -1669,8 +1692,7 @@
         <section class="erdp-panel" aria-label="Megkeresések státusz szerint" data-erdp-overview-status-counts>
           <div class="erdp-panel-header">
             <div>
-              <h2>Feldolgozási státuszok</h2>
-              <p>Csak biztonságos review státuszok és a beérkezett állapot szerepel.</p>
+              <h2>Státusz</h2>
             </div>
           </div>
           <div class="erdp-panel-body erdp-status-count-list">
@@ -1696,16 +1718,16 @@
       <section class="erdp-view-heading" aria-label="${escapeHtml(workspace.label)} workspace">
         <div>
           <h2>${escapeHtml(workspace.label)}</h2>
-          <p>${escapeHtml(workspace.description || "Közös intake queue szűrt munkanézete.")}</p>
+          <p>${escapeHtml(workspace.description || "Szűrt queue.")}</p>
         </div>
         <span>${escapeHtml(filteredRecords.length)} / ${escapeHtml(records.length)} megkeresés</span>
       </section>
-      ${renderServicePlaybook(workspace)}
       <div class="erdp-workspace erdp-workspace-three" data-erdp-workspace-columns data-erdp-active-lane="${escapeHtml(workspace.laneKey || "all")}">
         ${renderQueue(filteredRecords, selectedRecord, workspace)}
         ${renderBrief(selectedRecord)}
         ${renderActionPanel(selectedRecord)}
       </div>
+      ${renderServicePlaybook(workspace)}
     `;
   }
 
@@ -1715,10 +1737,10 @@
       ? setup.serviceLines
       : (profile?.fixtureBusiness?.serviceTypes || profile?.lanes?.map((lane) => lane.labelHu) || []);
     const boundaries = [
-      "Közös intake queue, szolgáltatási terület szerinti munkanézetekkel.",
-      "Csak hiányzó adat, belső ellenőrzés, továbbítva, elutasítva és archiválva státusz használható.",
-      "Végleges ár, szerződés, műszakterv, helyszíni riport és külső rendszerbe küldés nem készül ezen a felületen.",
-      "A belső döntést és választ a csapat kezeli.",
+      "Közös queue, lane nézetek.",
+      "Biztonságos review státuszok.",
+      "Nincs végleges ár vagy külső küldés.",
+      "Belső döntés a csapatnál.",
     ];
 
     return `
@@ -1733,7 +1755,6 @@
           <div class="erdp-panel-header">
             <div>
               <h2>Setup állapot</h2>
-              <p>A dashboard csak setup után tölti a tulajdonosi queue-t.</p>
             </div>
           </div>
           <div class="erdp-panel-body">
@@ -1748,7 +1769,6 @@
           <div class="erdp-panel-header">
             <div>
               <h2>Szolgáltatási vonalak</h2>
-              <p>A workspace szűrés a request lane kulcsát használja, külön adattár nélkül.</p>
             </div>
           </div>
           <div class="erdp-panel-body">
@@ -1761,7 +1781,6 @@
           <div class="erdp-panel-header">
             <div>
               <h2>Határok</h2>
-              <p>Phase 10 célja a demo workflow réteg és a belső átadás, nem teljes operatív irányítás.</p>
             </div>
           </div>
           <div class="erdp-panel-body erdp-boundary-stack">
@@ -1785,7 +1804,7 @@
         : renderWorkspacePage(records, workspace);
 
     root.innerHTML = `
-      <div class="erdp-dashboard" data-erdp-active-view="${escapeHtml(workspace.id)}">
+      <div class="erdp-dashboard erdp-dashboard-compact" data-erdp-active-view="${escapeHtml(workspace.id)}" data-erdp-compact-dashboard="phase-13">
         ${renderSafetyStrip()}
         ${renderRequestError()}
         ${viewHtml}
