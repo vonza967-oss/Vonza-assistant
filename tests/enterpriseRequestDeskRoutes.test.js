@@ -916,7 +916,7 @@ test("Enterprise Request Desk public and dashboard pages render separately from 
   }
 });
 
-test("Enterprise dashboard source defines Phase 8 service-area workspaces", () => {
+test("Enterprise dashboard source defines service-area workspaces with compact operator density", () => {
   const dashboardHtml = readFileSync(
     path.join(repoRoot, "frontend", "enterprise-request-desk-dashboard.html"),
     "utf8"
@@ -966,7 +966,12 @@ test("Enterprise dashboard source defines Phase 8 service-area workspaces", () =
   assert.match(dashboardSource, /data-erdp-overview-lane-counts/);
   assert.match(dashboardSource, /data-erdp-overview-status-counts/);
   assert.match(dashboardSource, /erdp-workspace-three/);
-  assert.match(dashboardCss, /\.erdp-workspace-three[\s\S]*grid-template-columns: minmax\(280px, 0\.82fr\) minmax\(340px, 1\.12fr\) minmax\(300px, 0\.9fr\)/);
+  assert.match(dashboardCss, /--erdp-dashboard-sidebar-width: 236px/);
+  assert.match(dashboardCss, /--erdp-dashboard-panel-pad: 12px/);
+  assert.match(dashboardCss, /--erdp-dashboard-row-pad: 9px 10px/);
+  assert.match(dashboardCss, /\.erdp-workspace-three[\s\S]*grid-template-columns: minmax\(250px, 0\.76fr\) minmax\(320px, 1\.16fr\) minmax\(280px, 0\.84fr\)/);
+  assert.match(dashboardCss, /\.erdp-dashboard-shell \.erdp-button[\s\S]*min-height: 34px/);
+  assert.match(dashboardCss, /\.erdp-topbar h1[\s\S]*font-size: clamp\(1\.45rem, 2vw, 1\.85rem\)/);
   assert.match(dashboardSource, /Objektum típusa/);
   assert.match(dashboardSource, /Recepció/);
   assert.match(dashboardSource, /Hiba \/ üzemeltetési igény/);
