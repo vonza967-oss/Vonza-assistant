@@ -161,6 +161,42 @@ The generic `/enterprise-request-desk/*` route remains available as the reusable
 
 Phase 7 does not add a migration, schema column, provider call, final pricing, quote guarantee, operations cockpit, QR/SLA/vendor flow, compliance document generation, widget/embed change, or QDH integration.
 
+## Phase 8 Service-Area Dashboard Workspaces
+
+Phase 8 keeps one shared intake queue and adds service-area workspaces inside the owner dashboard. These are filtered views over the same `enterprise_request_desk_requests` rows, not separate dashboards or new persistence.
+
+Dashboard hash views:
+
+- `#overview`: counts by service area and request-review status, customer intake link, and empty-state testing guidance.
+- `#requests`: the full shared request queue.
+- `#security-guarding`: `security_guarding` requests.
+- `#reception-object-protection`: `reception_object_protection` requests.
+- `#facility-management`: `facility_management` requests.
+- `#security-technology`: `security_technology` requests.
+- `#audit-compliance`: `audit_compliance` requests.
+- `#mixed`: `mixed_enterprise_request` requests.
+- `#settings`: minimal setup/readiness, intake link, service lines, and product boundaries.
+
+The operator workflow is a three-column workspace on desktop:
+
+- left: filtered request list;
+- middle: selected request brief, known fields, and lane-specific checklist;
+- right: missing information, suggested next question, recommended internal route, staff notes, status reason, and safe review status buttons.
+
+Mobile keeps the same content but stacks the queue, brief, and action panel.
+
+Lane-specific brief templates are display helpers only. They read existing structured brief fields and request columns, then show `tisztázandó` or `Nincs megadva` when data is absent. They do not invent object details, coverage, headcount, technology inventory, documents, deadlines, or split-lane decisions.
+
+Safe review statuses remain unchanged:
+
+- `needs_info`
+- `needs_staff_review`
+- `routed`
+- `declined`
+- `archived`
+
+Phase 8 remains deferred for SLA clocks, shift planning, vendor panels, QR site reports, compliance document generation, external execution, final pricing, contract creation, and a full operations cockpit. It does not add a migration, schema column, public widget/embed behavior, QDH merge, or provider call.
+
 ## Shared Engine vs Product Layer
 
 Shared Vonza Engine patterns:

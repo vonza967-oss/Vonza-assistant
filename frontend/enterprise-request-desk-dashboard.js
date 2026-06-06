@@ -30,13 +30,141 @@
   }
   const FIXTURE_STORAGE_KEY = "VONZA_ENTERPRISE_REQUEST_DESK_FIXTURE_REQUESTS";
   const REVIEW_ACTIONS = Object.freeze([
-    ["needs_info", "Hiányzó adatok"],
-    ["needs_staff_review", "Belső feldolgozás"],
-    ["routed", "Belső továbbítás"],
+    ["needs_info", "Hiányzó adat"],
+    ["needs_staff_review", "Belső ellenőrzés"],
+    ["routed", "Továbbítva"],
     ["declined", "Elutasítva"],
-    ["archived", "Archiválás"],
+    ["archived", "Archiválva"],
   ]);
   const REVIEW_ACTION_SET = new Set(REVIEW_ACTIONS.map(([status]) => status));
+  const REVIEW_STATUS_LABELS = Object.freeze(Object.fromEntries(REVIEW_ACTIONS));
+  const SERVICE_WORKSPACE_DEFINITIONS = Object.freeze([
+    { id: "overview", hash: "overview", type: "overview", labelKey: "overview" },
+    { id: "requests", hash: "requests", type: "queue", labelKey: "requests" },
+    {
+      id: "security-guarding",
+      hash: "security-guarding",
+      type: "service",
+      labelKey: "security_guarding",
+      laneKey: "security_guarding",
+    },
+    {
+      id: "reception-object-protection",
+      hash: "reception-object-protection",
+      type: "service",
+      labelKey: "reception_object_protection",
+      laneKey: "reception_object_protection",
+    },
+    {
+      id: "facility-management",
+      hash: "facility-management",
+      type: "service",
+      labelKey: "facility_management",
+      laneKey: "facility_management",
+    },
+    {
+      id: "security-technology",
+      hash: "security-technology",
+      type: "service",
+      labelKey: "security_technology",
+      laneKey: "security_technology",
+    },
+    {
+      id: "audit-compliance",
+      hash: "audit-compliance",
+      type: "service",
+      labelKey: "audit_compliance",
+      laneKey: "audit_compliance",
+    },
+    {
+      id: "mixed",
+      hash: "mixed",
+      type: "service",
+      labelKey: "mixed_enterprise_request",
+      laneKey: "mixed_enterprise_request",
+    },
+    { id: "settings", hash: "settings", type: "settings", labelKey: "settings" },
+  ]);
+  const WORKSPACE_HASH_ALIASES = Object.freeze({
+    queue: "requests",
+    detail: "requests",
+    guarding: "security-guarding",
+    reception: "reception-object-protection",
+    "object-protection": "reception-object-protection",
+    fm: "facility-management",
+    "security-tech": "security-technology",
+    audit: "audit-compliance",
+  });
+  const STATUS_ORDER = Object.freeze([
+    "request_received",
+    "needs_info",
+    "needs_staff_review",
+    "routed",
+    "declined",
+    "archived",
+  ]);
+  const LANE_NEXT_QUESTIONS = Object.freeze({
+    security_guarding: "Milyen objektumot kell őrizni, milyen lefedési idővel és mikori kezdéssel?",
+    reception_object_protection: "Milyen recepciós, beléptetési vagy portaszolgálati folyamatot kell lefedni?",
+    facility_management: "Milyen hiba vagy üzemeltetési igény érintett, és mennyire sürgős?",
+    security_technology: "Melyik rendszer érintett: kamera, beléptetés, riasztó, tűzjelző vagy meglévő rendszer?",
+    audit_compliance: "Milyen hatósági, audit vagy beszerzési ügyhöz kapcsolódik az igény, és van-e határidő?",
+    mixed_enterprise_request: "Mely szolgáltatási területeket kell szétválasztani belső feldolgozásra?",
+    general_enquiry: "Melyik szolgáltatási területhez kapcsolódik a megkeresés?",
+  });
+  const RECOMMENDED_ROUTES = Object.freeze({
+    security_guarding: "Őrzés-védelem koordinátor belső ellenőrzésre",
+    reception_object_protection: "Portaszolgálat / objektumvédelem belső koordinátor",
+    facility_management: "Facility Management belső koordinátor",
+    security_technology: "Biztonságtechnikai felmérésre kijelölt belső csapat",
+    audit_compliance: "Hatósági / audit belső szakmai ellenőrzés",
+    mixed_enterprise_request: "Belső szétválasztás szolgáltatási területekre",
+    general_enquiry: "Első szűrés és belső ellenőrzés",
+  });
+  const LANE_BRIEF_TEMPLATES = Object.freeze({
+    security_guarding: [
+      { label: "Objektum típusa", keys: ["siteType", "site_type"], fallback: (record) => record.siteOrObject },
+      { label: "Helyszín", keys: ["locationOrSite", "location_or_site"], fallback: (record) => record.locationText },
+      { label: "Lefedési idő", keys: ["coverageTime", "coverage_time", "urgencyOrTiming", "urgency_or_timing"], fallback: (record) => record.timingText || record.urgency },
+      { label: "Kezdés", keys: ["startDate", "start_date", "start", "urgencyOrTiming", "urgency_or_timing"], fallback: (record) => record.timingText },
+      { label: "Létszám / kockázat", keys: ["headcount", "guardCount", "guard_count", "riskLevel", "risk_level", "risk"] },
+    ],
+    reception_object_protection: [
+      { label: "Recepció", keys: ["reception", "serviceNeed", "service_need"], fallback: (record) => record.serviceNeed },
+      { label: "Beléptetés", keys: ["accessControl", "access_control", "entryProcess", "entry_process"] },
+      { label: "Nyitvatartás", keys: ["openingHours", "opening_hours", "urgencyOrTiming", "urgency_or_timing"], fallback: (record) => record.timingText || record.urgency },
+      { label: "Látogatói forgalom", keys: ["visitorTraffic", "visitor_traffic", "traffic"] },
+    ],
+    facility_management: [
+      { label: "Hiba / üzemeltetési igény", keys: ["issue", "operationNeed", "operation_need", "serviceNeed", "service_need"], fallback: (record) => record.serviceNeed },
+      { label: "Helyszín", keys: ["locationOrSite", "location_or_site"], fallback: (record) => record.locationText || record.siteOrObject },
+      { label: "Sürgősség", keys: ["urgency", "urgencyOrTiming", "urgency_or_timing"], fallback: (record) => record.urgency || record.timingText },
+      { label: "Érintett rendszer / terület", keys: ["affectedSystem", "affected_system", "affectedArea", "affected_area", "siteType", "site_type"], fallback: (record) => record.siteOrObject },
+    ],
+    security_technology: [
+      { label: "Kamera", keys: ["camera", "cctv", "cameraSystem", "camera_system"] },
+      { label: "Beléptetés", keys: ["accessControl", "access_control", "entrySystem", "entry_system"] },
+      { label: "Riasztó", keys: ["alarm", "alarmSystem", "alarm_system"] },
+      { label: "Tűzjelző", keys: ["fireAlarm", "fire_alarm"] },
+      { label: "Meglévő rendszer", keys: ["existingSystem", "existing_system", "currentSystem", "current_system"] },
+      { label: "Telephely", keys: ["locationOrSite", "location_or_site"], fallback: (record) => record.locationText || record.siteOrObject },
+    ],
+    audit_compliance: [
+      { label: "Ügy típusa", keys: ["caseType", "case_type", "serviceNeed", "service_need"], fallback: (record) => record.serviceNeed },
+      { label: "Dokumentum", keys: ["document", "documents", "documentNeed", "document_need"] },
+      { label: "Határidő", keys: ["deadline", "urgencyOrTiming", "urgency_or_timing"], fallback: (record) => record.timingText || record.urgency },
+      { label: "Audit / beszerzési kontextus", keys: ["auditContext", "audit_context", "procurementContext", "procurement_context", "notes"], fallback: (record) => record.structuredBrief?.notes },
+    ],
+    mixed_enterprise_request: [
+      { label: "Több szolgáltatási terület", keys: ["serviceAreas", "service_areas", "matchedLaneLabels", "matched_lane_labels", "serviceNeed", "service_need"], fallback: (record) => record.serviceNeed || record.laneLabel },
+      { label: "Szétválasztandó igények", keys: ["splitNeeds", "split_needs", "notes"], fallback: (record) => record.requestText },
+    ],
+    general_enquiry: [
+      { label: "Szolgáltatási igény", keys: ["serviceNeed", "service_need"], fallback: (record) => record.serviceNeed },
+      { label: "Helyszín", keys: ["locationOrSite", "location_or_site"], fallback: (record) => record.locationText || record.siteOrObject },
+      { label: "Időzítés", keys: ["urgencyOrTiming", "urgency_or_timing"], fallback: (record) => record.timingText || record.urgency },
+    ],
+  });
 
   let authClient = null;
   let authSession = null;
@@ -48,12 +176,16 @@
     setupComplete: false,
     customerIntake: null,
     selectedId: "",
+    activeView: "overview",
     requestError: null,
   };
 
   if (!root) {
     return;
   }
+
+  updateActiveViewFromHash();
+  renderSidebarNav();
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -72,6 +204,63 @@
     if (statusRoot) {
       statusRoot.textContent = message;
     }
+  }
+
+  function normalizeHashValue(value = "") {
+    const normalized = trimText(String(value).replace(/^#/, "")).toLowerCase();
+    const aliased = WORKSPACE_HASH_ALIASES[normalized] || normalized;
+    return SERVICE_WORKSPACE_DEFINITIONS.some((workspace) => workspace.id === aliased)
+      ? aliased
+      : "overview";
+  }
+
+  function updateActiveViewFromHash() {
+    state.activeView = normalizeHashValue(window.location.hash || "#overview");
+  }
+
+  function workspaceLabel(labelKey, fallback = "") {
+    return trimText(profile?.dashboard?.workspaceLabels?.[labelKey])
+      || profile?.lanes?.find?.((lane) => lane.key === labelKey)?.labelHu
+      || fallback
+      || labelKey;
+  }
+
+  function workspaceDescription(labelKey, fallback = "") {
+    return trimText(profile?.dashboard?.workspaceDescriptions?.[labelKey]) || fallback;
+  }
+
+  function workspaceEmptyState(labelKey, fallback = "") {
+    return trimText(profile?.dashboard?.workspaceEmptyStates?.[labelKey]) || fallback;
+  }
+
+  function getWorkspaceDefinitions() {
+    return SERVICE_WORKSPACE_DEFINITIONS.map((workspace) => ({
+      ...workspace,
+      label: workspaceLabel(workspace.labelKey, workspace.labelKey),
+      description: workspaceDescription(workspace.labelKey, ""),
+      emptyState: workspaceEmptyState(workspace.labelKey, profile?.dashboard?.emptyQueue || ""),
+    }));
+  }
+
+  function getWorkspaceDefinition(viewId = state.activeView) {
+    return getWorkspaceDefinitions().find((workspace) => workspace.id === viewId)
+      || getWorkspaceDefinitions()[0];
+  }
+
+  function renderSidebarNav() {
+    const nav = document.querySelector("[data-erdp-dashboard-nav]");
+    if (!nav) {
+      return;
+    }
+
+    nav.setAttribute("aria-label", profile?.dashboard?.navLabel || "Dashboard navigáció");
+    nav.innerHTML = getWorkspaceDefinitions().map((workspace) => `
+      <a
+        href="#${escapeHtml(workspace.hash)}"
+        aria-current="${workspace.id === state.activeView ? "page" : "false"}"
+        data-erdp-workspace-nav="${escapeHtml(workspace.id)}"
+      >${escapeHtml(workspace.label)}</a>
+    `).join("");
   }
 
   function getApiPrefix() {
@@ -200,6 +389,166 @@
         createdAt: "2026-06-05T09:00:00.000Z",
         updatedAt: "2026-06-05T09:00:00.000Z",
       },
+      {
+        id: "erd-fixture-seed-2",
+        lane: "security_guarding",
+        laneLabel: "Őrzés-védelem",
+        confidence: "high",
+        requestText: "Őrzés-védelem kell egy ipari telephelyre Győr mellett, hétköznap éjszakai lefedéssel. Kapcsolat: operations@example.test.",
+        siteOrObject: "ipari telephely",
+        locationText: "Győr térsége",
+        serviceNeed: "Élőerős őrzés-védelem",
+        timingText: "hétköznap éjszaka",
+        urgency: "jövő hónaptól",
+        contactName: "Minta Operátor",
+        contactEmail: "operations@example.test",
+        contactPhone: "",
+        missingFields: ["urgency_or_timing"],
+        structuredBrief: {
+          lane: "security_guarding",
+          laneLabelHu: "Őrzés-védelem",
+          serviceNeed: "Élőerős őrzés-védelem",
+          locationOrSite: "Győr térsége, ipari telephely",
+          urgencyOrTiming: "hétköznap éjszaka",
+          contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
+          siteType: "ipari telephely",
+          riskLevel: "",
+          staffSummaryHu: "Belső összefoglaló: őrzés-védelem. Igény: éjszakai lefedés ipari telephelyen.",
+        },
+        status: "needs_info",
+        statusReason: "Kezdés és pontos létszám még tisztázandó.",
+        staffNotes: "Helyi minta megkeresés.",
+        createdAt: "2026-06-05T10:00:00.000Z",
+        updatedAt: "2026-06-05T10:00:00.000Z",
+      },
+      {
+        id: "erd-fixture-seed-3",
+        lane: "reception_object_protection",
+        laneLabel: "Portaszolgálat / objektumvédelem",
+        confidence: "high",
+        requestText: "Irodaház portaszolgálatára lenne szükség Budapesten, recepciós beléptetéssel 8-18 óra között.",
+        siteOrObject: "irodaház",
+        locationText: "Budapest",
+        serviceNeed: "Portaszolgálat és recepciós beléptetés",
+        timingText: "hétköznap 8-18",
+        urgency: "egyeztethető",
+        contactName: "",
+        contactEmail: "",
+        contactPhone: "",
+        missingFields: ["contact_need"],
+        structuredBrief: {
+          lane: "reception_object_protection",
+          laneLabelHu: "Portaszolgálat / objektumvédelem",
+          serviceNeed: "Portaszolgálat és recepciós beléptetés",
+          locationOrSite: "Budapest, irodaház",
+          urgencyOrTiming: "hétköznap 8-18",
+          contactNeed: "Kapcsolati adat hiányzik a visszajelzéshez.",
+          openingHours: "hétköznap 8-18",
+          staffSummaryHu: "Belső összefoglaló: portaszolgálat. Igény: recepciós beléptetés irodaházban.",
+        },
+        status: "request_received",
+        statusReason: "",
+        staffNotes: "Helyi minta megkeresés.",
+        createdAt: "2026-06-05T11:00:00.000Z",
+        updatedAt: "2026-06-05T11:00:00.000Z",
+      },
+      {
+        id: "erd-fixture-seed-4",
+        lane: "security_technology",
+        laneLabel: "Biztonságtechnika",
+        confidence: "high",
+        requestText: "CCTV kamerarendszer és beléptető bővítés kell egy telephelyen, meglévő riasztóval.",
+        siteOrObject: "telephely",
+        locationText: "Székesfehérvár",
+        serviceNeed: "CCTV és beléptető bővítés",
+        timingText: "felmérés két héten belül",
+        urgency: "közepes",
+        contactName: "Technikai kapcsolattartó",
+        contactEmail: "tech@example.test",
+        contactPhone: "",
+        missingFields: [],
+        structuredBrief: {
+          lane: "security_technology",
+          laneLabelHu: "Biztonságtechnika",
+          serviceNeed: "CCTV és beléptető bővítés",
+          locationOrSite: "Székesfehérvár telephely",
+          urgencyOrTiming: "felmérés két héten belül",
+          contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
+          camera: "CCTV kamerarendszer",
+          accessControl: "beléptető bővítés",
+          alarm: "meglévő riasztó",
+          staffSummaryHu: "Belső összefoglaló: biztonságtechnika. Igény: CCTV és beléptető bővítés.",
+        },
+        status: "needs_staff_review",
+        statusReason: "",
+        staffNotes: "Helyi minta megkeresés.",
+        createdAt: "2026-06-05T12:00:00.000Z",
+        updatedAt: "2026-06-05T12:00:00.000Z",
+      },
+      {
+        id: "erd-fixture-seed-5",
+        lane: "audit_compliance",
+        laneLabel: "Hatósági / audit támogatás",
+        confidence: "medium",
+        requestText: "Beszerzési auditanyaghoz kérnénk támogatást vagyonvédelmi és FM szolgáltatási keretre, határidő június vége.",
+        siteOrObject: "több telephely",
+        locationText: "országos",
+        serviceNeed: "Beszerzési audit támogatás",
+        timingText: "június vége",
+        urgency: "határidős",
+        contactName: "Audit kapcsolattartó",
+        contactEmail: "audit@example.test",
+        contactPhone: "",
+        missingFields: [],
+        structuredBrief: {
+          lane: "audit_compliance",
+          laneLabelHu: "Hatósági / audit támogatás",
+          serviceNeed: "Beszerzési audit támogatás",
+          locationOrSite: "országos, több telephely",
+          urgencyOrTiming: "június vége",
+          contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
+          documentNeed: "beszerzési auditanyag",
+          procurementContext: "vagyonvédelmi és FM szolgáltatási keret",
+          staffSummaryHu: "Belső összefoglaló: hatósági/audit támogatás. Igény: beszerzési auditanyag.",
+        },
+        status: "routed",
+        statusReason: "Belső szakmai ellenőrzésre továbbítva.",
+        staffNotes: "Helyi minta megkeresés.",
+        createdAt: "2026-06-05T13:00:00.000Z",
+        updatedAt: "2026-06-05T13:00:00.000Z",
+      },
+      {
+        id: "erd-fixture-seed-6",
+        lane: "mixed_enterprise_request",
+        laneLabel: "Vegyes vállalati megkeresés",
+        confidence: "high",
+        requestText: "Őrzés-védelem, FM karbantartás és kamerarendszer felmérés együtt kell három telephelyen.",
+        siteOrObject: "három telephely",
+        locationText: "Budapest, Debrecen, Pécs",
+        serviceNeed: "Őrzés-védelem, FM és biztonságtechnika együtt",
+        timingText: "ütemezés egyeztetendő",
+        urgency: "szétválasztandó",
+        contactName: "Programvezető",
+        contactEmail: "program@example.test",
+        contactPhone: "",
+        missingFields: ["urgency_or_timing"],
+        structuredBrief: {
+          lane: "mixed_enterprise_request",
+          laneLabelHu: "Vegyes vállalati megkeresés",
+          serviceNeed: "Őrzés-védelem, FM és biztonságtechnika együtt",
+          locationOrSite: "Budapest, Debrecen, Pécs",
+          urgencyOrTiming: "ütemezés egyeztetendő",
+          contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
+          serviceAreas: "őrzés-védelem, Facility Management, biztonságtechnika",
+          splitNeeds: "három telephely és három szolgáltatási terület belső szétválasztása",
+          staffSummaryHu: "Belső összefoglaló: vegyes megkeresés. Igény: több szolgáltatási terület szétválasztása.",
+        },
+        status: "needs_staff_review",
+        statusReason: "Belső szétválasztás szükséges.",
+        staffNotes: "Helyi minta megkeresés.",
+        createdAt: "2026-06-05T14:00:00.000Z",
+        updatedAt: "2026-06-05T14:00:00.000Z",
+      },
     ];
     writeFixtureRows(rows);
     return rows;
@@ -230,17 +579,17 @@
       case "request_received":
         return "Új";
       case "needs_info":
-        return "Hiányzó adatok";
+        return REVIEW_STATUS_LABELS.needs_info;
       case "needs_staff_review":
-        return "Belső feldolgozás";
+        return REVIEW_STATUS_LABELS.needs_staff_review;
       case "routed":
-        return "Belső továbbítás";
+        return REVIEW_STATUS_LABELS.routed;
       case "declined":
-        return "Elutasítva";
+        return REVIEW_STATUS_LABELS.declined;
       case "archived":
-        return "Archivált";
+        return REVIEW_STATUS_LABELS.archived;
       default:
-        return "Belső feldolgozás";
+        return REVIEW_STATUS_LABELS.needs_staff_review;
     }
   }
 
@@ -281,7 +630,8 @@
     return {
       id: trimText(record.id),
       lane: trimText(record.lane),
-      laneLabel: trimText(record.laneLabel || record.lane_label || brief.laneLabelHu || brief.lane_label_hu),
+      laneLabel: trimText(record.laneLabel || record.lane_label || brief.laneLabelHu || brief.lane_label_hu)
+        || workspaceLabel(trimText(record.lane), "Általános érdeklődés"),
       confidence: trimText(record.confidence),
       requestText: trimText(record.requestText || record.request_text),
       siteOrObject: trimText(record.siteOrObject || record.site_or_object || brief.siteType || brief.site_type),
@@ -304,12 +654,12 @@
     };
   }
 
-  function getSelectedRecord() {
-    if (!state.records.length) {
+  function getSelectedRecord(records = state.records) {
+    if (!records.length) {
       return null;
     }
 
-    return state.records.find((record) => record.id === state.selectedId) || state.records[0];
+    return records.find((record) => record.id === state.selectedId) || records[0];
   }
 
   function renderAccount() {
@@ -371,25 +721,49 @@
     `;
   }
 
-  function metric(label, value) {
-    return `
-      <article class="erdp-metric">
-        <span>${escapeHtml(label)}</span>
-        <strong>${escapeHtml(value)}</strong>
-      </article>
-    `;
+  function filterRecordsForView(records, workspace = getWorkspaceDefinition()) {
+    if (workspace.type !== "service" || !workspace.laneKey) {
+      return records;
+    }
+
+    return records.filter((record) => trimText(record.lane).toLowerCase() === workspace.laneKey);
   }
 
-  function renderMetrics(summary) {
-    return `
-      <section class="erdp-metrics" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} áttekintés">
-        ${metric("Összes megkeresés", summary.total || 0)}
-        ${metric("Új", summary.requestReceived || 0)}
-        ${metric("Hiányzó adatok", summary.needsInfo || 0)}
-        ${metric("Belső feldolgozás", summary.needsStaffReview || 0)}
-        ${metric("Belső továbbítás / lezárt", (summary.routed || 0) + (summary.closed || 0))}
-      </section>
-    `;
+  function countRecords(records, predicate) {
+    return records.filter(predicate).length;
+  }
+
+  function buildLaneCounts(records) {
+    const serviceWorkspaces = getWorkspaceDefinitions().filter((workspace) => workspace.type === "service");
+    const counts = serviceWorkspaces.map((workspace) => ({
+      ...workspace,
+      count: countRecords(records, (record) => trimText(record.lane).toLowerCase() === workspace.laneKey),
+    }));
+    const generalCount = countRecords(records, (record) => trimText(record.lane).toLowerCase() === "general_enquiry");
+
+    if (generalCount) {
+      counts.push({
+        id: "general-enquiry",
+        hash: "requests",
+        type: "queue",
+        labelKey: "general_enquiry",
+        laneKey: "general_enquiry",
+        label: workspaceLabel("general_enquiry", "Általános érdeklődés"),
+        description: "Általános vagy még nem besorolt megkeresések a közös queue-ban.",
+        emptyState: "",
+        count: generalCount,
+      });
+    }
+
+    return counts;
+  }
+
+  function buildStatusCounts(records) {
+    return STATUS_ORDER.map((status) => ({
+      status,
+      label: statusLabel(status),
+      count: countRecords(records, (record) => trimText(record.status).toLowerCase() === status),
+    }));
   }
 
   function renderRequestRow(record, selected) {
@@ -407,13 +781,20 @@
     `;
   }
 
-  function renderQueue(records, selectedRecord) {
+  function renderQueue(records, selectedRecord, workspace = getWorkspaceDefinition()) {
+    const title = workspace.type === "service" ? workspace.label : "Megkeresések";
+    const description = workspace.description
+      || "Beérkező vállalati igények előszűrt összefoglalóval, hiányzó adattal és feldolgozási állapottal.";
+    const emptyText = workspace.type === "service"
+      ? (workspace.emptyState || "Ebben a szolgáltatási nézetben még nincs megkeresés.")
+      : (profile?.dashboard?.emptyQueue || "Még nincs beérkezett megkeresés.");
+
     return `
-      <section class="erdp-panel" id="queue" aria-label="Megkeresések">
+      <section class="erdp-panel erdp-queue-panel" id="queue" aria-label="${escapeHtml(title)}" data-erdp-filter-lane="${escapeHtml(workspace.laneKey || "all")}">
         <div class="erdp-panel-header">
           <div>
-            <h2>Megkeresések</h2>
-            <p>Beérkező vállalati igények előszűrt összefoglalóval, hiányzó adattal és feldolgozási állapottal.</p>
+            <h2>${escapeHtml(title)}</h2>
+            <p>${escapeHtml(description)}</p>
           </div>
           <button class="erdp-button" type="button" data-erdp-refresh>Frissítés</button>
         </div>
@@ -421,7 +802,7 @@
           <div class="erdp-request-list">
             ${records.length
               ? records.map((record) => renderRequestRow(record, record.id === selectedRecord?.id)).join("")
-              : `<div class="erdp-empty"><p>${escapeHtml(profile?.dashboard?.emptyQueue || "Még nincs beérkezett megkeresés.")}</p><p>${escapeHtml(profile?.dashboard?.emptyHint || "Nyissa meg az intake linket, és küldjön be egy tesztmegkeresést.")}</p></div>`}
+              : `<div class="erdp-empty"><p>${escapeHtml(emptyText)}</p><p>${escapeHtml(profile?.dashboard?.emptyHint || "Nyissa meg az intake linket, és küldjön be egy tesztmegkeresést.")}</p></div>`}
           </div>
         </div>
       </section>
@@ -460,40 +841,192 @@
     return record.structuredBrief?.contactNeed || "Kapcsolati adat hiányzik a visszajelzéshez.";
   }
 
-  function renderDetail(record) {
+  function snakeToCamel(value) {
+    return trimText(value).replace(/_([a-z])/g, (_match, letter) => letter.toUpperCase());
+  }
+
+  function camelToSnake(value) {
+    return trimText(value).replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  }
+
+  function normalizeBriefValue(value) {
+    if (Array.isArray(value)) {
+      return value.map(trimText).filter(Boolean).join(", ");
+    }
+
+    if (value && typeof value === "object") {
+      return "";
+    }
+
+    return trimText(value);
+  }
+
+  function readBriefCandidate(record, key) {
+    const variants = [...new Set([key, snakeToCamel(key), camelToSnake(key)])];
+    const brief = record.structuredBrief || {};
+
+    for (const variant of variants) {
+      const briefValue = normalizeBriefValue(brief[variant]);
+      if (briefValue) {
+        return briefValue;
+      }
+
+      const recordValue = normalizeBriefValue(record[variant]);
+      if (recordValue) {
+        return recordValue;
+      }
+    }
+
+    return "";
+  }
+
+  function readTemplateValue(record, templateItem) {
+    for (const key of templateItem.keys || []) {
+      const value = readBriefCandidate(record, key);
+      if (value) {
+        return value;
+      }
+    }
+
+    if (typeof templateItem.fallback === "function") {
+      return normalizeBriefValue(templateItem.fallback(record));
+    }
+
+    return "";
+  }
+
+  function getLaneBriefItems(record) {
+    const lane = trimText(record?.lane).toLowerCase() || "general_enquiry";
+    const template = LANE_BRIEF_TEMPLATES[lane] || LANE_BRIEF_TEMPLATES.general_enquiry;
+
+    return template.map((item) => {
+      const value = readTemplateValue(record, item);
+      return {
+        label: item.label,
+        value,
+        missing: !value,
+      };
+    });
+  }
+
+  function getMissingBriefLabels(record) {
+    return getLaneBriefItems(record)
+      .filter((item) => item.missing)
+      .map((item) => item.label);
+  }
+
+  function renderLaneBriefChecklist(record) {
+    const items = getLaneBriefItems(record);
+
+    return `
+      <section class="erdp-lane-brief" aria-label="Lane-specifikus brief" data-erdp-lane-brief="${escapeHtml(record.lane || "general_enquiry")}">
+        <div class="erdp-section-heading">
+          <h4>Lane-specifikus brief</h4>
+          <p>A mezők a meglévő strukturált briefből és a rögzített megkeresésből töltődnek.</p>
+        </div>
+        <dl class="erdp-lane-brief-list">
+          ${items.map((item) => `
+            <div class="${item.missing ? "is-missing" : ""}">
+              <dt>${escapeHtml(item.label)}</dt>
+              <dd>${escapeHtml(item.value || "tisztázandó")}</dd>
+            </div>
+          `).join("")}
+        </dl>
+      </section>
+    `;
+  }
+
+  function nextQuestionForMissingField(field) {
+    switch (trimText(field)) {
+      case "service_need":
+        return "Pontosan melyik szolgáltatási igényt kell belső feldolgozásra előkészíteni?";
+      case "location_or_site":
+        return "Melyik helyszínhez, objektumhoz vagy telephelyhez kapcsolódik a megkeresés?";
+      case "urgency_or_timing":
+        return "Mikor indulna az igény, van-e határidő vagy sürgősségi szint?";
+      case "contact_need":
+        return "Milyen biztonságos kapcsolati csatornán kérhető visszajelzés?";
+      default:
+        return "";
+    }
+  }
+
+  function getSuggestedNextQuestion(record) {
+    const missingQuestion = record.missingFields
+      .map(nextQuestionForMissingField)
+      .find(Boolean);
+
+    if (missingQuestion) {
+      return missingQuestion;
+    }
+
+    const missingBriefLabel = getMissingBriefLabels(record)[0];
+    if (missingBriefLabel) {
+      return `Pontosítsuk ezt: ${missingBriefLabel.toLowerCase()}?`;
+    }
+
+    return LANE_NEXT_QUESTIONS[trimText(record.lane).toLowerCase()]
+      || "Nincs kötelező következő kérdés. Belső ellenőrzés után dönthető el a következő válasz.";
+  }
+
+  function getRecommendedRoute(record) {
+    return RECOMMENDED_ROUTES[trimText(record?.lane).toLowerCase()]
+      || RECOMMENDED_ROUTES.general_enquiry;
+  }
+
+  function renderMissingInfo(record) {
+    const requiredMissing = record.missingFields.map(missingFieldLabel);
+    const briefMissing = getMissingBriefLabels(record);
+    const merged = [...new Set([...requiredMissing, ...briefMissing])];
+
+    return `
+      <div>
+        <span class="erdp-submit-note">Hiányzó / tisztázandó adatok</span>
+        <div class="erdp-missing-list">
+          ${merged.length
+            ? merged.map((field) => `<span>${escapeHtml(field)}</span>`).join("")
+            : "<span>nincs hiányzó minimális adat</span>"}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderBrief(record) {
     if (!record) {
       return `
-        <section class="erdp-panel" id="detail" aria-label="Összefoglaló">
+        <section class="erdp-panel erdp-brief-workspace-panel" id="brief" aria-label="Kiválasztott megkeresés brief">
           <div class="erdp-panel-header">
             <div>
-              <h2>Összefoglaló</h2>
+              <h2>Kiválasztott brief</h2>
               <p>Válassz ki egy megkeresést a részletekhez.</p>
             </div>
           </div>
           <div class="erdp-panel-body">
-            <div class="erdp-empty"><p>Az összefoglaló, a hiányzó adatok, a kapcsolati állapot és a belső megjegyzés itt jelenik meg.</p></div>
+            <div class="erdp-empty"><p>Az ügyféligény, ismert adatok és lane-specifikus checklist itt jelenik meg.</p></div>
           </div>
         </section>
       `;
     }
 
-    const missingFields = record.missingFields;
     const staffSummary = trimText(record.structuredBrief?.staffSummaryHu || record.structuredBrief?.staff_summary_hu)
       .replace(/^Belső brief:/i, "Belső összefoglaló:");
-    const saveStatus = REVIEW_ACTION_SET.has(record.status) ? record.status : "needs_staff_review";
 
     return `
-        <section class="erdp-panel" id="detail" aria-label="Összefoglaló">
+      <section class="erdp-panel erdp-brief-workspace-panel" id="brief" aria-label="Kiválasztott megkeresés brief">
         <div class="erdp-panel-header">
           <div>
-            <h2>Összefoglaló</h2>
-            <p>Szolgáltatási terület, hiányzó adatok, kapcsolat és belső jegyzet a feldolgozáshoz.</p>
+            <h2>Kiválasztott brief</h2>
+            <p>Amit az ügyfél kér, ami ismert, és mi maradt tisztázandó.</p>
           </div>
         </div>
         <div class="erdp-panel-body">
           <div class="erdp-detail-title">
             <h3>${escapeHtml(valueOrEmpty(record.serviceNeed || record.laneLabel))}</h3>
             <span class="erdp-badge ${escapeHtml(statusBadgeClass(record.status))}">${escapeHtml(statusLabel(record.status))}</span>
+          </div>
+          <div class="erdp-request-need">
+            <span>Ügyféligény</span>
+            <p>${escapeHtml(valueOrEmpty(record.requestText || record.serviceNeed))}</p>
           </div>
           <div class="erdp-detail-grid">
             ${detailItem("Szolgáltatási terület", record.laneLabel)}
@@ -509,13 +1042,48 @@
             ${detailItem("Beérkezett", formatDateTime(record.createdAt))}
             ${staffSummary ? detailItem("Belső összefoglaló", staffSummary) : ""}
           </div>
-          <div>
-            <span class="erdp-submit-note">Hiányzó adatok</span>
-            <div class="erdp-missing-list">
-              ${missingFields.length
-                ? missingFields.map((field) => `<span>${escapeHtml(missingFieldLabel(field))}</span>`).join("")
-                : "<span>nincs hiányzó minimális adat</span>"}
+          ${renderLaneBriefChecklist(record)}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderActionPanel(record) {
+    if (!record) {
+      return `
+        <section class="erdp-panel erdp-action-panel" id="actions" aria-label="Műveletek és routing">
+          <div class="erdp-panel-header">
+            <div>
+              <h2>Feldolgozás</h2>
+              <p>Válassz ki egy megkeresést a hiányzó adatokhoz és státuszhoz.</p>
             </div>
+          </div>
+          <div class="erdp-panel-body">
+            <div class="erdp-empty"><p>A következő kérdés, belső útvonal, státusz és jegyzet mezők itt jelennek meg.</p></div>
+          </div>
+        </section>
+      `;
+    }
+
+    const saveStatus = REVIEW_ACTION_SET.has(record.status) ? record.status : "needs_staff_review";
+
+    return `
+      <section class="erdp-panel erdp-action-panel" id="actions" aria-label="Műveletek és routing" data-erdp-safe-review-statuses="needs_info needs_staff_review routed declined archived">
+        <div class="erdp-panel-header">
+          <div>
+            <h2>Feldolgozás</h2>
+            <p>Hiányzó adat, következő kérdés, belső útvonal és biztonságos review státusz.</p>
+          </div>
+        </div>
+        <div class="erdp-panel-body">
+          ${renderMissingInfo(record)}
+          <div class="erdp-routing-card">
+            <span>Következő kérdés</span>
+            <strong>${escapeHtml(getSuggestedNextQuestion(record))}</strong>
+          </div>
+          <div class="erdp-routing-card">
+            <span>Javasolt belső útvonal</span>
+            <strong>${escapeHtml(getRecommendedRoute(record))}</strong>
           </div>
           <label class="erdp-field">
             Státusz oka
@@ -628,33 +1196,190 @@
     `;
   }
 
-  function renderDashboard() {
-    const records = state.records;
-    const summary = state.summary || buildSummary(records);
-    const selectedRecord = getSelectedRecord();
+  function renderSafetyStrip() {
+    return `
+      <section class="erdp-safety-strip" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} határok">
+        <div>
+          <strong>${escapeHtml(profile?.dashboard?.safetyTitle || "Setup teljes. A beérkező megkeresések belső feldolgozásra kerülnek.")}</strong>
+          <p>${escapeHtml(profile?.dashboard?.safetyBody || "Különálló megkereséskezelő felület előszűréshez, összefoglalóhoz és belső továbbításhoz.")}</p>
+        </div>
+        <span>${escapeHtml(profile?.dashboard?.setupActive || "Setup aktív")}</span>
+      </section>
+    `;
+  }
 
-    root.innerHTML = `
-      <div class="erdp-dashboard">
-        <section class="erdp-safety-strip" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} határok">
-          <div>
-            <strong>${escapeHtml(profile?.dashboard?.safetyTitle || "Setup teljes. A beérkező megkeresések belső feldolgozásra kerülnek.")}</strong>
-            <p>${escapeHtml(profile?.dashboard?.safetyBody || "Különálló megkereséskezelő felület előszűréshez, összefoglalóhoz és belső továbbításhoz.")}</p>
+  function renderRequestError() {
+    if (!state.requestError) {
+      return "";
+    }
+
+    return `
+      <section class="erdp-error-strip" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} betöltési hiba">
+        <strong>A megkeresések listája nem tölthető be.</strong>
+        <p>${escapeHtml(state.requestError.message)}</p>
+      </section>
+    `;
+  }
+
+  function renderOverview(records) {
+    const laneCounts = buildLaneCounts(records);
+    const statusCounts = buildStatusCounts(records);
+
+    return `
+      <section class="erdp-view-heading" aria-label="Áttekintés">
+        <div>
+          <h2>${escapeHtml(workspaceLabel("overview", "Áttekintés"))}</h2>
+          <p>${escapeHtml(workspaceDescription("overview", "Közös intake queue állapota szolgáltatási terület és feldolgozási státusz szerint."))}</p>
+        </div>
+      </section>
+      ${renderIntakeAccess()}
+      ${!records.length ? `
+        <section class="erdp-empty erdp-empty-wide" aria-label="Üres dashboard áttekintés">
+          <h2>Még nincs beérkezett megkeresés</h2>
+          <p>Nyisd meg az intake linket, küldj be egy tesztmegkeresést, majd térj vissza ide. A kérés a közös queue-ban és a besorolt szolgáltatási workspace-ben is megjelenik.</p>
+        </section>
+      ` : ""}
+      <div class="erdp-overview-grid">
+        <section class="erdp-panel" aria-label="Megkeresések szolgáltatási terület szerint" data-erdp-overview-lane-counts>
+          <div class="erdp-panel-header">
+            <div>
+              <h2>Szolgáltatási területek</h2>
+              <p>Ugyanaz a megkereséslista, lane szerinti munkanézetekre szűrve.</p>
+            </div>
           </div>
-          <span>${escapeHtml(profile?.dashboard?.setupActive || "Setup aktív")}</span>
+          <div class="erdp-panel-body erdp-lane-count-list">
+            ${laneCounts.map((lane) => `
+              <a class="erdp-lane-count-row" href="#${escapeHtml(lane.hash)}" data-erdp-lane-count="${escapeHtml(lane.laneKey || "all")}">
+                <span>
+                  <strong>${escapeHtml(lane.label)}</strong>
+                  <em>${escapeHtml(lane.description || "Szolgáltatási workspace")}</em>
+                </span>
+                <b>${escapeHtml(lane.count)}</b>
+              </a>
+            `).join("")}
+          </div>
+        </section>
+        <section class="erdp-panel" aria-label="Megkeresések státusz szerint" data-erdp-overview-status-counts>
+          <div class="erdp-panel-header">
+            <div>
+              <h2>Feldolgozási státuszok</h2>
+              <p>Csak biztonságos review státuszok és a beérkezett állapot szerepel.</p>
+            </div>
+          </div>
+          <div class="erdp-panel-body erdp-status-count-list">
+            ${statusCounts.map((entry) => `
+              <div class="erdp-status-count-row" data-erdp-status-count="${escapeHtml(entry.status)}">
+                <span>${escapeHtml(entry.label)}</span>
+                <strong>${escapeHtml(entry.count)}</strong>
+              </div>
+            `).join("")}
+          </div>
+        </section>
+      </div>
+      ${renderRecent(records)}
+    `;
+  }
+
+  function renderWorkspacePage(records, workspace) {
+    const filteredRecords = filterRecordsForView(records, workspace);
+    const selectedRecord = getSelectedRecord(filteredRecords);
+
+    return `
+      <section class="erdp-view-heading" aria-label="${escapeHtml(workspace.label)} workspace">
+        <div>
+          <h2>${escapeHtml(workspace.label)}</h2>
+          <p>${escapeHtml(workspace.description || "Közös intake queue szűrt munkanézete.")}</p>
+        </div>
+        <span>${escapeHtml(filteredRecords.length)} / ${escapeHtml(records.length)} megkeresés</span>
+      </section>
+      <div class="erdp-workspace erdp-workspace-three" data-erdp-workspace-columns data-erdp-active-lane="${escapeHtml(workspace.laneKey || "all")}">
+        ${renderQueue(filteredRecords, selectedRecord, workspace)}
+        ${renderBrief(selectedRecord)}
+        ${renderActionPanel(selectedRecord)}
+      </div>
+    `;
+  }
+
+  function renderSettings() {
+    const setup = state.setup || {};
+    const serviceLines = Array.isArray(setup.serviceLines)
+      ? setup.serviceLines
+      : (profile?.fixtureBusiness?.serviceTypes || profile?.lanes?.map((lane) => lane.labelHu) || []);
+    const boundaries = [
+      "Közös intake queue, szolgáltatási terület szerinti munkanézetekkel.",
+      "Csak hiányzó adat, belső ellenőrzés, továbbítva, elutasítva és archiválva státusz használható.",
+      "Végleges ár, szerződés, műszakterv és helyszíni riport nem készül ezen a felületen.",
+      "A belső döntést és választ a csapat kezeli.",
+    ];
+
+    return `
+      <section class="erdp-view-heading" aria-label="Beállítások">
+        <div>
+          <h2>${escapeHtml(workspaceLabel("settings", "Beállítások"))}</h2>
+          <p>${escapeHtml(workspaceDescription("settings", "Setup állapot, intake link, szolgáltatási vonalak és termékhatárok."))}</p>
+        </div>
+      </section>
+      <div class="erdp-settings-grid">
+        <section class="erdp-panel" aria-label="Setup állapot">
+          <div class="erdp-panel-header">
+            <div>
+              <h2>Setup állapot</h2>
+              <p>A dashboard csak setup után tölti a tulajdonosi queue-t.</p>
+            </div>
+          </div>
+          <div class="erdp-panel-body">
+            ${detailItem("Állapot", state.setupComplete ? "Setup aktív" : "Setup szükséges")}
+            ${detailItem("Szervezet", setup.organizationName || profile?.fixtureBusiness?.businessName)}
+            ${detailItem("Szolgáltatási terület", setup.serviceArea || profile?.fixtureBusiness?.serviceArea)}
+            ${detailItem("Belső továbbítás", setup.routingPreference || "internal_handoff")}
+          </div>
         </section>
         ${renderIntakeAccess()}
-        ${state.requestError ? `
-          <section class="erdp-error-strip" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} betöltési hiba">
-            <strong>A megkeresések listája nem tölthető be.</strong>
-            <p>${escapeHtml(state.requestError.message)}</p>
-          </section>
-        ` : ""}
-        ${renderMetrics(summary)}
-        <div class="erdp-workspace">
-          ${renderQueue(records, selectedRecord)}
-          ${renderDetail(selectedRecord)}
-        </div>
-        ${renderRecent(records)}
+        <section class="erdp-panel" aria-label="Szolgáltatási vonalak">
+          <div class="erdp-panel-header">
+            <div>
+              <h2>Szolgáltatási vonalak</h2>
+              <p>A workspace szűrés a request lane kulcsát használja, külön adattár nélkül.</p>
+            </div>
+          </div>
+          <div class="erdp-panel-body">
+            <div class="erdp-missing-list">
+              ${serviceLines.map((serviceLine) => `<span>${escapeHtml(serviceLine)}</span>`).join("")}
+            </div>
+          </div>
+        </section>
+        <section class="erdp-panel" aria-label="Termékhatárok">
+          <div class="erdp-panel-header">
+            <div>
+              <h2>Határok</h2>
+              <p>Phase 8 célja a kérésfeldolgozó workspace, nem operatív irányítás.</p>
+            </div>
+          </div>
+          <div class="erdp-panel-body erdp-boundary-stack">
+            ${boundaries.map((boundary) => `<span>${escapeHtml(boundary)}</span>`).join("")}
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function renderDashboard() {
+    updateActiveViewFromHash();
+    renderSidebarNav();
+
+    const records = state.records;
+    const workspace = getWorkspaceDefinition();
+    const viewHtml = workspace.type === "overview"
+      ? renderOverview(records)
+      : workspace.type === "settings"
+        ? renderSettings()
+        : renderWorkspacePage(records, workspace);
+
+    root.innerHTML = `
+      <div class="erdp-dashboard" data-erdp-active-view="${escapeHtml(workspace.id)}">
+        ${renderSafetyStrip()}
+        ${renderRequestError()}
+        ${viewHtml}
       </div>
     `;
   }
@@ -983,6 +1708,14 @@
   document.addEventListener("submit", async (event) => {
     if (event.target.matches("[data-erdp-auth-form]")) {
       await handleAuthSubmit(event);
+    }
+  });
+
+  window.addEventListener("hashchange", () => {
+    updateActiveViewFromHash();
+    renderSidebarNav();
+    if (state.setupComplete || window.VONZA_LOCAL_ENTERPRISE_DASHBOARD_FIXTURE === true) {
+      renderDashboard();
     }
   });
 

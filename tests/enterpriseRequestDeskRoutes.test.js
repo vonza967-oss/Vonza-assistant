@@ -916,6 +916,77 @@ test("Enterprise Request Desk public and dashboard pages render separately from 
   }
 });
 
+test("Enterprise dashboard source defines Phase 8 service-area workspaces", () => {
+  const dashboardHtml = readFileSync(
+    path.join(repoRoot, "frontend", "enterprise-request-desk-dashboard.html"),
+    "utf8"
+  );
+  const dashboardSource = readFileSync(
+    path.join(repoRoot, "frontend", "enterprise-request-desk-dashboard.js"),
+    "utf8"
+  );
+  const dashboardCss = readFileSync(
+    path.join(repoRoot, "frontend", "enterprise-request-desk.css"),
+    "utf8"
+  );
+  const expectedHashes = [
+    "#overview",
+    "#requests",
+    "#security-guarding",
+    "#reception-object-protection",
+    "#facility-management",
+    "#security-technology",
+    "#audit-compliance",
+    "#mixed",
+    "#settings",
+  ];
+  const expectedLaneKeys = [
+    "security_guarding",
+    "reception_object_protection",
+    "facility_management",
+    "security_technology",
+    "audit_compliance",
+    "mixed_enterprise_request",
+  ];
+  const reviewActionsBlock = dashboardSource.match(/const REVIEW_ACTIONS = Object\.freeze\(\[([\s\S]*?)\]\);/)?.[1] || "";
+
+  for (const hash of expectedHashes) {
+    assert.match(dashboardHtml, new RegExp(`href="${hash}"`));
+  }
+
+  for (const laneKey of expectedLaneKeys) {
+    assert.match(dashboardSource, new RegExp(`laneKey: "${laneKey}"`));
+  }
+
+  assert.match(dashboardSource, /function filterRecordsForView/);
+  assert.match(dashboardSource, /record\.lane\)\.toLowerCase\(\) === workspace\.laneKey/);
+  assert.match(dashboardSource, /id: "mixed"[\s\S]*laneKey: "mixed_enterprise_request"/);
+  assert.match(dashboardSource, /function buildLaneCounts/);
+  assert.match(dashboardSource, /function buildStatusCounts/);
+  assert.match(dashboardSource, /data-erdp-overview-lane-counts/);
+  assert.match(dashboardSource, /data-erdp-overview-status-counts/);
+  assert.match(dashboardSource, /erdp-workspace-three/);
+  assert.match(dashboardCss, /\.erdp-workspace-three[\s\S]*grid-template-columns: minmax\(280px, 0\.82fr\) minmax\(340px, 1\.12fr\) minmax\(300px, 0\.9fr\)/);
+  assert.match(dashboardSource, /Objektum típusa/);
+  assert.match(dashboardSource, /Recepció/);
+  assert.match(dashboardSource, /Hiba \/ üzemeltetési igény/);
+  assert.match(dashboardSource, /Kamera/);
+  assert.match(dashboardSource, /Audit \/ beszerzési kontextus/);
+  assert.match(dashboardSource, /Szétválasztandó igények/);
+  assert.match(reviewActionsBlock, /"needs_info", "Hiányzó adat"/);
+  assert.match(reviewActionsBlock, /"needs_staff_review", "Belső ellenőrzés"/);
+  assert.match(reviewActionsBlock, /"routed", "Továbbítva"/);
+  assert.match(reviewActionsBlock, /"declined", "Elutasítva"/);
+  assert.match(reviewActionsBlock, /"archived", "Archiválva"/);
+  assert.doesNotMatch(reviewActionsBlock, /request_received|quoted_externally|accepted_externally|price|quote/i);
+  assert.match(dashboardSource, /function renderSettings/);
+  assert.match(dashboardSource, /Setup állapot/);
+  assert.match(dashboardSource, /renderIntakeAccess\(\)/);
+  assert.doesNotMatch(dashboardSource, /\bQDH\b|Quote Desk HU|qdh[_-]|quote-desk-hu/i);
+  assert.doesNotMatch(dashboardSource, /\/widget|\/embed\.js|\/embed-lite\.js|assistant-embed/);
+  assert.doesNotMatch(dashboardSource, /SLA clock|vendor panel|operations cockpit|provider call|external provider|final price guarantee/i);
+});
+
 test("Enterprise frontend sources avoid QDH naming, provider actions, and final quote guarantees", () => {
   const sources = [
     "frontend/enterprise-request-desk-intake.html",
