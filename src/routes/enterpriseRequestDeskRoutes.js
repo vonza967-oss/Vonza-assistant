@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import express from "express";
 
+import { getOpenAIClient } from "../clients/openaiClient.js";
 import { getSupabaseClient } from "../clients/supabaseClient.js";
 import { getAuthenticatedUser } from "../services/auth/authService.js";
 import { requireActiveAgentAccess } from "../services/agents/agentService.js";
@@ -728,6 +729,9 @@ function buildStructuredBriefPreview(brief = {}) {
     contactName: cleanText(brief.contactName),
     organizationName: cleanText(brief.organizationName),
     siteType: cleanText(brief.siteType),
+    staffingRequirement: cleanText(brief.staffingRequirement),
+    assetsCoverageNotes: cleanText(brief.assetsCoverageNotes),
+    securityTechDetails: cleanText(brief.securityTechDetails),
     notes: cleanText(brief.notes).slice(0, 700),
   };
 }
@@ -761,6 +765,9 @@ function buildSafeAssistantResponse(analysis = {}, request = null) {
       contactPhone: cleanText(analysis.fields?.contactPhone),
       contactPreference: cleanText(analysis.fields?.contactPreference),
       siteType: cleanText(analysis.fields?.siteType),
+      staffingRequirement: cleanText(analysis.fields?.staffingRequirement),
+      assetsCoverageNotes: cleanText(analysis.fields?.assetsCoverageNotes),
+      securityTechDetails: cleanText(analysis.fields?.securityTechDetails),
       notes: cleanText(analysis.fields?.notes).slice(0, 700),
     },
     missingFields,
@@ -893,6 +900,7 @@ function buildSummary(records = []) {
 export function createEnterpriseRequestDeskRouter(deps = {}) {
   const router = express.Router();
   const getSupabase = deps.getSupabaseClient || getSupabaseClient;
+  const getOpenAI = deps.getOpenAIClient || getOpenAIClient;
   const authenticateUser = deps.getAuthenticatedUser || getAuthenticatedUser;
   const requireActiveAgentAccessImpl =
     deps.requireActiveAgentAccess || requireActiveAgentAccess;
@@ -1047,13 +1055,23 @@ export function createEnterpriseRequestDeskRouter(deps = {}) {
         const agent = await resolvePublicAgentImpl(supabase, {
           agentKey: intakeTurn.agentKey,
         });
+        let openai = null;
+
+        try {
+          openai = getOpenAI();
+        } catch {
+          openai = null;
+        }
+
         const analysis = await generateAssistantTurnImpl({
           supabase,
+          openai,
           agent,
           message: intakeTurn.message,
           conversation: intakeTurn.conversation,
           fields: intakeTurn.fields,
           businessContext: buildEnterpriseRequestDeskBusinessContext(agent, profile),
+          productProfileKey: profile.key,
           confirmSubmit: intakeTurn.confirmSubmit,
         });
         const readyToCreate =

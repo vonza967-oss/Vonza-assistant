@@ -117,6 +117,9 @@
       contactEmail: "Email",
       contactPhone: "Telefon",
       siteType: "Objektum",
+      staffingRequirement: "Létszám",
+      assetsCoverageNotes: "Értékek / lefedés",
+      securityTechDetails: "Biztonságtechnika",
       area: "Szolgáltatási terület",
     },
     missingFieldLabels: {
@@ -242,6 +245,9 @@
         locationOrSite: "Helyszín / objektum",
         urgencyOrTiming: "Lefedettség vagy időzítés",
         siteType: "Objektumtípus",
+        staffingRequirement: "Személyzet",
+        assetsCoverageNotes: "Tárolt értékek / lefedés",
+        securityTechDetails: "Kamera / beléptetés",
       },
       fixtureBusiness: {
         businessName: "ESG Holding Zrt.",

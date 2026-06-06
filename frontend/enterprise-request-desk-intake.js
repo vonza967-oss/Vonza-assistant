@@ -33,6 +33,9 @@
     contactEmail: "Email",
     contactPhone: "Telefon",
     siteType: "Objektum",
+    staffingRequirement: "Létszám",
+    assetsCoverageNotes: "Értékek / lefedés",
+    securityTechDetails: "Biztonságtechnika",
   });
   const SAMPLE_FIXTURE = Object.freeze({
     business: profile?.fixtureBusiness || {
@@ -107,6 +110,9 @@
       contactPhone: trimText(source.contactPhone || source.contact_phone),
       contactPreference: trimText(source.contactPreference || source.contact_preference),
       siteType: trimText(source.siteType || source.site_type || source.siteOrObject || source.site_or_object),
+      staffingRequirement: trimText(source.staffingRequirement || source.staffing_requirement || source.staffing || source.staffCount || source.staff_count),
+      assetsCoverageNotes: trimText(source.assetsCoverageNotes || source.assets_coverage_notes || source.coverageNotes || source.coverage_notes || source.assets),
+      securityTechDetails: trimText(source.securityTechDetails || source.security_tech_details || source.cameraAccessControlDetails || source.camera_access_control_details),
       notes: trimText(source.notes || source.requestText || source.request_text),
     };
   }
@@ -115,7 +121,16 @@
     return fieldSets.reduce((merged, fieldSet) => {
       const normalized = normalizeFields(fieldSet);
       Object.entries(normalized).forEach(([key, value]) => {
-        if (!merged[key] && value) {
+        if (
+          value
+          && ["serviceNeed", "staffingRequirement", "assetsCoverageNotes", "securityTechDetails"].includes(key)
+          && merged[key]
+          && normalizeSearch(merged[key]).indexOf(normalizeSearch(value)) === -1
+        ) {
+          merged[key] = normalizeSearch(value).indexOf(normalizeSearch(merged[key])) >= 0
+            ? value.slice(0, key === "serviceNeed" ? 220 : 280)
+            : `${merged[key]}; ${value}`.slice(0, key === "serviceNeed" ? 220 : 280);
+        } else if (!merged[key] && value) {
           merged[key] = value;
         }
       });
@@ -160,7 +175,7 @@
     const hasReceptionObjectProtection = /\b(porta\w*|portaszolgalat\w*|recepcio\w*|objektumvedelem\w*|objektumor\w*|reception|gatehouse)\b/.test(search)
       || (/\bbeleptetes\w*\b/.test(search) && /\b(porta\w*|recepcio\w*|objektum\w*)\b/.test(search) && !hasSecurityTechnology);
 
-    if (/\b(orzes\w*|vagyonor\w*|guard|jaror\w*|eloeros)\b/.test(search)) matches.push("security_guarding");
+    if (/\b(orzes\w*|vagyonor\w*|biztonsagi szolgalat\w*|biztonsagi or\w*|guard|jaror\w*|eloeros)\b/.test(search)) matches.push("security_guarding");
     if (hasReceptionObjectProtection) matches.push("reception_object_protection");
     if (/\b(facility|letesitmeny\w*|epuletuzemeltetes\w*|karbantartas\w*|takaritas\w*|uzemeltetes\w*|soft fm|fm|hibabejelentes\w*)\b/.test(search)) matches.push("facility_management");
     if (hasSecurityTechnology) matches.push("security_technology");
@@ -202,36 +217,75 @@
       || []
     )[1] || "";
     const knownLocation = (
-      text.match(/\b(Budapest(?:\s?(?:[IVXLCDM]+\.?|\d{1,2}\.?\s?ker(?:ület)?))?|Debrecen|Szeged|Miskolc|Pécs|Győr|Pest megye|országos|orsz[aá]gos)(?:en|on|ban|ben|i|an|re|ra|hoz|hez|höz)?\b/i)
+      text.match(/\b(Budapest(?:\s?(?:[IVXLCDM]+\.?|\d{1,2}\.?\s?ker(?:ület)?))?|Budakalász|Debrecen|Szeged|Miskolc|Pécs|Győr|Pest megye|országos|orsz[aá]gos)(?:en|on|ban|ben|i|an|re|ra|hoz|hez|höz)?\b/i)
       || []
     )[1] || "";
     const explicitLocation = (
       text.match(/\b(?:helysz[ií]n|telephely|objektum|site|location)\s*[:-]\s*([^.,!?;]{2,100})/i)
+      || text.match(/\b(?:helysz[ií]n(?:em|[uü]nk)?|telephely(?:em|[uü]nk)?|objektum(?:unk)?|site|location)\s+(?:van|lesz|lenne|tal[aá]lhat[oó]|m[uű]k[oö]dik)\s+([^.,!?;]{2,100})/i)
       || []
     )[1] || "";
     const siteType = (
-      text.match(/\b(irodah[aá]z|iroda|rakt[aá]r|gy[aá]r|telephely|ipari park|logisztikai k[oö]zpont|kiskereskedelmi helysz[ií]n|sz[aá]lloda|sportl[eé]tes[ií]tm[eé]ny|oktat[aá]si int[eé]zm[eé]ny|[aá]llom[aá]s|facility|warehouse|office building)\b/i)
+      text.match(/\b(irodah[aá]z|iroda|rakt[aá]r|gy[aá]r|telephely(?:em|[uü]nk)?|ipari park|logisztikai k[oö]zpont|kiskereskedelmi helysz[ií]n|sz[aá]lloda|sportl[eé]tes[ií]tm[eé]ny|oktat[aá]si int[eé]zm[eé]ny|[aá]llom[aá]s|facility|warehouse|office building)\b/i)
       || []
     )[1] || "";
+    const numericStaff = (text.match(/\b(\d{1,2})\s*(?:f[oő]|ember(?:rel|t)?|vagyon[oő]r(?:rel|t)?|biztons[aá]gi\s+[oő]r(?:rel|t)?)\b/i) || [])[1] || "";
+    const wordStaff = /\bk[eé]t\s+(?:f[oő]|ember|vagyon[oő]r|biztons[aá]gi\s+[oő]r)\b/i.test(text) ? "2" : "";
+    const staffingRequirement = numericStaff || wordStaff ? `${numericStaff || wordStaff} fő` : "";
+    const assetLabels = [];
+    const coverageLabels = [];
+    const securityTechLabels = [];
+    const serviceNeedSignals = [];
     let urgency = "";
 
     if (/\b(ma|holnap|azonnal|minel hamarabb|surgos|asap)\b/.test(search)) urgency = "minél hamarabb";
     else if (/\b(jovo het\w*|hetfo\w*|kedd\w*|szerda\w*|csutortok\w*|pentek\w*|next week)\b/.test(search)) urgency = "jövő héten";
     else if (/\b(1\s?[-–]\s?2 het(?:en)?(?: belul)?|egy-ket het(?:en)?(?: belul)?|ket heten belul|1\s?[-–]\s?2 weeks?)\b/.test(search)) urgency = "1-2 héten belül";
     else if (/\b(jovo honap\w*|next month|negyedev vegeig)\b/.test(search)) urgency = "következő időszakban";
-    else if (/\b(folyamatos|rendszeres|hosszu tavu)\b/.test(search)) urgency = "folyamatos igény";
+    else if (/\b(0\s?[-–]?\s?24|24\/7|non[-\s]?stop|ejjel[-\s]?nappal|folyamatos|rendszeres|hosszu tavu)\b/.test(search)) urgency = "0-24 / folyamatos lefedés";
+
+    if (/\bauto\w*/.test(search)) assetLabels.push("autók");
+    if (/\bjarmu\w*/.test(search)) assetLabels.push("járművek");
+    if (/\bhajo\w*/.test(search)) assetLabels.push("hajók");
+    if (/\begesz terulet\w*/.test(search)) coverageLabels.push("egész terület");
+    if (/\bbelso\w*\/kulso\w*|belso\w*.{0,35}kulso\w*|kulso\w*.{0,35}belso\w*/.test(search)) coverageLabels.push("belső/külső lefedés");
+    if (/\b0\s?[-–]?\s?24|24\/7|non[-\s]?stop|ejjel[-\s]?nappal/.test(search)) coverageLabels.push("0-24 lefedés");
+    if (/\bkamera\w*|cctv|megfigyel\w*/.test(search)) {
+      coverageLabels.push("kamerás megfigyelés");
+      securityTechLabels.push("kamerarendszer / CCTV");
+    }
+    if (/\bbeleptet\w*|access control/.test(search)) securityTechLabels.push("beléptetés / access control");
+    if (/\bkamera\w*|cctv/.test(search) && /\bbeleptet\w*|access control/.test(search)) serviceNeedSignals.push("kamerarendszer és beléptetés");
+    else if (/\bkamera\w*|cctv/.test(search)) serviceNeedSignals.push("kamerarendszer / CCTV");
+    else if (/\bbeleptet\w*|access control/.test(search)) serviceNeedSignals.push("beléptetés / access control");
+    if (/\b0\s?[-–]?\s?24|24\/7|non[-\s]?stop|ejjel[-\s]?nappal/.test(search) && /\bbiztonsagi szolgalat\w*|orzes\w*|vagyonor\w*|biztonsagi or\w*/.test(search)) {
+      serviceNeedSignals.push("0-24 biztonsági szolgálat");
+    }
+    if (/\bmegfigyel\w*|felugyel\w*/.test(search)) securityTechLabels.push("megfigyelés");
+    if (/\bbelso\w*\/kulso\w*|belso\w*.{0,35}kulso\w*|kulso\w*.{0,35}belso\w*/.test(search)) securityTechLabels.push("belső/külső kamerázás");
+    if (/\bkapu\w*.{0,80}kishaz\w*|kishaz\w*.{0,80}kapu\w*/.test(search)) securityTechLabels.push("kapunál kialakított felügyeleti pont");
 
     return normalizeFields({
       organizationName,
       serviceNeed: laneKey && laneKey !== "general_enquiry"
-        ? foundLane.labelHu
-        : trimText((text.match(/\b(?:sz[uü]ks[eé]g(?:[uü]nk)? van|kellene|szeretn[eé]nk)\s+([^.,!?;]{3,120})/i) || [])[1] || ""),
-      locationOrSite: explicitLocation || knownLocation,
+        ? [...new Set(serviceNeedSignals)].join("; ") || foundLane.labelHu
+        : trimText((
+          text.match(/\b([^.,!?;]{3,120}?)\s+(?:kellene|kell|szeretn[eé]nk|sz[uü]ks[eé]ges)\b/i)
+          || text.match(/\b(?:sz[uü]ks[eé]g(?:[uü]nk)? van|sz[uü]ks[eé]g lenne|kellene|szeretn[eé]nk)\s+(?:egy|az|a)?\s*([^.,!?;]{3,120})/i)
+          || []
+        )[1] || [...new Set(serviceNeedSignals)].join("; ")),
+      locationOrSite: trimText(explicitLocation || knownLocation).replace(/\b(Budakalász)(?:on|en|ban|ben)\b/i, "$1"),
       urgencyOrTiming: urgency,
       contactName,
       contactEmail: email,
       contactPhone: phone,
       siteType,
+      staffingRequirement,
+      assetsCoverageNotes: [
+        assetLabels.length ? `Tárolt értékek: ${assetLabels.join(", ")}` : "",
+        coverageLabels.length ? `Lefedés: ${[...new Set(coverageLabels)].join(", ")}` : "",
+      ].filter(Boolean).join("; "),
+      securityTechDetails: [...new Set(securityTechLabels)].join("; "),
       notes: text.length >= 24 ? text : "",
     });
   }
@@ -341,9 +395,13 @@
         contactPhone: fields.contactPhone,
         organizationName: fields.organizationName,
         siteType: fields.siteType,
+        staffingRequirement: fields.staffingRequirement,
+        assetsCoverageNotes: fields.assetsCoverageNotes,
+        securityTechDetails: fields.securityTechDetails,
         notes: fields.notes,
         missingFields: [],
         readyForOwnerReview: true,
+        readyToSubmit: true,
         staffSummaryHu: `Belső összefoglaló: ${currentLane.labelHu}. Igény: ${serviceNeed}. Helyszín: ${fields.locationOrSite}.`,
       },
       status: "request_received",
@@ -352,6 +410,23 @@
       createdAt: now,
       updatedAt: now,
     };
+  }
+
+  function buildFixtureAcknowledgement(values = fields) {
+    const normalized = normalizeFields(values);
+    const details = [
+      normalized.locationOrSite ? `helyszín: ${normalized.locationOrSite}` : "",
+      normalized.siteType ? `objektum: ${normalized.siteType}` : "",
+      normalized.serviceNeed ? `igény: ${normalized.serviceNeed}` : "",
+      normalized.securityTechDetails ? `biztonságtechnika: ${normalized.securityTechDetails}` : "",
+      normalized.assetsCoverageNotes ? `értékek/lefedés: ${normalized.assetsCoverageNotes}` : "",
+      normalized.staffingRequirement ? `létszám: ${normalized.staffingRequirement}` : "",
+      normalized.urgencyOrTiming ? `lefedettség/időzítés: ${normalized.urgencyOrTiming}` : "",
+    ].filter(Boolean).slice(0, 6);
+
+    return details.length
+      ? `Rögzítettem a fő részleteket: ${details.join("; ")}.`
+      : "Rögzítettem, amit megadott.";
   }
 
   async function runFixtureAssistantTurn({
@@ -386,9 +461,7 @@
     } else if (pricingBoundary) {
       reply = `Pontos vagy garantált árat itt nem adok. A csapat a részletek áttekintése után tud visszajelezni a következő lépésről.\n\n${buildNextQuestion(currentLane.key, missing)}`;
     } else if (missing.length) {
-      reply = isEsgProfile
-        ? `Értettem, amit megadott. ${buildNextQuestion(currentLane.key, missing)}`
-        : `Rögzítettem, amit megadott. ${buildNextQuestion(currentLane.key, missing)}`;
+      reply = `${buildFixtureAcknowledgement(mergedFields)} ${buildNextQuestion(currentLane.key, missing)}`;
     } else if (confirmSubmit && !consentAcknowledged) {
       reply = profile?.intake?.reviewBody
         || "A megkeresés elküldéséhez előbb el kell fogadni az áttekintési tájékoztatást.";
@@ -403,7 +476,7 @@
       };
       reply = request.message;
     } else {
-      reply = "Összegyűjtöttem a minimális adatokat. Ellenőrizze a rövid összefoglalót, majd erősítse meg a rögzítést.";
+      reply = `${buildFixtureAcknowledgement(mergedFields)} A minimális adatok megvannak. Ellenőrizze a rövid összefoglalót, majd erősítse meg a rögzítést.`;
     }
 
     return {
@@ -424,6 +497,9 @@
         contactName: mergedFields.contactName,
         organizationName: mergedFields.organizationName,
         siteType: mergedFields.siteType,
+        staffingRequirement: mergedFields.staffingRequirement,
+        assetsCoverageNotes: mergedFields.assetsCoverageNotes,
+        securityTechDetails: mergedFields.securityTechDetails,
         confidence: currentLane.key === "general_enquiry" ? "low" : "medium",
         notes: promptBoundary ? "" : mergedFields.notes,
       },
@@ -665,6 +741,9 @@
       [DETAIL_LABELS.locationOrSite, liveFields.locationOrSite || briefPreview.locationOrSite],
       [DETAIL_LABELS.urgencyOrTiming, liveFields.urgencyOrTiming || briefPreview.urgencyOrTiming],
       [DETAIL_LABELS.siteType, liveFields.siteType || briefPreview.siteType],
+      [DETAIL_LABELS.staffingRequirement, liveFields.staffingRequirement || briefPreview.staffingRequirement],
+      [DETAIL_LABELS.assetsCoverageNotes, liveFields.assetsCoverageNotes || briefPreview.assetsCoverageNotes],
+      [DETAIL_LABELS.securityTechDetails, liveFields.securityTechDetails || briefPreview.securityTechDetails],
       [DETAIL_LABELS.contactName, liveFields.contactName || briefPreview.contactName],
       [DETAIL_LABELS.contactEmail, liveFields.contactEmail],
       [DETAIL_LABELS.contactPhone, liveFields.contactPhone],
@@ -757,6 +836,18 @@
             <label class="erdp-field">
               Objektum
               <input name="siteType" autocomplete="off" value="${escapeHtml(fields.siteType)}">
+            </label>
+            <label class="erdp-field">
+              Létszám
+              <input name="staffingRequirement" autocomplete="off" value="${escapeHtml(fields.staffingRequirement)}">
+            </label>
+            <label class="erdp-field erdp-field-wide">
+              Értékek / lefedés
+              <input name="assetsCoverageNotes" autocomplete="off" value="${escapeHtml(fields.assetsCoverageNotes)}">
+            </label>
+            <label class="erdp-field erdp-field-wide">
+              Biztonságtechnika
+              <input name="securityTechDetails" autocomplete="off" value="${escapeHtml(fields.securityTechDetails)}">
             </label>
             <label class="erdp-field">
               Kapcsolattartó
@@ -975,6 +1066,9 @@
       contactEmail: trimText(formData.get("contactEmail")).toLowerCase(),
       contactPhone: trimText(formData.get("contactPhone")),
       siteType: trimText(formData.get("siteType")),
+      staffingRequirement: trimText(formData.get("staffingRequirement")),
+      assetsCoverageNotes: trimText(formData.get("assetsCoverageNotes")),
+      securityTechDetails: trimText(formData.get("securityTechDetails")),
       notes: trimText(formData.get("notes")),
     });
     fields.serviceNeed = normalizeServiceNeedForProfile(fields.serviceNeed, lane.key);

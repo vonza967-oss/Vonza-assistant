@@ -290,6 +290,100 @@ test("Enterprise Request Desk can reuse an injected shared Front Desk turn for s
   assert.doesNotMatch(result.assistantReply, INTERNAL_LEAK_PATTERN);
 });
 
+test("ESG normal intake invokes shared Front Desk intelligence when available", async () => {
+  const captured = {};
+  const result = await generateEnterpriseRequestDeskAssistantTurn({
+    message: "Kamerarendszert és beléptetést szeretnénk.",
+    businessContext: ESG_HOLDING_ENTERPRISE_REQUEST_DESK_FIXTURE,
+    productProfileKey: "esg",
+  }, {
+    generateSharedChatAssistantTurn: async (input) => {
+      captured.input = input;
+      return {
+        reply: "Rögzítettem a kamerarendszer és beléptetés igényt. Melyik helyszínen lenne a feladat?",
+        usedSharedEngine: true,
+      };
+    },
+  });
+
+  assert.equal(result.conversationMode, "enterprise_intake");
+  assert.equal(result.usedSharedChatEngine, true);
+  assert.equal(captured.input.agentPackage.key, "enterprise_request_desk");
+  assert.equal(captured.input.conversationSource, ENTERPRISE_REQUEST_DESK_SHARED_CONVERSATION_SOURCE);
+  assert.match(captured.input.fallbackWebsiteContent.content, /ESG Request Desk/);
+  assert.match(captured.input.fallbackWebsiteContent.content, /Felismert igény:/);
+  assert.match(result.assistantReply, /kamerarendszer és beléptetés/i);
+  assert.doesNotMatch(result.assistantReply, INTERNAL_LEAK_PATTERN);
+});
+
+test("ESG rich Budakalász security-tech and guarding intake does not repeat site question", async () => {
+  const captured = {};
+  const firstTurn = "Kamerarendszert és beléptetést szeretnénk.";
+  const secondTurn =
+    "Egy telephelyem van Budakalászon, autókat, járműveket, kisebb hajókat tárolunk ott, és szükség lenne az egész terület belső/külső non stop megfigyelésére kamerával, és 0-24-biztonsági szolgálatra (2 emberrel) akik, egy gondoltam hogy a kapunal felhuzott kishazban tudnak felugyelni a kamerakat es biztonsagat a teruletnek.";
+
+  const result = await generateEnterpriseRequestDeskAssistantTurn({
+    message: secondTurn,
+    conversation: [
+      { role: "user", content: firstTurn },
+      {
+        role: "assistant",
+        content: "Rögzítettem a kamera és beléptetés igényt. Milyen helyszínről van szó?",
+      },
+    ],
+    businessContext: ESG_HOLDING_ENTERPRISE_REQUEST_DESK_FIXTURE,
+    productProfileKey: "esg",
+  }, {
+    generateSharedChatAssistantTurn: async (input) => {
+      captured.input = input;
+      return {
+        reply: "Értem. Melyik településen vagy pontosan milyen objektumban lenne a feladat?",
+        usedSharedEngine: true,
+      };
+    },
+  });
+  const brief = result.structuredBrief;
+
+  assert.equal(result.usedSharedChatEngine, true);
+  assert.match(captured.input.fallbackWebsiteContent.content, /Budakalász/);
+  assert.equal(brief.lane, "mixed_enterprise_request");
+  assert.match(brief.locationOrSite, /Budakalász/i);
+  assert.match(brief.siteType, /telephely/i);
+  assert.match(brief.serviceNeed, /kamerarendszer|bel[eé]ptet[eé]s|0-24/i);
+  assert.match(brief.urgencyOrTiming, /0\s?[-–]?\s?24|non/i);
+  assert.match(brief.staffingRequirement, /2 fő/);
+  assert.match(brief.assetsCoverageNotes, /autók|járművek|hajók/i);
+  assert.match(brief.assetsCoverageNotes, /0-24|belső\/külső|kamerás/i);
+  assert.match(brief.securityTechDetails, /kamerarendszer|CCTV/i);
+  assert.match(brief.securityTechDetails, /beléptetés|access control/i);
+  assert.deepEqual(brief.missingFields, ["contact_need"]);
+  assert.equal(brief.readyForOwnerReview, false);
+  assert.doesNotMatch(result.assistantReply, /melyik telep[uü]l[eé]s|milyen objektum(?:ban|r[oó]l)? lenne|hol van/i);
+  assert.match(result.assistantReply, /Budakal[aá]sz|telephely/i);
+  assert.match(result.assistantReply, /el[eé]rhet[oő]s[eé]g|kontakt|email|telefon/i);
+  assert.doesNotMatch(result.assistantReply, INTERNAL_LEAK_PATTERN);
+});
+
+test("ESG deterministic fallback still builds rich brief when shared intelligence fails", async () => {
+  const result = await generateEnterpriseRequestDeskAssistantTurn({
+    message:
+      "Budakalászon egy telephelyen kamerás belső/külső megfigyelés és 0-24 biztonsági szolgálat kell 2 fővel. Email: ops@example.hu.",
+    businessContext: ESG_HOLDING_ENTERPRISE_REQUEST_DESK_FIXTURE,
+    productProfileKey: "esg",
+  }, {
+    generateSharedChatAssistantTurn: async () => {
+      throw new Error("shared unavailable");
+    },
+  });
+
+  assert.equal(result.usedSharedChatEngine, false);
+  assert.equal(result.structuredBrief.lane, "mixed_enterprise_request");
+  assert.match(result.structuredBrief.locationOrSite, /Budakalász/i);
+  assert.match(result.structuredBrief.staffingRequirement, /2 fő/);
+  assert.equal(result.structuredBrief.contactEmail, "ops@example.hu");
+  assert.doesNotMatch(result.assistantReply, INTERNAL_LEAK_PATTERN);
+});
+
 test("Enterprise Request Desk builds a structured internal brief without creating QDH quote requests", async () => {
   const result = await generateEnterpriseRequestDeskAssistantTurn({
     message:
@@ -589,7 +683,7 @@ test("Enterprise Request Desk Phase 10 dashboard workflow layer is fixture-gated
 test("Enterprise Request Desk eval suite passes", async () => {
   const report = await runEnterpriseRequestDeskEvaluation();
 
-  assert.equal(report.summary.total, 15);
+  assert.equal(report.summary.total, 16);
   assert.equal(report.summary.failed, 0);
-  assert.equal(report.summary.passed, 15);
+  assert.equal(report.summary.passed, 16);
 });

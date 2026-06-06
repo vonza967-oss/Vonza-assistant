@@ -305,6 +305,117 @@ function buildMissingVerifiedContactReply(language) {
   return "I do not have a confirmed contact detail for this business here.\n\nYou can leave your details and the business can follow up.";
 }
 
+const APPROVED_CONTACT_GUIDANCE_STOPWORDS = new Set([
+  "answer",
+  "approved",
+  "best",
+  "business",
+  "call",
+  "contact",
+  "customer",
+  "describe",
+  "detail",
+  "details",
+  "email",
+  "follow",
+  "guidance",
+  "here",
+  "intake",
+  "join",
+  "leave",
+  "name",
+  "phone",
+  "product",
+  "question",
+  "reach",
+  "share",
+  "should",
+  "team",
+  "text",
+  "this",
+  "their",
+  "they",
+  "use",
+  "visitor",
+  "visitors",
+  "what",
+  "when",
+  "with",
+  "would",
+  "your",
+]);
+
+function tokenizeApprovedContactGuidance(value = "") {
+  return (cleanText(value).match(/[a-z0-9]+/gi) || [])
+    .map((token) => token.toLowerCase())
+    .filter((token) =>
+      (token.length >= 4 || /\d/.test(token)) &&
+      !APPROVED_CONTACT_GUIDANCE_STOPWORDS.has(token)
+    );
+}
+
+function replyUsesApprovedContactGuidance(reply = "", approvedAnswers = []) {
+  const replyTokens = new Set(tokenizeApprovedContactGuidance(reply));
+  if (!replyTokens.size) {
+    return false;
+  }
+
+  return approvedAnswers.some((answer) => {
+    const answerText = cleanText(answer.answerText || answer.answer_text);
+    if (!answerText) {
+      return false;
+    }
+
+    const matchingTokens = tokenizeApprovedContactGuidance(answerText)
+      .filter((token) => replyTokens.has(token));
+
+    return matchingTokens.some((token) => /\d/.test(token)) || matchingTokens.length >= 2;
+  });
+}
+
+function replyIncludesMissingInfoFallback(reply = "") {
+  return /\b(?:do not have|don't have|does not have|does not list|not listed|not shown|not confirmed|cannot confirm|can(?:'|\u2019)t confirm|Front Desk does not have|I do not have|nem látok|nincs megadva|nem szerepel)\b/i.test(cleanText(reply));
+}
+
+function getRequestedUnlistedServiceLabel(userMessage = "") {
+  const normalized = cleanText(userMessage).toLowerCase();
+
+  if (/\belectric scooters?\b/i.test(normalized)) {
+    return "electric scooter repair";
+  }
+
+  if (/\bmotorcycles?\b/i.test(normalized)) {
+    return "motorcycle repair";
+  }
+
+  if (/\bon-?site\b|\bmobile repair\b/i.test(normalized)) {
+    return "on-site mobile repair";
+  }
+
+  if (/\b24\/7\b|\bemergency repair\b/i.test(normalized)) {
+    return "24/7 emergency repair";
+  }
+
+  return "";
+}
+
+function trustedContextSaysRequestedServiceIsUnlisted(context = "", userMessage = "") {
+  const serviceLabel = getRequestedUnlistedServiceLabel(userMessage);
+  if (!serviceLabel) {
+    return false;
+  }
+
+  const normalizedContext = cleanText(context).toLowerCase();
+  const requiredTerms = serviceLabel
+    .replace(/\brepair\b/g, "")
+    .split(/\s+/)
+    .map((term) => term.trim())
+    .filter(Boolean);
+  const hasMissingServiceSignal = /\b(?:does not|doesn't|do not|don't)\s+list\b|\bnot listed\b|\bnot shown\b/i.test(normalizedContext);
+
+  return hasMissingServiceSignal && requiredTerms.every((term) => normalizedContext.includes(term));
+}
+
 export function buildMissingListedServiceReply(language, userMessage = "") {
   const normalizedMessage = cleanText(userMessage).toLowerCase();
   const serviceLabel = /\belectric scooters?\b/i.test(normalizedMessage)
@@ -1433,7 +1544,11 @@ function applyFinalReplySafetyValidation({
   }
 
   if (detectUserIntent(request.effectiveUserText, request.history) === "contact") {
-    if (!knowledge.trustedBusinessContactEvidence.hasVerifiedContactDetail && !knowledge.trustedBusinessContactEvidence.hasApprovedContactGuidance) {
+    const usesApprovedContactGuidance = knowledge.trustedBusinessContactEvidence.hasApprovedContactGuidance
+      && replyUsesApprovedContactGuidance(finalReply, knowledge.relevantApprovedAnswers)
+      && !replyContainsUntrustedContactDetail(finalReply, knowledge.trustedBusinessContactEvidence);
+
+    if (!knowledge.trustedBusinessContactEvidence.hasVerifiedContactDetail && !usesApprovedContactGuidance) {
       finalReply = buildMissingVerifiedContactReply(request.language);
     } else if (replyContainsUntrustedContactDetail(finalReply, knowledge.trustedBusinessContactEvidence)) {
       console.warn("[chat] Replacing untrusted contact-detail reply with grounded fallback.", {
@@ -1454,6 +1569,21 @@ function applyFinalReplySafetyValidation({
   });
   if (finalGuardrailIssues.some((issue) => /unsupported service denial/i.test(issue))) {
     console.warn("[chat] Replacing unsupported service-denial reply with grounded fallback.", {
+      agentId: agent.id,
+      installId: request.installId,
+      pageUrl: request.pageUrl,
+    });
+    finalReply = buildMissingListedServiceReply(request.language, request.effectiveUserText);
+  }
+
+  if (
+    trustedContextSaysRequestedServiceIsUnlisted(
+      [knowledge.retrievedBusinessContext, knowledge.approvedAnswersPrompt].join("\n\n"),
+      request.effectiveUserText
+    )
+    && !replyIncludesMissingInfoFallback(finalReply)
+  ) {
+    console.warn("[chat] Replacing unlisted-service reply with grounded fallback.", {
       agentId: agent.id,
       installId: request.installId,
       pageUrl: request.pageUrl,

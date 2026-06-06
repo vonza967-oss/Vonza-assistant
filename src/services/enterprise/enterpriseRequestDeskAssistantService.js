@@ -8,6 +8,7 @@ import {
   isPlaceholderPhone,
   sanitizeChatHistory,
 } from "../../utils/text.js";
+import { generateSharedChatAssistantTurn } from "../chat/chatService.js";
 import enterpriseRequestDeskManifest from "../../agentPackages/enterprise_request_desk/manifest.js";
 import {
   classifyEnterpriseRequestDeskLane,
@@ -34,6 +35,9 @@ const FIELD_LIMITS = Object.freeze({
   contactPhone: 80,
   contactPreference: 120,
   siteType: 120,
+  staffingRequirement: 120,
+  assetsCoverageNotes: 280,
+  securityTechDetails: 280,
   notes: 1200,
 });
 
@@ -56,6 +60,33 @@ const FIELD_ALIASES = Object.freeze({
   contactPhone: ["contactPhone", "contact_phone", "customerPhone", "customer_phone", "phone", "telefon"],
   contactPreference: ["contactPreference", "contact_preference", "preferredContact", "preferred_contact"],
   siteType: ["siteType", "site_type", "objectType", "object_type", "assetType", "asset_type"],
+  staffingRequirement: [
+    "staffingRequirement",
+    "staffing_requirement",
+    "staffing",
+    "staffCount",
+    "staff_count",
+    "personnel",
+    "letszam",
+    "létszám",
+  ],
+  assetsCoverageNotes: [
+    "assetsCoverageNotes",
+    "assets_coverage_notes",
+    "coverageNotes",
+    "coverage_notes",
+    "assets",
+    "assetNotes",
+    "asset_notes",
+  ],
+  securityTechDetails: [
+    "securityTechDetails",
+    "security_tech_details",
+    "cameraAccessControlDetails",
+    "camera_access_control_details",
+    "techDetails",
+    "tech_details",
+  ],
   notes: ["notes", "projectDetails", "project_details", "details", "description"],
 });
 
@@ -67,7 +98,7 @@ const REQUIRED_FIELD_LABELS_HU = Object.freeze({
 });
 
 const KNOWN_LOCATION_PATTERN =
-  /\b(Budapest(?:\s?(?:[IVXLCDM]+\.?|\d{1,2}\.?\s?ker(?:ület)?|belváros|Buda|Pest))?|Debrecen|Szeged|Miskolc|Pécs|Győr|Nyíregyháza|Kecskemét|Székesfehérvár|Szombathely|Szolnok|Tatabánya|Kaposvár|Békéscsaba|Érd|Veszprém|Sopron|Eger|Nagykanizsa|Dunaújváros|Hódmezővásárhely|Dunakeszi|Szigetszentmiklós|Pest megye|országos|orsz[aá]gos|nationwide)(?:en|on|ban|ben|i|an|re|ra|hoz|hez|höz)?\b/i;
+  /\b(Budapest(?:\s?(?:[IVXLCDM]+\.?|\d{1,2}\.?\s?ker(?:ület)?|belváros|Buda|Pest))?|Budakalász|Debrecen|Szeged|Miskolc|Pécs|Győr|Nyíregyháza|Kecskemét|Székesfehérvár|Szombathely|Szolnok|Tatabánya|Kaposvár|Békéscsaba|Érd|Veszprém|Sopron|Eger|Nagykanizsa|Dunaújváros|Hódmezővásárhely|Dunakeszi|Szigetszentmiklós|Pest megye|országos|orsz[aá]gos|nationwide)(?:en|on|ban|ben|i|an|re|ra|hoz|hez|höz)?\b/i;
 const SERVICE_QUESTION_PATTERN =
   /\b(milyen szolg[aá]ltat[aá]s(?:ok|okra|okat)?|mire haszn[aá]lhat[oó]|mit v[aá]llal(?:tok|nak)?|mivel foglalkoz|services|what do you offer|what services)\b/i;
 const SERVICE_AREA_QUESTION_PATTERN =
@@ -85,6 +116,13 @@ function safeText(value = "") {
 
 function limitText(value, maxLength) {
   return safeText(value).slice(0, maxLength);
+}
+
+function normalizeLooseText(value = "") {
+  return safeText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 function readAliasedField(source = {}, aliases = []) {
@@ -150,8 +188,54 @@ export function normalizeEnterpriseRequestDeskFields(fields = {}) {
       FIELD_LIMITS.contactPreference
     ),
     siteType: limitText(readAliasedField(fields, FIELD_ALIASES.siteType), FIELD_LIMITS.siteType),
+    staffingRequirement: limitText(
+      readAliasedField(fields, FIELD_ALIASES.staffingRequirement),
+      FIELD_LIMITS.staffingRequirement
+    ),
+    assetsCoverageNotes: limitText(
+      readAliasedField(fields, FIELD_ALIASES.assetsCoverageNotes),
+      FIELD_LIMITS.assetsCoverageNotes
+    ),
+    securityTechDetails: limitText(
+      readAliasedField(fields, FIELD_ALIASES.securityTechDetails),
+      FIELD_LIMITS.securityTechDetails
+    ),
     notes: limitText(readAliasedField(fields, FIELD_ALIASES.notes), FIELD_LIMITS.notes),
   };
+}
+
+function appendDistinctText(existing = "", incoming = "", maxLength = 400) {
+  const current = safeText(existing);
+  const next = safeText(incoming);
+
+  if (!current) {
+    return next.slice(0, maxLength);
+  }
+
+  if (!next || normalizeLooseText(current).includes(normalizeLooseText(next))) {
+    return current.slice(0, maxLength);
+  }
+
+  if (normalizeLooseText(next).includes(normalizeLooseText(current))) {
+    return next.slice(0, maxLength);
+  }
+
+  return `${current}; ${next}`.slice(0, maxLength);
+}
+
+function mergeEnterpriseFieldValue(key, existing = "", incoming = "") {
+  const maxLength = FIELD_LIMITS[key] || 400;
+
+  if ([
+    "serviceNeed",
+    "staffingRequirement",
+    "assetsCoverageNotes",
+    "securityTechDetails",
+  ].includes(key)) {
+    return appendDistinctText(existing, incoming, maxLength);
+  }
+
+  return safeText(existing) || safeText(incoming);
 }
 
 function mergeFields(...fieldSets) {
@@ -159,8 +243,8 @@ function mergeFields(...fieldSets) {
     const normalized = normalizeEnterpriseRequestDeskFields(fields);
 
     for (const [key, value] of Object.entries(normalized)) {
-      if (!merged[key] && value) {
-        merged[key] = value;
+      if (value) {
+        merged[key] = mergeEnterpriseFieldValue(key, merged[key], value);
       }
     }
 
@@ -209,24 +293,31 @@ function extractContactName(message = "") {
     .slice(0, FIELD_LIMITS.contactName);
 }
 
+function normalizeLocationCandidate(value = "") {
+  return safeText(value)
+    .replace(/\b([A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.-]{3,})(?:on|en|ön|ban|ben|nál|nél|re|ra|hoz|hez|höz)\b/gu, "$1")
+    .replace(/\s+\b(?:j[oö]v[oő]|next|s[uü]rg[oő]s|urgent|email|telefon|phone)\b.*$/i, "")
+    .trim();
+}
+
 function extractLocationOrSite(message = "") {
   const text = safeText(message);
   const explicit = extractFirstMatch(text, [
     /\b(?:helysz[ií]n|telephely|objektum|site|location|facility)\s*[:-]\s*([^.,!?;]{2,120})/i,
+    /\b(?:helysz[ií]n(?:em|[uü]nk)?|telephely(?:em|[uü]nk)?|objektum(?:unk)?|site|location|facility)\s+(?:van|lesz|lenne|tal[aá]lhat[oó]|m[uű]k[oö]dik)\s+([^.,!?;]{2,120})/i,
     /\b(?:office building|warehouse|factory|site|facility)\s+(?:in|near|at)\s+([^.,!?;]{2,80})/i,
     /\b(?:in|near|around|at)\s+([A-Z][A-Za-zÀ-ž\s.-]{2,80})/i,
   ]);
   const knownLocation = text.match(KNOWN_LOCATION_PATTERN)?.[1] || "";
   const candidate = explicit || knownLocation;
 
-  return safeText(candidate)
-    .replace(/\s+\b(?:j[oö]v[oő]|next|s[uü]rg[oő]s|urgent|email|telefon|phone)\b.*$/i, "")
+  return normalizeLocationCandidate(candidate)
     .slice(0, FIELD_LIMITS.locationOrSite);
 }
 
 function extractSiteType(message = "") {
   return extractFirstMatch(message, [
-    /\b(irodah[aá]z(?:hoz|ban|ba|ra|re)?|iroda|rakt[aá]r(?:hoz|ban|ba|ra|re)?|gy[aá]r(?:hoz|ban|ba|ra|re)?|telephely(?:hez|en|re)?|ipari park|logisztikai k[oö]zpont|office building|warehouse|factory|facility|site)\b/i,
+    /\b(irodah[aá]z(?:hoz|ban|ba|ra|re)?|iroda|rakt[aá]r(?:hoz|ban|ba|ra|re)?|gy[aá]r(?:hoz|ban|ba|ra|re)?|telephely(?:em|[uü]nk|hez|en|re)?|ipari park|logisztikai k[oö]zpont|office building|warehouse|factory|facility|site)\b/i,
   ]).slice(0, FIELD_LIMITS.siteType);
 }
 
@@ -242,6 +333,7 @@ function extractUrgencyOrTiming(message = "") {
   }
 
   return extractFirstMatch(text, [
+    /\b(0\s?[-–]?\s?24(?:\s?[-–]?\s?(?:biztons[aá]gi szolg[aá]lat\w*|[oő]rz[eé]s\w*|fel[uü]gyelet\w*))?|24\/7|non[-\s]?stop|[eé]jjel[-\s]?nappal(?:i)?|napi 24 [oó]r[aá]s)\b/i,
     /\b(ma|holnap(?:t[oó]l)?|azonnal|min[eé]l hamarabb|s[uü]rg[oő]s|asap|urgent|today|tomorrow)\b/i,
     /\b(ezen a h[eé]ten|j[oö]v[oő] h[eé]t(?:en|t[oő]l)?|j[oö]v[oő] h[oó]napt[oó]l|next week|next month|this week)\b/i,
     /\b(1\s?[-–]\s?2 h[eé]t(?:en)?|egy-k[eé]t h[eé]t|k[eé]t h[eé]ten bel[uü]l|1\s?[-–]\s?2 weeks?)\b/i,
@@ -252,11 +344,108 @@ function extractUrgencyOrTiming(message = "") {
   ]).slice(0, FIELD_LIMITS.urgencyOrTiming);
 }
 
+function extractStaffingRequirement(message = "") {
+  const text = safeText(message);
+  const numeric = text.match(/\b(\d{1,2})\s*(?:f[oő]|ember(?:rel|t)?|vagyon[oő]r(?:rel|t)?|biztons[aá]gi\s+[oő]r(?:rel|t)?)\b/i);
+
+  if (numeric?.[1]) {
+    return `${numeric[1]} fő`.slice(0, FIELD_LIMITS.staffingRequirement);
+  }
+
+  const wordNumber = text.match(/\b(egy|k[eé]t|h[aá]rom|n[eé]gy|[oö]t)\s+(?:f[oő]|ember|vagyon[oő]r|biztons[aá]gi\s+[oő]r)\b/i)?.[1] || "";
+  const numberByWord = {
+    egy: "1",
+    két: "2",
+    ket: "2",
+    három: "3",
+    harom: "3",
+    négy: "4",
+    negy: "4",
+    öt: "5",
+    ot: "5",
+  };
+  const resolved = numberByWord[normalizeLooseText(wordNumber)];
+
+  return resolved ? `${resolved} fő` : "";
+}
+
+function extractAssetsCoverageNotes(message = "") {
+  const search = normalizeLooseText(message);
+  const assetLabels = [];
+  const coverageLabels = [];
+
+  if (/\bauto\w*/.test(search)) assetLabels.push("autók");
+  if (/\bjarmu\w*/.test(search)) assetLabels.push("járművek");
+  if (/\bhajo\w*/.test(search)) assetLabels.push("hajók");
+  if (/\beszkoz\w*/.test(search)) assetLabels.push("eszközök");
+  if (/\baru\w*|raktarkeszlet\w*/.test(search)) assetLabels.push("áru / raktárkészlet");
+
+  if (/\begesz terulet\w*/.test(search)) coverageLabels.push("egész terület");
+  if (/\bbelso\w*\/kulso\w*|\bkulso\w*\/belso\w*|belso\w*.{0,35}kulso\w*|kulso\w*.{0,35}belso\w*/.test(search)) {
+    coverageLabels.push("belső/külső lefedés");
+  }
+  if (/\b0\s?[-–]?\s?24|24\/7|non[-\s]?stop|ejjel[-\s]?nappal/.test(search)) {
+    coverageLabels.push("0-24 lefedés");
+  }
+  if (/\bkamera\w*|cctv|megfigyel\w*/.test(search)) coverageLabels.push("kamerás megfigyelés");
+
+  return [
+    assetLabels.length ? `Tárolt értékek: ${assetLabels.join(", ")}` : "",
+    coverageLabels.length ? `Lefedés: ${coverageLabels.join(", ")}` : "",
+  ].filter(Boolean).join("; ").slice(0, FIELD_LIMITS.assetsCoverageNotes);
+}
+
+function extractSecurityTechDetails(message = "") {
+  const search = normalizeLooseText(message);
+  const details = [];
+
+  if (/\bkamera\w*|cctv/.test(search)) details.push("kamerarendszer / CCTV");
+  if (/\bbeleptet\w*|access control/.test(search)) details.push("beléptetés / access control");
+  if (/\bmegfigyel\w*|felugyel\w*/.test(search)) details.push("megfigyelés");
+  if (/\bbelso\w*\/kulso\w*|\bkulso\w*\/belso\w*|belso\w*.{0,35}kulso\w*|kulso\w*.{0,35}belso\w*/.test(search)) {
+    details.push("belső/külső kamerázás");
+  }
+  if (/\briaszto\w*/.test(search)) details.push("riasztó");
+  if (/\bsorompo\w*/.test(search)) details.push("sorompó");
+  if (/\bkapu\w*.{0,80}(kishaz\w*|orbode\w*|porta\w*)|\b(kishaz\w*|orbode\w*).{0,80}kapu\w*/.test(search)) {
+    details.push("kapunál kialakított felügyeleti pont");
+  }
+
+  return [...new Set(details)].join("; ").slice(0, FIELD_LIMITS.securityTechDetails);
+}
+
+function extractServiceNeedFromSignals(message = "") {
+  const search = normalizeLooseText(message);
+  const needs = [];
+
+  if (/\bkamera\w*|cctv/.test(search) && /\bbeleptet\w*|access control/.test(search)) {
+    needs.push("kamerarendszer és beléptetés");
+  } else if (/\bkamera\w*|cctv/.test(search)) {
+    needs.push("kamerarendszer / CCTV");
+  } else if (/\bbeleptet\w*|access control/.test(search)) {
+    needs.push("beléptetés / access control");
+  }
+
+  if (/\b0\s?[-–]?\s?24|24\/7|non[-\s]?stop|ejjel[-\s]?nappal/.test(search) && /\bbiztonsagi szolgalat\w*|orzes\w*|vagyonor\w*|biztonsagi or\w*/.test(search)) {
+    needs.push("0-24 biztonsági szolgálat");
+  } else if (/\bbiztonsagi szolgalat\w*|orzes\w*|vagyonor\w*|biztonsagi or\w*/.test(search)) {
+    needs.push("biztonsági szolgálat");
+  }
+
+  return [...new Set(needs)].join("; ").slice(0, FIELD_LIMITS.serviceNeed);
+}
+
 function extractServiceNeed(message = "", laneKey = "general_enquiry") {
   const text = safeText(message);
+  const signalNeed = extractServiceNeedFromSignals(text);
+
+  if (signalNeed) {
+    return signalNeed;
+  }
+
   const explicit = extractFirstMatch(text, [
-    /\b([^.,!?;]{3,120}?)\s+(?:kellene|kell|sz[uü]ks[eé]ges|needed|required)\b/i,
-    /\b(?:sz[uü]ks[eé]g(?:[uü]nk)? van|kellene|kell|szeretn[eé]nk|need|looking for|requesting)\s+(?:egy|a|an|some)?\s*([^.,!?;]{3,160})/i,
+    /\b([^.,!?;]{3,120}?)\s+(?:kellene|kell|szeretn[eé]nk|sz[uü]ks[eé]ges|needed|required)\b/i,
+    /\b(?:sz[uü]ks[eé]g(?:[uü]nk)? van|sz[uü]ks[eé]g lenne|kellene|kell|szeretn[eé]nk|need|looking for|requesting)\s+(?:egy|az|a|an|some)?\s*([^.,!?;]{3,160})/i,
   ]);
   const cleanedExplicit = cleanupServiceNeedCandidate(explicit);
   const looksLikeObjectOnly = /\b(irodah[aá]z|rakt[aá]r|gy[aá]r|telephely|office building|warehouse|factory)\b/i.test(cleanedExplicit);
@@ -295,6 +484,9 @@ function extractDeterministicFieldsFromText(message = "", laneKey = "general_enq
     contactEmail: email,
     contactPhone: phone,
     siteType: extractSiteType(message),
+    staffingRequirement: extractStaffingRequirement(message),
+    assetsCoverageNotes: extractAssetsCoverageNotes(message),
+    securityTechDetails: extractSecurityTechDetails(message),
     notes: safeText(message).length >= 30 ? safeText(message).slice(0, FIELD_LIMITS.notes) : "",
   });
 }
@@ -395,6 +587,9 @@ function buildStaffSummary({ lane, fields, missingFields, safetyFlags } = {}) {
     `Helyszín/objektum: ${fields.locationOrSite || "nincs megadva"}.`,
     fields.siteType ? `Objektumtípus: ${fields.siteType}.` : "",
     `Időzítés: ${fields.urgencyOrTiming || "nincs megadva"}.`,
+    fields.staffingRequirement ? `Létszám: ${fields.staffingRequirement}.` : "",
+    fields.assetsCoverageNotes ? `Értékek/lefedés: ${fields.assetsCoverageNotes}.` : "",
+    fields.securityTechDetails ? `Biztonságtechnika: ${fields.securityTechDetails}.` : "",
     `Kapcsolat: ${fields.contactEmail || fields.contactPhone || fields.contactPreference || "hiányzik"}.`,
     missingFields.length
       ? `Hiányzó mezők: ${missingFields.map((field) => REQUIRED_FIELD_LABELS_HU[field] || field).join(", ")}.`
@@ -424,6 +619,69 @@ function buildNextQuestion({ laneKey, missingFields } = {}) {
   }
 
   return "Van még olyan helyszíni vagy szervezeti részlet, amit a csapatnak látnia kell?";
+}
+
+function buildAcknowledgedDetailList(fields = {}) {
+  const normalized = normalizeEnterpriseRequestDeskFields(fields);
+  const compactListText = (value = "") => {
+    const parts = safeText(value)
+      .split(";")
+      .map((part) => safeText(part))
+      .filter(Boolean);
+    const filtered = parts.filter((part, index) => {
+      const searchPart = normalizeLooseText(part);
+
+      if (
+        /kamerarendszer \/ cctv/.test(searchPart)
+        && parts.some((candidate, candidateIndex) =>
+          candidateIndex !== index && /kamerarendszer es beleptetes/.test(normalizeLooseText(candidate))
+        )
+      ) {
+        return false;
+      }
+
+      return !parts.some((candidate, candidateIndex) => {
+        if (candidateIndex === index) return false;
+        const searchCandidate = normalizeLooseText(candidate);
+        return searchCandidate.includes(searchPart) && searchCandidate.length > searchPart.length;
+      });
+    });
+
+    return [...new Set(filtered)].join("; ");
+  };
+  const locationParts = [
+    normalized.locationOrSite,
+    normalized.siteType && !normalizeLooseText(normalized.locationOrSite).includes(normalizeLooseText(normalized.siteType))
+      ? normalized.siteType
+      : "",
+  ].filter(Boolean);
+
+  return [
+    locationParts.length ? `helyszín/objektum: ${locationParts.join(", ")}` : "",
+    normalized.serviceNeed ? `igény: ${compactListText(normalized.serviceNeed)}` : "",
+    normalized.securityTechDetails ? `biztonságtechnika: ${compactListText(normalized.securityTechDetails)}` : "",
+    normalized.assetsCoverageNotes ? `értékek és lefedés: ${compactListText(normalized.assetsCoverageNotes)}` : "",
+    normalized.staffingRequirement ? `személyzet: ${normalized.staffingRequirement}` : "",
+    normalized.urgencyOrTiming ? `időzítés/lefedettség: ${normalized.urgencyOrTiming}` : "",
+  ].filter(Boolean).slice(0, 6);
+}
+
+function buildNaturalIntakeReply({ fields, laneKey, missingFields, businessContext } = {}) {
+  const details = buildAcknowledgedDetailList(fields);
+  const acknowledgement = details.length
+    ? `Rögzítettem a fő részleteket: ${details.join("; ")}.`
+    : "Rögzítettem, amit megadott.";
+
+  if (missingFields?.length) {
+    return `${acknowledgement} ${buildNextQuestion({ laneKey, missingFields })}`;
+  }
+
+  const businessName = normalizeBusinessContext(businessContext).businessName || "a csapat";
+
+  return [
+    acknowledgement,
+    `A minimális intake adatok megvannak; ${businessName} a részletek alapján tud visszajelezni a vállalhatóságról és a következő lépésről. Ez nem végleges ajánlat vagy garantált ár.`,
+  ].join("\n\n");
 }
 
 function hasSafeSharedReply(reply = "") {
@@ -463,7 +721,113 @@ function buildBusinessQuestionReply({ message = "", businessContext = {}, laneKe
   ].join("\n\n");
 }
 
-function buildFallbackReply({ message, laneKey, missingFields, safetyFlags, businessContext } = {}) {
+function extractReplyQuestions(reply = "") {
+  return safeText(reply)
+    .split(/(?<=[.!?\n])\s+/u)
+    .map((part) => safeText(part))
+    .filter((part) => part.endsWith("?") && part.length >= 8)
+    .slice(0, 6);
+}
+
+function questionAsksForAnsweredField(question = "", fields = {}) {
+  const search = normalizeLooseText(question);
+  const normalizedFields = normalizeEnterpriseRequestDeskFields(fields);
+
+  if (
+    (normalizedFields.locationOrSite || normalizedFields.siteType)
+    && /\b(hol|where|site|location|melyik telepules\w*|melyik helyszin\w*|helyszin\w*|objektum\w*|telephely\w*)\b/.test(search)
+  ) {
+    return true;
+  }
+
+  if (
+    normalizedFields.serviceNeed
+    && /\b(milyen szolgaltatas|melyik szolgaltatasi|milyen igeny|mit kell|service need|what service)\b/.test(search)
+  ) {
+    return true;
+  }
+
+  if (
+    normalizedFields.urgencyOrTiming
+    && /\b(mikor|idopont|idozites|hatarido|indul|kezdes|timing|when|deadline|start)\b/.test(search)
+  ) {
+    return true;
+  }
+
+  if (
+    (normalizedFields.contactEmail || normalizedFields.contactPhone || normalizedFields.contactPreference)
+    && /\b(elerhetoseg|email|e-mail|telefon|kapcsolat|contact|phone)\b/.test(search)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function sharedReplyNeedsStructuredFallback({ reply = "", analysis = {}, mode = "enterprise_intake" } = {}) {
+  if (mode !== "enterprise_intake") {
+    return false;
+  }
+
+  const questions = extractReplyQuestions(reply);
+
+  if (analysis.missingFields?.length && questions.length > 1) {
+    return true;
+  }
+
+  return questions.some((question) => questionAsksForAnsweredField(question, analysis.fields));
+}
+
+function applyEnterpriseIntakeReplyContract({ reply = "", analysis = {}, businessContext = {} } = {}) {
+  const normalizedReply = safeText(reply);
+  const questions = extractReplyQuestions(normalizedReply);
+
+  if (!analysis.missingFields?.length || questions.length) {
+    return normalizedReply;
+  }
+
+  return `${normalizedReply}\n\n${buildNextQuestion({
+    laneKey: analysis.laneClassification?.laneKey,
+    missingFields: analysis.missingFields,
+    businessContext,
+  })}`;
+}
+
+function chooseEnterpriseAssistantReply({
+  analysis,
+  sharedTurn,
+  mode,
+  message,
+  businessContext,
+} = {}) {
+  const sharedReply = safeText(sharedTurn?.reply);
+
+  if (hasSafeSharedReply(sharedReply) && !sharedReplyNeedsStructuredFallback({
+    reply: sharedReply,
+    analysis,
+    mode,
+  })) {
+    return mode === "enterprise_intake"
+      ? applyEnterpriseIntakeReplyContract({
+        reply: sharedReply,
+        analysis,
+        businessContext,
+      })
+      : sharedReply;
+  }
+
+  if (mode === "business_question") {
+    return buildBusinessQuestionReply({
+      message,
+      businessContext,
+      laneKey: analysis.laneClassification.laneKey,
+    });
+  }
+
+  return analysis.assistantReply;
+}
+
+function buildFallbackReply({ message, laneKey, missingFields, safetyFlags, businessContext, fields } = {}) {
   if (!safeText(message)) {
     return "Írja le röviden, milyen objektumvédelmi, FM, biztonságtechnikai vagy hatósági/audit jellegű igényről van szó.";
   }
@@ -487,15 +851,20 @@ function buildFallbackReply({ message, laneKey, missingFields, safetyFlags, busi
   }
 
   if (missingFields.length) {
-    return `Értettem, amit megadott. ${buildNextQuestion({ laneKey, missingFields })}`;
+    return buildNaturalIntakeReply({
+      fields,
+      laneKey,
+      missingFields,
+      businessContext,
+    });
   }
 
-  const businessName = normalizeBusinessContext(businessContext).businessName || "a csapat";
-
-  return [
-    "Összegyűjtöttem a minimális adatokat a belső áttekintéshez.",
-    `${businessName} a részletek alapján tud visszajelezni a vállalhatóságról és a következő lépésről. Ez nem végleges ajánlat vagy garantált ár.`,
-  ].join("\n\n");
+  return buildNaturalIntakeReply({
+    fields,
+    laneKey,
+    missingFields,
+    businessContext,
+  });
 }
 
 function detectTurnMode({ message = "", conversation = [] } = {}) {
@@ -526,12 +895,14 @@ export function buildEnterpriseRequestDeskStructuredBrief({
   const laneKey = laneClassification?.laneKey || "general_enquiry";
   const lane = getEnterpriseRequestDeskLane(laneKey);
   const missingFields = getMissingFields(normalizedFields);
+  const nextQuestion = buildNextQuestion({ laneKey, missingFields });
   const readyForOwnerReview =
     missingFields.length === 0
     && !safetyFlags?.secretLikeInput;
 
   return {
     lane: laneKey,
+    serviceArea: lane?.labelHu || "Általános érdeklődés",
     laneLabelHu: lane?.labelHu || "Általános érdeklődés",
     confidence: laneClassification?.confidence || "low",
     serviceNeed: normalizedFields.serviceNeed,
@@ -543,9 +914,14 @@ export function buildEnterpriseRequestDeskStructuredBrief({
     contactPhone: normalizedFields.contactPhone,
     organizationName: normalizedFields.organizationName,
     siteType: normalizedFields.siteType,
+    staffingRequirement: normalizedFields.staffingRequirement,
+    assetsCoverageNotes: normalizedFields.assetsCoverageNotes,
+    securityTechDetails: normalizedFields.securityTechDetails,
     notes: safetyFlags?.promptInjection || safetyFlags?.secretLikeInput ? "" : normalizedFields.notes,
     missingFields,
+    nextQuestion,
     readyForOwnerReview,
+    readyToSubmit: readyForOwnerReview,
     safetyFlags: {
       promptInjection: safetyFlags?.promptInjection === true,
       secretLikeInput: safetyFlags?.secretLikeInput === true,
@@ -602,6 +978,7 @@ export function buildDeterministicEnterpriseRequestDeskAnalysis(options = {}) {
       laneKey: laneClassification.laneKey,
       missingFields: structuredBrief.missingFields,
       safetyFlags,
+      fields,
       businessContext: options.businessContext || {},
     }),
   };
@@ -612,6 +989,28 @@ export function buildEnterpriseRequestDeskSharedChatInput(options = {}) {
   const businessName = businessContext.businessName || "Enterprise business";
   const businessId = safeText(options.business?.id || options.agent?.businessId || options.agent?.business_id);
   const agentId = safeText(options.agent?.id || options.agent?.agentId);
+  const profileKey = safeText(options.productProfileKey || options.profileKey).toLowerCase();
+  const assistantName = profileKey === "esg" ? "ESG Request Desk" : "Enterprise Request Desk";
+  const fields = normalizeEnterpriseRequestDeskFields(options.fields || {});
+  const missingFields = Array.isArray(options.missingFields)
+    ? options.missingFields.map(safeText).filter(Boolean)
+    : getMissingFields(fields);
+  const knownBriefLines = [
+    fields.serviceNeed ? `Felismert igény: ${fields.serviceNeed}.` : "",
+    fields.locationOrSite ? `Felismert helyszín: ${fields.locationOrSite}.` : "",
+    fields.siteType ? `Felismert objektumtípus: ${fields.siteType}.` : "",
+    fields.urgencyOrTiming ? `Felismert időzítés/lefedettség: ${fields.urgencyOrTiming}.` : "",
+    fields.staffingRequirement ? `Felismert létszám: ${fields.staffingRequirement}.` : "",
+    fields.assetsCoverageNotes ? `Felismert értékek/lefedés: ${fields.assetsCoverageNotes}.` : "",
+    fields.securityTechDetails ? `Felismert biztonságtechnika: ${fields.securityTechDetails}.` : "",
+    fields.contactEmail || fields.contactPhone || fields.contactPreference
+      ? "Kapcsolati út már megadva."
+      : "",
+    missingFields.length
+      ? `Csak ezekből kérdezz vissza, ha fontos: ${missingFields.map((field) => REQUIRED_FIELD_LABELS_HU[field] || field).join(", ")}.`
+      : "A minimális intake adatok megvannak; ne kérdezz vissza már megadott helyszínre, objektumra, szolgáltatásra vagy időzítésre.",
+    "Egy válaszban legfeljebb egy következő, nagy értékű kérdést tegyél fel.",
+  ].filter(Boolean);
 
   return {
     supabase: options.supabase,
@@ -620,7 +1019,7 @@ export function buildEnterpriseRequestDeskSharedChatInput(options = {}) {
       id: agentId || "enterprise-request-desk-report-only-agent",
       businessId: businessId || "enterprise-request-desk-report-only-business",
       ownerUserId: safeText(options.agent?.ownerUserId || options.agent?.owner_user_id),
-      name: "Enterprise Request Desk",
+      name: assistantName,
       purpose: "lead_capture",
       tone: "professional",
       packageKey: "front_desk_general",
@@ -633,7 +1032,7 @@ export function buildEnterpriseRequestDeskSharedChatInput(options = {}) {
       websiteUrl: safeText(options.business?.websiteUrl || options.business?.website_url),
     },
     widgetConfig: {
-      assistantName: "Enterprise Request Desk",
+      assistantName,
     },
     message: safeText(options.message),
     history: sanitizeChatHistory(options.conversation || []),
@@ -651,7 +1050,10 @@ export function buildEnterpriseRequestDeskSharedChatInput(options = {}) {
         businessContext.serviceTypes.length
           ? `Szolgáltatási kör: ${businessContext.serviceTypes.join(", ")}.`
           : "",
-        "Az Enterprise Request Desk széles vállalati megkereséseket strukturál belső áttekintésre.",
+        profileKey === "esg"
+          ? "Az ESG Request Desk objektumvédelmi, FM, biztonságtechnikai, őrzési és audit jellegű megkereséseket pontosít."
+          : "Az Enterprise Request Desk széles vállalati megkereséseket strukturál belső áttekintésre.",
+        ...knownBriefLines,
         "Pontos ár, végleges ajánlat, megfelelőségi dokumentum vagy külső szolgáltatói művelet nem készül innen.",
       ].filter(Boolean).join("\n"),
     },
@@ -670,36 +1072,47 @@ export async function generateEnterpriseRequestDeskAssistantTurn(options = {}, d
   });
   const mode = detectTurnMode({ message, conversation });
   let sharedTurn = null;
+  const generateSharedTurn = deps.generateSharedChatAssistantTurn || generateSharedChatAssistantTurn;
+  const hasInjectedSharedTurn = typeof deps.generateSharedChatAssistantTurn === "function"
+    || Boolean(deps.sharedChatDeps);
+  const hasOpenAiChat = Boolean(options.openai?.chat?.completions?.create);
+  const profileKey = safeText(options.productProfileKey || options.profileKey).toLowerCase();
+  const businessName = normalizeBusinessContext(options.businessContext || {}).businessName;
+  const isEsgProfile = profileKey === "esg" || /ESG Holding/i.test(businessName);
 
   if (
-    mode === "business_question"
-    && typeof deps.generateSharedChatAssistantTurn === "function"
+    message
+    && (mode === "business_question" || isEsgProfile)
+    && (hasInjectedSharedTurn || hasOpenAiChat)
     && !analysis.safetyFlags.secretLikeInput
     && !analysis.safetyFlags.promptInjection
+    && !analysis.safetyFlags.pricingGuaranteeRequested
+    && !analysis.safetyFlags.deferredOperationsRequested
   ) {
     try {
-      sharedTurn = await deps.generateSharedChatAssistantTurn(
+      sharedTurn = await generateSharedTurn(
         buildEnterpriseRequestDeskSharedChatInput({
           ...options,
           message,
           conversation,
+          fields: analysis.fields,
+          missingFields: analysis.missingFields,
+          productProfileKey: profileKey || (isEsgProfile ? "esg" : "enterprise"),
         }),
-        deps.sharedChatDeps || {}
+        deps.sharedChatDeps || deps
       );
     } catch {
       sharedTurn = null;
     }
   }
 
-  const assistantReply = mode === "business_question"
-    ? hasSafeSharedReply(sharedTurn?.reply)
-      ? safeText(sharedTurn.reply)
-      : buildBusinessQuestionReply({
-        message,
-        businessContext: options.businessContext || {},
-        laneKey: analysis.laneClassification.laneKey,
-      })
-    : analysis.assistantReply;
+  const assistantReply = chooseEnterpriseAssistantReply({
+    analysis,
+    sharedTurn,
+    mode,
+    message,
+    businessContext: options.businessContext || {},
+  });
 
   return {
     assistantReply,

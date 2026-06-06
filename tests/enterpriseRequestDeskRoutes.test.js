@@ -18,6 +18,7 @@ function createApiApp(deps = {}) {
   app.use(express.json());
   app.use(createEnterpriseRequestDeskRouter({
     getSupabaseClient: () => ({}),
+    getOpenAIClient: () => null,
     getAuthenticatedUser: async () => ({ id: "owner-1", email: "owner@example.com" }),
     requireActiveAgentAccess: async (_supabase, options) => {
       if (options.agentId === "agent-2") {

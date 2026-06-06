@@ -450,6 +450,11 @@
     if (existing.length && existingVersion === FIXTURE_SEED_VERSION) {
       return existing;
     }
+    const preservedRows = existing.filter((row) => (
+      row
+      && row.fixtureModeOnly !== true
+      && !trimText(row.id).startsWith("erd-fixture-seed-")
+    ));
 
     const rows = [
       {
@@ -715,8 +720,9 @@
         updatedAt: "2026-06-06T13:09:00.000Z",
       },
     ];
-    writeFixtureRows(rows);
-    return rows;
+    const nextRows = [...preservedRows, ...rows];
+    writeFixtureRows(nextRows);
+    return nextRows;
   }
 
   function formatDateTime(value) {

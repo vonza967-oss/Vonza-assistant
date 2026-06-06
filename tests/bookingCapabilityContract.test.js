@@ -92,11 +92,15 @@ test("Front Desk eval contract rejects confirmed wording for requested booking t
   const safe = scoreFrontDeskEvalScenario(scenario, {
     reply: "Saturday visits are by request, but I cannot confirm Saturday at 10 from here. Please share your name and best email or phone so the shop can check that time.",
   });
+  const safeCurlyApostrophe = scoreFrontDeskEvalScenario(scenario, {
+    reply: "Saturday visits are by request, but I can\u2019t confirm Saturday at 10 from here. Please share your name and best email or phone so the shop can check that time.",
+  });
 
   assert.equal(unsafe.passed, false);
   assert.ok(unsafe.failedCriteria.includes("groundednessNoInventedFacts"));
   assert.ok(unsafe.failedCriteria.includes("riskyClaimsBackedByEvidence"));
   assert.equal(safe.passed, true);
+  assert.equal(safeCurlyApostrophe.passed, true);
 });
 
 test("Front Desk repair flags specific booking time replies without confirmation safety", () => {

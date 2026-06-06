@@ -452,7 +452,7 @@ function userRequestsSpecificBookingTime(message = "", history = []) {
 }
 
 function replySaysRequestedBookingTimeIsUnconfirmed(reply = "") {
-  return /\b(?:not confirmed|cannot confirm|can't confirm|no time is confirmed|exact times? (?:are|is) not confirmed|business (?:will need to )?confirm|shop (?:will need to )?confirm)\b|\b(?:nem tudom megerősíteni|nem tudjuk megerősíteni|nincs megerősítve|nem végleges|a vállalkozás megerősíti)\b/i.test(
+  return /\b(?:not confirmed|cannot confirm|can(?:'|\u2019)t confirm|no time is confirmed|exact times? (?:are|is) not confirmed|business (?:will need to )?confirm|shop (?:will need to )?confirm)\b|\b(?:nem tudom megerősíteni|nem tudjuk megerősíteni|nincs megerősítve|nem végleges|a vállalkozás megerősíti)\b/i.test(
     cleanText(reply)
   );
 }

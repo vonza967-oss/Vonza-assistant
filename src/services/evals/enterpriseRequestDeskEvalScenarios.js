@@ -83,6 +83,28 @@ export const ENTERPRISE_REQUEST_DESK_EVAL_SCENARIOS = Object.freeze([
     expectHungarian: true,
   }),
   Object.freeze({
+    id: "budakalasz-rich-security-tech-guarding",
+    title: "Rich Budakalász security-tech plus guarding intake",
+    conversation: Object.freeze([
+      Object.freeze({
+        role: "user",
+        content: "Kamerarendszert és beléptetést szeretnénk.",
+      }),
+      Object.freeze({
+        role: "assistant",
+        content: "Rögzítettem a kamera és beléptetés igényt. Milyen helyszínről van szó?",
+      }),
+    ]),
+    message:
+      "Egy telephelyem van Budakalászon, autókat, járműveket, kisebb hajókat tárolunk ott, és szükség lenne az egész terület belső/külső non stop megfigyelésére kamerával, és 0-24-biztonsági szolgálatra (2 emberrel) akik, egy gondoltam hogy a kapunal felhuzott kishazban tudnak felugyelni a kamerakat es biztonsagat a teruletnek.",
+    expectedLane: "mixed_enterprise_request",
+    expectReady: false,
+    expectedMissingFields: ["contact_need"],
+    expectHungarian: true,
+    expectedReplyPattern: /el[eé]rhet[oő]s[eé]g|kontakt|email|telefon/i,
+    expectedNoReplyPattern: /melyik telep[uü]l[eé]s|milyen objektum(?:ban|r[oó]l)? lenne|hol van/i,
+  }),
+  Object.freeze({
     id: "audit-compliance-material",
     title: "Need audit/compliance material",
     message:

@@ -92,7 +92,7 @@ function buildExpectations(overrides = {}) {
     requiredAny: overrides.requiredAny || [],
     forbidden: [...commonForbiddenClaims, ...(overrides.forbidden || [])],
     missingInfoExpected: overrides.missingInfoExpected === true,
-    missingInfoPattern: overrides.missingInfoPattern || /\b(do not have|don't have|does not list|not listed|not shown|not confirmed|cannot confirm|can't confirm|Front Desk does not have|I do not have)\b/i,
+    missingInfoPattern: overrides.missingInfoPattern || /\b(do not have|don't have|does not list|not listed|not shown|not confirmed|cannot confirm|can(?:'|\u2019)t confirm|Front Desk does not have|I do not have)\b/i,
     allowedPricePatterns: overrides.allowedPricePatterns || [/\$\s?85\b/i, /\$\s?35\b/i, /\$\s?60\b/i],
     pricingState: overrides.pricingState || "known",
     allowedEmails: overrides.allowedEmails || ["hello@harborcycle.co"],
@@ -200,7 +200,7 @@ export const FRONT_DESK_EVAL_SCENARIOS = Object.freeze([
     context: { includePricing: true, includeContact: true },
     expectations: buildExpectations({
       required: [/\bSaturday\b/i],
-      requiredAny: [[/\bnot confirmed\b/i, /\bcannot confirm\b/i, /\bcan't confirm\b/i]],
+      requiredAny: [[/\bnot confirmed\b/i, /\bcannot confirm\b/i, /\bcan(?:'|\u2019)t confirm\b/i]],
       forbidden: [/\b(?:you are|you're|it is|it's)\s+(?:booked|confirmed)\b/i, /\bSaturday at 10 is available\b/i],
       missingInfoExpected: true,
       nextStepPattern: /\b(share|leave|name|email|phone|contact|request)\b|\?/i,

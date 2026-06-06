@@ -121,6 +121,15 @@ function evaluateScenarioResult(scenario, result) {
     );
   }
 
+  if (scenario.expectedNoReplyPattern) {
+    addCheck(
+      checks,
+      !scenario.expectedNoReplyPattern.test(result.assistantReply),
+      "expected reply not to match repeated-question pattern",
+      { assistantReply: result.assistantReply }
+    );
+  }
+
   if (scenario.expectNoInventedGuarantee) {
     addCheck(
       checks,
