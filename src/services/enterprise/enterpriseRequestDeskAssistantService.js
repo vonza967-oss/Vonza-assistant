@@ -5,7 +5,6 @@ import {
   extractEmails,
   extractPhoneCandidates,
   isInternalPlatformEmail,
-  isPlaceholderEmail,
   isPlaceholderPhone,
   sanitizeChatHistory,
 } from "../../utils/text.js";
@@ -109,7 +108,7 @@ function normalizeEmail(value = "") {
     return "";
   }
 
-  return isPlaceholderEmail(email) || isInternalPlatformEmail(email) ? "" : email;
+  return isInternalPlatformEmail(email) ? "" : email;
 }
 
 function normalizePhone(value = "") {
@@ -248,6 +247,8 @@ function extractUrgencyOrTiming(message = "") {
     /\b(1\s?[-–]\s?2 h[eé]t(?:en)?|egy-k[eé]t h[eé]t|k[eé]t h[eé]ten bel[uü]l|1\s?[-–]\s?2 weeks?)\b/i,
     /\b(negyed[eé]v v[eé]g[eé]ig|h[oó]nap v[eé]g[eé]ig|quarter end|end of quarter)\b/i,
     /\b(folyamatos|rendszeres|hossz[uú] t[aá]v[uú]|continuous|ongoing|monthly|quarterly)\b/i,
+    /\b((?:h[eé]tk[oö]znap(?:okon|on)?|munkanap(?:okon)?|munkaid[oő]ben|weekday(?:s)?)(?:\s+\d{1,2}(?::\d{2})?\s?[-–]\s?\d{1,2}(?::\d{2})?\s*(?:[oó]ra|h)?(?:\s+k[oö]z[oö]tt)?)?)\b/i,
+    /\b(\d{1,2}(?::\d{2})?\s?[-–]\s?\d{1,2}(?::\d{2})?\s*(?:[oó]ra|h)(?:\s+k[oö]z[oö]tt)?)\b/i,
   ]).slice(0, FIELD_LIMITS.urgencyOrTiming);
 }
 

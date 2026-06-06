@@ -275,6 +275,22 @@ test("Enterprise Request Desk builds a structured internal brief without creatin
   assert.doesNotMatch(JSON.stringify(brief), /agent_quote_requests|qdh_ai_intake|quoteDeskHu/i);
 });
 
+test("Enterprise Request Desk treats weekday coverage windows as complete timing", async () => {
+  const result = await generateEnterpriseRequestDeskAssistantTurn({
+    message:
+      "Irodaház portaszolgálatra és objektumvédelemre lenne szükség Budapesten, hétköznap 7-19 óra között. Kapcsolattartó Kovács Péter, peter@example.hu. Kérem a megkeresés továbbítását.",
+    businessContext: ESG_HOLDING_ENTERPRISE_REQUEST_DESK_FIXTURE,
+  });
+  const brief = result.structuredBrief;
+
+  assert.equal(brief.lane, "reception_object_protection");
+  assert.match(brief.urgencyOrTiming, /hétköznap 7-19/i);
+  assert.equal(brief.contactEmail, "peter@example.hu");
+  assert.deepEqual(result.missingFields, []);
+  assert.equal(result.readyForOwnerReview, true);
+  assert.equal(result.needsProviderAction, undefined);
+});
+
 test("Enterprise Request Desk falls back safely for missing location and contact", async () => {
   const result = await generateEnterpriseRequestDeskAssistantTurn({
     message: "Biztonságtechnikai audit érdekel, lehetőleg minél hamarabb.",
