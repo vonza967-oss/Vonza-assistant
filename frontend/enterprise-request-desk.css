@@ -1138,6 +1138,92 @@ body[data-erdp-profile="esg"] .erdp-product-label {
   line-height: 1.38;
 }
 
+.erdp-transformation {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid #b8ded2;
+  border-radius: var(--erdp-radius);
+  background: #f7fffb;
+}
+
+.erdp-transformation-grid,
+.erdp-playbook-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.erdp-transform-card,
+.erdp-playbook-block,
+.erdp-brief-copy-card {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--erdp-line);
+  border-radius: var(--erdp-radius-sm);
+  background: #ffffff;
+}
+
+.erdp-transform-card.is-summary {
+  border-color: #9fd3c5;
+  background: #f0faf6;
+}
+
+.erdp-transform-card.is-route,
+.erdp-playbook-block.is-route {
+  grid-column: 1 / -1;
+  border-color: #b8cce4;
+  background: #f4f8fd;
+}
+
+.erdp-transform-card span,
+.erdp-playbook-block > span,
+.erdp-brief-copy-card span,
+.erdp-timeline-row span,
+.erdp-missing-count-row span {
+  display: block;
+  color: var(--erdp-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.32;
+}
+
+.erdp-transform-card p,
+.erdp-playbook-block strong,
+.erdp-brief-copy-card strong,
+.erdp-timeline-row p {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--erdp-ink);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.38;
+}
+
+.erdp-playbook-block ul {
+  display: grid;
+  gap: 5px;
+  margin: 7px 0 0;
+  padding-left: 17px;
+  color: var(--erdp-ink);
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.36;
+}
+
+.erdp-brief-copy-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border-color: #9fd3c5;
+  background: #f7fffb;
+}
+
+.erdp-brief-copy-card .erdp-button {
+  justify-self: start;
+}
+
 .erdp-detail-item {
   display: grid;
   gap: 4px;
@@ -1242,6 +1328,32 @@ body[data-erdp-profile="esg"] .erdp-product-label {
   min-height: 76px;
 }
 
+.erdp-timeline {
+  display: grid;
+  gap: 8px;
+}
+
+.erdp-timeline-list,
+.erdp-missing-count-list {
+  display: grid;
+  gap: 6px;
+}
+
+.erdp-timeline-row {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid var(--erdp-line);
+  border-left: 3px solid var(--erdp-line-strong);
+  border-radius: var(--erdp-radius-sm);
+  background: #ffffff;
+}
+
+.erdp-timeline-row strong {
+  font-size: 0.83rem;
+  line-height: 1.28;
+}
+
 .erdp-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1260,6 +1372,10 @@ body[data-erdp-profile="esg"] .erdp-product-label {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.erdp-overview-grid-three {
+  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.8fr) minmax(280px, 0.8fr);
+}
+
 .erdp-lane-count-list,
 .erdp-status-count-list,
 .erdp-boundary-stack {
@@ -1268,7 +1384,8 @@ body[data-erdp-profile="esg"] .erdp-product-label {
 }
 
 .erdp-lane-count-row,
-.erdp-status-count-row {
+.erdp-status-count-row,
+.erdp-missing-count-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 9px;
@@ -1299,7 +1416,8 @@ body[data-erdp-profile="esg"] .erdp-product-label {
 }
 
 .erdp-lane-count-row b,
-.erdp-status-count-row strong {
+.erdp-status-count-row strong,
+.erdp-missing-count-row strong {
   display: inline-grid;
   min-width: 30px;
   min-height: 30px;
@@ -1310,7 +1428,8 @@ body[data-erdp-profile="esg"] .erdp-product-label {
   font-size: 0.88rem;
 }
 
-.erdp-status-count-row span {
+.erdp-status-count-row span,
+.erdp-missing-count-row span {
   color: var(--erdp-muted);
   font-size: 0.82rem;
   font-weight: 740;
@@ -1787,12 +1906,21 @@ body[data-erdp-profile="esg"] .erdp-product-label {
 
   .erdp-field-grid,
   .erdp-detail-grid,
+  .erdp-transformation-grid,
+  .erdp-playbook-grid,
+  .erdp-brief-copy-card,
   .erdp-lane-count-row,
   .erdp-status-count-row,
+  .erdp-missing-count-row,
   .erdp-metrics,
   .erdp-form-grid,
   .erdp-manual-form {
     grid-template-columns: 1fr;
+  }
+
+  .erdp-transform-card.is-route,
+  .erdp-playbook-block.is-route {
+    grid-column: auto;
   }
 
   .erdp-chat-hero h1 {

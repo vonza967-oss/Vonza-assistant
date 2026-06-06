@@ -197,6 +197,58 @@ Safe review statuses remain unchanged:
 
 Phase 8 remains deferred for SLA clocks, shift planning, vendor panels, QR site reports, compliance document generation, external execution, final pricing, contract creation, and a full operations cockpit. It does not add a migration, schema column, public widget/embed behavior, QDH merge, or provider call.
 
+## Phase 10 Enterprise Demo Workflow Layer
+
+Phase 10 adds an enterprise-grade demo workflow layer to make the pilot value obvious without expanding the operational scope.
+
+The fixture dashboard now seeds six realistic ESG Holding Zrt.-style demo requests in browser local storage only:
+
+- portaszolgálat / objektumvédelem;
+- őrzés-védelem;
+- Facility Management;
+- biztonságtechnika;
+- hatósági / audit támogatás;
+- mixed enterprise request.
+
+Each fixture row demonstrates the intended workflow story:
+
+- messy original request text;
+- classified service area;
+- structured internal brief;
+- missing-info checklist;
+- suggested next question;
+- internal routing recommendation;
+- safe review status;
+- frontend-only demo timeline / staff note context.
+
+Fixture behavior is strictly separated from live persistence:
+
+- `/enterprise-request-desk/dashboard-fixture` and `/esg-request-desk/dashboard-fixture` use local browser storage and seed the Phase 10 demo rows when the fixture version is missing or outdated;
+- `/enterprise-request-desk/dashboard` and `/esg-request-desk/dashboard` still load only owner-authenticated rows from `enterprise_request_desk_requests`;
+- real/live mode does not inject the fixture flag and does not seed or display demo records.
+
+The dashboard detail view now emphasizes the workflow transformation:
+
+- `Eredeti megkeresés`;
+- `Előszűrt összefoglaló`;
+- `Hiányzó adatok`;
+- `Javasolt következő kérdés`;
+- `Javasolt belső továbbítás`.
+
+The operator panel remains bounded to safe internal work:
+
+- safe review status update;
+- status reason;
+- staff notes;
+- internal routing recommendation;
+- `Összefoglaló másolása` clipboard export for the structured brief.
+
+The copy/export action does not send to a provider, email, CRM, ticketing system, or external workflow. It only writes the structured brief to the browser clipboard.
+
+Service-area workspaces now include compact playbooks with key questions, typical missing data, and a routing hint. The overview adds counts by service area, counts by status, top missing-info categories, and recently updated requests.
+
+Phase 10 remains inside the controlled pilot boundaries: no external provider calls, no widget/embed changes, no QDH merge, no schema migration, no SLA clocks, no shift planning, no vendor management, no QR site reporting, no compliance document generation, no final pricing or quote guarantee, and no full operations cockpit.
+
 ## Shared Engine vs Product Layer
 
 Shared Vonza Engine patterns:

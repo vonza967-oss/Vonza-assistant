@@ -29,6 +29,8 @@
     }
   }
   const FIXTURE_STORAGE_KEY = "VONZA_ENTERPRISE_REQUEST_DESK_FIXTURE_REQUESTS";
+  const FIXTURE_VERSION_STORAGE_KEY = "VONZA_ENTERPRISE_REQUEST_DESK_FIXTURE_VERSION";
+  const FIXTURE_SEED_VERSION = "phase-10-workflow-demo";
   const REVIEW_ACTIONS = Object.freeze([
     ["needs_info", "Hiányzó adat"],
     ["needs_staff_review", "Belső ellenőrzés"],
@@ -120,6 +122,95 @@
     audit_compliance: "Hatósági / audit belső szakmai ellenőrzés",
     mixed_enterprise_request: "Belső szétválasztás szolgáltatási területekre",
     general_enquiry: "Első szűrés és belső ellenőrzés",
+  });
+  const MISSING_FIELD_LABELS = Object.freeze({
+    service_need: "szolgáltatási igény",
+    location_or_site: "helyszín vagy objektum",
+    urgency_or_timing: "időzítés vagy sürgősség",
+    contact_need: "biztonságos kapcsolati adat",
+    object_type: "objektum típusa",
+    coverage_hours: "lefedési idő",
+    start_date: "kezdési dátum",
+    guard_count: "létszám / őri jelenlét",
+    risk_details: "kockázati előzmény",
+    visitor_traffic: "látogatói forgalom",
+    access_duties: "recepciós és beléptetési feladatok",
+    affected_systems: "érintett rendszerek",
+    site_priority: "telephelyi prioritás",
+    camera_count: "kamera- vagy jogosultsági pontok száma",
+    existing_system: "meglévő rendszer adatai",
+    document_list: "dokumentumlista",
+    audit_deadline: "audit vagy hatósági határidő",
+    lane_split: "szolgáltatási területek szétválasztása",
+    decision_owner: "belső döntéshozó",
+  });
+  const SERVICE_AREA_PLAYBOOKS = Object.freeze({
+    security_guarding: {
+      title: "Őrzés-védelem playbook",
+      questions: [
+        "Milyen objektumot vagy területet kell őrizni?",
+        "Milyen lefedési idő kell hétköznap, hétvégén és éjszaka?",
+        "Van ismert kockázati előzmény vagy járőrözési feladat?",
+        "Mikortól indulna, és kell-e több helyszínre bontani?",
+      ],
+      missingInfo: ["objektum típusa", "pontos helyszín", "lefedési idő", "kezdés", "létszám / kockázat"],
+      routingHint: "Őrzés-védelem koordinátor előszűrése, szükség esetén helyszíni egyeztetési előkészítéssel.",
+    },
+    reception_object_protection: {
+      title: "Portaszolgálat / objektumvédelem playbook",
+      questions: [
+        "Milyen objektumtípus érintett?",
+        "Mi a pontos helyszín?",
+        "Milyen lefedési idő és indulási dátum szükséges?",
+        "Recepciós, beléptetési, kulcskezelési vagy járőrözési feladat is van?",
+      ],
+      missingInfo: ["objektum típusa", "pontos helyszín", "lefedési idő", "kezdés", "recepciós / beléptetési feladatok"],
+      routingHint: "Portaszolgálat / objektumvédelem koordinátor, beléptetési folyamat és helyszíni rend tisztázásával.",
+    },
+    facility_management: {
+      title: "Facility Management playbook",
+      questions: [
+        "Mely telephelyek, épületek vagy üzemeltetési területek érintettek?",
+        "Karbantartás, takarítás, technikai üzemeltetés vagy vegyes FM keret kell?",
+        "Egyszeri hiba, ismétlődő szolgáltatás vagy több telephelyes keretigény?",
+        "Van sürgős hiba vagy priorizált indulási pont?",
+      ],
+      missingInfo: ["telephelylista", "érintett rendszer", "feladat típusa", "sürgősség", "belső prioritás"],
+      routingHint: "Facility Management koordinátor, telephely és feladatcsoport szerinti bontással.",
+    },
+    security_technology: {
+      title: "Biztonságtechnika playbook",
+      questions: [
+        "Kamera, beléptető, riasztó, tűzjelző vagy kombinált rendszer érintett?",
+        "Új telepítés, bővítés, csere, karbantartás vagy felmérés kell?",
+        "Hány kamera, ajtó, jogosultsági pont vagy telephely érintett?",
+        "Van meglévő rendszer vagy integrációs kötöttség?",
+      ],
+      missingInfo: ["rendszertípus", "meglévő rendszer", "pontszám", "telephely", "felmérési határidő"],
+      routingHint: "Biztonságtechnikai felmérési előkészítés belső műszaki ellenőrzésre.",
+    },
+    audit_compliance: {
+      title: "Hatósági / audit playbook",
+      questions: [
+        "Milyen audit, hatósági, engedélyezési vagy beszerzési ügyhöz kapcsolódik?",
+        "Mely szolgáltatási terület érintett: őrzés-védelem, FM vagy biztonságtechnika?",
+        "Van auditdátum, hatósági határidő vagy dokumentumlista?",
+        "Belső ellenőrzéshez, beszerzéshez vagy külső megfeleléshez kell a támogatás?",
+      ],
+      missingInfo: ["ügy típusa", "határidő", "dokumentumlista", "érintett szolgáltatás", "belső felelős"],
+      routingHint: "Hatósági / audit szakmai ellenőrzés, dokumentumgenerálás nélkül.",
+    },
+    mixed_enterprise_request: {
+      title: "Vegyes megkeresés playbook",
+      questions: [
+        "Mely szolgáltatási területeket kell szétválasztani?",
+        "Melyik helyszín vagy feladat a belső prioritás?",
+        "Egy döntéshozó kezeli, vagy lane-enként más belső felelős kell?",
+        "Mi az első tisztázó kérdés, amely minden lane-t érint?",
+      ],
+      missingInfo: ["lane bontás", "telephelyi prioritás", "időzítés", "belső döntéshozó", "kapcsolati út"],
+      routingHint: "Első körben belső szétválasztás, utána lane-specifikus koordinátorok.",
+    },
   });
   const LANE_BRIEF_TEMPLATES = Object.freeze({
     security_guarding: [
@@ -350,204 +441,278 @@
 
   function writeFixtureRows(rows = []) {
     window.localStorage.setItem(FIXTURE_STORAGE_KEY, JSON.stringify(rows.slice(0, 20)));
+    window.localStorage.setItem(FIXTURE_VERSION_STORAGE_KEY, FIXTURE_SEED_VERSION);
   }
 
   function seedFixtureRowsIfNeeded() {
     const existing = readFixtureRows();
-    if (existing.length) {
+    const existingVersion = window.localStorage.getItem(FIXTURE_VERSION_STORAGE_KEY) || "";
+    if (existing.length && existingVersion === FIXTURE_SEED_VERSION) {
       return existing;
     }
 
     const rows = [
       {
         id: "erd-fixture-seed-1",
-        lane: "facility_management",
-        laneLabel: "Facility Management",
-        confidence: "medium",
-        requestText: "Facility Management támogatás kell egy budapesti telephelyre, karbantartás és takarítás egyeztetéssel, jövő héten. Telefon: +36 30 123 4567.",
-        siteOrObject: "telephely",
-        locationText: "Budapest",
-        serviceNeed: "Facility Management támogatás",
-        timingText: "jövő héten",
-        urgency: "egyeztethető",
-        contactName: "",
-        contactEmail: "",
-        contactPhone: "+36 30 123 4567",
-        missingFields: [],
-        structuredBrief: {
-          lane: "facility_management",
-          laneLabelHu: "Facility Management",
-          serviceNeed: "Facility Management támogatás",
-          locationOrSite: "Budapest telephely",
-          urgencyOrTiming: "jövő héten",
-          contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
-          staffSummaryHu: "Belső összefoglaló: Facility Management. Igény: karbantartás és takarítás egyeztetés. Helyszín/objektum: budapesti telephely.",
-        },
-        status: "request_received",
-        statusReason: "",
-        staffNotes: "Helyi minta megkeresés.",
-        createdAt: "2026-06-05T09:00:00.000Z",
-        updatedAt: "2026-06-05T09:00:00.000Z",
-      },
-      {
-        id: "erd-fixture-seed-2",
-        lane: "security_guarding",
-        laneLabel: "Őrzés-védelem",
-        confidence: "high",
-        requestText: "Őrzés-védelem kell egy ipari telephelyre Győr mellett, hétköznap éjszakai lefedéssel. Kapcsolat: operations@example.test.",
-        siteOrObject: "ipari telephely",
-        locationText: "Győr térsége",
-        serviceNeed: "Élőerős őrzés-védelem",
-        timingText: "hétköznap éjszaka",
-        urgency: "jövő hónaptól",
-        contactName: "Minta Operátor",
-        contactEmail: "operations@example.test",
-        contactPhone: "",
-        missingFields: ["urgency_or_timing"],
-        structuredBrief: {
-          lane: "security_guarding",
-          laneLabelHu: "Őrzés-védelem",
-          serviceNeed: "Élőerős őrzés-védelem",
-          locationOrSite: "Győr térsége, ipari telephely",
-          urgencyOrTiming: "hétköznap éjszaka",
-          contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
-          siteType: "ipari telephely",
-          riskLevel: "",
-          staffSummaryHu: "Belső összefoglaló: őrzés-védelem. Igény: éjszakai lefedés ipari telephelyen.",
-        },
-        status: "needs_info",
-        statusReason: "Kezdés és pontos létszám még tisztázandó.",
-        staffNotes: "Helyi minta megkeresés.",
-        createdAt: "2026-06-05T10:00:00.000Z",
-        updatedAt: "2026-06-05T10:00:00.000Z",
-      },
-      {
-        id: "erd-fixture-seed-3",
+        fixtureModeOnly: true,
+        workflowPhase: "phase_10",
+        organizationName: "ESG Holding Zrt.",
         lane: "reception_object_protection",
         laneLabel: "Portaszolgálat / objektumvédelem",
         confidence: "high",
-        requestText: "Irodaház portaszolgálatára lenne szükség Budapesten, recepciós beléptetéssel 8-18 óra között.",
-        siteOrObject: "irodaház",
+        requestText: "Sziasztok, ESG oldalon nyitnánk egy új irodaházat Budapesten, kellene porta meg valami objektumvédelem. Két bejárat van, vendégkártyák, futárok, hétköznap kb. 7-19. Július eleje lenne jó, de még nincs fix dátum. Réka vagyok, reka.nemeth@example.test.",
+        siteOrObject: "irodaház, két bejárat",
         locationText: "Budapest",
-        serviceNeed: "Portaszolgálat és recepciós beléptetés",
-        timingText: "hétköznap 8-18",
-        urgency: "egyeztethető",
-        contactName: "",
-        contactEmail: "",
+        serviceNeed: "Portaszolgálat, recepciós beléptetés és objektumvédelem",
+        timingText: "hétköznap 7-19, július eleje körül",
+        urgency: "kezdés pontosítása szükséges",
+        contactName: "Németh Réka",
+        contactEmail: "reka.nemeth@example.test",
         contactPhone: "",
-        missingFields: ["contact_need"],
+        missingFields: ["start_date", "visitor_traffic", "access_duties"],
+        suggestedNextQuestion: "Melyik napon indulna a portaszolgálat, és mekkora napi látogatói / futárforgalommal számoljanak?",
+        routingRecommendation: "Portaszolgálat / objektumvédelem koordinátor, beléptetési folyamat és nyitási ütemezés tisztázására.",
         structuredBrief: {
           lane: "reception_object_protection",
           laneLabelHu: "Portaszolgálat / objektumvédelem",
-          serviceNeed: "Portaszolgálat és recepciós beléptetés",
-          locationOrSite: "Budapest, irodaház",
-          urgencyOrTiming: "hétköznap 8-18",
-          contactNeed: "Kapcsolati adat hiányzik a visszajelzéshez.",
-          openingHours: "hétköznap 8-18",
-          staffSummaryHu: "Belső összefoglaló: portaszolgálat. Igény: recepciós beléptetés irodaházban.",
+          organizationName: "ESG Holding Zrt.",
+          serviceNeed: "Portaszolgálat, recepciós beléptetés és objektumvédelem",
+          locationOrSite: "Budapest, új irodaház, két bejárat",
+          urgencyOrTiming: "hétköznap 7-19, július eleje körül",
+          contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
+          openingHours: "hétköznap 7-19",
+          accessControl: "vendégkártyák, futárkezelés, két bejárat",
+          missingFields: ["start_date", "visitor_traffic", "access_duties"],
+          staffSummaryHu: "Belső összefoglaló: új budapesti irodaház portaszolgálati és objektumvédelmi indulása. Ismert a lefedési idő és két bejárat, tisztázandó a pontos start, látogatói forgalom és feladatlista.",
+        },
+        status: "needs_info",
+        statusReason: "Kezdés, látogatói forgalom és pontos beléptetési feladatok hiányoznak.",
+        staffNotes: "Nyitási ütemezés miatt gyors belső előszűrés javasolt.",
+        timeline: [
+          { label: "Beérkezett", detail: "Messy irodaház-porta megkeresés rögzítve.", at: "2026-06-06T08:20:00.000Z" },
+          { label: "Előszűrés", detail: "Lane: portaszolgálat / objektumvédelem. Három tisztázó adat hiányzik.", at: "2026-06-06T08:23:00.000Z" },
+        ],
+        createdAt: "2026-06-06T08:20:00.000Z",
+        updatedAt: "2026-06-06T08:23:00.000Z",
+      },
+      {
+        id: "erd-fixture-seed-2",
+        fixtureModeOnly: true,
+        workflowPhase: "phase_10",
+        organizationName: "ESG Holding Zrt.",
+        lane: "security_guarding",
+        laneLabel: "Őrzés-védelem",
+        confidence: "high",
+        requestText: "Raktárőrzésre kérnék ESG-s segítséget Győr mellett. Tavaly volt rongálás, most estére és hétvégére kellene ember, 18-6 nagyjából, de nem tudom hány fő. Kezdés lehet még ebben a hónapban. Kovács Dániel, ops.gyor@example.test.",
+        siteOrObject: "raktár és ipari telephely",
+        locationText: "Győr térsége",
+        serviceNeed: "Éjszakai és hétvégi élőerős őrzés",
+        timingText: "18-6, hétvégi lefedéssel, hónapon belül",
+        urgency: "hónapon belül",
+        contactName: "Kovács Dániel",
+        contactEmail: "ops.gyor@example.test",
+        contactPhone: "",
+        missingFields: ["guard_count", "risk_details", "start_date"],
+        suggestedNextQuestion: "Pontosan melyik naptól indulna az őrzés, és egy vagy több őri jelenléttel számolnak éjszakánként?",
+        routingRecommendation: "Őrzés-védelem koordinátor kockázati előszűrésre és lefedési modell tisztázására.",
+        structuredBrief: {
+          lane: "security_guarding",
+          laneLabelHu: "Őrzés-védelem",
+          organizationName: "ESG Holding Zrt.",
+          serviceNeed: "Éjszakai és hétvégi élőerős őrzés",
+          locationOrSite: "Győr térsége, raktár / ipari telephely",
+          urgencyOrTiming: "18-6, hétvégi lefedéssel, hónapon belül",
+          contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
+          siteType: "raktár és ipari telephely",
+          coverageTime: "18-6, hétvége is",
+          riskLevel: "korábbi rongálás említve, részletek hiányoznak",
+          missingFields: ["guard_count", "risk_details", "start_date"],
+          staffSummaryHu: "Belső összefoglaló: Győr melletti raktár éjszakai és hétvégi őrzésére érkezett igény. A lefedési idősáv ismert, de a létszám, pontos indulás és kockázati előzmények még tisztázandók.",
+        },
+        status: "needs_staff_review",
+        statusReason: "Létszám és kockázati előzmény belső ellenőrzést igényel.",
+        staffNotes: "Kockázati előzményt kérdezzünk vissza, de ne ígérjünk végleges vállalást.",
+        timeline: [
+          { label: "Beérkezett", detail: "Raktárőrzési igény éjszakai lefedéssel.", at: "2026-06-06T09:10:00.000Z" },
+          { label: "Belső ellenőrzés", detail: "Kockázati előzmény miatt belső ellenőrzés státusz.", at: "2026-06-06T09:18:00.000Z" },
+        ],
+        createdAt: "2026-06-06T09:10:00.000Z",
+        updatedAt: "2026-06-06T09:18:00.000Z",
+      },
+      {
+        id: "erd-fixture-seed-3",
+        fixtureModeOnly: true,
+        workflowPhase: "phase_10",
+        organizationName: "ESG Holding Zrt.",
+        lane: "facility_management",
+        laneLabel: "Facility Management",
+        confidence: "medium",
+        requestText: "FM oldalról kaotikus kérésem van: Budapest, Debrecen és Pécs telephelyeken karbantartási hibák, időszakos takarítás és valami központi koordináció kellene. A legsürgősebb a budapesti gépészeti hiba, de a lista még nincs kész. +36 30 123 4567.",
+        siteOrObject: "három telephely",
+        locationText: "Budapest, Debrecen, Pécs",
+        serviceNeed: "Karbantartási, takarítási és FM koordinációs igény",
+        timingText: "budapesti gépészeti hiba sürgős, teljes lista később",
+        urgency: "priorizálandó",
+        contactName: "",
+        contactEmail: "",
+        contactPhone: "+36 30 123 4567",
+        missingFields: ["affected_systems", "site_priority", "decision_owner"],
+        suggestedNextQuestion: "Melyik telephely és melyik konkrét rendszer a legelső prioritás, és ki lesz a belső döntéshozó?",
+        routingRecommendation: "Facility Management koordinátor telephelyenkénti bontásra és feladatlista tisztázására.",
+        structuredBrief: {
+          lane: "facility_management",
+          laneLabelHu: "Facility Management",
+          organizationName: "ESG Holding Zrt.",
+          serviceNeed: "Karbantartás, takarítás és FM koordináció több telephelyen",
+          locationOrSite: "Budapest, Debrecen, Pécs",
+          urgencyOrTiming: "Budapesti gépészeti hiba első prioritásként jelölve",
+          contactNeed: "Telefonos elérhetőség megadva a visszajelzéshez.",
+          affectedArea: "gépészeti hiba, takarítási igény, koordináció",
+          operationNeed: "telephelyenkénti FM feladatlista",
+          missingFields: ["affected_systems", "site_priority", "decision_owner"],
+          staffSummaryHu: "Belső összefoglaló: három telephelyes FM igény érkezett karbantartásra, takarításra és koordinációra. A budapesti gépészeti hiba sürgősnek tűnik, de a pontos rendszerlista és belső prioritás hiányzik.",
         },
         status: "request_received",
         statusReason: "",
-        staffNotes: "Helyi minta megkeresés.",
-        createdAt: "2026-06-05T11:00:00.000Z",
-        updatedAt: "2026-06-05T11:00:00.000Z",
+        staffNotes: "Telefonos visszakérdezés javasolt telephelyi bontás miatt.",
+        timeline: [
+          { label: "Beérkezett", detail: "Több telephelyes FM megkeresés rögzítve.", at: "2026-06-06T10:05:00.000Z" },
+        ],
+        createdAt: "2026-06-06T10:05:00.000Z",
+        updatedAt: "2026-06-06T10:05:00.000Z",
       },
       {
         id: "erd-fixture-seed-4",
+        fixtureModeOnly: true,
+        workflowPhase: "phase_10",
+        organizationName: "ESG Holding Zrt.",
         lane: "security_technology",
         laneLabel: "Biztonságtechnika",
         confidence: "high",
-        requestText: "CCTV kamerarendszer és beléptető bővítés kell egy telephelyen, meglévő riasztóval.",
+        requestText: "Székesfehérváron a telephelyen CCTV bővítés, beléptető csere és a régi riasztóval valami összekötés kellene. Nem tudom hány kamera vagy ajtó, a műszaki kolléga később ad listát. Felmérés két héten belül jó lenne. tech.esg@example.test",
         siteOrObject: "telephely",
         locationText: "Székesfehérvár",
-        serviceNeed: "CCTV és beléptető bővítés",
+        serviceNeed: "CCTV bővítés, beléptető csere és riasztó integráció előszűrése",
         timingText: "felmérés két héten belül",
         urgency: "közepes",
         contactName: "Technikai kapcsolattartó",
-        contactEmail: "tech@example.test",
+        contactEmail: "tech.esg@example.test",
         contactPhone: "",
-        missingFields: [],
+        missingFields: ["camera_count", "existing_system", "access_duties"],
+        suggestedNextQuestion: "Hány kamera, ajtó vagy jogosultsági pont érintett, és milyen meglévő riasztórendszerhez kell igazodni?",
+        routingRecommendation: "Biztonságtechnikai felmérési előkészítés belső műszaki csapatnak.",
         structuredBrief: {
           lane: "security_technology",
           laneLabelHu: "Biztonságtechnika",
-          serviceNeed: "CCTV és beléptető bővítés",
+          organizationName: "ESG Holding Zrt.",
+          serviceNeed: "CCTV bővítés, beléptető csere, riasztó integráció",
           locationOrSite: "Székesfehérvár telephely",
           urgencyOrTiming: "felmérés két héten belül",
           contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
           camera: "CCTV kamerarendszer",
-          accessControl: "beléptető bővítés",
-          alarm: "meglévő riasztó",
-          staffSummaryHu: "Belső összefoglaló: biztonságtechnika. Igény: CCTV és beléptető bővítés.",
+          accessControl: "beléptető csere",
+          alarm: "régi riasztóval összekötés",
+          existingSystem: "meglévő riasztó részletei hiányoznak",
+          missingFields: ["camera_count", "existing_system", "access_duties"],
+          staffSummaryHu: "Belső összefoglaló: székesfehérvári telephelyre CCTV, beléptető és riasztó összekötési igény érkezett. A felmérés időablaka ismert, de a pontszám és meglévő rendszer adatai hiányoznak.",
         },
         status: "needs_staff_review",
-        statusReason: "",
-        staffNotes: "Helyi minta megkeresés.",
-        createdAt: "2026-06-05T12:00:00.000Z",
-        updatedAt: "2026-06-05T12:00:00.000Z",
+        statusReason: "Műszaki előkészítéshez rendszerleltár szükséges.",
+        staffNotes: "Műszaki lista nélkül csak felmérési előkészítésként kezelhető.",
+        timeline: [
+          { label: "Beérkezett", detail: "CCTV / beléptető / riasztó vegyes technológiai igény.", at: "2026-06-06T11:00:00.000Z" },
+          { label: "Review", detail: "Rendszerleltár és pontszám hiányzik.", at: "2026-06-06T11:12:00.000Z" },
+        ],
+        createdAt: "2026-06-06T11:00:00.000Z",
+        updatedAt: "2026-06-06T11:12:00.000Z",
       },
       {
         id: "erd-fixture-seed-5",
+        fixtureModeOnly: true,
+        workflowPhase: "phase_10",
+        organizationName: "ESG Holding Zrt.",
         lane: "audit_compliance",
         laneLabel: "Hatósági / audit támogatás",
         confidence: "medium",
-        requestText: "Beszerzési auditanyaghoz kérnénk támogatást vagyonvédelmi és FM szolgáltatási keretre, határidő június vége.",
+        requestText: "Beszerzési auditanyaghoz kérnénk ESG támogatást vagyonvédelmi és FM szolgáltatási keretre. Június vége a határidő, de még nincs végleges dokumentumlista, csak belső audit kérdéssor. compliance.esg@example.test",
         siteOrObject: "több telephely",
         locationText: "országos",
         serviceNeed: "Beszerzési audit támogatás",
         timingText: "június vége",
         urgency: "határidős",
         contactName: "Audit kapcsolattartó",
-        contactEmail: "audit@example.test",
+        contactEmail: "compliance.esg@example.test",
         contactPhone: "",
-        missingFields: [],
+        missingFields: ["document_list", "audit_deadline", "decision_owner"],
+        suggestedNextQuestion: "Milyen dokumentumlistát kér az audit, és ki a belső felelős a határidő megerősítésére?",
+        routingRecommendation: "Hatósági / audit belső szakmai ellenőrzés, dokumentumgenerálás vagy külső benyújtás nélkül.",
         structuredBrief: {
           lane: "audit_compliance",
           laneLabelHu: "Hatósági / audit támogatás",
+          organizationName: "ESG Holding Zrt.",
           serviceNeed: "Beszerzési audit támogatás",
           locationOrSite: "országos, több telephely",
           urgencyOrTiming: "június vége",
           contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
-          documentNeed: "beszerzési auditanyag",
+          documentNeed: "beszerzési auditanyag, dokumentumlista még hiányzik",
           procurementContext: "vagyonvédelmi és FM szolgáltatási keret",
-          staffSummaryHu: "Belső összefoglaló: hatósági/audit támogatás. Igény: beszerzési auditanyag.",
+          auditContext: "belső audit kérdéssor",
+          missingFields: ["document_list", "audit_deadline", "decision_owner"],
+          staffSummaryHu: "Belső összefoglaló: országos vagyonvédelmi és FM kerethez kapcsolódó beszerzési audit támogatás. A határidő irányként ismert, a dokumentumlista és belső felelős még tisztázandó.",
         },
         status: "routed",
         statusReason: "Belső szakmai ellenőrzésre továbbítva.",
-        staffNotes: "Helyi minta megkeresés.",
-        createdAt: "2026-06-05T13:00:00.000Z",
-        updatedAt: "2026-06-05T13:00:00.000Z",
+        staffNotes: "Csak audit-előkészítési átadás, nem dokumentumkészítés.",
+        timeline: [
+          { label: "Beérkezett", detail: "Beszerzési audit támogatási igény.", at: "2026-06-06T12:00:00.000Z" },
+          { label: "Továbbítva", detail: "Belső audit szakmai ellenőrzésre jelölve.", at: "2026-06-06T12:16:00.000Z" },
+        ],
+        createdAt: "2026-06-06T12:00:00.000Z",
+        updatedAt: "2026-06-06T12:16:00.000Z",
       },
       {
         id: "erd-fixture-seed-6",
+        fixtureModeOnly: true,
+        workflowPhase: "phase_10",
+        organizationName: "ESG Holding Zrt.",
         lane: "mixed_enterprise_request",
         laneLabel: "Vegyes vállalati megkeresés",
         confidence: "high",
-        requestText: "Őrzés-védelem, FM karbantartás és kamerarendszer felmérés együtt kell három telephelyen.",
+        requestText: "Országos ESG programhoz egyben kérnék mindent: három telephelyen őrzés, porta, FM karbantartás, plusz kamera/beléptető felmérés. Nem tudom, ezt melyik belső terület kezelje, első körben csak rendezzük szét. program.esg@example.test",
         siteOrObject: "három telephely",
         locationText: "Budapest, Debrecen, Pécs",
-        serviceNeed: "Őrzés-védelem, FM és biztonságtechnika együtt",
+        serviceNeed: "Őrzés-védelem, porta, FM és biztonságtechnika együtt",
         timingText: "ütemezés egyeztetendő",
-        urgency: "szétválasztandó",
+        urgency: "belső szétválasztás szükséges",
         contactName: "Programvezető",
-        contactEmail: "program@example.test",
+        contactEmail: "program.esg@example.test",
         contactPhone: "",
-        missingFields: ["urgency_or_timing"],
+        missingFields: ["lane_split", "site_priority", "decision_owner"],
+        suggestedNextQuestion: "Melyik telephely és melyik szolgáltatási terület az első prioritás, és ki tud lane-enként dönteni?",
+        routingRecommendation: "Első körben belső szétválasztás szolgáltatási területekre, utána lane-specifikus koordinátorok.",
         structuredBrief: {
           lane: "mixed_enterprise_request",
           laneLabelHu: "Vegyes vállalati megkeresés",
-          serviceNeed: "Őrzés-védelem, FM és biztonságtechnika együtt",
+          organizationName: "ESG Holding Zrt.",
+          serviceNeed: "Őrzés-védelem, porta, FM és biztonságtechnika együtt",
           locationOrSite: "Budapest, Debrecen, Pécs",
           urgencyOrTiming: "ütemezés egyeztetendő",
           contactNeed: "Biztonságos elérhetőség megadva a visszajelzéshez.",
-          serviceAreas: "őrzés-védelem, Facility Management, biztonságtechnika",
-          splitNeeds: "három telephely és három szolgáltatási terület belső szétválasztása",
-          staffSummaryHu: "Belső összefoglaló: vegyes megkeresés. Igény: több szolgáltatási terület szétválasztása.",
+          serviceAreas: "őrzés-védelem, portaszolgálat, Facility Management, biztonságtechnika",
+          splitNeeds: "három telephely és négy szolgáltatási terület belső szétválasztása",
+          matchedLaneLabels: "Őrzés-védelem; Portaszolgálat / objektumvédelem; Facility Management; Biztonságtechnika",
+          missingFields: ["lane_split", "site_priority", "decision_owner"],
+          staffSummaryHu: "Belső összefoglaló: országos, több lane-t érintő ESG programigény. A megkeresés nem egyetlen munkaterületre való, első lépésként telephely és szolgáltatási terület szerinti bontás szükséges.",
         },
         status: "needs_staff_review",
         statusReason: "Belső szétválasztás szükséges.",
-        staffNotes: "Helyi minta megkeresés.",
-        createdAt: "2026-06-05T14:00:00.000Z",
-        updatedAt: "2026-06-05T14:00:00.000Z",
+        staffNotes: "Ne kezeljük egyetlen ajánlatként; először lane és telephely szerint bontandó.",
+        timeline: [
+          { label: "Beérkezett", detail: "Több szolgáltatási területet érintő programigény.", at: "2026-06-06T13:00:00.000Z" },
+          { label: "Szétválasztás", detail: "Vegyes lane-re sorolva, külön koordinátori bontás javasolt.", at: "2026-06-06T13:09:00.000Z" },
+        ],
+        createdAt: "2026-06-06T13:00:00.000Z",
+        updatedAt: "2026-06-06T13:09:00.000Z",
       },
     ];
     writeFixtureRows(rows);
@@ -629,6 +794,7 @@
 
     return {
       id: trimText(record.id),
+      organizationName: trimText(record.organizationName || record.organization_name || brief.organizationName || brief.organization_name),
       lane: trimText(record.lane),
       laneLabel: trimText(record.laneLabel || record.lane_label || brief.laneLabelHu || brief.lane_label_hu)
         || workspaceLabel(trimText(record.lane), "Általános érdeklődés"),
@@ -649,6 +815,15 @@
       status: trimText(record.status || "request_received"),
       statusReason: trimText(record.statusReason || record.status_reason),
       staffNotes: trimText(record.staffNotes || record.staff_notes),
+      suggestedNextQuestion: trimText(record.suggestedNextQuestion || record.suggested_next_question || brief.suggestedNextQuestion || brief.suggested_next_question),
+      routingRecommendation: trimText(record.routingRecommendation || record.routing_recommendation || brief.routingRecommendation || brief.routing_recommendation),
+      timeline: Array.isArray(record.timeline || record.timeline_entries)
+        ? (record.timeline || record.timeline_entries).map((entry) => ({
+            label: trimText(entry?.label || entry?.title),
+            detail: trimText(entry?.detail || entry?.body),
+            at: entry?.at || entry?.createdAt || entry?.created_at || null,
+          })).filter((entry) => entry.label || entry.detail)
+        : [],
       createdAt: record.createdAt || record.created_at || null,
       updatedAt: record.updatedAt || record.updated_at || null,
     };
@@ -819,18 +994,8 @@
   }
 
   function missingFieldLabel(field) {
-    switch (trimText(field)) {
-      case "service_need":
-        return "szolgáltatási igény";
-      case "location_or_site":
-        return "helyszín vagy objektum";
-      case "urgency_or_timing":
-        return "időzítés vagy sürgősség";
-      case "contact_need":
-        return "biztonságos kapcsolati adat";
-      default:
-        return field;
-    }
+    const normalized = trimText(field);
+    return MISSING_FIELD_LABELS[normalized] || normalized;
   }
 
   function getContactNeeded(record) {
@@ -915,14 +1080,39 @@
       .map((item) => item.label);
   }
 
+  function getMissingInfoLabels(record) {
+    const requiredMissing = record.missingFields.map(missingFieldLabel).filter(Boolean);
+    const briefMissing = getMissingBriefLabels(record);
+    const seen = new Set();
+    const labels = [];
+
+    [...requiredMissing, ...briefMissing].forEach((label) => {
+      const normalized = trimText(label).toLocaleLowerCase("hu-HU");
+      if (!normalized || seen.has(normalized)) {
+        return;
+      }
+      seen.add(normalized);
+      labels.push(label);
+    });
+
+    return labels;
+  }
+
+  function getStaffSummary(record) {
+    return trimText(record?.structuredBrief?.staffSummaryHu || record?.structuredBrief?.staff_summary_hu)
+      .replace(/^Belső brief:/i, "")
+      .replace(/^Belső összefoglaló:/i, "")
+      .trim();
+  }
+
   function renderLaneBriefChecklist(record) {
     const items = getLaneBriefItems(record);
 
     return `
       <section class="erdp-lane-brief" aria-label="Lane-specifikus brief" data-erdp-lane-brief="${escapeHtml(record.lane || "general_enquiry")}">
         <div class="erdp-section-heading">
-          <h4>Lane-specifikus brief</h4>
-          <p>A mezők a meglévő strukturált briefből és a rögzített megkeresésből töltődnek.</p>
+          <h4>Strukturált belső brief</h4>
+          <p>Lane szerinti mezők a belső feldolgozáshoz.</p>
         </div>
         <dl class="erdp-lane-brief-list">
           ${items.map((item) => `
@@ -952,6 +1142,10 @@
   }
 
   function getSuggestedNextQuestion(record) {
+    if (record.suggestedNextQuestion) {
+      return record.suggestedNextQuestion;
+    }
+
     const missingQuestion = record.missingFields
       .map(nextQuestionForMissingField)
       .find(Boolean);
@@ -970,14 +1164,16 @@
   }
 
   function getRecommendedRoute(record) {
+    if (record.routingRecommendation) {
+      return record.routingRecommendation;
+    }
+
     return RECOMMENDED_ROUTES[trimText(record?.lane).toLowerCase()]
       || RECOMMENDED_ROUTES.general_enquiry;
   }
 
   function renderMissingInfo(record) {
-    const requiredMissing = record.missingFields.map(missingFieldLabel);
-    const briefMissing = getMissingBriefLabels(record);
-    const merged = [...new Set([...requiredMissing, ...briefMissing])];
+    const merged = getMissingInfoLabels(record);
 
     return `
       <div>
@@ -988,6 +1184,114 @@
             : "<span>nincs hiányzó minimális adat</span>"}
         </div>
       </div>
+    `;
+  }
+
+  function renderMissingInfoChips(record) {
+    const labels = getMissingInfoLabels(record);
+
+    return `
+      <div class="erdp-missing-list">
+        ${labels.length
+          ? labels.map((field) => `<span>${escapeHtml(field)}</span>`).join("")
+          : "<span>nincs hiányzó minimális adat</span>"}
+      </div>
+    `;
+  }
+
+  function renderTransformationView(record) {
+    const staffSummary = getStaffSummary(record);
+
+    return `
+      <section class="erdp-transformation" aria-label="Megkeresésből belső átadás" data-erdp-transformation-view>
+        <div class="erdp-section-heading">
+          <h4>Megkeresésből belső átadás</h4>
+          <p>Az eredeti szövegből szolgáltatási lane, rövid brief, hiánylista, következő kérdés és belső útvonal készül.</p>
+        </div>
+        <div class="erdp-transformation-grid">
+          <article class="erdp-transform-card is-original">
+            <span>Eredeti megkeresés</span>
+            <p>${escapeHtml(valueOrEmpty(record.requestText || record.serviceNeed))}</p>
+          </article>
+          <article class="erdp-transform-card is-summary">
+            <span>Előszűrt összefoglaló</span>
+            <p>${escapeHtml(valueOrEmpty(staffSummary || record.serviceNeed))}</p>
+          </article>
+          <article class="erdp-transform-card">
+            <span>Hiányzó adatok</span>
+            ${renderMissingInfoChips(record)}
+          </article>
+          <article class="erdp-transform-card">
+            <span>Javasolt következő kérdés</span>
+            <p>${escapeHtml(getSuggestedNextQuestion(record))}</p>
+          </article>
+          <article class="erdp-transform-card is-route">
+            <span>Javasolt belső továbbítás</span>
+            <p>${escapeHtml(getRecommendedRoute(record))}</p>
+          </article>
+        </div>
+      </section>
+    `;
+  }
+
+  function buildBriefExportText(record) {
+    if (!record) {
+      return "";
+    }
+
+    const staffSummary = getStaffSummary(record);
+    const missingLabels = getMissingInfoLabels(record);
+    const knownItems = getLaneBriefItems(record)
+      .map((item) => `- ${item.label}: ${item.value || "tisztázandó"}`)
+      .join("\n");
+
+    return [
+      `${profile?.productName || "Enterprise Request Desk"} belső összefoglaló`,
+      `Státusz: ${statusLabel(record.status)}`,
+      `Szolgáltatási terület: ${valueOrEmpty(record.laneLabel)}`,
+      `Eredeti megkeresés: ${valueOrEmpty(record.requestText || record.serviceNeed)}`,
+      `Előszűrt összefoglaló: ${valueOrEmpty(staffSummary || record.serviceNeed)}`,
+      "Strukturált brief:",
+      knownItems,
+      `Hiányzó adatok: ${missingLabels.length ? missingLabels.join(", ") : "nincs hiányzó minimális adat"}`,
+      `Javasolt következő kérdés: ${getSuggestedNextQuestion(record)}`,
+      `Javasolt belső továbbítás: ${getRecommendedRoute(record)}`,
+      `Belső megjegyzés: ${valueOrEmpty(record.staffNotes)}`,
+    ].join("\n");
+  }
+
+  function renderTimeline(record) {
+    const entries = record.timeline.length
+      ? record.timeline
+      : [
+          {
+            label: "Beérkezett",
+            detail: "Megkeresés rögzítve a belső feldolgozási listában.",
+            at: record.createdAt,
+          },
+          ...(record.updatedAt && record.updatedAt !== record.createdAt ? [{
+            label: "Frissítve",
+            detail: `${statusLabel(record.status)} státusz vagy belső megjegyzés frissült.`,
+            at: record.updatedAt,
+          }] : []),
+        ];
+
+    return `
+      <section class="erdp-timeline" aria-label="Belső idővonal">
+        <div class="erdp-section-heading">
+          <h4>Belső idővonal</h4>
+          <p>Rövid előzmény a beérkezés, előszűrés és operátori műveletek követéséhez.</p>
+        </div>
+        <div class="erdp-timeline-list">
+          ${entries.map((entry) => `
+            <div class="erdp-timeline-row">
+              <span>${escapeHtml(formatDateTime(entry.at))}</span>
+              <strong>${escapeHtml(valueOrEmpty(entry.label))}</strong>
+              <p>${escapeHtml(valueOrEmpty(entry.detail))}</p>
+            </div>
+          `).join("")}
+        </div>
+      </section>
     `;
   }
 
@@ -1008,15 +1312,14 @@
       `;
     }
 
-    const staffSummary = trimText(record.structuredBrief?.staffSummaryHu || record.structuredBrief?.staff_summary_hu)
-      .replace(/^Belső brief:/i, "Belső összefoglaló:");
+    const staffSummary = getStaffSummary(record);
 
     return `
       <section class="erdp-panel erdp-brief-workspace-panel" id="brief" aria-label="Kiválasztott megkeresés brief">
         <div class="erdp-panel-header">
           <div>
             <h2>Kiválasztott brief</h2>
-            <p>Amit az ügyfél kér, ami ismert, és mi maradt tisztázandó.</p>
+            <p>Eredeti megkeresésből előszűrt belső átadás.</p>
           </div>
         </div>
         <div class="erdp-panel-body">
@@ -1024,11 +1327,12 @@
             <h3>${escapeHtml(valueOrEmpty(record.serviceNeed || record.laneLabel))}</h3>
             <span class="erdp-badge ${escapeHtml(statusBadgeClass(record.status))}">${escapeHtml(statusLabel(record.status))}</span>
           </div>
-          <div class="erdp-request-need">
-            <span>Ügyféligény</span>
-            <p>${escapeHtml(valueOrEmpty(record.requestText || record.serviceNeed))}</p>
+          ${renderTransformationView(record)}
+          <div class="erdp-section-heading">
+            <h4>Ismert adatok</h4>
           </div>
           <div class="erdp-detail-grid">
+            ${detailItem("Szervezet", record.organizationName)}
             ${detailItem("Szolgáltatási terület", record.laneLabel)}
             ${detailItem("Besorolási jelzés", record.confidence)}
             ${detailItem("Objektum / helyszín", record.siteOrObject)}
@@ -1085,6 +1389,17 @@
             <span>Javasolt belső útvonal</span>
             <strong>${escapeHtml(getRecommendedRoute(record))}</strong>
           </div>
+          <div class="erdp-brief-copy-card">
+            <div>
+              <span>Strukturált brief export</span>
+              <strong>Másolható belső összefoglaló operátori egyeztetéshez.</strong>
+            </div>
+            <button
+              class="erdp-button erdp-button-primary"
+              type="button"
+              data-erdp-copy-brief="${escapeHtml(record.id)}"
+            >Összefoglaló másolása</button>
+          </div>
           <label class="erdp-field">
             Státusz oka
             <textarea data-erdp-status-reason>${escapeHtml(record.statusReason)}</textarea>
@@ -1093,6 +1408,7 @@
             Megjegyzés
             <textarea data-erdp-staff-notes>${escapeHtml(record.staffNotes)}</textarea>
           </label>
+          ${renderTimeline(record)}
           <div class="erdp-actions" aria-label="Biztonságos feldolgozási státuszok">
             ${REVIEW_ACTIONS.map(([status, label]) => `
               <button
@@ -1115,13 +1431,18 @@
   }
 
   function renderRecent(records) {
-    const recent = records.slice(0, 5);
+    const recent = [...records]
+      .sort((left, right) =>
+        new Date(right.updatedAt || right.createdAt || 0).getTime()
+        - new Date(left.updatedAt || left.createdAt || 0).getTime()
+      )
+      .slice(0, 5);
 
     return `
-      <section class="erdp-panel" aria-label="Legutóbbi megkeresések">
+      <section class="erdp-panel" aria-label="Legutóbb frissített megkeresések">
         <div class="erdp-panel-header">
           <div>
-            <h2>Legutóbbi megkeresések</h2>
+            <h2>Legutóbb frissített megkeresések</h2>
             <p>A feldolgozási lista ténylegesen rögzített vállalati megkeresésekből épül.</p>
           </div>
         </div>
@@ -1132,7 +1453,7 @@
                 <strong>${escapeHtml(valueOrEmpty(record.serviceNeed || record.laneLabel))}</strong>
                 <span>${escapeHtml(statusLabel(record.status))} · ${escapeHtml(valueOrEmpty(record.laneLabel))} · ${escapeHtml(valueOrEmpty(record.locationText || record.siteOrObject))}</span>
               </div>
-              <time>${escapeHtml(formatDateTime(record.createdAt))}</time>
+              <time>${escapeHtml(formatDateTime(record.updatedAt || record.createdAt))}</time>
             </div>
           `).join("") : `
             <div class="erdp-empty"><p>Nincs megjeleníthető kérés.</p></div>
@@ -1221,6 +1542,86 @@
     `;
   }
 
+  function buildMissingInfoCounts(records) {
+    const counts = new Map();
+
+    records.forEach((record) => {
+      getMissingInfoLabels(record).forEach((label) => {
+        counts.set(label, (counts.get(label) || 0) + 1);
+      });
+    });
+
+    return [...counts.entries()]
+      .map(([label, count]) => ({ label, count }))
+      .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "hu"))
+      .slice(0, 6);
+  }
+
+  function renderMissingInfoOverview(records) {
+    const missingCounts = buildMissingInfoCounts(records);
+
+    return `
+      <section class="erdp-panel" aria-label="Leggyakoribb hiányzó adatok" data-erdp-overview-missing-counts>
+        <div class="erdp-panel-header">
+          <div>
+            <h2>Hiányzó adatok</h2>
+            <p>Top tisztázandó kategóriák az aktuális feldolgozási listából.</p>
+          </div>
+        </div>
+        <div class="erdp-panel-body erdp-missing-count-list">
+          ${missingCounts.length ? missingCounts.map((entry) => `
+            <div class="erdp-missing-count-row">
+              <span>${escapeHtml(entry.label)}</span>
+              <strong>${escapeHtml(entry.count)}</strong>
+            </div>
+          `).join("") : `
+            <div class="erdp-empty"><p>Nincs kiemelt hiányzó adat az aktuális listában.</p></div>
+          `}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderServicePlaybook(workspace) {
+    if (workspace.type !== "service" || !workspace.laneKey) {
+      return "";
+    }
+
+    const playbook = SERVICE_AREA_PLAYBOOKS[workspace.laneKey];
+    if (!playbook) {
+      return "";
+    }
+
+    return `
+      <section class="erdp-panel erdp-playbook-panel" aria-label="${escapeHtml(workspace.label)} playbook" data-erdp-playbook="${escapeHtml(workspace.laneKey)}">
+        <div class="erdp-panel-header">
+          <div>
+            <h2>${escapeHtml(playbook.title)}</h2>
+            <p>Kompakt operátori ellenőrzőlista lane-specifikus előszűréshez.</p>
+          </div>
+        </div>
+        <div class="erdp-panel-body erdp-playbook-grid">
+          <div class="erdp-playbook-block">
+            <span>Kulcskérdések</span>
+            <ul>
+              ${playbook.questions.map((question) => `<li>${escapeHtml(question)}</li>`).join("")}
+            </ul>
+          </div>
+          <div class="erdp-playbook-block">
+            <span>Tipikus hiányzó adatok</span>
+            <div class="erdp-missing-list">
+              ${playbook.missingInfo.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+            </div>
+          </div>
+          <div class="erdp-playbook-block is-route">
+            <span>Routing hint</span>
+            <strong>${escapeHtml(playbook.routingHint)}</strong>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
   function renderOverview(records) {
     const laneCounts = buildLaneCounts(records);
     const statusCounts = buildStatusCounts(records);
@@ -1239,7 +1640,7 @@
           <p>Nyisd meg az intake linket, küldj be egy tesztmegkeresést, majd térj vissza ide. A kérés a közös queue-ban és a besorolt szolgáltatási workspace-ben is megjelenik.</p>
         </section>
       ` : ""}
-      <div class="erdp-overview-grid">
+      <div class="erdp-overview-grid erdp-overview-grid-three">
         <section class="erdp-panel" aria-label="Megkeresések szolgáltatási terület szerint" data-erdp-overview-lane-counts>
           <div class="erdp-panel-header">
             <div>
@@ -1275,6 +1676,7 @@
             `).join("")}
           </div>
         </section>
+        ${renderMissingInfoOverview(records)}
       </div>
       ${renderRecent(records)}
     `;
@@ -1292,6 +1694,7 @@
         </div>
         <span>${escapeHtml(filteredRecords.length)} / ${escapeHtml(records.length)} megkeresés</span>
       </section>
+      ${renderServicePlaybook(workspace)}
       <div class="erdp-workspace erdp-workspace-three" data-erdp-workspace-columns data-erdp-active-lane="${escapeHtml(workspace.laneKey || "all")}">
         ${renderQueue(filteredRecords, selectedRecord, workspace)}
         ${renderBrief(selectedRecord)}
@@ -1308,7 +1711,7 @@
     const boundaries = [
       "Közös intake queue, szolgáltatási terület szerinti munkanézetekkel.",
       "Csak hiányzó adat, belső ellenőrzés, továbbítva, elutasítva és archiválva státusz használható.",
-      "Végleges ár, szerződés, műszakterv és helyszíni riport nem készül ezen a felületen.",
+      "Végleges ár, szerződés, műszakterv, helyszíni riport és külső rendszerbe küldés nem készül ezen a felületen.",
       "A belső döntést és választ a csapat kezeli.",
     ];
 
@@ -1352,7 +1755,7 @@
           <div class="erdp-panel-header">
             <div>
               <h2>Határok</h2>
-              <p>Phase 8 célja a kérésfeldolgozó workspace, nem operatív irányítás.</p>
+              <p>Phase 10 célja a demo workflow réteg és a belső átadás, nem teljes operatív irányítás.</p>
             </div>
           </div>
           <div class="erdp-panel-body erdp-boundary-stack">
@@ -1495,6 +1898,14 @@
             status,
             statusReason,
             staffNotes,
+            timeline: [
+              ...(Array.isArray(record.timeline) ? record.timeline : []),
+              {
+                label: statusLabel(status),
+                detail: staffNotes || statusReason || "Operátori státusz frissítve.",
+                at: now,
+              },
+            ].slice(-6),
             updatedAt: now,
           }
           : record);
@@ -1612,11 +2023,60 @@
     }
 
     const absoluteUrl = `${window.location.origin}${path}`;
-    try {
-      await navigator.clipboard.writeText(absoluteUrl);
+    if (await writeClipboardText(absoluteUrl)) {
       setStatus("Ügyféloldali intake link másolva.");
+    } else {
+      setStatus("A böngésző nem engedte a vágólap használatát.");
+    }
+  }
+
+  async function writeClipboardText(text) {
+    const value = String(text || "");
+    if (!value) {
+      return false;
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
     } catch {
-      setStatus(absoluteUrl);
+      // Fall through to the legacy copy path for browsers that block async clipboard.
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    try {
+      return document.execCommand("copy") === true;
+    } catch {
+      return false;
+    } finally {
+      textarea.remove();
+    }
+  }
+
+  async function copyBrief(button) {
+    const requestId = trimText(button.dataset.erdpCopyBrief);
+    const record = state.records.find((item) => item.id === requestId);
+    const text = buildBriefExportText(record);
+
+    if (!text) {
+      return;
+    }
+
+    if (await writeClipboardText(text)) {
+      setStatus("Összefoglaló másolva.");
+    } else {
+      setStatus("A böngésző nem engedte a vágólap használatát.");
     }
   }
 
@@ -1662,6 +2122,7 @@
     const signOutButton = target.closest?.("[data-erdp-sign-out]");
     const magicButton = target.closest?.('[data-erdp-auth-mode="magic"]');
     const copyIntakeButton = target.closest?.("[data-erdp-copy-intake-link]");
+    const copyBriefButton = target.closest?.("[data-erdp-copy-brief]");
 
     if (selectButton) {
       state.selectedId = trimText(selectButton.dataset.erdpSelectRequest);
@@ -1702,6 +2163,11 @@
 
     if (copyIntakeButton) {
       await copyIntakeLink(copyIntakeButton);
+      return;
+    }
+
+    if (copyBriefButton) {
+      await copyBrief(copyBriefButton);
     }
   });
 
