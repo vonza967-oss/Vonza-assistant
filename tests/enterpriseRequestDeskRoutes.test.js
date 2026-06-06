@@ -518,6 +518,54 @@ test("Enterprise assistant creates a request only after ready brief and explicit
   }
 });
 
+test("Enterprise assistant rejects confirmed submit without explicit consent", async () => {
+  let createCalled = false;
+  const server = await startServer(createApiApp({
+    createEnterpriseRequestDeskRequest: async () => {
+      createCalled = true;
+      return {};
+    },
+  }));
+
+  try {
+    const ready = await requestJson(server.baseUrl, "/esg-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({
+        message:
+          "CCTV kamerarendszer és beléptető felmérés kell egy győri raktárhoz 1-2 héten belül. Kapcsolat: security@client.hu.",
+      })),
+    });
+    const missingConsent = await requestJson(server.baseUrl, "/esg-request-desk/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(validAssistantPayload({
+        message: "",
+        fields: ready.json.extractedFields,
+        conversation: [
+          {
+            role: "user",
+            content:
+              "CCTV kamerarendszer és beléptető felmérés kell egy győri raktárhoz 1-2 héten belül. Kapcsolat: security@client.hu.",
+          },
+          { role: "assistant", content: ready.json.assistant.reply },
+        ],
+        confirm_submit: true,
+        consent_acknowledged: false,
+      })),
+    });
+
+    assert.equal(ready.status, 200);
+    assert.equal(ready.json.readyToCreate, true);
+    assert.equal(ready.json.needsConfirmation, true);
+    assert.equal(missingConsent.status, 400);
+    assert.equal(missingConsent.json.code, "enterprise_intake_acknowledgement_required");
+    assert.equal(createCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
 test("Enterprise public intake creates request-only row and does not leak internals", async () => {
   let capturedOptions = null;
   const server = await startServer(createApiApp({
@@ -897,6 +945,8 @@ test("Enterprise Request Desk public and dashboard pages render separately from 
     assert.doesNotMatch(intakeHtml, /enterprise-request-desk-dashboard\.js/);
     assert.match(esgIntakeHtml, /ESG Request Desk/);
     assert.match(esgIntakeHtml, /Objektumvédelem, FM, biztonságtechnika|ESG megkeresés/);
+    assert.match(esgIntakeHtml, /ESG megkeresés pontosítása strukturált áttekintéshez/);
+    assert.doesNotMatch(esgIntakeHtml, /ESG megkeresés előszűrése belső feldolgozáshoz/);
     assert.doesNotMatch(esgIntakeHtml, /Quote Desk HU|\bQDH\b|\/widget|\/embed\.js|\/embed-lite\.js/i);
     assert.match(dashboardHtml, /enterprise-request-desk-dashboard\.js/);
     assert.doesNotMatch(dashboardHtml, /enterprise-request-desk-intake\.js/);

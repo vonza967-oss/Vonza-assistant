@@ -487,7 +487,7 @@ function buildFallbackReply({ message, laneKey, missingFields, safetyFlags, busi
   }
 
   if (missingFields.length) {
-    return `Rögzítettem, amit megadott. ${buildNextQuestion({ laneKey, missingFields })}`;
+    return `Értettem, amit megadott. ${buildNextQuestion({ laneKey, missingFields })}`;
   }
 
   const businessName = normalizeBusinessContext(businessContext).businessName || "a csapat";

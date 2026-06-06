@@ -213,6 +213,42 @@ test("Enterprise Request Desk has an explicit ESG product profile", () => {
   assert.equal(esg.lanes.some((lane) => lane.labelHu === "Hatósági / audit támogatás"), true);
 });
 
+test("ESG intake frontend defines pitch-grade service-aware customer flow", () => {
+  const profileSource = readRepoFile("frontend/enterprise-request-desk-profile.js");
+  const intakeSource = readRepoFile("frontend/enterprise-request-desk-intake.js");
+  const cssSource = readRepoFile("frontend/enterprise-request-desk.css");
+  const enterpriseProfileBlock = profileSource.match(/enterprise: Object\.freeze\(\{[\s\S]*?\n\s{4}\}\),\n\s{4}esg:/)?.[0] || "";
+  const esgProfileBlock = profileSource.match(/esg: Object\.freeze\(\{[\s\S]*?\n\s{4}\}\),\n\s{2}\}\);/)?.[0] || "";
+
+  assert.match(esgProfileBlock, /ESG megkeresésből tiszta szolgáltatási brief/);
+  assert.match(profileSource, /Őrzés-védelem \/ élőerős vagyonvédelem/);
+  assert.match(profileSource, /Portaszolgálat \/ objektumvédelem/);
+  assert.match(profileSource, /Facility Management/);
+  assert.match(profileSource, /Biztonságtechnika \/ kamera \/ beléptetés \/ riasztó/);
+  assert.match(profileSource, /Audit \/ compliance \/ hatósági előkészítés/);
+  assert.match(profileSource, /Vegyes vállalati megkeresés/);
+  assert.match(profileSource, /Hány bejárat, műszak vagy látogatói folyamat érintett\?/);
+  assert.match(profileSource, /Hány helyszín, bejárat, kamera vagy jogosultsági pont érintett\?/);
+  assert.match(esgProfileBlock, /Ez nem árgarancia és nem automatikus helyszíni intézkedés/);
+  assert.match(esgProfileBlock, /Megkeresés elküldése az ESG-nek/);
+  assert.match(esgProfileBlock, /Az ESG megkapta a strukturált megkeresést/);
+
+  assert.match(intakeSource, /function renderServiceAreaSelector/);
+  assert.match(intakeSource, /data-erdp-service-area/);
+  assert.match(intakeSource, /Strukturált brief formálódik/);
+  assert.match(intakeSource, /renderDraftRecognition/);
+  assert.match(intakeSource, /checkbox\?\.checked !== true/);
+  assert.match(intakeSource, /consent_acknowledged: consentAcknowledged/);
+  assert.match(intakeSource, /getPreviewLane/);
+  assert.match(cssSource, /\.erdp-service-selector/);
+  assert.match(cssSource, /\.erdp-intelligence-rail/);
+  assert.match(cssSource, /\.erdp-guided-questions/);
+
+  assert.match(enterpriseProfileBlock, /Írja le, mire van szükség\. Az asszisztens pontosít\./);
+  assert.doesNotMatch(enterpriseProfileBlock, /ESG megkeresésből tiszta szolgáltatási brief|Megkeresés elküldése az ESG-nek/);
+  assert.doesNotMatch(`${esgProfileBlock}\n${intakeSource}`, /\bQDH\b|Quote Desk HU|quote[-_]desk|qdh[_-]/i);
+});
+
 test("Enterprise Request Desk answers service questions without QDH or internal metadata", async () => {
   const result = await generateEnterpriseRequestDeskAssistantTurn({
     message: "Milyen szolgáltatásokat tudtok kezelni vállalati megkeresésnél?",

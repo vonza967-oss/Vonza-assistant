@@ -3,6 +3,7 @@
   const statusRoot = document.getElementById("erdp-intake-status");
   const profileApi = window.VonzaEnterpriseRequestDeskProfiles;
   const profile = profileApi?.getProfile ? profileApi.getProfile() : null;
+  const isEsgProfile = profile?.key === "esg";
   if (profileApi?.applyDocumentProfile && profile) {
     profileApi.applyDocumentProfile(profile);
     document.title = profile.intake?.title || profile.productName;
@@ -50,12 +51,18 @@
   const OPENING_MESSAGE = profile?.intake?.openingMessage
     || "Üdvözlöm. Írja le természetes mondatban a vállalati objektumvédelmi, FM, biztonságtechnikai vagy audit jellegű igényt, és összerakom a belső feldolgozáshoz szükséges rövid összefoglalót.";
 
+  const DEFAULT_LANE = DEFAULT_LANES.find((item) => item.key === "general_enquiry")
+    || DEFAULT_LANES.find((item) => item.key === "mixed_enterprise_request")
+    || DEFAULT_LANES[0]
+    || { key: "general_enquiry", labelHu: "Általános érdeklődés" };
+
   let context = null;
   let assistantBusy = false;
   let manualOpen = false;
+  let serviceAreaManuallySelected = false;
   let draftMessage = "";
   let messages = [{ role: "assistant", content: OPENING_MESSAGE }];
-  let lane = { key: "general_enquiry", label: "Általános érdeklődés" };
+  let lane = { key: DEFAULT_LANE.key, label: DEFAULT_LANE.labelHu };
   let fields = normalizeFields();
   let missingFields = ["service_need", "location_or_site", "urgency_or_timing", "contact_need"];
   let briefPreview = {};
@@ -210,7 +217,7 @@
 
     if (/\b(ma|holnap|azonnal|minel hamarabb|surgos|asap)\b/.test(search)) urgency = "minél hamarabb";
     else if (/\b(jovo het\w*|hetfo\w*|kedd\w*|szerda\w*|csutortok\w*|pentek\w*|next week)\b/.test(search)) urgency = "jövő héten";
-    else if (/\b(1\s?[-–]\s?2 het|egy-ket het|1\s?[-–]\s?2 weeks?)\b/.test(search)) urgency = "1-2 héten belül";
+    else if (/\b(1\s?[-–]\s?2 het(?:en)?(?: belul)?|egy-ket het(?:en)?(?: belul)?|ket heten belul|1\s?[-–]\s?2 weeks?)\b/.test(search)) urgency = "1-2 héten belül";
     else if (/\b(jovo honap\w*|next month|negyedev vegeig)\b/.test(search)) urgency = "következő időszakban";
     else if (/\b(folyamatos|rendszeres|hosszu tavu)\b/.test(search)) urgency = "folyamatos igény";
 
@@ -229,6 +236,20 @@
     });
   }
 
+  function normalizeServiceNeedForProfile(value = "", laneKey = lane.key) {
+    const text = trimText(value);
+
+    if (
+      isEsgProfile
+      && laneKey === "mixed_enterprise_request"
+      && /vegyes v[aá]llalati szolg[aá]ltat[aá]si ig[eé]ny/i.test(text)
+    ) {
+      return profile?.intake?.mixedServiceNeedLabel || "Vegyes ESG szolgáltatási igény";
+    }
+
+    return text;
+  }
+
   function getMissingFieldsFromValues(values = fields) {
     const normalized = normalizeFields(values);
     const missing = [];
@@ -244,8 +265,13 @@
   function buildNextQuestion(currentLaneKey, missing = []) {
     const firstMissing = missing[0];
     const currentLane = DEFAULT_LANES.find((item) => item.key === currentLaneKey);
+    const serviceGuide = isEsgProfile ? getServiceGuide(currentLaneKey) : null;
 
     if (firstMissing === "service_need") {
+      if (serviceGuide?.questions?.[0]) {
+        return serviceGuide.questions[0];
+      }
+
       return currentLane?.key === "general_enquiry"
         ? profile?.intake?.nextQuestionDefault || "Melyik szolgáltatási terület érdekli: őrzés-védelem, porta, FM, biztonságtechnika vagy hatósági/audit támogatás?"
         : "Milyen konkrét feladatot kell lefedni az adott szolgáltatási területen?";
@@ -282,6 +308,7 @@
   function buildFixtureRecord() {
     const currentLane = DEFAULT_LANES.find((item) => item.key === lane.key) || DEFAULT_LANES.at(-1);
     const now = new Date().toISOString();
+    const serviceNeed = normalizeServiceNeedForProfile(fields.serviceNeed || currentLane.labelHu, currentLane.key);
     const contactNeed = fields.contactEmail || fields.contactPhone
       ? "Biztonságos elérhetőség megadva a visszajelzéshez."
       : fields.contactPreference || "Kapcsolati adat hiányzik a visszajelzéshez.";
@@ -294,7 +321,7 @@
       requestText: fields.notes || messages.filter((entry) => entry.role === "user").map((entry) => entry.content).join("\n").slice(0, 2200),
       siteOrObject: fields.siteType,
       locationText: fields.locationOrSite,
-      serviceNeed: fields.serviceNeed || currentLane.labelHu,
+      serviceNeed,
       timingText: fields.urgencyOrTiming,
       urgency: fields.urgencyOrTiming,
       contactName: fields.contactName,
@@ -305,7 +332,7 @@
         lane: currentLane.key,
         laneLabelHu: currentLane.labelHu,
         confidence: currentLane.key === "general_enquiry" ? "low" : "medium",
-        serviceNeed: fields.serviceNeed || currentLane.labelHu,
+        serviceNeed,
         locationOrSite: fields.locationOrSite,
         urgencyOrTiming: fields.urgencyOrTiming,
         contactNeed,
@@ -317,7 +344,7 @@
         notes: fields.notes,
         missingFields: [],
         readyForOwnerReview: true,
-        staffSummaryHu: `Belső összefoglaló: ${currentLane.labelHu}. Igény: ${fields.serviceNeed || currentLane.labelHu}. Helyszín: ${fields.locationOrSite}.`,
+        staffSummaryHu: `Belső összefoglaló: ${currentLane.labelHu}. Igény: ${serviceNeed}. Helyszín: ${fields.locationOrSite}.`,
       },
       status: "request_received",
       statusReason: "Local fixture megkeresés rögzítve belső feldolgozáshoz.",
@@ -327,7 +354,12 @@
     };
   }
 
-  async function runFixtureAssistantTurn({ message = "", conversation = [], confirmSubmit = false } = {}) {
+  async function runFixtureAssistantTurn({
+    message = "",
+    conversation = [],
+    confirmSubmit = false,
+    consentAcknowledged = false,
+  } = {}) {
     const combinedUserText = [
       ...conversation.filter((entry) => entry.role === "user").map((entry) => entry.content),
       message,
@@ -337,11 +369,11 @@
     const currentLane = detectFixtureLane(combinedUserText);
     const extracted = extractFixtureFields(combinedUserText, currentLane.key);
     const mergedFields = mergeFields(fields, extracted);
+    mergedFields.serviceNeed = normalizeServiceNeedForProfile(mergedFields.serviceNeed, currentLane.key);
     const missing = getMissingFieldsFromValues(mergedFields);
     const pricingBoundary = detectPricingBoundary(combinedUserText);
     const promptBoundary = detectPromptBoundary(combinedUserText);
     const serviceQuestion = detectServiceQuestion(message)
-      && currentLane.key === "general_enquiry"
       && !/\b(kell|kellene|sz[uü]ks[eé]g|szeretn[eé]nk|hibabejelent|need|looking for|required)\b/i.test(message);
     const services = context?.business?.serviceTypes || SAMPLE_FIXTURE.business.serviceTypes;
     let reply;
@@ -354,14 +386,20 @@
     } else if (pricingBoundary) {
       reply = `Pontos vagy garantált árat itt nem adok. A csapat a részletek áttekintése után tud visszajelezni a következő lépésről.\n\n${buildNextQuestion(currentLane.key, missing)}`;
     } else if (missing.length) {
-      reply = `Rögzítettem, amit megadott. ${buildNextQuestion(currentLane.key, missing)}`;
+      reply = isEsgProfile
+        ? `Értettem, amit megadott. ${buildNextQuestion(currentLane.key, missing)}`
+        : `Rögzítettem, amit megadott. ${buildNextQuestion(currentLane.key, missing)}`;
+    } else if (confirmSubmit && !consentAcknowledged) {
+      reply = profile?.intake?.reviewBody
+        || "A megkeresés elküldéséhez előbb el kell fogadni az áttekintési tájékoztatást.";
     } else if (confirmSubmit) {
       const record = buildFixtureRecord();
       writeFixtureRows([record, ...readFixtureRows()]);
       request = {
         created: true,
         laneLabel: record.laneLabel,
-        message: "A megkeresést rögzítettük belső feldolgozásra. A dashboard fixture oldalon megjelenik a sor.",
+        message: profile?.intake?.successBody
+          || "A megkeresést rögzítettük. A csapat a megadott adatok alapján tud visszajelezni a következő lépésről.",
       };
       reply = request.message;
     } else {
@@ -386,6 +424,7 @@
         contactName: mergedFields.contactName,
         organizationName: mergedFields.organizationName,
         siteType: mergedFields.siteType,
+        confidence: currentLane.key === "general_enquiry" ? "low" : "medium",
         notes: promptBoundary ? "" : mergedFields.notes,
       },
       nextQuestion: buildNextQuestion(currentLane.key, missing),
@@ -406,19 +445,20 @@
     `;
   }
 
-  function getProgressItems() {
+  function getProgressItems(values = fields) {
+    const normalized = normalizeFields(values);
     return [
-      { key: "service", label: "Igény", done: Boolean(fields.serviceNeed) },
-      { key: "location", label: "Helyszín", done: Boolean(fields.locationOrSite) },
-      { key: "timing", label: "Időzítés", done: Boolean(fields.urgencyOrTiming) },
-      { key: "contact", label: "Elérhetőség", done: Boolean(fields.contactEmail || fields.contactPhone || fields.contactPreference) },
+      { key: "service", label: isEsgProfile ? "Terület" : "Igény", done: Boolean(normalized.serviceNeed) },
+      { key: "location", label: "Helyszín", done: Boolean(normalized.locationOrSite) },
+      { key: "timing", label: isEsgProfile ? "Lefedettség" : "Időzítés", done: Boolean(normalized.urgencyOrTiming) },
+      { key: "contact", label: "Elérhetőség", done: Boolean(normalized.contactEmail || normalized.contactPhone || normalized.contactPreference) },
     ];
   }
 
-  function renderProgress() {
+  function renderProgress(values = fields) {
     return `
       <div class="erdp-intake-progress" aria-label="Felismert részletek">
-        ${getProgressItems().map((item) => `
+        ${getProgressItems(values).map((item) => `
           <span class="${item.done ? "is-done" : ""}">${escapeHtml(item.label)}</span>
         `).join("")}
       </div>
@@ -431,6 +471,55 @@
     return `
       <div class="erdp-lane-strip" aria-label="${escapeHtml(profile?.productName || "Enterprise Request Desk")} szolgáltatási területek">
         ${lanes.map((item) => `<span>${escapeHtml(item.labelHu)}</span>`).join("")}
+      </div>
+    `;
+  }
+
+  function getServiceGuides() {
+    const guides = Array.isArray(profile?.serviceGuides) ? profile.serviceGuides : [];
+    const lanes = Array.isArray(context?.lanes) && context.lanes.length ? context.lanes : DEFAULT_LANES;
+
+    if (guides.length) {
+      return guides;
+    }
+
+    return lanes.map((item) => ({
+      key: item.key,
+      labelHu: item.labelHu,
+      shortLabelHu: item.labelHu,
+      symbol: item.labelHu.slice(0, 2).toUpperCase(),
+      summaryHu: "Vállalati megkeresés pontosítása.",
+      signalLabel: "Igény, helyszín, időzítés",
+      questions: [
+        "Milyen konkrét feladatot kell lefedni az adott szolgáltatási területen?",
+      ],
+    }));
+  }
+
+  function getServiceGuide(key = lane.key) {
+    return getServiceGuides().find((item) => item.key === key) || null;
+  }
+
+  function renderServiceAreaSelector() {
+    const guides = getServiceGuides();
+
+    return `
+      <div class="erdp-service-selector" aria-label="ESG szolgáltatási terület kiválasztása">
+        ${guides.map((item) => {
+          const selected = lane.key === item.key;
+          return `
+            <button
+              class="${selected ? "is-selected" : ""}"
+              type="button"
+              data-erdp-service-area="${escapeHtml(item.key)}"
+              aria-pressed="${selected ? "true" : "false"}"
+            >
+              <span>${escapeHtml(item.symbol || item.shortLabelHu || item.labelHu)}</span>
+              <strong>${escapeHtml(item.shortLabelHu || item.labelHu)}</strong>
+              <small>${escapeHtml(item.signalLabel || item.summaryHu || "")}</small>
+            </button>
+          `;
+        }).join("")}
       </div>
     `;
   }
@@ -455,16 +544,24 @@
 
   function renderDraftRecognition() {
     const text = draftMessage;
-    const live = mergeFields(fields, extractFixtureFields(text, lane.key));
+    const previewLane = getPreviewLane();
+    const live = mergeFields(fields, extractFixtureFields(text, previewLane.key));
+    live.serviceNeed = normalizeServiceNeedForProfile(live.serviceNeed, previewLane.key);
+    const search = normalizeSearch(text);
     const items = [
-      { label: "igény", value: live.serviceNeed && live.serviceNeed !== fields.serviceNeed },
-      { label: "helyszín", value: live.locationOrSite && live.locationOrSite !== fields.locationOrSite },
-      { label: "időzítés", value: live.urgencyOrTiming && live.urgencyOrTiming !== fields.urgencyOrTiming },
-      { label: "elérhetőség", value: (live.contactEmail || live.contactPhone) && (live.contactEmail !== fields.contactEmail || live.contactPhone !== fields.contactPhone) },
+      { label: "szolgáltatási terület", value: live.serviceNeed && live.serviceNeed !== fields.serviceNeed },
+      { label: "helyszín / objektum", value: live.locationOrSite && live.locationOrSite !== fields.locationOrSite },
+      { label: "lefedettség / időzítés", value: live.urgencyOrTiming && live.urgencyOrTiming !== fields.urgencyOrTiming },
+      { label: "kapcsolat", value: (live.contactEmail || live.contactPhone) && (live.contactEmail !== fields.contactEmail || live.contactPhone !== fields.contactPhone) },
+      { label: "objektumtípus", value: live.siteType && live.siteType !== fields.siteType },
+      { label: "kamera / beléptetés", value: /\b(kamera\w*|cctv|bel[eé]ptet\w*|riaszt[oó]\w*)\b/.test(search) },
+      { label: "audit / megfelelés", value: /\b(audit\w*|compliance|hatosagi\w*|hat[oó]s[aá]gi\w*|enged[eé]ly\w*|megfelel\w*|kock[aá]zat\w*)\b/.test(search) },
     ].filter((item) => item.value);
 
     if (!items.length) {
-      return '<span>Írhat kérdést vagy konkrét megkeresést is.</span>';
+      return isEsgProfile
+        ? '<span>Írjon szabadon; a brief közben formálódik.</span>'
+        : '<span>Írhat kérdést vagy konkrét megkeresést is.</span>';
     }
 
     return items.map((item) => `<span class="is-live">${escapeHtml(item.label)} észlelve</span>`).join("");
@@ -490,55 +587,148 @@
     `;
   }
 
-  function renderBriefPreview() {
-    const rows = [
-      ["Terület", lane.label || briefPreview.laneLabel || "Általános érdeklődés"],
-      [DETAIL_LABELS.serviceNeed, fields.serviceNeed || briefPreview.serviceNeed],
-      [DETAIL_LABELS.locationOrSite, fields.locationOrSite || briefPreview.locationOrSite],
-      [DETAIL_LABELS.urgencyOrTiming, fields.urgencyOrTiming || briefPreview.urgencyOrTiming],
-      [DETAIL_LABELS.siteType, fields.siteType || briefPreview.siteType],
-      [DETAIL_LABELS.contactName, fields.contactName || briefPreview.contactName],
-      [DETAIL_LABELS.contactEmail, fields.contactEmail],
-      [DETAIL_LABELS.contactPhone, fields.contactPhone],
-    ].filter(([, value]) => trimText(value));
+  function getLivePreviewFields() {
+    const previewLane = getPreviewLane();
+    const live = draftMessage
+      ? mergeFields(fields, extractFixtureFields(draftMessage, previewLane.key))
+      : normalizeFields(fields);
+    live.serviceNeed = normalizeServiceNeedForProfile(live.serviceNeed, previewLane.key);
+    return live;
+  }
+
+  function getPreviewLane() {
+    if (draftMessage && !serviceAreaManuallySelected) {
+      const detected = detectFixtureLane(draftMessage);
+      if (detected?.key) {
+        return {
+          key: detected.key,
+          label: detected.labelHu,
+        };
+      }
+    }
+
+    return lane;
+  }
+
+  function getPreviewState() {
+    const liveFields = getLivePreviewFields();
+    const previewLane = getPreviewLane();
+    const previewMissingFields = draftMessage ? getMissingFieldsFromValues(liveFields) : missingFields;
+    const currentGuide = getServiceGuide(previewLane.key);
+    const effectiveLaneLabel = currentGuide?.shortLabelHu
+      || currentGuide?.labelHu
+      || previewLane.label
+      || briefPreview.laneLabel
+      || "Általános érdeklődés";
+    const confidence = briefPreview.confidence
+      || (previewLane.key === "general_enquiry" ? "low" : liveFields.serviceNeed ? "medium" : "low");
+
+    return {
+      liveFields,
+      previewLane,
+      previewMissingFields,
+      currentGuide,
+      effectiveLaneLabel,
+      confidence,
+    };
+  }
+
+  function renderConfidenceRail({ previewMissingFields, confidence, currentGuide } = getPreviewState()) {
+    const ready = previewMissingFields.length === 0;
+    const confidenceLabel = confidence === "high"
+      ? "magas"
+      : confidence === "medium"
+        ? "közepes"
+        : "kezdeti";
 
     return `
-      <section class="erdp-brief-panel" aria-label="Rövid összefoglaló">
+      <div class="erdp-intelligence-rail" aria-label="Brief állapota">
+        <span class="${ready ? "is-done" : ""}">${ready ? "Küldés előtt ellenőrizhető" : "Brief formálódik"}</span>
+        <span>Bizonyosság: ${escapeHtml(confidenceLabel)}</span>
+        <span>${escapeHtml(currentGuide?.signalLabel || "Következő pontosítás kijelölve")}</span>
+      </div>
+    `;
+  }
+
+  function renderBriefPreviewContent() {
+    const {
+      liveFields,
+      previewLane,
+      previewMissingFields,
+      currentGuide,
+      effectiveLaneLabel,
+      confidence,
+    } = getPreviewState();
+    const rows = [
+      [DETAIL_LABELS.area || "Szolgáltatási terület", effectiveLaneLabel],
+      [DETAIL_LABELS.serviceNeed, liveFields.serviceNeed || briefPreview.serviceNeed],
+      [DETAIL_LABELS.locationOrSite, liveFields.locationOrSite || briefPreview.locationOrSite],
+      [DETAIL_LABELS.urgencyOrTiming, liveFields.urgencyOrTiming || briefPreview.urgencyOrTiming],
+      [DETAIL_LABELS.siteType, liveFields.siteType || briefPreview.siteType],
+      [DETAIL_LABELS.contactName, liveFields.contactName || briefPreview.contactName],
+      [DETAIL_LABELS.contactEmail, liveFields.contactEmail],
+      [DETAIL_LABELS.contactPhone, liveFields.contactPhone],
+    ].filter(([, value]) => trimText(value));
+    const guideQuestions = currentGuide?.questions || [];
+    const previewQuestion = previewMissingFields.length
+      ? buildNextQuestion(previewLane.key, previewMissingFields)
+      : nextQuestion;
+
+    return `
+      ${renderProgress(liveFields)}
+      ${renderConfidenceRail({ previewMissingFields, confidence, currentGuide })}
+      <div class="erdp-detail-grid erdp-brief-grid">
+        ${rows.length ? rows.map(([label, value]) => `
+          <div class="erdp-detail-item">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(value)}</strong>
+          </div>
+        `).join("") : `
+          <div class="erdp-detail-item">
+            <span>Állapot</span>
+            <strong>Még nincs elég adat az összefoglalóhoz.</strong>
+          </div>
+        `}
+      </div>
+      ${isEsgProfile && currentGuide?.summaryHu ? `
+        <div class="erdp-service-context">
+          <span>ESG szolgáltatási fókusz</span>
+          <strong>${escapeHtml(currentGuide.summaryHu)}</strong>
+        </div>
+      ` : ""}
+      <div class="erdp-missing-list">
+        ${previewMissingFields.length
+          ? previewMissingFields.map((field) => `<span>Hiányzik: ${escapeHtml(MISSING_FIELD_LABELS[field] || field)}</span>`).join("")
+          : "<span>Küldés előtt ellenőrizhető</span>"}
+      </div>
+      ${previewQuestion && previewMissingFields.length ? `
+        <div class="erdp-next-question">
+          <span>Következő kérdés</span>
+          <strong>${escapeHtml(previewQuestion)}</strong>
+        </div>
+      ` : ""}
+      ${isEsgProfile && guideQuestions.length ? `
+        <div class="erdp-guided-questions" aria-label="Szolgáltatási kérdések">
+          ${guideQuestions.slice(0, 3).map((question) => `<span>${escapeHtml(question)}</span>`).join("")}
+        </div>
+      ` : ""}
+      ${renderManualEditor()}
+      ${renderConfirmation()}
+      ${successPayload ? renderSuccess() : ""}
+    `;
+  }
+
+  function renderBriefPreview() {
+    return `
+      <section class="erdp-brief-panel" aria-label="Strukturált brief előnézet">
         <div class="erdp-panel-header">
           <div>
-        <h2>Rövid összefoglaló</h2>
+            <h2>${isEsgProfile ? "Strukturált brief formálódik" : "Rövid összefoglaló"}</h2>
             <p>${readyToCreate ? "A minimális adatok megvannak." : "A hiányzó részleteket egyesével kérdezzük vissza."}</p>
           </div>
         </div>
-        <div class="erdp-panel-body">
-          ${renderProgress()}
-          <div class="erdp-detail-grid erdp-brief-grid">
-            ${rows.length ? rows.map(([label, value]) => `
-              <div class="erdp-detail-item">
-                <span>${escapeHtml(label)}</span>
-                <strong>${escapeHtml(value)}</strong>
-              </div>
-            `).join("") : `
-              <div class="erdp-detail-item">
-                <span>Állapot</span>
-                <strong>Még nincs elég adat az összefoglalóhoz.</strong>
-              </div>
-            `}
-          </div>
-          <div class="erdp-missing-list">
-            ${missingFields.length
-              ? missingFields.map((field) => `<span>Hiányzik: ${escapeHtml(MISSING_FIELD_LABELS[field] || field)}</span>`).join("")
-              : "<span>Rögzíthető megerősítés után</span>"}
-          </div>
-          ${nextQuestion && !readyToCreate ? `
-            <div class="erdp-next-question">
-              <span>Következő kérdés</span>
-              <strong>${escapeHtml(nextQuestion)}</strong>
-            </div>
-          ` : ""}
-          ${renderManualEditor()}
-          ${renderConfirmation()}
-          ${successPayload ? renderSuccess() : ""}
+        <div class="erdp-panel-body" data-erdp-brief-body>
+          ${renderBriefPreviewContent()}
         </div>
       </section>
     `;
@@ -595,15 +785,25 @@
     if (!needsConfirmation || successPayload) {
       return "";
     }
+    const reviewTitle = profile?.intake?.reviewTitle || "Ellenőrzés küldés előtt";
+    const reviewBody = profile?.intake?.reviewBody
+      || "A csapat a megadott adatok alapján ellenőrzi a vállalhatóságot és a következő lépést.";
+    const consentText = profile?.intake?.consentText
+      || "Tudomásul veszem, hogy a csapat a megadott adatok alapján ellenőrzi a vállalhatóságot és a következő lépést.";
+    const submitLabel = profile?.intake?.submitLabel || "Megkeresés elküldése";
 
     return `
       <section class="erdp-confirm-box" aria-label="Rögzítés megerősítése">
+        <div class="erdp-confirm-copy">
+          <strong>${escapeHtml(reviewTitle)}</strong>
+          <p>${escapeHtml(reviewBody)}</p>
+        </div>
         <label class="erdp-check">
-          <input type="checkbox" data-erdp-ack checked>
-          <span>Tudomásul veszem, hogy a csapat a megadott adatok alapján ellenőrzi a vállalhatóságot és a következő lépést.</span>
+          <input type="checkbox" data-erdp-ack>
+          <span>${escapeHtml(consentText)}</span>
         </label>
-        <button class="erdp-button erdp-button-primary" type="button" data-erdp-confirm ${assistantBusy ? "disabled" : ""}>
-          Rögzítés megerősítése
+        <button class="erdp-button erdp-button-primary" type="button" data-erdp-confirm ${assistantBusy ? "disabled" : "disabled"}>
+          ${escapeHtml(submitLabel)}
         </button>
       </section>
     `;
@@ -616,11 +816,11 @@
 
     return `
       <div class="erdp-success" aria-label="Megkeresés rögzítve">
-        <strong>${escapeHtml(successPayload.created === false ? "A megkeresés már rögzítve volt." : "Megkeresés rögzítve.")}</strong>
-        <p>${escapeHtml(successPayload.message || "A megkeresést rögzítettük belső feldolgozásra.")}</p>
+        <strong>${escapeHtml(successPayload.created === false ? "A megkeresés már beérkezett." : profile?.intake?.successTitle || "Megkeresés elküldve.")}</strong>
+        <p>${escapeHtml(successPayload.message || profile?.intake?.successBody || "A csapat a megadott adatok alapján tud visszajelezni a következő lépésről.")}</p>
         <div class="erdp-missing-list">
           <span>Terület: ${escapeHtml(successPayload.laneLabel || lane.label || "Általános érdeklődés")}</span>
-          <span>Visszajelzés a megadott elérhetőségen</span>
+          <span>Kapcsolat a megadott elérhetőségen</span>
         </div>
         ${href ? `<a class="erdp-button erdp-button-primary" href="${href}">Minta dashboard</a>` : ""}
       </div>
@@ -649,14 +849,14 @@
     const serviceArea = trimText(business.serviceArea) || "egyeztetett vállalati helyszínek";
 
     root.innerHTML = `
-      <div class="erdp-intake-chat-layout">
-        <section class="erdp-chat-panel" aria-label="AI vezérelt intake beszélgetés">
+      <div class="erdp-intake-chat-layout ${isEsgProfile ? "is-esg-intake" : ""}">
+        <section class="erdp-chat-panel" aria-label="${isEsgProfile ? "ESG megkeresés pontosítása" : "Intake beszélgetés"}">
           <div class="erdp-chat-hero">
             <div>
               <h1>${escapeHtml(profile?.intake?.heroTitle || "Írja le, mire van szükség. Az asszisztens pontosít.")}</h1>
               <p>${escapeHtml(profile?.intake?.heroBody || `${businessName} strukturált rövid összefoglalót kap a megkeresésből. Terület: ${serviceArea}.`)}</p>
             </div>
-            ${renderLaneStrip()}
+            ${isEsgProfile ? renderServiceAreaSelector() : renderLaneStrip()}
           </div>
           ${lastError ? `<div class="erdp-error-strip"><span>${escapeHtml(lastError)}</span></div>` : ""}
           ${renderQuickStarts()}
@@ -674,8 +874,10 @@
       label: trimText(result.lane?.label || result.structuredBriefPreview?.laneLabel) || lane.label,
     };
     fields = normalizeFields(result.extractedFields || fields);
+    fields.serviceNeed = normalizeServiceNeedForProfile(fields.serviceNeed, lane.key);
     missingFields = Array.isArray(result.missingFields) ? result.missingFields : getMissingFieldsFromValues(fields);
     briefPreview = result.structuredBriefPreview || {};
+    briefPreview.serviceNeed = normalizeServiceNeedForProfile(briefPreview.serviceNeed, lane.key);
     nextQuestion = trimText(result.nextQuestion) || buildNextQuestion(lane.key, missingFields);
     readyToCreate = result.readyToCreate === true;
     needsConfirmation = result.needsConfirmation === true;
@@ -700,9 +902,15 @@
   async function submitAssistantTurn({ message = "", confirmSubmit = false } = {}) {
     const cleanMessage = trimText(message);
     const priorConversation = toConversationPayload();
+    const consentAcknowledged = root.querySelector("[data-erdp-ack]")?.checked === true;
 
     if (!cleanMessage && !confirmSubmit) {
       setStatus("Írjon egy üzenetet vagy válasszon példát.");
+      return;
+    }
+
+    if (confirmSubmit && !consentAcknowledged) {
+      setStatus("A küldéshez előbb jelölje be az áttekintési hozzájárulást.");
       return;
     }
 
@@ -713,7 +921,9 @@
     assistantBusy = true;
     draftMessage = "";
     lastError = "";
-    setStatus(confirmSubmit ? "Megkeresés rögzítése..." : "Asszisztens válasz készítése...");
+    setStatus(confirmSubmit
+      ? isEsgProfile ? "Megkeresés küldése..." : "Megkeresés rögzítése..."
+      : isEsgProfile ? "Brief frissítése..." : "Asszisztens válasz készítése...");
     render();
 
     try {
@@ -722,6 +932,7 @@
           message: cleanMessage,
           conversation: priorConversation,
           confirmSubmit,
+          consentAcknowledged,
         })
         : await fetchJson(`${getApiPrefix()}/intake-assistant`, {
           method: "POST",
@@ -732,7 +943,7 @@
             conversation: priorConversation,
             fields,
             confirm_submit: confirmSubmit,
-            consent_acknowledged: root.querySelector("[data-erdp-ack]")?.checked !== false,
+            consent_acknowledged: consentAcknowledged,
           }),
         });
       const assistantReply = trimText(result.request?.message || result.assistant?.reply);
@@ -741,7 +952,9 @@
       if (assistantReply) {
         messages.push({ role: "assistant", content: assistantReply });
       }
-      setStatus(result.request ? "Megkeresés rögzítve." : "Rövid összefoglaló frissítve.");
+      setStatus(result.request
+        ? isEsgProfile ? "Megkeresés elküldve." : "Megkeresés rögzítve."
+        : "Rövid összefoglaló frissítve.");
     } catch (error) {
       lastError = error.message || "Nem sikerült feldolgozni az üzenetet.";
       setStatus(lastError);
@@ -764,6 +977,7 @@
       siteType: trimText(formData.get("siteType")),
       notes: trimText(formData.get("notes")),
     });
+    fields.serviceNeed = normalizeServiceNeedForProfile(fields.serviceNeed, lane.key);
     missingFields = getMissingFieldsFromValues(fields);
     readyToCreate = missingFields.length === 0;
     needsConfirmation = readyToCreate;
@@ -772,10 +986,32 @@
     render();
   }
 
+  function refreshLiveArtifacts() {
+    const recognitionRoot = root.querySelector("[data-erdp-live-recognition]");
+    const briefBody = root.querySelector("[data-erdp-brief-body]");
+
+    if (recognitionRoot) {
+      recognitionRoot.innerHTML = renderDraftRecognition();
+    }
+
+    if (briefBody) {
+      briefBody.innerHTML = renderBriefPreviewContent();
+    }
+  }
+
+  function updateConfirmButtonState() {
+    const checkbox = root.querySelector("[data-erdp-ack]");
+    const confirmButton = root.querySelector("[data-erdp-confirm]");
+
+    if (confirmButton) {
+      confirmButton.disabled = assistantBusy || checkbox?.checked !== true;
+    }
+  }
+
   async function boot() {
     if (window.VONZA_LOCAL_ENTERPRISE_INTAKE_FIXTURE === true) {
       context = SAMPLE_FIXTURE;
-      setStatus(`${profile?.productName || "Enterprise Request Desk"} helyi minta. Az éles API kapuk nem kerülnek megkerülésre.`);
+      setStatus(`${profile?.productName || "Enterprise Request Desk"} helyi minta böngészős ellenőrzéshez.`);
       render();
       return;
     }
@@ -816,10 +1052,12 @@
   document.addEventListener("input", (event) => {
     if (event.target.matches("#erdp-intake-message")) {
       draftMessage = event.target.value;
-      const recognitionRoot = root.querySelector("[data-erdp-live-recognition]");
-      if (recognitionRoot) {
-        recognitionRoot.innerHTML = renderDraftRecognition();
-      }
+      refreshLiveArtifacts();
+      return;
+    }
+
+    if (event.target.matches("[data-erdp-ack]")) {
+      updateConfirmButtonState();
     }
   });
 
@@ -827,11 +1065,35 @@
     const templateButton = event.target.closest("[data-erdp-template]");
     const toggleButton = event.target.closest("[data-erdp-toggle-details]");
     const confirmButton = event.target.closest("[data-erdp-confirm]");
+    const serviceAreaButton = event.target.closest("[data-erdp-service-area]");
 
     if (templateButton) {
       draftMessage = trimText(templateButton.dataset.erdpTemplate);
       render();
       root.querySelector("#erdp-intake-message")?.focus();
+      return;
+    }
+
+    if (serviceAreaButton) {
+      const key = trimText(serviceAreaButton.dataset.erdpServiceArea);
+      const selectedGuide = getServiceGuide(key);
+      const selectedLane = DEFAULT_LANES.find((item) => item.key === key);
+
+      if (selectedGuide || selectedLane) {
+        serviceAreaManuallySelected = true;
+        lane = {
+          key,
+          label: selectedGuide?.shortLabelHu || selectedGuide?.labelHu || selectedLane?.labelHu || lane.label,
+        };
+        if (!fields.serviceNeed && key !== "mixed_enterprise_request") {
+          fields.serviceNeed = selectedGuide?.labelHu || selectedLane?.labelHu || "";
+        }
+        missingFields = getMissingFieldsFromValues(fields);
+        nextQuestion = buildNextQuestion(lane.key, missingFields);
+        setStatus(`${lane.label} kiválasztva.`);
+        render();
+        root.querySelector("#erdp-intake-message")?.focus();
+      }
       return;
     }
 

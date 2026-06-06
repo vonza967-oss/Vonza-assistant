@@ -720,6 +720,7 @@ function buildAssistantNextQuestion(analysis = {}) {
 function buildStructuredBriefPreview(brief = {}) {
   return {
     laneLabel: cleanText(brief.laneLabelHu) || "Általános érdeklődés",
+    confidence: cleanText(brief.confidence),
     serviceNeed: cleanText(brief.serviceNeed),
     locationOrSite: cleanText(brief.locationOrSite),
     urgencyOrTiming: cleanText(brief.urgencyOrTiming),

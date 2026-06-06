@@ -10,11 +10,92 @@
   ]);
 
   const esgQuickStarts = Object.freeze([
-    "Irodaház portaszolgálatára és objektumvédelmére lenne szükségünk Budapesten.",
-    "Raktár vagy telephely őrzését szeretnénk egyeztetni.",
+    "Irodaház portaszolgálatára lenne szükségünk Budapesten, hétköznap 8-18 óráig.",
+    "Raktár élőerős vagyonvédelmét szeretnénk egyeztetni Győrben, folyamatos lefedettséggel.",
     "CCTV kamerarendszer és beléptető felmérés kell egy ipari helyszínhez.",
-    "Facility Management karbantartási vagy épületüzemeltetési igényünk van.",
+    "Facility Management karbantartási vagy épületüzemeltetési igényünk van több telephelyen.",
     "Hatósági engedélyhez, auditanyaghoz vagy beszerzési támogatáshoz kérnénk segítséget.",
+  ]);
+
+  const esgServiceGuides = Object.freeze([
+    {
+      key: "security_guarding",
+      labelHu: "Őrzés-védelem / élőerős vagyonvédelem",
+      shortLabelHu: "Őrzés-védelem",
+      symbol: "OV",
+      summaryHu: "Vagyonőri jelenlét, járőrözés, telephely- vagy rendezvénybiztosítás.",
+      signalLabel: "Lefedettség és helyszíni kockázat",
+      questions: [
+        "Milyen objektumot vagy területet kell őrizni?",
+        "Folyamatos, időszakos vagy eseményhez kötött jelenlétre van szükség?",
+        "Mikor indulna a feladat, és milyen napi vagy heti lefedettség kell?",
+      ],
+    },
+    {
+      key: "reception_object_protection",
+      labelHu: "Portaszolgálat / objektumvédelem",
+      shortLabelHu: "Portaszolgálat",
+      symbol: "PO",
+      summaryHu: "Recepció, porta, beléptetési rend, látogatói folyamat és objektumvédelem.",
+      signalLabel: "Bejáratok, műszakok, látogatói rend",
+      questions: [
+        "Milyen portaszolgálati vagy objektumvédelmi feladatot kell lefedni?",
+        "Hány bejárat, műszak vagy látogatói folyamat érintett?",
+        "Van meglévő beléptetési szabályzat vagy helyszíni rend?",
+      ],
+    },
+    {
+      key: "facility_management",
+      labelHu: "Facility Management",
+      shortLabelHu: "Facility Management",
+      symbol: "FM",
+      summaryHu: "Létesítményüzemeltetés, karbantartás, takarítási vagy koordinációs igény.",
+      signalLabel: "Telephelyek és feladattípusok",
+      questions: [
+        "Milyen létesítmény vagy telephely üzemeltetéséről van szó?",
+        "Mely FM feladatok tartoznak bele: karbantartás, takarítás, koordináció vagy vegyes támogatás?",
+        "Egyszeri feladat, rendszeres szolgáltatás vagy több telephelyes keretigény?",
+      ],
+    },
+    {
+      key: "security_technology",
+      labelHu: "Biztonságtechnika / kamera / beléptetés / riasztó",
+      shortLabelHu: "Biztonságtechnika",
+      symbol: "BT",
+      summaryHu: "Kamerarendszer, beléptető, riasztó, tűzjelző, sorompó vagy kapcsolódó felmérés.",
+      signalLabel: "Rendszerek, pontok, integrációk",
+      questions: [
+        "Milyen biztonságtechnikai rendszerre van szükség?",
+        "Új telepítésről, bővítésről, karbantartásról vagy állapotfelmérésről van szó?",
+        "Hány helyszín, bejárat, kamera vagy jogosultsági pont érintett?",
+      ],
+    },
+    {
+      key: "audit_compliance",
+      labelHu: "Audit / compliance / hatósági előkészítés",
+      shortLabelHu: "Audit / compliance",
+      symbol: "AC",
+      summaryHu: "Hatósági, audit, engedélyezési, beszerzési vagy megfelelőségi előkészítés.",
+      signalLabel: "Határidő, dokumentumlista, kockázat",
+      questions: [
+        "Milyen hatósági, audit vagy engedélyezési célhoz kell támogatás?",
+        "Mely terület érintett: őrzés-védelem, FM, biztonságtechnika, beszerzés vagy belső szabályozás?",
+        "Van auditdátum, határidő, engedélytípus vagy dokumentumlista?",
+      ],
+    },
+    {
+      key: "mixed_enterprise_request",
+      labelHu: "Vegyes vállalati megkeresés",
+      shortLabelHu: "Vegyes igény",
+      symbol: "VI",
+      summaryHu: "Több ESG szolgáltatási területet érintő, közösen tisztázandó igény.",
+      signalLabel: "Elsődleges cél és érintett területek",
+      questions: [
+        "Mely ESG szolgáltatási területeket kell együtt kezelni?",
+        "Van elsődleges prioritás, vagy több terület párhuzamosan érintett?",
+        "Egy helyszínről vagy több telephelyes keretigényről van szó?",
+      ],
+    },
   ]);
 
   const enterpriseQuickStarts = Object.freeze([
@@ -151,8 +232,17 @@
       productNameHu: "ESG Megkereséskezelő",
       brandInitial: "ESG",
       brandSubtitle: "Objektumvédelem, FM, biztonságtechnika",
-      headerNote: "ESG megkeresés előszűrése belső feldolgozáshoz.",
+      headerNote: "ESG megkeresés pontosítása strukturált áttekintéshez.",
       lanes: sharedLanes.filter((lane) => lane.key !== "general_enquiry"),
+      serviceGuides: esgServiceGuides,
+      detailLabels: {
+        ...profileBase.detailLabels,
+        area: "Szolgáltatási terület",
+        serviceNeed: "ESG igény",
+        locationOrSite: "Helyszín / objektum",
+        urgencyOrTiming: "Lefedettség vagy időzítés",
+        siteType: "Objektumtípus",
+      },
       fixtureBusiness: {
         businessName: "ESG Holding Zrt.",
         serviceArea: "egyeztetett ESG vállalati helyszínek",
@@ -169,14 +259,21 @@
         loadingTitle: "ESG Request Desk betöltése",
         unavailableLabel: "ESG Request Desk link nem elérhető",
         openingMessage:
-          "Üdvözlöm. Írja le az objektumvédelmi, FM vagy biztonságtechnikai igényt, és előkészítem a belső feldolgozáshoz szükséges összefoglalót.",
-        heroTitle: "Miben segíthet az ESG csapata?",
+          "Üdvözlöm. Írja le természetes mondatban az ESG-nek szánt objektumvédelmi, FM, biztonságtechnikai vagy audit jellegű igényt, és segítek tiszta, áttekinthető briefet készíteni.",
+        heroTitle: "ESG megkeresésből tiszta szolgáltatási brief.",
         heroBody:
-          "Írja le az objektumvédelmi, FM, biztonságtechnikai vagy hatósági/audit igényt. A cél a helyszín, lefedettség, időzítés, szolgáltatási terület és kapcsolat tisztázása.",
+          "Írja le szabadon a biztonsági, facility management, biztonságtechnikai vagy audit/compliance igényt. A felület felismeri a szolgáltatási területet, jelzi a hiányzó részleteket, majd ellenőrzés után küldhető tovább az ESG csapatának.",
         placeholder:
           "pl. Irodaház portaszolgálatára lenne szükségünk Budapesten, hétköznap 8-18 óráig...",
         quickStarts: esgQuickStarts,
         nextQuestionDefault: "Melyik ESG szolgáltatási területhez kapcsolódik az igény?",
+        reviewTitle: "Ellenőrzés küldés előtt",
+        reviewBody: "A következő lépést és a vállalhatóságot az ESG csapata a megadott részletek alapján tudja áttekinteni. Ez nem árgarancia és nem automatikus helyszíni intézkedés.",
+        consentText: "Elolvastam a briefet, és hozzájárulok, hogy az ESG csapata a megadott adatok alapján áttekintse a megkeresést.",
+        submitLabel: "Megkeresés elküldése az ESG-nek",
+        successTitle: "Az ESG megkapta a strukturált megkeresést.",
+        successBody: "A csapat a szolgáltatási terület, helyszín, lefedettség és kapcsolat alapján áttekinti a vállalhatóságot és a következő lépést.",
+        mixedServiceNeedLabel: "Vegyes ESG szolgáltatási igény",
       },
       dashboard: {
         title: "ESG Request Desk dashboard",

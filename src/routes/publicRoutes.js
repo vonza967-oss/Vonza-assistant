@@ -273,7 +273,7 @@ function applyEnterpriseRequestDeskDocumentProfile(html, profile) {
     .replaceAll("Setup vállalati objektumvédelmi, FM és biztonságtechnikai megkeresésekhez.", "ESG intake pult beállítása objektumvédelmi, FM és biztonságtechnikai megkeresésekhez.")
     .replaceAll("Beérkező security, FM és compliance jellegű kérések", "Beérkező objektumvédelmi, FM, biztonságtechnikai és hatósági/audit jellegű megkeresések")
     .replaceAll("Vállalati biztonsági, facility management és compliance megkeresések", "ESG objektumvédelmi, Facility Management, biztonságtechnikai és hatósági/audit megkeresések")
-    .replaceAll("Megkeresés előszűrése belső feldolgozáshoz.", "ESG megkeresés előszűrése belső feldolgozáshoz.")
+    .replaceAll("Megkeresés előszűrése belső feldolgozáshoz.", "ESG megkeresés pontosítása strukturált áttekintéshez.")
     .replaceAll('href="/enterprise-request-desk', 'href="/esg-request-desk')
     .replaceAll('href="/esg-request-desk.css', 'href="/enterprise-request-desk.css')
     .replaceAll('content="Enterprise Request Desk', 'content="ESG Request Desk')
