@@ -1317,7 +1317,7 @@ function renderWebsiteWidgetPage() {
         <h1>Website Widget adds Vonza to an existing site.</h1>
         <p>Use the on-site embedded assistant when a business wants a compact website launcher or embedded assistant surface alongside its existing pages.</p>
         <div class="hero-actions">
-          <a class="button button-primary" href="/dashboard/widget?from=site">Set up Website Widget</a>
+          <a class="button button-primary" href="/website-widget/dashboard?from=site">Set up Website Widget</a>
           <a class="button button-secondary" href="/front-desk">Compare with Front Desk</a>
         </div>
       </div>
@@ -1353,7 +1353,7 @@ function renderWebsiteWidgetPage() {
       <div class="story-copy" data-reveal>
         <h2>Best as a supporting website channel.</h2>
         <p>Use Website Widget when an existing website already works and needs an assistant entry point. Use Front Desk when the assistant should be the main public destination.</p>
-        <a class="button button-primary" href="/dashboard/widget?from=site">Open Widget setup</a>
+        <a class="button button-primary" href="/website-widget/dashboard?from=site">Open Widget setup</a>
       </div>
       ${renderAppImage({
         src: PRODUCT_IMAGES.dashboardInstall,
@@ -2145,7 +2145,14 @@ export function createPublicRouter({ rootDir }) {
     res.redirect("/dashboard");
   });
 
-  router.get(["/dashboard", "/dashboard/front-desk", "/dashboard/widget", "/dashboard/voice"], (_req, res) => {
+  router.get([
+    "/dashboard",
+    "/dashboard/front-desk",
+    "/dashboard/widget",
+    "/dashboard/voice",
+    "/website-widget/dashboard",
+    "/widget/dashboard",
+  ], (_req, res) => {
     setDashboardNoStoreHeaders(res);
     res.type("html").send(renderDashboardDocument(rootDir));
   });

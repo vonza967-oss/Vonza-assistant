@@ -17,6 +17,8 @@ function isDashboardTopLevelPath(pathname) {
     || pathname === "/dashboard/front-desk"
     || pathname === "/dashboard/widget"
     || pathname === "/dashboard/voice"
+    || pathname === "/website-widget/dashboard"
+    || pathname === "/widget/dashboard"
     || pathname === "/dashboard-v2-fixture"
     || pathname === "/dashboard-v2-preview"
     || pathname === "/full-page-assistant-v2-preview"

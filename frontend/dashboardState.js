@@ -174,6 +174,10 @@
     widget: "website_widget",
     voice: "voice_agent",
   });
+  const WEBSITE_WIDGET_DEDICATED_DASHBOARD_PATHS = Object.freeze([
+    "/website-widget/dashboard",
+    "/widget/dashboard",
+  ]);
   const DASHBOARD_PRODUCT_PACKAGING = Object.freeze({
     front_desk: Object.freeze({
       key: "front_desk",
@@ -415,6 +419,21 @@
 
   function getDashboardProductContext(pathname = global.location?.pathname || "/dashboard") {
     const normalizedPath = `/${trimText(pathname).split(/[?#]/)[0].replace(/^\/+|\/+$/g, "")}`;
+    const isDedicatedWebsiteWidgetDashboard = WEBSITE_WIDGET_DEDICATED_DASHBOARD_PATHS.includes(normalizedPath);
+    if (isDedicatedWebsiteWidgetDashboard) {
+      const product = getDashboardProduct("website_widget");
+
+      return Object.freeze({
+        ...product,
+        routeSegment: "website-widget",
+        currentPath: normalizedPath,
+        canonicalPath: "/website-widget/dashboard",
+        isDefaultDashboardPath: false,
+        isKnownProductPath: true,
+        isDedicatedProductDashboard: true,
+      });
+    }
+
     const parts = normalizedPath.split("/").filter(Boolean);
     const routeSegment = parts[0] === "dashboard" ? parts[1] || "" : "";
     const routeProductKey = DASHBOARD_PRODUCT_ROUTE_SEGMENTS[routeSegment] || "front_desk";
@@ -427,6 +446,7 @@
       canonicalPath: product.routePath,
       isDefaultDashboardPath: normalizedPath === "/dashboard",
       isKnownProductPath: normalizedPath === "/dashboard" || DASHBOARD_PRODUCT_ROUTE_SEGMENTS[routeSegment] === product.key,
+      isDedicatedProductDashboard: false,
     });
   }
 

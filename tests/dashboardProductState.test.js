@@ -97,6 +97,10 @@ test("dashboard product context resolves exact dashboard entry paths", () => {
   assert.equal(state.getDashboardProductContext("/dashboard/front-desk").key, "front_desk");
   assert.equal(state.getDashboardProductContext("/dashboard/widget").key, "website_widget");
   assert.equal(state.getDashboardProductContext("/dashboard/voice").key, "voice_agent");
+  assert.equal(state.getDashboardProductContext("/website-widget/dashboard").key, "website_widget");
+  assert.equal(state.getDashboardProductContext("/widget/dashboard").key, "website_widget");
+  assert.equal(state.getDashboardProductContext("/website-widget/dashboard").isDedicatedProductDashboard, true);
+  assert.equal(state.getDashboardProductContext("/widget/dashboard").canonicalPath, "/website-widget/dashboard");
 });
 
 test("dashboard analytics API path is not treated as a product route", () => {

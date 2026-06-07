@@ -220,6 +220,7 @@ const dashboardUiState = loadDashboardUiState();
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
+const WEBSITE_WIDGET_DASHBOARD_SECTIONS = ["overview", "install", "settings", "contacts", "analytics"];
 const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
 const WIDGET_PURPOSE_OPTIONS = [
   {
@@ -596,6 +597,10 @@ function isInstallSeen(status) {
 
 function isInstallDetected(status) {
   return ["installed_unseen", "seen_recently", "seen_stale"].includes(status?.state);
+}
+
+function isDedicatedWebsiteWidgetDashboard() {
+  return activeDashboardProduct?.key === "website_widget" && activeDashboardProduct?.isDedicatedProductDashboard === true;
 }
 
 function hasAuthConfig() {
@@ -979,6 +984,10 @@ function resolveVisibleShellTarget(
 }
 
 function getShellSectionsForWorkspace(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  if (isDedicatedWebsiteWidgetDashboard()) {
+    return WEBSITE_WIDGET_DASHBOARD_SECTIONS.slice();
+  }
+
   const candidateSections = operatorWorkspace?.enabled === false
     ? LEGACY_SHELL_SECTIONS
     : FULL_SHELL_SECTIONS;
@@ -4080,6 +4089,15 @@ function getActiveShellSection(setup, operatorWorkspace = createEmptyOperatorWor
     return hashSection;
   }
 
+  if (isDedicatedWebsiteWidgetDashboard()) {
+    if (availableSections.includes(storedSection)) {
+      return storedSection;
+    }
+
+    window.localStorage.setItem(DASHBOARD_SECTION_KEY, "overview");
+    return "overview";
+  }
+
   if (activeDashboardProduct.currentPath && activeDashboardProduct.currentPath === activeDashboardProduct.canonicalPath) {
     window.localStorage.setItem(DASHBOARD_SECTION_KEY, "overview");
     return "overview";
@@ -4421,6 +4439,14 @@ const dashboardInstallPanelHelpers = dashboardInstall.createInstallPanelHelpers(
 });
 function buildInstallSection(agent, options = {}) {
   return dashboardInstallPanelHelpers.buildInstallSection(agent, options);
+}
+
+function buildInstallCopyBlock(options = {}) {
+  return dashboardInstallPanelHelpers.buildInstallCopyBlock(options);
+}
+
+function buildInstallDomainChips(allowedDomains = []) {
+  return dashboardInstallPanelHelpers.buildInstallDomainChips(allowedDomains);
 }
 
 function buildInstallSidePanel(agent, setup, messages = []) {
@@ -5597,6 +5623,7 @@ async function waitForActiveAccessAfterPayment() {
 // Entry states and shell rendering
 function renderAuthEntry() {
   renderTopbarMeta();
+  document.title = isDedicatedWebsiteWidgetDashboard() ? "Vonza | Website Widget" : "Vonza | Home";
   const arrival = getArrivalContext();
   const mode = getAuthFlowType() === "recovery"
     ? AUTH_VIEW_MODES.UPDATE_PASSWORD
@@ -9539,6 +9566,598 @@ function buildInstallPanel(agent, setup, _operatorWorkspace = createEmptyOperato
       </div>
     </section>
   `);
+}
+
+function getWebsiteWidgetInstallStatusCopy(installStatus = {}) {
+  if (installStatus.state === "seen_recently") {
+    return `Live install detected on ${installStatus.host || "your website"}${installStatus.lastSeenAt ? `, last seen ${formatSeenAt(installStatus.lastSeenAt)}` : ""}.`;
+  }
+  if (installStatus.state === "seen_stale") {
+    return `The widget was seen on ${installStatus.host || "your website"}${installStatus.lastSeenAt ? ` ${formatSeenAt(installStatus.lastSeenAt)}` : ""}, but no recent live ping has arrived.`;
+  }
+  if (installStatus.state === "installed_unseen") {
+    return "The snippet was found on the site, but no live visitor ping has arrived yet.";
+  }
+  if (installStatus.state === "domain_mismatch") {
+    return "Vonza found widget markup, but it points at a different install or blocked domain.";
+  }
+  if (installStatus.state === "verify_failed") {
+    return "Verification needs attention. Vonza could not confirm the expected widget snippet yet.";
+  }
+
+  return "No Website Widget install detected yet. Copy the snippet, publish it on an allowed site, then run verification.";
+}
+
+function getWebsiteWidgetStatusLabel(installStatus = {}, hasInstall = false) {
+  if (isInstallSeen(installStatus)) {
+    return "Installed";
+  }
+  if (installStatus.state === "installed_unseen") {
+    return "Snippet found";
+  }
+  if (installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed") {
+    return "Needs review";
+  }
+  if (hasInstall) {
+    return "Snippet ready";
+  }
+  return "Not installed";
+}
+
+function getWebsiteWidgetStatusTone(installStatus = {}, hasInstall = false) {
+  if (isInstallSeen(installStatus)) {
+    return "Ready";
+  }
+  if (installStatus.state === "installed_unseen" || hasInstall) {
+    return "Limited";
+  }
+  if (installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed") {
+    return "Needs attention";
+  }
+  return "Pending";
+}
+
+function normalizeWebsiteWidgetSource(value = "") {
+  return trimText(value)
+    .toLowerCase()
+    .replace(/[_\s-]+/g, "_");
+}
+
+function isWebsiteWidgetSource(value = "") {
+  return ["widget", "website_widget", "chat_widget", "widget_chat", "website_widget_chat"].includes(normalizeWebsiteWidgetSource(value));
+}
+
+function isWebsiteWidgetMessage(message = {}) {
+  return [
+    message.source,
+    message.sourceType,
+    message.source_type,
+    message.displayMode,
+    message.display_mode,
+    message.conversationSource,
+    message.conversation_source,
+  ].some(isWebsiteWidgetSource);
+}
+
+function getWebsiteWidgetMessages(messages = []) {
+  return Array.isArray(messages) ? messages.filter(isWebsiteWidgetMessage) : [];
+}
+
+function getContactSourceValues(contact = {}) {
+  const values = [
+    contact.source,
+    contact.primarySource,
+    contact.primary_source,
+    contact.conversationSource,
+    contact.conversation_source,
+  ];
+
+  [contact.sources, contact.sourceLabels, contact.source_labels].forEach((items) => {
+    if (Array.isArray(items)) {
+      values.push(...items);
+    }
+  });
+
+  if (Array.isArray(contact.timeline)) {
+    contact.timeline.forEach((item) => {
+      values.push(item.source, item.label);
+    });
+  }
+
+  return values.map(trimText).filter(Boolean);
+}
+
+function isWebsiteWidgetContact(contact = {}) {
+  return getContactSourceValues(contact).some((value) => isWebsiteWidgetSource(value) || /^website widget$/i.test(value));
+}
+
+function getWebsiteWidgetContacts(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const contacts = operatorWorkspace.contacts?.list || [];
+  return Array.isArray(contacts) ? contacts.filter(isWebsiteWidgetContact) : [];
+}
+
+function contactHasLeadSignal(contact = {}) {
+  const lifecycle = normalizeWebsiteWidgetSource(contact.lifecycleState || contact.lifecycle_state);
+  const statuses = [
+    contact.status,
+    contact.contactStatus,
+    contact.contact_status,
+    ...(Array.isArray(contact.statuses) ? contact.statuses : []),
+    ...(Array.isArray(contact.flags) ? contact.flags : []),
+  ].map(normalizeWebsiteWidgetSource);
+
+  return ["lead", "new", "active_lead", "qualified", "needs_review", "needs_reply"].includes(lifecycle)
+    || statuses.some((status) => ["lead", "new", "active_lead", "qualified", "needs_review", "needs_reply"].includes(status))
+    || Boolean(trimText(contact.email || contact.phone || contact.customerEmail || contact.customerPhone));
+}
+
+function getWebsiteWidgetLeadContacts(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  return getWebsiteWidgetContacts(operatorWorkspace).filter(contactHasLeadSignal);
+}
+
+function getWebsiteWidgetAssistantSource(actionQueue = createEmptyActionQueue()) {
+  const ownerAnalyticsDashboard = getOwnerAnalyticsDashboard(actionQueue);
+  return ownerAnalyticsDashboard?.assistantSource?.widget || ownerAnalyticsDashboard?.assistant_source?.widget || {};
+}
+
+function getTopWebsiteWidgetQuestions(messages = [], limit = 5) {
+  const counts = new Map();
+
+  getWebsiteWidgetMessages(messages)
+    .filter((message) => trimText(message.role).toLowerCase() === "user")
+    .forEach((message) => {
+      const question = trimText(message.content || message.message || message.text);
+      if (!question) {
+        return;
+      }
+      counts.set(question, (counts.get(question) || 0) + 1);
+    });
+
+  return [...counts.entries()]
+    .map(([question, count]) => ({ question, count }))
+    .sort((a, b) => b.count - a.count || a.question.localeCompare(b.question))
+    .slice(0, limit);
+}
+
+function buildWebsiteWidgetMetric({ label = "", value = "", note = "", tone = "blue" } = {}) {
+  return `
+    <article class="website-widget-metric website-widget-metric--${escapeHtml(tone)}">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(String(value || "0"))}</strong>
+      ${note ? `<small>${escapeHtml(note)}</small>` : ""}
+    </article>
+  `;
+}
+
+function buildWebsiteWidgetSidebarShell(agent, activeSection = "overview") {
+  const installStatus = getDefaultInstallStatus(agent);
+  const hasInstall = Boolean(trimText(agent.installId));
+  const accountLabel = authUser?.email || agent.ownerEmail || agent.contactEmail || agent.email || "";
+  const accountInitials = trimText(accountLabel)
+    ? trimText(accountLabel).slice(0, 2).toUpperCase()
+    : "V";
+  const items = [
+    { key: "overview", label: "Overview", note: "Status and next actions" },
+    { key: "install", label: "Install", note: "Snippet, domain, verification" },
+    { key: "settings", label: "Configuration", note: "Launcher, website, appearance" },
+    { key: "contacts", label: "Conversations", note: "Recent widget chats and leads" },
+    { key: "analytics", label: "Analytics", note: "Widget source signals" },
+  ];
+
+  return `
+    <aside class="sidebar-shell website-widget-sidebar" aria-label="Website Widget navigation">
+      <div class="sidebar-identity">
+        <div class="sidebar-identity-mark">V</div>
+        <div class="sidebar-identity-copy">
+          <p class="sidebar-eyebrow">Website Widget workspace</p>
+          <h2 class="sidebar-title">Website Widget</h2>
+          <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || agent.assistantName || agent.name || "Embedded on-site assistant")}</p>
+        </div>
+      </div>
+      ${buildSidebarGroup("Operate", items, activeSection, {
+        note: "Install, test, and monitor the embedded Website Widget.",
+      })}
+      <div class="sidebar-footer">
+        <div class="sidebar-status-dock">
+          <div class="sidebar-status-item">
+            <span class="sidebar-status-label">Install</span>
+            <strong>${escapeHtml(getWebsiteWidgetStatusLabel(installStatus, hasInstall))}</strong>
+          </div>
+          <div class="sidebar-status-item">
+            <span class="sidebar-status-label">Website</span>
+            <strong>${escapeHtml(agent.websiteUrl ? "Saved" : "Missing")}</strong>
+          </div>
+          <div class="sidebar-status-item">
+            <span class="sidebar-status-label">Snippet</span>
+            <strong>${escapeHtml(hasInstall ? "Ready" : "Missing")}</strong>
+          </div>
+        </div>
+        <div class="sidebar-user-card">
+          <span class="sidebar-user-avatar" aria-hidden="true">${escapeHtml(accountInitials)}</span>
+          <span class="sidebar-user-copy">
+            <strong>${escapeHtml(agent.ownerName || agent.businessName || agent.name || "Vonza workspace")}</strong>
+            <small>${escapeHtml(accountLabel || agent.websiteUrl || "Workspace owner")}</small>
+          </span>
+        </div>
+      </div>
+    </aside>
+  `;
+}
+
+function buildWebsiteWidgetInstallSnippet(agent, { compact = false } = {}) {
+  const installStatus = getDefaultInstallStatus(agent);
+  const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
+  const hasInstall = Boolean(trimText(agent.installId));
+  const script = hasInstall ? buildScript(agent) : "";
+  const statusTone = getWebsiteWidgetStatusTone(installStatus, hasInstall);
+  const previewHref = hasInstall && trimText(agent.publicAgentKey) ? buildWidgetUrl(agent.publicAgentKey) : "";
+
+  return `
+    <section class="website-widget-panel website-widget-install-panel" data-website-widget-install>
+      <div class="website-widget-panel-header">
+        <div>
+          <p class="website-widget-kicker">Install snippet</p>
+          <h2>Website Widget embed snippet</h2>
+          <p>Copy this snippet into the pages where the widget launcher should appear.</p>
+        </div>
+        <span class="${getBadgeClass(statusTone)}">${escapeHtml(getWebsiteWidgetStatusLabel(installStatus, hasInstall))}</span>
+      </div>
+      <div class="install-cta-row">
+        <button class="primary-button" type="button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>Copy widget snippet</button>
+        <button class="ghost-button" type="button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>Verify installation</button>
+        <a class="test-link ${previewHref ? "" : "disabled"}" href="${previewHref ? escapeHtml(previewHref) : "#"}" target="_blank" rel="noreferrer">Test widget</a>
+      </div>
+      ${compact ? "" : buildInstallCopyBlock({
+        id: "install-script-output",
+        label: "Website Widget embed snippet",
+        value: script,
+        rows: 5,
+        buttonAction: "copy-install",
+        buttonLabel: "Copy widget snippet",
+        disabled: !hasInstall,
+        className: "install-code-block",
+      })}
+      <div class="website-widget-status-grid">
+        <article class="website-widget-status-item">
+          <span>Allowed domains</span>
+          ${buildInstallDomainChips(allowedDomains)}
+        </article>
+        <article class="website-widget-status-item">
+          <span>Install status</span>
+          <strong>${escapeHtml(installStatus.label || getWebsiteWidgetStatusLabel(installStatus, hasInstall))}</strong>
+          <p>${escapeHtml(getWebsiteWidgetInstallStatusCopy(installStatus))}</p>
+          ${installStatus.lastSeenUrl ? `<p>Last seen page: ${escapeHtml(installStatus.lastSeenUrl)}</p>` : ""}
+          ${installStatus.lastVerifiedAt ? `<p>Last verified ${escapeHtml(formatSeenAt(installStatus.lastVerifiedAt))}</p>` : ""}
+        </article>
+      </div>
+    </section>
+  `;
+}
+
+function buildWebsiteWidgetOverviewPanel(agent, messages, actionQueue, operatorWorkspace) {
+  const widgetMessages = getWebsiteWidgetMessages(messages);
+  const widgetLeads = getWebsiteWidgetLeadContacts(operatorWorkspace);
+  const source = getWebsiteWidgetAssistantSource(actionQueue);
+  const installStatus = getDefaultInstallStatus(agent);
+  const hasInstall = Boolean(trimText(agent.installId));
+  const conversationCount = Number(source.conversationCount || 0) || Math.ceil(widgetMessages.length / 2);
+  const messageCount = Number(source.messageCount || 0) || widgetMessages.length;
+  const leadCount = Number(source.leadsCaptured || 0) || widgetLeads.length;
+
+  return `
+    <section class="workspace-page website-widget-page website-widget-overview" data-shell-section="overview">
+      ${buildPageHeader({
+        eyebrow: "Website Widget",
+        title: "Website Widget",
+        copy: "Install, test, and monitor the embedded on-site assistant.",
+        actionsMarkup: `
+          <button class="primary-button" type="button" data-shell-target="install">Open install</button>
+          <button class="ghost-button" type="button" data-shell-target="settings">Configuration</button>
+        `,
+      })}
+      <div class="workspace-page-body website-widget-body">
+        <section class="website-widget-status-band">
+          <div class="website-widget-status-copy">
+            <span class="${getBadgeClass(getWebsiteWidgetStatusTone(installStatus, hasInstall))}">${escapeHtml(getWebsiteWidgetStatusLabel(installStatus, hasInstall))}</span>
+            <h2>${escapeHtml(installStatus.label || getWebsiteWidgetStatusLabel(installStatus, hasInstall))}</h2>
+            <p>${escapeHtml(getWebsiteWidgetInstallStatusCopy(installStatus))}</p>
+          </div>
+          <div class="website-widget-metric-grid">
+            ${buildWebsiteWidgetMetric({ label: "Widget conversations", value: conversationCount, note: "From widget source", tone: "blue" })}
+            ${buildWebsiteWidgetMetric({ label: "Widget messages", value: messageCount, note: "Saved messages", tone: "teal" })}
+            ${buildWebsiteWidgetMetric({ label: "Captured leads", value: leadCount, note: "Widget source", tone: "violet" })}
+          </div>
+        </section>
+        <section class="website-widget-quick-grid">
+          ${[
+            { label: "Copy snippet", note: hasInstall ? "Snippet is ready" : "Snippet missing", target: "install", primary: true },
+            { label: "Verify installation", note: installStatus.host || "Check published site", target: "install" },
+            { label: "Test widget", note: trimText(agent.publicAgentKey) ? "Open visitor test" : "Public key missing", target: "install" },
+            { label: "Widget configuration", note: "Launcher and domain basics", target: "settings" },
+            { label: "Recent conversations", note: `${widgetMessages.length} widget message${widgetMessages.length === 1 ? "" : "s"}`, target: "contacts" },
+            { label: "Widget analytics", note: "Source-specific signals", target: "analytics" },
+          ].map((item) => `
+            <button class="website-widget-action ${item.primary ? "primary" : ""}" type="button" data-shell-target="${escapeHtml(item.target)}">
+              <strong>${escapeHtml(item.label)}</strong>
+              <span>${escapeHtml(item.note)}</span>
+            </button>
+          `).join("")}
+        </section>
+        ${buildWebsiteWidgetInstallSnippet(agent, { compact: true })}
+      </div>
+    </section>
+  `;
+}
+
+function buildWebsiteWidgetInstallPanel(agent) {
+  return `
+    <section class="workspace-page website-widget-page" data-shell-section="install" hidden>
+      ${buildPageHeader({
+        eyebrow: "Website Widget",
+        title: "Install Website Widget",
+        copy: "Copy the existing widget snippet, verify the site, and open a visitor test.",
+      })}
+      <div class="workspace-page-body website-widget-body">
+        ${buildWebsiteWidgetInstallSnippet(agent)}
+      </div>
+    </section>
+  `;
+}
+
+function buildWebsiteWidgetConfigurationPanel(agent) {
+  const installStatus = getDefaultInstallStatus(agent);
+  const allowedDomains = Array.isArray(installStatus.allowedDomains) && installStatus.allowedDomains.length
+    ? installStatus.allowedDomains.join("\n")
+    : Array.isArray(agent.allowedDomains)
+      ? agent.allowedDomains.join("\n")
+      : "";
+  const purpose = getWidgetPurposeOption(agent.purpose || agent.widgetPurpose || agent.widget_purpose);
+  const primaryColor = trimText(agent.primaryColor || agent.primary_color) || "#14b8a6";
+  const secondaryColor = trimText(agent.secondaryColor || agent.secondary_color) || "#0f766e";
+  const assistantName = trimText(agent.assistantName || agent.name) || "Website assistant";
+  const welcomeMessage = trimText(agent.welcomeMessage) || "Welcome. Ask a question and we will help with the next step.";
+
+  return `
+    <section class="workspace-page website-widget-page" data-shell-section="settings" hidden>
+      ${buildPageHeader({
+        eyebrow: "Website Widget",
+        title: "Widget Configuration",
+        copy: "Edit the widget-facing website, launcher, appearance, and domain basics.",
+      })}
+      <div class="workspace-page-body website-widget-config-layout">
+        <form data-settings-form data-form-kind="appearance" class="website-widget-config-form">
+          <section class="website-widget-panel">
+            <div class="website-widget-panel-header">
+              <div>
+                <p class="website-widget-kicker">Website and domains</p>
+                <h2>Where the widget runs</h2>
+              </div>
+            </div>
+            <div class="form-grid two-col">
+              <div class="field">
+                <label for="website-widget-url">Website URL</label>
+                <input id="website-widget-url" name="website_url" type="url" value="${escapeHtml(agent.websiteUrl || "")}" placeholder="https://example.com">
+              </div>
+              <div class="field">
+                <label for="website-widget-contact-email">Lead email</label>
+                <input id="website-widget-contact-email" name="contact_email" type="email" value="${escapeHtml(agent.contactEmail || "")}" placeholder="owner@example.com">
+              </div>
+            </div>
+            <div class="field">
+              <label for="website-widget-domains">Allowed domains</label>
+              <textarea id="website-widget-domains" name="allowed_domains" rows="3">${escapeHtml(allowedDomains)}</textarea>
+              <p class="field-help">One domain per line. Keep this limited to real widget hosts.</p>
+            </div>
+          </section>
+
+          <section class="website-widget-panel">
+            <div class="website-widget-panel-header">
+              <div>
+                <p class="website-widget-kicker">Launcher</p>
+                <h2>Widget appearance</h2>
+              </div>
+            </div>
+            <div class="form-grid two-col">
+              <div class="field">
+                <label for="website-widget-assistant-name">Assistant name</label>
+                <input id="website-widget-assistant-name" name="assistant_name" type="text" value="${escapeHtml(assistantName)}">
+              </div>
+              <div class="field">
+                <label for="website-widget-button-label">Launcher text</label>
+                <input id="website-widget-button-label" name="button_label" type="text" value="${escapeHtml(agent.buttonLabel || "Chat")}">
+              </div>
+              <div class="field">
+                <label for="website-widget-primary-color">Accent color</label>
+                <input id="website-widget-primary-color" name="primary_color" type="color" value="${escapeHtml(primaryColor)}">
+              </div>
+              <div class="field">
+                <label for="website-widget-secondary-color">Secondary color</label>
+                <input id="website-widget-secondary-color" name="secondary_color" type="color" value="${escapeHtml(secondaryColor)}">
+              </div>
+            </div>
+            <div class="field">
+              <label for="website-widget-purpose">Widget purpose</label>
+              <select id="website-widget-purpose" name="widget_purpose">
+                ${WIDGET_PURPOSE_OPTIONS.map((option) => `
+                  <option value="${escapeHtml(option.value)}" ${purpose.value === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>
+                `).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label for="website-widget-welcome">Welcome message</label>
+              <textarea id="website-widget-welcome" name="welcome_message" rows="4">${escapeHtml(welcomeMessage)}</textarea>
+            </div>
+            <div class="field">
+              <label for="website-widget-logo">Widget logo</label>
+              <input id="website-widget-logo" name="widget_logo_file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+              <p class="field-help">Optional small square logo.</p>
+            </div>
+            <div class="studio-save-row">
+              <button class="primary-button" type="submit">Save Website Widget</button>
+              <span data-save-state class="save-state">No changes yet.</span>
+            </div>
+          </section>
+        </form>
+
+        <aside class="website-widget-preview-panel" aria-label="Website Widget preview">
+          <section class="website-widget-panel">
+            <div class="website-widget-panel-header">
+              <div>
+                <p class="website-widget-kicker">Preview</p>
+                <h2>Widget test area</h2>
+              </div>
+            </div>
+            <div class="brand-widget website-widget-preview" id="brand-widget-preview">
+              <div class="brand-widget-header">
+                <div id="brand-widget-avatar" class="brand-widget-avatar" style="--brand-primary:${escapeHtml(primaryColor)};--brand-secondary:${escapeHtml(secondaryColor)}">${escapeHtml(assistantName.charAt(0).toUpperCase())}</div>
+                <div>
+                  <p id="brand-widget-title" class="brand-widget-title">${escapeHtml(assistantName)}</p>
+                  <p class="brand-widget-subtitle">Website Widget</p>
+                </div>
+              </div>
+              <div id="brand-widget-message" class="brand-message">${escapeHtml(welcomeMessage)}</div>
+            </div>
+            <a class="test-link ${trimText(agent.publicAgentKey) ? "" : "disabled"}" href="${trimText(agent.publicAgentKey) ? escapeHtml(buildWidgetUrl(agent.publicAgentKey)) : "#"}" target="_blank" rel="noreferrer">Open test widget</a>
+          </section>
+        </aside>
+      </div>
+    </section>
+  `;
+}
+
+function buildWebsiteWidgetContactsPanel(messages, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const widgetMessages = getWebsiteWidgetMessages(messages);
+  const widgetContacts = getWebsiteWidgetContacts(operatorWorkspace);
+  const leads = getWebsiteWidgetLeadContacts(operatorWorkspace);
+  const recentMessages = widgetMessages.slice(-8).reverse();
+
+  return `
+    <section class="workspace-page website-widget-page" data-shell-section="contacts" hidden>
+      ${buildPageHeader({
+        eyebrow: "Website Widget",
+        title: "Widget Conversations",
+        copy: "Recent widget-sourced conversations and captured leads from existing records.",
+      })}
+      <div class="workspace-page-body website-widget-config-layout">
+        <section class="website-widget-panel">
+          <div class="website-widget-panel-header">
+            <div>
+              <p class="website-widget-kicker">Recent conversations</p>
+              <h2>Saved widget messages</h2>
+            </div>
+            <span class="${getBadgeClass(widgetMessages.length ? "Ready" : "Pending")}">${escapeHtml(`${widgetMessages.length} message${widgetMessages.length === 1 ? "" : "s"}`)}</span>
+          </div>
+          <div class="website-widget-record-list">
+            ${recentMessages.length ? recentMessages.map((message) => `
+              <article class="website-widget-record">
+                <span>${escapeHtml(trimText(message.role).toLowerCase() === "assistant" ? "Widget reply" : "Visitor message")}</span>
+                <strong>${escapeHtml(trimText(message.content || message.message || message.text) || "No message text saved.")}</strong>
+                <small>${escapeHtml(message.createdAt || message.created_at ? formatSeenAt(message.createdAt || message.created_at) : "Time not saved")}</small>
+              </article>
+            `).join("") : `<div class="glass-empty-state">No widget conversations yet.</div>`}
+          </div>
+        </section>
+
+        <section class="website-widget-panel">
+          <div class="website-widget-panel-header">
+            <div>
+              <p class="website-widget-kicker">Captured leads</p>
+              <h2>Widget source leads</h2>
+            </div>
+            <span class="${getBadgeClass(leads.length ? "Ready" : "Pending")}">${escapeHtml(`${leads.length} lead${leads.length === 1 ? "" : "s"}`)}</span>
+          </div>
+          <div class="website-widget-record-list">
+            ${leads.length ? leads.slice(0, 8).map((contact) => `
+              <article class="website-widget-record">
+                <span>${escapeHtml(contact.lifecycleState || contact.lifecycle_state || "Lead")}</span>
+                <strong>${escapeHtml(contact.name || contact.email || contact.phone || contact.customerName || "Widget visitor")}</strong>
+                <p>${escapeHtml(contact.latestSummary || contact.summary || contact.nextAction?.description || "No lead summary saved yet.")}</p>
+                <small>${escapeHtml([contact.email, contact.phone].map(trimText).filter(Boolean).join(" · ") || "Contact details not saved")}</small>
+              </article>
+            `).join("") : `<div class="glass-empty-state">No captured widget leads yet.</div>`}
+          </div>
+          ${widgetContacts.length && !leads.length ? `<p class="website-widget-footnote">${escapeHtml(`${widgetContacts.length} widget contact record${widgetContacts.length === 1 ? "" : "s"} found without lead details.`)}</p>` : ""}
+        </section>
+      </div>
+    </section>
+  `;
+}
+
+function buildWebsiteWidgetAnalyticsPanel(messages, actionQueue = createEmptyActionQueue(), operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const widgetMessages = getWebsiteWidgetMessages(messages);
+  const widgetContacts = getWebsiteWidgetContacts(operatorWorkspace);
+  const widgetLeads = getWebsiteWidgetLeadContacts(operatorWorkspace);
+  const source = getWebsiteWidgetAssistantSource(actionQueue);
+  const topQuestions = getTopWebsiteWidgetQuestions(messages);
+  const conversationCount = Number(source.conversationCount || 0) || Math.ceil(widgetMessages.length / 2);
+  const messageCount = Number(source.messageCount || 0) || widgetMessages.length;
+  const visitorQuestionCount = Number(source.visitorQuestionCount || 0) || widgetMessages.filter((message) => trimText(message.role).toLowerCase() === "user").length;
+  const leadsCaptured = Number(source.leadsCaptured || 0) || widgetLeads.length;
+
+  return `
+    <section class="workspace-page website-widget-page" data-shell-section="analytics" hidden>
+      ${buildPageHeader({
+        eyebrow: "Website Widget",
+        title: "Widget Analytics",
+        copy: "Source-specific widget signals from existing dashboard data.",
+      })}
+      <div class="workspace-page-body website-widget-body">
+        <section class="website-widget-metric-grid website-widget-analytics-metrics">
+          ${buildWebsiteWidgetMetric({ label: "Widget conversations", value: conversationCount, note: "Conversation records", tone: "blue" })}
+          ${buildWebsiteWidgetMetric({ label: "Widget messages", value: messageCount, note: "Saved messages", tone: "teal" })}
+          ${buildWebsiteWidgetMetric({ label: "Visitor questions", value: visitorQuestionCount, note: "User messages", tone: "violet" })}
+          ${buildWebsiteWidgetMetric({ label: "Captured leads", value: leadsCaptured, note: `${widgetContacts.length} widget contact${widgetContacts.length === 1 ? "" : "s"}`, tone: "teal" })}
+        </section>
+        <section class="website-widget-panel">
+          <div class="website-widget-panel-header">
+            <div>
+              <p class="website-widget-kicker">Common questions</p>
+              <h2>Top widget questions</h2>
+            </div>
+          </div>
+          <div class="website-widget-record-list">
+            ${topQuestions.length ? topQuestions.map((item) => `
+              <article class="website-widget-record">
+                <span>${escapeHtml(`${item.count} ask${item.count === 1 ? "" : "s"}`)}</span>
+                <strong>${escapeHtml(item.question)}</strong>
+              </article>
+            `).join("") : `<div class="glass-empty-state">No widget question trends yet.</div>`}
+          </div>
+        </section>
+      </div>
+    </section>
+  `;
+}
+
+function renderWebsiteWidgetDashboardShell(
+  agent,
+  messages,
+  setup,
+  actionQueue = createEmptyActionQueue(),
+  operatorWorkspace = createEmptyOperatorWorkspace()
+) {
+  renderTopbarMeta();
+  document.title = "Vonza | Website Widget";
+  setDashboardUiStateValue("installMethod", "widget", { persist: false });
+  const activeSection = getActiveShellSection(setup, operatorWorkspace);
+
+  rootEl.innerHTML = `
+    <div class="app-shell dashboard-v2-shell dashboard-v2-production-shell website-widget-dashboard-shell" data-app-shell data-dashboard-v2="enabled" data-dashboard-product="website_widget" data-website-widget-dashboard="dedicated">
+      <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="Close navigation"></button>
+      ${buildWebsiteWidgetSidebarShell(agent, activeSection)}
+      <div class="workspace-shell">
+        <div class="workspace-pages">
+          ${buildWebsiteWidgetOverviewPanel(agent, messages, actionQueue, operatorWorkspace)}
+          ${buildWebsiteWidgetInstallPanel(agent)}
+          ${buildWebsiteWidgetConfigurationPanel(agent)}
+          ${buildWebsiteWidgetContactsPanel(messages, operatorWorkspace)}
+          ${buildWebsiteWidgetAnalyticsPanel(messages, actionQueue, operatorWorkspace)}
+        </div>
+      </div>
+    </div>
+  `;
+
+  bindSharedDashboardEvents(agent, messages, setup, actionQueue, operatorWorkspace);
 }
 
 function buildCustomizePanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), frontDeskTraining = createEmptyFrontDeskTraining(), actionQueue = createEmptyActionQueue()) {
@@ -13992,6 +14611,11 @@ function renderAssistantShell(
 ) {
   setup = mergeKnowledgeImportIntoSetup(setup, agent);
 
+  if (isDedicatedWebsiteWidgetDashboard()) {
+    renderWebsiteWidgetDashboardShell(agent, messages, setup, actionQueue, operatorWorkspace);
+    return;
+  }
+
   if (DASHBOARD_V2_ENABLED) {
     renderDashboardV2Shell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining, connectedApps);
     return;
@@ -14043,6 +14667,11 @@ function renderDashboardV2Shell(
   frontDeskTraining = createEmptyFrontDeskTraining(),
   connectedApps = createEmptyConnectedAppsState()
 ) {
+  if (isDedicatedWebsiteWidgetDashboard()) {
+    renderWebsiteWidgetDashboardShell(agent, messages, setup, actionQueue, operatorWorkspace);
+    return;
+  }
+
   renderTopbarMeta();
   const activeSection = getActiveShellSection(setup, operatorWorkspace);
   const setupHintMarkup = !setup.isReady

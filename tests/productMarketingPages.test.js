@@ -37,6 +37,14 @@ async function getHtml(baseUrl, pathname) {
   return response.text();
 }
 
+async function getHtmlResponse(baseUrl, pathname) {
+  const response = await fetch(`${baseUrl}${pathname}`);
+  const text = await response.text();
+  assert.equal(response.status, 200, pathname);
+  assert.match(response.headers.get("content-type") || "", /html/);
+  return { response, text };
+}
+
 test("public product marketing pages render with product-specific dashboard CTAs", async () => {
   await withServer(async (baseUrl) => {
     const frontDesk = await getHtml(baseUrl, "/front-desk");
@@ -48,7 +56,7 @@ test("public product marketing pages render with product-specific dashboard CTAs
     const websiteWidget = await getHtml(baseUrl, "/website-widget");
     assert.match(websiteWidget, /data-marketing-page="websiteWidget"/);
     assert.match(websiteWidget, /Website Widget adds Vonza to an existing site/);
-    assert.match(websiteWidget, /href="\/dashboard\/widget\?from=site"/);
+    assert.match(websiteWidget, /href="\/website-widget\/dashboard\?from=site"/);
     assert.match(websiteWidget, /on-site embedded assistant/i);
 
     const voiceAgent = await getHtml(baseUrl, "/voice-agent");
@@ -56,6 +64,23 @@ test("public product marketing pages render with product-specific dashboard CTAs
     assert.match(voiceAgent, /configured web voice conversations/i);
     assert.match(voiceAgent, /href="\/dashboard\/voice\?from=site"/);
     assert.match(voiceAgent, /not positioned as a phone-line or telephony replacement/i);
+  });
+});
+
+test("website widget dashboard routes serve the private dashboard document", async () => {
+  await withServer(async (baseUrl) => {
+    for (const pathname of ["/website-widget/dashboard", "/widget/dashboard"]) {
+      const { response, text } = await getHtmlResponse(baseUrl, pathname);
+
+      assert.match(response.headers.get("cache-control") || "", /no-store/, pathname);
+      assert.match(response.headers.get("content-security-policy") || "", /frame-ancestors 'none'/, pathname);
+      assert.equal(response.headers.get("x-frame-options"), "DENY", pathname);
+      assert.match(text, /id="dashboard-root"/, pathname);
+      assert.match(text, /\/dashboard\.js\?v=/, pathname);
+      assert.doesNotMatch(text, /<title id="page-title">Vonza AI<\/title>/, pathname);
+      assert.doesNotMatch(text, /id="assistant-name"/, pathname);
+      assert.doesNotMatch(text, /src="\/embed(?:-lite)?\.js/, pathname);
+    }
   });
 });
 

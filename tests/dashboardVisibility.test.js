@@ -931,6 +931,142 @@ test("product dashboard routes preserve existing dashboard hashes", async () => 
   }
 });
 
+test("dedicated Website Widget dashboard renders widget-only install, config, conversations, and analytics", async () => {
+  const now = "2026-06-07T10:00:00.000Z";
+  const agent = createActiveAgent({
+    installId: "install-1",
+    buttonLabel: "Ask us",
+    contactEmail: "owner@example.com",
+    allowedDomains: ["example.com"],
+    installStatus: {
+      state: "seen_recently",
+      label: "Live install detected",
+      host: "example.com",
+      lastSeenAt: now,
+      lastSeenUrl: "https://example.com/",
+      lastVerifiedAt: now,
+      allowedDomains: ["example.com"],
+    },
+  });
+  const widgetMessages = [
+    {
+      id: "message-1",
+      role: "user",
+      content: "Can I book this week?",
+      source: "widget",
+      createdAt: now,
+    },
+    {
+      id: "message-2",
+      role: "assistant",
+      content: "Yes, share your preferred day.",
+      source: "widget",
+      createdAt: now,
+    },
+    {
+      id: "message-3",
+      role: "user",
+      content: "Page-only question",
+      source: "page",
+      createdAt: now,
+    },
+  ];
+  const widgetContact = {
+    id: "contact-widget-1",
+    name: "Widget Lead",
+    email: "lead@example.com",
+    lifecycleState: "active_lead",
+    source: "widget",
+    latestSummary: "Asked from widget about availability.",
+    lastMessageAt: now,
+    timeline: [
+      {
+        at: now,
+        label: "Website Widget",
+        summary: "Availability question captured.",
+      },
+    ],
+  };
+  const pageContact = {
+    id: "contact-page-1",
+    name: "Page Lead",
+    source: "page",
+    lifecycleState: "active_lead",
+    latestSummary: "Should stay out of the widget dashboard.",
+  };
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    hash: "#install/embed",
+    agents: () => [agent],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/messages") {
+        return buildResponse({
+          status: 200,
+          body: {
+            messages: widgetMessages,
+          },
+        });
+      }
+
+      if (pathname === "/agents/operator-workspace") {
+        return buildResponse({
+          status: 200,
+          body: createOperatorWorkspaceWithContacts([widgetContact, pageContact]),
+        });
+      }
+
+      if (pathname === "/dashboard/analytics/summary") {
+        return buildResponse({
+          status: 200,
+          body: {
+            ok: true,
+            metrics: {
+              totalConversations: 1,
+              leadsCaptured: 1,
+            },
+            assistantSource: {
+              widget: {
+                conversationCount: 1,
+                messageCount: 2,
+                visitorQuestionCount: 1,
+                leadsCaptured: 1,
+              },
+            },
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+  const html = harness.getRootHtml();
+
+  assert.match(html, /data-website-widget-dashboard="dedicated"/);
+  assert.match(html, /data-dashboard-product="website_widget"/);
+  assert.match(html, /Website Widget/);
+  assert.match(html, /Install Website Widget/);
+  assert.match(html, /Website Widget embed snippet/);
+  assert.match(html, /Copy widget snippet/);
+  assert.match(html, /Verify installation/);
+  assert.match(html, /Test widget/);
+  assert.match(html, /Widget Configuration/);
+  assert.match(html, /Allowed domains/);
+  assert.match(html, /Widget Conversations/);
+  assert.match(html, /Widget Analytics/);
+  assert.match(html, /Widget conversations[\s\S]{0,220}<strong>1<\/strong>/);
+  assert.match(html, /Widget messages[\s\S]{0,220}<strong>2<\/strong>/);
+  assert.match(html, /Captured leads[\s\S]{0,220}<strong>1<\/strong>/);
+  assert.match(html, /Can I book this week\?/);
+  assert.match(html, /Widget Lead/);
+  assert.match(html, /lead@example\.com/);
+  assert.match(html, /data-shell-target="install"[\s\S]{0,260}aria-current="page"/);
+  assert.doesNotMatch(html, /Page-only question|Page Lead|Should stay out of the widget dashboard/);
+  assert.doesNotMatch(html, /AI Front Desk|Voice Agent|\bQDH\b|ESG|Enterprise Request Desk|Front Desk page|Web Call|Connected Tools|generic engine/i);
+  assert.doesNotMatch(html, /data-dashboard-product-nav/);
+  assert.doesNotMatch(html, /data-shell-target="customize"|data-shell-target="inbox"|data-shell-target="calendar"|data-shell-target="automations"/);
+});
+
 test("Hungarian dashboard shipped hash routes render localized primary labels", async () => {
   const hashRoutes = [
     ["#today", "overview", [/Kezdőlap/, /Mai AI ügyfélszolgálati áttekintés/]],
@@ -1809,6 +1945,33 @@ test("null auth user session renders the auth shell without fetching dashboard d
   assert.match(harness.getRootHtml(), /Create your Vonza account|Sign in to continue into Vonza/);
   assert.equal(
     harness.fetchCalls.some((call) => call.pathname === "/agents/list"),
+    false
+  );
+});
+
+test("dedicated Website Widget dashboard uses the same signed-out auth gate as dashboard", async () => {
+  const dashboardHarness = createDashboardHarness({
+    pathname: "/dashboard",
+    session: null,
+  });
+  const widgetHarness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    session: null,
+  });
+
+  await dashboardHarness.settle();
+  await widgetHarness.settle();
+
+  assert.match(dashboardHarness.getRootHtml(), /Create your Vonza account|Sign in to continue into Vonza/);
+  assert.match(widgetHarness.getRootHtml(), /Create your Vonza account|Sign in to continue into Vonza/);
+  assert.equal(dashboardHarness.getGlobal("document").title, "Vonza | Home");
+  assert.equal(widgetHarness.getGlobal("document").title, "Vonza | Website Widget");
+  assert.equal(
+    widgetHarness.fetchCalls.some((call) => call.pathname === "/agents/list"),
+    false
+  );
+  assert.equal(
+    widgetHarness.fetchCalls.some((call) => call.pathname === "/agents/messages"),
     false
   );
 });
