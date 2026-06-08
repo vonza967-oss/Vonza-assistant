@@ -931,7 +931,7 @@ test("product dashboard routes preserve existing dashboard hashes", async () => 
   }
 });
 
-test("dedicated Website Widget dashboard renders widget-only install, config, conversations, and analytics", async () => {
+test("dedicated Website Widget dashboard separates the existing widget surfaces", async () => {
   const now = "2026-06-07T10:00:00.000Z";
   const agent = createActiveAgent({
     installId: "install-1",
@@ -1044,25 +1044,35 @@ test("dedicated Website Widget dashboard renders widget-only install, config, co
 
   assert.match(html, /data-website-widget-dashboard="dedicated"/);
   assert.match(html, /data-dashboard-product="website_widget"/);
-  assert.match(html, /Website Widget/);
+  assert.match(html, /Website Widget workspace/);
+  assert.match(html, /Customers, analytics, install, and configuration for the existing widget/);
+  assert.match(html, /Website Widget home/);
+  assert.match(html, /Use the existing install\/embed and Website Widget settings areas/);
   assert.match(html, /Install Website Widget/);
   assert.match(html, /Website Widget embed snippet/);
   assert.match(html, /Copy widget snippet/);
   assert.match(html, /Verify installation/);
   assert.match(html, /Test widget/);
-  assert.match(html, /Widget Configuration/);
+  assert.match(html, /Existing widget configuration/);
+  assert.match(html, /Tune the embedded Website Widget using the existing snippet, launcher, install-status, and allowed-domain settings/);
+  assert.match(html, /Save Website Widget/);
+  assert.match(html, /Embed\/install status/);
   assert.match(html, /Allowed domains/);
-  assert.match(html, /Widget Conversations/);
-  assert.match(html, /Widget Analytics/);
-  assert.match(html, /Widget conversations[\s\S]{0,220}<strong>1<\/strong>/);
-  assert.match(html, /Widget messages[\s\S]{0,220}<strong>2<\/strong>/);
-  assert.match(html, /Captured leads[\s\S]{0,220}<strong>1<\/strong>/);
+  assert.match(html, /data-shell-target="contacts"/);
+  assert.match(html, /data-shell-target="analytics"/);
+  assert.match(html, /data-shell-target="settings"[\s\S]{0,260}data-settings-target="website_widget"/);
+  assert.match(html, /Customers/);
+  assert.match(html, /Website Widget analytics/);
+  assert.match(html, /data-product-analytics-view="website_widget"/);
+  assert.match(html, /data-product-analytics-card="widget_conversations"[\s\S]{0,140}data-product-analytics-state="available"/);
+  assert.match(html, /data-product-analytics-card="widget_leads"[\s\S]{0,140}data-product-analytics-state="available"/);
   assert.match(html, /Can I book this week\?/);
   assert.match(html, /Widget Lead/);
   assert.match(html, /lead@example\.com/);
   assert.match(html, /data-shell-target="install"[\s\S]{0,260}aria-current="page"/);
-  assert.doesNotMatch(html, /Page-only question|Page Lead|Should stay out of the widget dashboard/);
-  assert.doesNotMatch(html, /AI Front Desk|Voice Agent|\bQDH\b|ESG|Enterprise Request Desk|Front Desk page|Web Call|Connected Tools|generic engine/i);
+  assert.doesNotMatch(html, /Widget Conversations|Widget source leads|Widget Analytics/);
+  assert.doesNotMatch(html, /Page-only question/);
+  assert.doesNotMatch(html, /Voice Agent|\bQDH\b|ESG|Enterprise Request Desk|Web Call|Connected Tools|generic engine/i);
   assert.doesNotMatch(html, /data-dashboard-product-nav/);
   assert.doesNotMatch(html, /data-shell-target="customize"|data-shell-target="inbox"|data-shell-target="calendar"|data-shell-target="automations"/);
 });

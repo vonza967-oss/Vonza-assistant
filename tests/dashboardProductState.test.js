@@ -690,7 +690,7 @@ test("product landing renders readiness card from the active product context", (
   assert.match(script, /data-product-readiness-item/);
   assert.match(script, /data-shell-section="setup"/);
   assert.match(script, /data-product-setup-view/);
-  assert.match(script, /buildProductSetupPanel\(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining\)/);
+  assert.match(script, /buildProductSetupPanel\(agent, shellMessages, setup, actionQueue, operatorWorkspace, frontDeskTraining\)/);
   assert.match(script, /buildProductLandingContext\(activeDashboardProduct,\s*\{/);
   assert.match(script, /saved-state checks ready/);
   assert.match(script, /Action-only rows are neutral setup links/);

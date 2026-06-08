@@ -220,7 +220,7 @@ const dashboardUiState = loadDashboardUiState();
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
-const WEBSITE_WIDGET_DASHBOARD_SECTIONS = ["overview", "install", "settings", "contacts", "analytics"];
+const WEBSITE_WIDGET_DASHBOARD_SECTIONS = ["overview", "contacts", "analytics", "install", "settings"];
 const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
 const WIDGET_PURPOSE_OPTIONS = [
   {
@@ -601,6 +601,15 @@ function isInstallDetected(status) {
 
 function isDedicatedWebsiteWidgetDashboard() {
   return activeDashboardProduct?.key === "website_widget" && activeDashboardProduct?.isDedicatedProductDashboard === true;
+}
+
+function primeDedicatedWebsiteWidgetDashboardState() {
+  if (!isDedicatedWebsiteWidgetDashboard()) {
+    return;
+  }
+
+  setDashboardUiStateValue("installMethod", "widget", { persist: false });
+  setDashboardUiStateValue("settingsMainTab", "website_widget", { persist: false });
 }
 
 function hasAuthConfig() {
@@ -6477,6 +6486,7 @@ function buildSidebarShell(
   activeSection = "overview"
 ) {
   const availableSections = getAvailableShellSections(operatorWorkspace);
+  const dedicatedWebsiteWidget = isDedicatedWebsiteWidgetDashboard();
   const installStatus = getDefaultInstallStatus(agent);
   const accountLabel = authUser?.email || agent.ownerEmail || agent.contactEmail || agent.email || "";
   const accountInitials = trimText(accountLabel)
@@ -6495,66 +6505,112 @@ function buildSidebarShell(
   const productHomeContext = typeof dashboardState.getDashboardProductHomeContext === "function"
     ? dashboardState.getDashboardProductHomeContext(activeDashboardProduct.key)
     : null;
-  const coreItems = [
-    {
-      key: "overview",
-      label: t("nav.home"),
-      note: "Operator command center",
-      badge: todayAttention > 0 ? String(todayAttention) : "",
-      badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
-    },
-    {
-      key: "setup",
-      label: "Setup",
-      note: "Product launch path",
-    },
-    {
-      key: "customize",
-      label: t("nav.frontDesk"),
-      note: "Primary customer page",
-    },
-    {
-      key: "contacts",
-      label: t("nav.customers"),
-      note: "People and follow-ups",
-      badge: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? String(Math.max(contactsAttention, humanFollowUpOpen)) : "",
-      badgeTone: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? "Needs attention" : "Pending",
-    },
-    {
-      key: "analytics",
-      label: t("nav.analytics"),
-      note: "Signals and outcomes",
-      badge: notificationUnread > 0 ? String(notificationUnread) : "",
-      badgeTone: notificationUnread > 0 ? "Needs attention" : "Pending",
-    },
-  ].filter((item) => availableSections.includes(item.target || item.key));
+  const coreItems = dedicatedWebsiteWidget
+    ? [
+      {
+        key: "overview",
+        label: "Overview",
+        note: "Widget status and next actions",
+      },
+      {
+        key: "contacts",
+        label: t("nav.customers"),
+        note: "Existing customers and follow-ups",
+        badge: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? String(Math.max(contactsAttention, humanFollowUpOpen)) : "",
+        badgeTone: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? "Needs attention" : "Pending",
+      },
+      {
+        key: "analytics",
+        label: t("nav.analytics"),
+        note: "Existing widget analytics",
+        badge: notificationUnread > 0 ? String(notificationUnread) : "",
+        badgeTone: notificationUnread > 0 ? "Needs attention" : "Pending",
+      },
+    ].filter((item) => availableSections.includes(item.target || item.key))
+    : [
+      {
+        key: "overview",
+        label: t("nav.home"),
+        note: "Operator command center",
+        badge: todayAttention > 0 ? String(todayAttention) : "",
+        badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
+      },
+      {
+        key: "setup",
+        label: "Setup",
+        note: "Product launch path",
+      },
+      {
+        key: "customize",
+        label: t("nav.frontDesk"),
+        note: "Primary customer page",
+      },
+      {
+        key: "contacts",
+        label: t("nav.customers"),
+        note: "People and follow-ups",
+        badge: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? String(Math.max(contactsAttention, humanFollowUpOpen)) : "",
+        badgeTone: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? "Needs attention" : "Pending",
+      },
+      {
+        key: "analytics",
+        label: t("nav.analytics"),
+        note: "Signals and outcomes",
+        badge: notificationUnread > 0 ? String(notificationUnread) : "",
+        badgeTone: notificationUnread > 0 ? "Needs attention" : "Pending",
+      },
+    ].filter((item) => availableSections.includes(item.target || item.key));
 
-  const utilityItems = [
-    {
-      key: "install",
-      label: t("nav.install"),
-      note: "Page links, QR, optional widget",
-    },
-    {
-      key: "settings",
-      label: t("nav.settings"),
-      note: "Workspace, privacy, billing",
-    },
-  ].filter((item) => availableSections.includes(item.key));
+  const utilityItems = dedicatedWebsiteWidget
+    ? [
+      {
+        key: "install",
+        label: t("nav.install"),
+        note: "Widget snippet and verification",
+      },
+      {
+        key: "settings",
+        label: "Configuration",
+        note: "Widget settings",
+        settingsTarget: "website_widget",
+      },
+    ].filter((item) => availableSections.includes(item.key))
+    : [
+      {
+        key: "install",
+        label: t("nav.install"),
+        note: "Page links, QR, optional widget",
+      },
+      {
+        key: "settings",
+        label: t("nav.settings"),
+        note: "Workspace, privacy, billing",
+      },
+    ].filter((item) => availableSections.includes(item.key));
+
+  const sidebarTitle = dedicatedWebsiteWidget ? "Website Widget" : "Vonza";
+  const sidebarEyebrow = dedicatedWebsiteWidget
+    ? "Website Widget workspace"
+    : (activeDashboardProduct.dashboardLabel || "AI Front Desk workspace");
+  const sidebarCopy = dedicatedWebsiteWidget
+    ? (agent.websiteUrl || agent.assistantName || agent.name || "Embedded on-site assistant")
+    : (agent.assistantName || agent.name || agent.websiteUrl || translateDashboardText("Add your website to personalize the Front Desk"));
 
   return `
-    <aside class="sidebar-shell" aria-label="${escapeHtml(translateDashboardText("Dashboard sidebar"))}">
+    <aside class="sidebar-shell ${dedicatedWebsiteWidget ? "website-widget-sidebar" : ""}" aria-label="${escapeHtml(translateDashboardText("Dashboard sidebar"))}">
       <div class="sidebar-identity">
         <div class="sidebar-identity-mark">V</div>
         <div class="sidebar-identity-copy">
-          <p class="sidebar-eyebrow">${escapeHtml(translateDashboardText(activeDashboardProduct.dashboardLabel || "AI Front Desk workspace"))}</p>
-          <h2 class="sidebar-title">Vonza</h2>
-          <p class="sidebar-copy">${escapeHtml(agent.assistantName || agent.name || agent.websiteUrl || translateDashboardText("Add your website to personalize the Front Desk"))}</p>
+          <p class="sidebar-eyebrow">${escapeHtml(translateDashboardText(sidebarEyebrow))}</p>
+          <h2 class="sidebar-title">${escapeHtml(translateDashboardText(sidebarTitle))}</h2>
+          <p class="sidebar-copy">${escapeHtml(translateDashboardText(sidebarCopy))}</p>
         </div>
       </div>
-      ${buildDashboardProductSwitcher(activeDashboardProduct)}
+      ${dedicatedWebsiteWidget ? "" : buildDashboardProductSwitcher(activeDashboardProduct)}
       ${buildSidebarGroup(translateDashboardText("Operate"), coreItems, activeSection, {
-        note: productHomeContext?.sidebarNote || "Front Desk is the primary full-page customer surface.",
+        note: dedicatedWebsiteWidget
+          ? "Customers, analytics, install, and configuration for the existing widget."
+          : (productHomeContext?.sidebarNote || "Front Desk is the primary full-page customer surface."),
       })}
       <div class="sidebar-footer">
         <div class="sidebar-status-dock">
@@ -7847,6 +7903,7 @@ function buildProductReadinessCard(product = activeDashboardProduct, snapshot = 
 }
 
 function getProductLandingContext(product = activeDashboardProduct) {
+  const dedicatedWebsiteWidget = isDedicatedWebsiteWidgetDashboard();
   const homeContext = typeof dashboardState.getDashboardProductHomeContext === "function"
     ? dashboardState.getDashboardProductHomeContext(product?.key || "front_desk")
     : null;
@@ -7859,8 +7916,14 @@ function getProductLandingContext(product = activeDashboardProduct) {
     eyebrow: label,
     title: homeContext?.contextTitle || "Launch the full-page AI Front Desk",
     copy: homeContext?.contextCopy || "Front Desk is the primary customer-facing product. Start in practice, tune the full-page setup, then publish through the existing install flow.",
-    setupLink: { label: setupContext?.eyebrow || "Open setup", note: "Open the product-specific setup checklist", href: "#setup", shellTarget: "setup", icon: "review", primary: true },
-    links: Array.isArray(homeContext?.shortcuts) ? homeContext.shortcuts : [
+    setupLink: dedicatedWebsiteWidget
+      ? { label: "Embed/install snippet", note: "Open the existing widget install surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }
+      : { label: setupContext?.eyebrow || "Open setup", note: "Open the product-specific setup checklist", href: "#setup", shellTarget: "setup", icon: "review", primary: true },
+    links: dedicatedWebsiteWidget ? [
+      { label: "Customers", note: "Open existing widget contacts and leads", href: "#customers", shellTarget: "contacts", icon: "users" },
+      { label: "Analytics", note: "Review existing widget analytics", href: "#analytics", shellTarget: "analytics", icon: "outcomes" },
+      { label: "Configuration", note: "Edit existing widget settings", href: "#settings/website-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" },
+    ] : Array.isArray(homeContext?.shortcuts) ? homeContext.shortcuts : [
       { label: "Practice", note: "Test the current customer experience", href: "#front-desk/practice", shellTarget: "customize", icon: "frontdesk", primary: true },
       { label: "Full-page setup", note: "Open existing Front Desk page settings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" },
       { label: "Publish page", note: "Share, embed, or QR the hosted page", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install" },
@@ -7870,7 +7933,8 @@ function getProductLandingContext(product = activeDashboardProduct) {
 
 function buildProductLandingContext(product = activeDashboardProduct, snapshot = {}) {
   const context = getProductLandingContext(product);
-  const sharedLinks = [
+  const dedicatedWebsiteWidget = isDedicatedWebsiteWidgetDashboard();
+  const sharedLinks = dedicatedWebsiteWidget ? [] : [
     { label: "Contacts and leads", href: "#customers", shellTarget: "contacts", icon: "users" },
     { label: "Conversations", href: "#front-desk/practice", shellTarget: "customize", icon: "chat" },
     { label: "Analytics", href: "#analytics", shellTarget: "analytics", icon: "outcomes" },
@@ -7891,12 +7955,12 @@ function buildProductLandingContext(product = activeDashboardProduct, snapshot =
         ${context.links.map((link) => buildProductLandingLink(link)).join("")}
       </div>
       ${buildProductReadinessCard(product, snapshot)}
-      <div class="product-context-shared">
+      ${dedicatedWebsiteWidget ? "" : `<div class="product-context-shared">
         <span>Shared workspace</span>
         <div>
           ${sharedLinks.map((link) => buildProductLandingLink(link)).join("")}
         </div>
-      </div>
+      </div>`}
     </section>
   `);
 }
@@ -9643,147 +9707,6 @@ function getWebsiteWidgetMessages(messages = []) {
   return Array.isArray(messages) ? messages.filter(isWebsiteWidgetMessage) : [];
 }
 
-function getContactSourceValues(contact = {}) {
-  const values = [
-    contact.source,
-    contact.primarySource,
-    contact.primary_source,
-    contact.conversationSource,
-    contact.conversation_source,
-  ];
-
-  [contact.sources, contact.sourceLabels, contact.source_labels].forEach((items) => {
-    if (Array.isArray(items)) {
-      values.push(...items);
-    }
-  });
-
-  if (Array.isArray(contact.timeline)) {
-    contact.timeline.forEach((item) => {
-      values.push(item.source, item.label);
-    });
-  }
-
-  return values.map(trimText).filter(Boolean);
-}
-
-function isWebsiteWidgetContact(contact = {}) {
-  return getContactSourceValues(contact).some((value) => isWebsiteWidgetSource(value) || /^website widget$/i.test(value));
-}
-
-function getWebsiteWidgetContacts(operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const contacts = operatorWorkspace.contacts?.list || [];
-  return Array.isArray(contacts) ? contacts.filter(isWebsiteWidgetContact) : [];
-}
-
-function contactHasLeadSignal(contact = {}) {
-  const lifecycle = normalizeWebsiteWidgetSource(contact.lifecycleState || contact.lifecycle_state);
-  const statuses = [
-    contact.status,
-    contact.contactStatus,
-    contact.contact_status,
-    ...(Array.isArray(contact.statuses) ? contact.statuses : []),
-    ...(Array.isArray(contact.flags) ? contact.flags : []),
-  ].map(normalizeWebsiteWidgetSource);
-
-  return ["lead", "new", "active_lead", "qualified", "needs_review", "needs_reply"].includes(lifecycle)
-    || statuses.some((status) => ["lead", "new", "active_lead", "qualified", "needs_review", "needs_reply"].includes(status))
-    || Boolean(trimText(contact.email || contact.phone || contact.customerEmail || contact.customerPhone));
-}
-
-function getWebsiteWidgetLeadContacts(operatorWorkspace = createEmptyOperatorWorkspace()) {
-  return getWebsiteWidgetContacts(operatorWorkspace).filter(contactHasLeadSignal);
-}
-
-function getWebsiteWidgetAssistantSource(actionQueue = createEmptyActionQueue()) {
-  const ownerAnalyticsDashboard = getOwnerAnalyticsDashboard(actionQueue);
-  return ownerAnalyticsDashboard?.assistantSource?.widget || ownerAnalyticsDashboard?.assistant_source?.widget || {};
-}
-
-function getTopWebsiteWidgetQuestions(messages = [], limit = 5) {
-  const counts = new Map();
-
-  getWebsiteWidgetMessages(messages)
-    .filter((message) => trimText(message.role).toLowerCase() === "user")
-    .forEach((message) => {
-      const question = trimText(message.content || message.message || message.text);
-      if (!question) {
-        return;
-      }
-      counts.set(question, (counts.get(question) || 0) + 1);
-    });
-
-  return [...counts.entries()]
-    .map(([question, count]) => ({ question, count }))
-    .sort((a, b) => b.count - a.count || a.question.localeCompare(b.question))
-    .slice(0, limit);
-}
-
-function buildWebsiteWidgetMetric({ label = "", value = "", note = "", tone = "blue" } = {}) {
-  return `
-    <article class="website-widget-metric website-widget-metric--${escapeHtml(tone)}">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(String(value || "0"))}</strong>
-      ${note ? `<small>${escapeHtml(note)}</small>` : ""}
-    </article>
-  `;
-}
-
-function buildWebsiteWidgetSidebarShell(agent, activeSection = "overview") {
-  const installStatus = getDefaultInstallStatus(agent);
-  const hasInstall = Boolean(trimText(agent.installId));
-  const accountLabel = authUser?.email || agent.ownerEmail || agent.contactEmail || agent.email || "";
-  const accountInitials = trimText(accountLabel)
-    ? trimText(accountLabel).slice(0, 2).toUpperCase()
-    : "V";
-  const items = [
-    { key: "overview", label: "Overview", note: "Status and next actions" },
-    { key: "install", label: "Install", note: "Snippet, domain, verification" },
-    { key: "settings", label: "Configuration", note: "Launcher, website, appearance" },
-    { key: "contacts", label: "Conversations", note: "Recent widget chats and leads" },
-    { key: "analytics", label: "Analytics", note: "Widget source signals" },
-  ];
-
-  return `
-    <aside class="sidebar-shell website-widget-sidebar" aria-label="Website Widget navigation">
-      <div class="sidebar-identity">
-        <div class="sidebar-identity-mark">V</div>
-        <div class="sidebar-identity-copy">
-          <p class="sidebar-eyebrow">Website Widget workspace</p>
-          <h2 class="sidebar-title">Website Widget</h2>
-          <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || agent.assistantName || agent.name || "Embedded on-site assistant")}</p>
-        </div>
-      </div>
-      ${buildSidebarGroup("Operate", items, activeSection, {
-        note: "Install, test, and monitor the embedded Website Widget.",
-      })}
-      <div class="sidebar-footer">
-        <div class="sidebar-status-dock">
-          <div class="sidebar-status-item">
-            <span class="sidebar-status-label">Install</span>
-            <strong>${escapeHtml(getWebsiteWidgetStatusLabel(installStatus, hasInstall))}</strong>
-          </div>
-          <div class="sidebar-status-item">
-            <span class="sidebar-status-label">Website</span>
-            <strong>${escapeHtml(agent.websiteUrl ? "Saved" : "Missing")}</strong>
-          </div>
-          <div class="sidebar-status-item">
-            <span class="sidebar-status-label">Snippet</span>
-            <strong>${escapeHtml(hasInstall ? "Ready" : "Missing")}</strong>
-          </div>
-        </div>
-        <div class="sidebar-user-card">
-          <span class="sidebar-user-avatar" aria-hidden="true">${escapeHtml(accountInitials)}</span>
-          <span class="sidebar-user-copy">
-            <strong>${escapeHtml(agent.ownerName || agent.businessName || agent.name || "Vonza workspace")}</strong>
-            <small>${escapeHtml(accountLabel || agent.websiteUrl || "Workspace owner")}</small>
-          </span>
-        </div>
-      </div>
-    </aside>
-  `;
-}
-
 function buildWebsiteWidgetInstallSnippet(agent, { compact = false } = {}) {
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
@@ -9834,61 +9757,6 @@ function buildWebsiteWidgetInstallSnippet(agent, { compact = false } = {}) {
   `;
 }
 
-function buildWebsiteWidgetOverviewPanel(agent, messages, actionQueue, operatorWorkspace) {
-  const widgetMessages = getWebsiteWidgetMessages(messages);
-  const widgetLeads = getWebsiteWidgetLeadContacts(operatorWorkspace);
-  const source = getWebsiteWidgetAssistantSource(actionQueue);
-  const installStatus = getDefaultInstallStatus(agent);
-  const hasInstall = Boolean(trimText(agent.installId));
-  const conversationCount = Number(source.conversationCount || 0) || Math.ceil(widgetMessages.length / 2);
-  const messageCount = Number(source.messageCount || 0) || widgetMessages.length;
-  const leadCount = Number(source.leadsCaptured || 0) || widgetLeads.length;
-
-  return `
-    <section class="workspace-page website-widget-page website-widget-overview" data-shell-section="overview">
-      ${buildPageHeader({
-        eyebrow: "Website Widget",
-        title: "Website Widget",
-        copy: "Install, test, and monitor the embedded on-site assistant.",
-        actionsMarkup: `
-          <button class="primary-button" type="button" data-shell-target="install">Open install</button>
-          <button class="ghost-button" type="button" data-shell-target="settings">Configuration</button>
-        `,
-      })}
-      <div class="workspace-page-body website-widget-body">
-        <section class="website-widget-status-band">
-          <div class="website-widget-status-copy">
-            <span class="${getBadgeClass(getWebsiteWidgetStatusTone(installStatus, hasInstall))}">${escapeHtml(getWebsiteWidgetStatusLabel(installStatus, hasInstall))}</span>
-            <h2>${escapeHtml(installStatus.label || getWebsiteWidgetStatusLabel(installStatus, hasInstall))}</h2>
-            <p>${escapeHtml(getWebsiteWidgetInstallStatusCopy(installStatus))}</p>
-          </div>
-          <div class="website-widget-metric-grid">
-            ${buildWebsiteWidgetMetric({ label: "Widget conversations", value: conversationCount, note: "From widget source", tone: "blue" })}
-            ${buildWebsiteWidgetMetric({ label: "Widget messages", value: messageCount, note: "Saved messages", tone: "teal" })}
-            ${buildWebsiteWidgetMetric({ label: "Captured leads", value: leadCount, note: "Widget source", tone: "violet" })}
-          </div>
-        </section>
-        <section class="website-widget-quick-grid">
-          ${[
-            { label: "Copy snippet", note: hasInstall ? "Snippet is ready" : "Snippet missing", target: "install", primary: true },
-            { label: "Verify installation", note: installStatus.host || "Check published site", target: "install" },
-            { label: "Test widget", note: trimText(agent.publicAgentKey) ? "Open visitor test" : "Public key missing", target: "install" },
-            { label: "Widget configuration", note: "Launcher and domain basics", target: "settings" },
-            { label: "Recent conversations", note: `${widgetMessages.length} widget message${widgetMessages.length === 1 ? "" : "s"}`, target: "contacts" },
-            { label: "Widget analytics", note: "Source-specific signals", target: "analytics" },
-          ].map((item) => `
-            <button class="website-widget-action ${item.primary ? "primary" : ""}" type="button" data-shell-target="${escapeHtml(item.target)}">
-              <strong>${escapeHtml(item.label)}</strong>
-              <span>${escapeHtml(item.note)}</span>
-            </button>
-          `).join("")}
-        </section>
-        ${buildWebsiteWidgetInstallSnippet(agent, { compact: true })}
-      </div>
-    </section>
-  `;
-}
-
 function buildWebsiteWidgetInstallPanel(agent) {
   return `
     <section class="workspace-page website-widget-page" data-shell-section="install" hidden>
@@ -9916,15 +9784,36 @@ function buildWebsiteWidgetConfigurationPanel(agent) {
   const secondaryColor = trimText(agent.secondaryColor || agent.secondary_color) || "#0f766e";
   const assistantName = trimText(agent.assistantName || agent.name) || "Website assistant";
   const welcomeMessage = trimText(agent.welcomeMessage) || "Welcome. Ask a question and we will help with the next step.";
+  const allowedDomainCount = allowedDomains
+    .split(/\r?\n/)
+    .map(trimText)
+    .filter(Boolean)
+    .length;
 
   return `
     <section class="workspace-page website-widget-page" data-shell-section="settings" hidden>
       ${buildPageHeader({
         eyebrow: "Website Widget",
-        title: "Widget Configuration",
-        copy: "Edit the widget-facing website, launcher, appearance, and domain basics.",
+        title: "Existing widget configuration",
+        copy: "Tune the embedded Website Widget using the existing snippet, launcher, install-status, and allowed-domain settings.",
       })}
       <div class="workspace-page-body website-widget-config-layout">
+        <section class="settings-operational-summary website-widget-config-summary" aria-label="Website Widget settings summary">
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Embed/install status</span>
+              <span class="${getBadgeClass(installStatus.state === "seen_recently" ? "Ready" : "Pending")}">${escapeHtml(installStatus.label || "Not installed yet")}</span>
+            </div>
+            <p>Uses the existing Website Widget snippet and install verification flow.</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Allowed domains</span>
+              <span class="${getBadgeClass(allowedDomainCount ? "Ready" : "Limited")}">${escapeHtml(allowedDomainCount ? `${allowedDomainCount} domain${allowedDomainCount === 1 ? "" : "s"}` : "Not limited")}</span>
+            </div>
+            <p>The current allowed-domains field controls where the Website Widget should run.</p>
+          </article>
+        </section>
         <form data-settings-form data-form-kind="appearance" class="website-widget-config-form">
           <section class="website-widget-panel">
             <div class="website-widget-panel-header">
@@ -10025,139 +9914,18 @@ function buildWebsiteWidgetConfigurationPanel(agent) {
   `;
 }
 
-function buildWebsiteWidgetContactsPanel(messages, operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const widgetMessages = getWebsiteWidgetMessages(messages);
-  const widgetContacts = getWebsiteWidgetContacts(operatorWorkspace);
-  const leads = getWebsiteWidgetLeadContacts(operatorWorkspace);
-  const recentMessages = widgetMessages.slice(-8).reverse();
-
-  return `
-    <section class="workspace-page website-widget-page" data-shell-section="contacts" hidden>
-      ${buildPageHeader({
-        eyebrow: "Website Widget",
-        title: "Widget Conversations",
-        copy: "Recent widget-sourced conversations and captured leads from existing records.",
-      })}
-      <div class="workspace-page-body website-widget-config-layout">
-        <section class="website-widget-panel">
-          <div class="website-widget-panel-header">
-            <div>
-              <p class="website-widget-kicker">Recent conversations</p>
-              <h2>Saved widget messages</h2>
-            </div>
-            <span class="${getBadgeClass(widgetMessages.length ? "Ready" : "Pending")}">${escapeHtml(`${widgetMessages.length} message${widgetMessages.length === 1 ? "" : "s"}`)}</span>
-          </div>
-          <div class="website-widget-record-list">
-            ${recentMessages.length ? recentMessages.map((message) => `
-              <article class="website-widget-record">
-                <span>${escapeHtml(trimText(message.role).toLowerCase() === "assistant" ? "Widget reply" : "Visitor message")}</span>
-                <strong>${escapeHtml(trimText(message.content || message.message || message.text) || "No message text saved.")}</strong>
-                <small>${escapeHtml(message.createdAt || message.created_at ? formatSeenAt(message.createdAt || message.created_at) : "Time not saved")}</small>
-              </article>
-            `).join("") : `<div class="glass-empty-state">No widget conversations yet.</div>`}
-          </div>
-        </section>
-
-        <section class="website-widget-panel">
-          <div class="website-widget-panel-header">
-            <div>
-              <p class="website-widget-kicker">Captured leads</p>
-              <h2>Widget source leads</h2>
-            </div>
-            <span class="${getBadgeClass(leads.length ? "Ready" : "Pending")}">${escapeHtml(`${leads.length} lead${leads.length === 1 ? "" : "s"}`)}</span>
-          </div>
-          <div class="website-widget-record-list">
-            ${leads.length ? leads.slice(0, 8).map((contact) => `
-              <article class="website-widget-record">
-                <span>${escapeHtml(contact.lifecycleState || contact.lifecycle_state || "Lead")}</span>
-                <strong>${escapeHtml(contact.name || contact.email || contact.phone || contact.customerName || "Widget visitor")}</strong>
-                <p>${escapeHtml(contact.latestSummary || contact.summary || contact.nextAction?.description || "No lead summary saved yet.")}</p>
-                <small>${escapeHtml([contact.email, contact.phone].map(trimText).filter(Boolean).join(" · ") || "Contact details not saved")}</small>
-              </article>
-            `).join("") : `<div class="glass-empty-state">No captured widget leads yet.</div>`}
-          </div>
-          ${widgetContacts.length && !leads.length ? `<p class="website-widget-footnote">${escapeHtml(`${widgetContacts.length} widget contact record${widgetContacts.length === 1 ? "" : "s"} found without lead details.`)}</p>` : ""}
-        </section>
-      </div>
-    </section>
-  `;
-}
-
-function buildWebsiteWidgetAnalyticsPanel(messages, actionQueue = createEmptyActionQueue(), operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const widgetMessages = getWebsiteWidgetMessages(messages);
-  const widgetContacts = getWebsiteWidgetContacts(operatorWorkspace);
-  const widgetLeads = getWebsiteWidgetLeadContacts(operatorWorkspace);
-  const source = getWebsiteWidgetAssistantSource(actionQueue);
-  const topQuestions = getTopWebsiteWidgetQuestions(messages);
-  const conversationCount = Number(source.conversationCount || 0) || Math.ceil(widgetMessages.length / 2);
-  const messageCount = Number(source.messageCount || 0) || widgetMessages.length;
-  const visitorQuestionCount = Number(source.visitorQuestionCount || 0) || widgetMessages.filter((message) => trimText(message.role).toLowerCase() === "user").length;
-  const leadsCaptured = Number(source.leadsCaptured || 0) || widgetLeads.length;
-
-  return `
-    <section class="workspace-page website-widget-page" data-shell-section="analytics" hidden>
-      ${buildPageHeader({
-        eyebrow: "Website Widget",
-        title: "Widget Analytics",
-        copy: "Source-specific widget signals from existing dashboard data.",
-      })}
-      <div class="workspace-page-body website-widget-body">
-        <section class="website-widget-metric-grid website-widget-analytics-metrics">
-          ${buildWebsiteWidgetMetric({ label: "Widget conversations", value: conversationCount, note: "Conversation records", tone: "blue" })}
-          ${buildWebsiteWidgetMetric({ label: "Widget messages", value: messageCount, note: "Saved messages", tone: "teal" })}
-          ${buildWebsiteWidgetMetric({ label: "Visitor questions", value: visitorQuestionCount, note: "User messages", tone: "violet" })}
-          ${buildWebsiteWidgetMetric({ label: "Captured leads", value: leadsCaptured, note: `${widgetContacts.length} widget contact${widgetContacts.length === 1 ? "" : "s"}`, tone: "teal" })}
-        </section>
-        <section class="website-widget-panel">
-          <div class="website-widget-panel-header">
-            <div>
-              <p class="website-widget-kicker">Common questions</p>
-              <h2>Top widget questions</h2>
-            </div>
-          </div>
-          <div class="website-widget-record-list">
-            ${topQuestions.length ? topQuestions.map((item) => `
-              <article class="website-widget-record">
-                <span>${escapeHtml(`${item.count} ask${item.count === 1 ? "" : "s"}`)}</span>
-                <strong>${escapeHtml(item.question)}</strong>
-              </article>
-            `).join("") : `<div class="glass-empty-state">No widget question trends yet.</div>`}
-          </div>
-        </section>
-      </div>
-    </section>
-  `;
-}
-
-function renderWebsiteWidgetDashboardShell(
+function buildWebsiteWidgetExistingConfigurationPanel(
   agent,
-  messages,
   setup,
+  operatorWorkspace = createEmptyOperatorWorkspace(),
   actionQueue = createEmptyActionQueue(),
-  operatorWorkspace = createEmptyOperatorWorkspace()
+  connectedApps = workspaceState?.connectedApps || createEmptyConnectedAppsState()
 ) {
-  renderTopbarMeta();
-  document.title = "Vonza | Website Widget";
-  setDashboardUiStateValue("installMethod", "widget", { persist: false });
-  const activeSection = getActiveShellSection(setup, operatorWorkspace);
-
-  rootEl.innerHTML = `
-    <div class="app-shell dashboard-v2-shell dashboard-v2-production-shell website-widget-dashboard-shell" data-app-shell data-dashboard-v2="enabled" data-dashboard-product="website_widget" data-website-widget-dashboard="dedicated">
-      <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="Close navigation"></button>
-      ${buildWebsiteWidgetSidebarShell(agent, activeSection)}
-      <div class="workspace-shell">
-        <div class="workspace-pages">
-          ${buildWebsiteWidgetOverviewPanel(agent, messages, actionQueue, operatorWorkspace)}
-          ${buildWebsiteWidgetInstallPanel(agent)}
-          ${buildWebsiteWidgetConfigurationPanel(agent)}
-          ${buildWebsiteWidgetContactsPanel(messages, operatorWorkspace)}
-          ${buildWebsiteWidgetAnalyticsPanel(messages, actionQueue, operatorWorkspace)}
-        </div>
-      </div>
-    </div>
-  `;
-
-  bindSharedDashboardEvents(agent, messages, setup, actionQueue, operatorWorkspace);
+  void setup;
+  void operatorWorkspace;
+  void actionQueue;
+  void connectedApps;
+  return buildWebsiteWidgetConfigurationPanel(agent);
 }
 
 function buildCustomizePanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), frontDeskTraining = createEmptyFrontDeskTraining(), actionQueue = createEmptyActionQueue()) {
@@ -12289,6 +12057,7 @@ function buildDashboardV2AnalyticsMarkup(report = {}, ownerAnalyticsDashboard = 
       renderIconBadge: buildV2IconBadge,
       renderButton: buildV2Button,
       activeProduct: activeDashboardProduct,
+      hideProductTabs: isDedicatedWebsiteWidgetDashboard(),
     });
   }
 
@@ -14610,11 +14379,7 @@ function renderAssistantShell(
   connectedApps = createEmptyConnectedAppsState()
 ) {
   setup = mergeKnowledgeImportIntoSetup(setup, agent);
-
-  if (isDedicatedWebsiteWidgetDashboard()) {
-    renderWebsiteWidgetDashboardShell(agent, messages, setup, actionQueue, operatorWorkspace);
-    return;
-  }
+  primeDedicatedWebsiteWidgetDashboardState();
 
   if (DASHBOARD_V2_ENABLED) {
     renderDashboardV2Shell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining, connectedApps);
@@ -14631,6 +14396,7 @@ function renderAssistantShell(
     `
     : "";
   const shellClassName = DASHBOARD_V2_ENABLED ? "app-shell dashboard-v2-shell" : "app-shell";
+  const shellMessages = isDedicatedWebsiteWidgetDashboard() ? getWebsiteWidgetMessages(messages) : messages;
 
   rootEl.innerHTML = `
     <div class="${shellClassName}" data-app-shell data-dashboard-v2="${DASHBOARD_V2_ENABLED ? "enabled" : "disabled"}" data-dashboard-product="${escapeHtml(activeDashboardProduct.key)}">
@@ -14640,16 +14406,16 @@ function renderAssistantShell(
         ${buildWorkspaceContextBar(agent, setup, operatorWorkspace)}
         ${setupHintMarkup}
         <div class="workspace-pages">
-          ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
-          ${buildProductSetupPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
+          ${buildOverviewPanel(agent, shellMessages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
+          ${isDedicatedWebsiteWidgetDashboard() ? "" : buildProductSetupPanel(agent, shellMessages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
           ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace, { activeProduct: activeDashboardProduct }) : ""}
-          ${buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
-          ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
-          ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
-          ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
-          ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
-          ${buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
-          ${buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps)}
+          ${isDedicatedWebsiteWidgetDashboard() ? "" : buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
+          ${buildAnalyticsPanel(agent, shellMessages, setup, actionQueue, operatorWorkspace)}
+          ${isDedicatedWebsiteWidgetDashboard() ? "" : (isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : "")}
+          ${isDedicatedWebsiteWidgetDashboard() ? "" : (isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : "")}
+          ${isDedicatedWebsiteWidgetDashboard() ? "" : (isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : "")}
+          ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetInstallPanel(agent) : buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
+          ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetExistingConfigurationPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps)}
         </div>
       </div>
     </div>
@@ -14667,11 +14433,7 @@ function renderDashboardV2Shell(
   frontDeskTraining = createEmptyFrontDeskTraining(),
   connectedApps = createEmptyConnectedAppsState()
 ) {
-  if (isDedicatedWebsiteWidgetDashboard()) {
-    renderWebsiteWidgetDashboardShell(agent, messages, setup, actionQueue, operatorWorkspace);
-    return;
-  }
-
+  primeDedicatedWebsiteWidgetDashboardState();
   renderTopbarMeta();
   const activeSection = getActiveShellSection(setup, operatorWorkspace);
   const setupHintMarkup = !setup.isReady
@@ -14681,24 +14443,25 @@ function renderDashboardV2Shell(
       </div>
     `
     : "";
+  const shellMessages = isDedicatedWebsiteWidgetDashboard() ? getWebsiteWidgetMessages(messages) : messages;
 
   rootEl.innerHTML = `
-    <div class="app-shell dashboard-v2-shell dashboard-v2-production-shell" data-app-shell data-dashboard-v2="enabled" data-dashboard-product="${escapeHtml(activeDashboardProduct.key)}">
+    <div class="app-shell dashboard-v2-shell dashboard-v2-production-shell ${isDedicatedWebsiteWidgetDashboard() ? "website-widget-dashboard-shell" : ""}" data-app-shell data-dashboard-v2="enabled" data-dashboard-product="${escapeHtml(activeDashboardProduct.key)}" ${isDedicatedWebsiteWidgetDashboard() ? 'data-website-widget-dashboard="dedicated"' : ""}>
       <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="Close navigation"></button>
       ${buildSidebarShell(agent, setup, actionQueue, operatorWorkspace, activeSection)}
       <div class="workspace-shell">
         ${setupHintMarkup}
         <div class="workspace-pages">
-          ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
-          ${buildProductSetupPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
+          ${buildOverviewPanel(agent, shellMessages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
+          ${isDedicatedWebsiteWidgetDashboard() ? "" : buildProductSetupPanel(agent, shellMessages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
           ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace, { activeProduct: activeDashboardProduct }) : ""}
-          ${buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
-          ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
-          ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
-          ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
-          ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
-          ${buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
-          ${buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps)}
+          ${isDedicatedWebsiteWidgetDashboard() ? "" : buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
+          ${buildAnalyticsPanel(agent, shellMessages, setup, actionQueue, operatorWorkspace)}
+          ${isDedicatedWebsiteWidgetDashboard() ? "" : (isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : "")}
+          ${isDedicatedWebsiteWidgetDashboard() ? "" : (isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : "")}
+          ${isDedicatedWebsiteWidgetDashboard() ? "" : (isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : "")}
+          ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetInstallPanel(agent) : buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
+          ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetExistingConfigurationPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps)}
         </div>
       </div>
     </div>

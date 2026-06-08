@@ -205,6 +205,39 @@
     return PRODUCT_ANALYTICS_CONFIG[candidate] ? candidate : "front_desk";
   }
 
+  function getProductPrimarySourceKey(productKey = "front_desk") {
+    const key = normalizeProductAnalyticsKey(productKey);
+
+    if (key === "website_widget") {
+      return "widget";
+    }
+
+    if (key === "voice_agent") {
+      return "web_call";
+    }
+
+    return "page";
+  }
+
+  function getProductSourceLabel(productKey = "front_desk") {
+    const sourceKey = getProductPrimarySourceKey(productKey);
+
+    if (sourceKey === "widget") {
+      return "Website Widget";
+    }
+
+    if (sourceKey === "web_call") {
+      return "Web Call";
+    }
+
+    return "Front Desk page";
+  }
+
+  function scopeAssistantSourceRowsForProduct(sourceRows = [], productKey = "front_desk") {
+    const sourceKey = getProductPrimarySourceKey(productKey);
+    return (Array.isArray(sourceRows) ? sourceRows : []).filter((row) => row.key === sourceKey);
+  }
+
   function getAnalyticsSourceLabel(value) {
     return SOURCE_LABELS[normalizeAnalyticsSource(value)] || SOURCE_LABELS.unknown;
   }
@@ -580,6 +613,7 @@
     const context = createRenderContext(options);
     const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
     const config = PRODUCT_ANALYTICS_CONFIG[activeKey];
+    const hideProductTabs = options.hideProductTabs === true;
     const cards = buildProductAnalyticsCards(activeKey, sourceRows, ownerAnalyticsDashboard, context);
     const emptyStateMarkup = hasProductAnalyticsActivity(activeKey, sourceRows, ownerAnalyticsDashboard)
       ? ""
@@ -593,9 +627,9 @@
             <h2 class="v2-section-title">${escapeHtml(context.t(config.titleKey))}</h2>
             <p class="v2-section-subtitle">${escapeHtml(context.t(config.copyKey))}</p>
           </div>
-          <nav class="product-analytics-tabs" aria-label="${escapeHtml(context.t("analytics.productScope"))}">
+          ${hideProductTabs ? "" : `<nav class="product-analytics-tabs" aria-label="${escapeHtml(context.t("analytics.productScope"))}">
             ${Object.values(PRODUCT_ANALYTICS_CONFIG).map((item) => renderProductAnalyticsTab(item, activeKey)).join("")}
-          </nav>
+          </nav>`}
         </div>
         <div class="product-analytics-grid">
           ${cards.map((card) => renderProductAnalyticsCard(card, context)).join("")}
@@ -630,11 +664,23 @@
   function buildMetricCards(report = {}, sourceRows = [], options = {}) {
     const context = createRenderContext(options);
     const humanFollowUps = Math.max(0, Number(report.conversationCount || 0) - Number(report.autonomousHandledCount || 0));
-    const fullPageRow = sourceRows.find((row) => row.key === "page") || {};
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
+    const primarySourceKey = getProductPrimarySourceKey(activeKey);
+    const primarySourceRow = sourceRows.find((row) => row.key === primarySourceKey) || {};
+    const primaryMetricLabel = activeKey === "website_widget"
+      ? context.t("analytics.widgetConversations")
+      : activeKey === "voice_agent"
+        ? context.t("analytics.webCallSessions")
+        : context.t("analytics.frontDeskPageConversations");
+    const primaryMetricCompare = activeKey === "website_widget"
+      ? "Embedded widget surface"
+      : activeKey === "voice_agent"
+        ? "Browser voice surface"
+        : context.t("analytics.frontDeskPrimarySurface");
     const satisfactionScore = Number(report.satisfactionScore || 0);
 
     return [
-      { label: context.t("analytics.frontDeskPageConversations"), value: formatMetricValue(fullPageRow.conversationCount || 0), compare: context.t("analytics.frontDeskPrimarySurface"), icon: "window", tone: "blue", priority: true },
+      { label: primaryMetricLabel, value: formatMetricValue(primarySourceRow.conversationCount || 0), compare: primaryMetricCompare, icon: activeKey === "voice_agent" ? "phone" : "window", tone: activeKey === "front_desk" ? "blue" : "teal", priority: true },
       { label: context.t("analytics.totalConversations"), value: formatMetricValue(report.conversationCount), compare: context.t("analytics.liveCustomerConversations"), icon: "chat", tone: "blue" },
       { label: context.t("analytics.aiHandled"), value: formatMetricPercent(report.autonomousHandledRate), compare: `${formatMetricValue(report.autonomousHandledCount)} ${context.t("analytics.handledWithoutTeamReply")}`, icon: "sparkle", tone: "teal" },
       { label: context.t("analytics.humanFollowUps"), value: formatMetricValue(humanFollowUps), compare: context.t("analytics.needsOwnerAttention"), icon: "user", tone: humanFollowUps > 0 ? "blue" : "green", down: humanFollowUps === 0 },
@@ -698,8 +744,11 @@
 
   function renderAnalyticsCommandBrief(report = {}, sourceRows = [], topQuestionItems = [], options = {}) {
     const context = createRenderContext(options);
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
     const totalConversations = Number(report.conversationCount || 0);
-    const fullPageRow = sourceRows.find((row) => row.key === "page") || {};
+    const primarySourceKey = getProductPrimarySourceKey(activeKey);
+    const primarySourceRow = sourceRows.find((row) => row.key === primarySourceKey) || {};
+    const primarySourceLabel = getProductSourceLabel(activeKey);
     const watchItem = trimText(report.improvementArea)
       || (topQuestionItems[0]?.label ? `repeated question: ${topQuestionItems[0].label}` : context.t("analytics.whatToWatch"));
     const title = totalConversations > 0
@@ -707,7 +756,9 @@
       : context.t("analytics.waitingForTraffic");
     const copy = totalConversations > 0
       ? (report.summarySentence || context.t("analytics.operatorBriefCopy"))
-      : context.t("analytics.waitingForTrafficCopy");
+      : activeKey === "website_widget"
+        ? "After customers use the Website Widget, conversations and captured leads will appear here."
+        : context.t("analytics.waitingForTrafficCopy");
 
     return `
       <section class="v2-card v2-analytics-brief">
@@ -717,7 +768,7 @@
           <p>${escapeHtml(copy)}</p>
         </div>
         <div class="v2-analytics-brief-status" aria-label="${escapeHtml(context.t("analytics.whatToWatch"))}">
-          <span><strong>${escapeHtml(formatMetricValue(fullPageRow.conversationCount || 0))}</strong> Front Desk page</span>
+          <span><strong>${escapeHtml(formatMetricValue(primarySourceRow.conversationCount || 0))}</strong> ${escapeHtml(primarySourceLabel)}</span>
           <span><strong>${escapeHtml(formatMetricValue(report.attentionNeeded || 0))}</strong> owner follow-up</span>
           <span><strong>${escapeHtml(watchItem)}</strong> improvement focus</span>
         </div>
@@ -727,15 +778,19 @@
 
   function renderAssistantSourceCard(sourceRows = [], totalConversations = 0, options = {}) {
     const context = createRenderContext(options);
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
     const total = Math.max(Number(totalConversations || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
     const trackedRows = sourceRows.filter((row) => !row.unavailable || Number(row.conversationCount || 0) > 0 || Number(row.messageCount || 0) > 0);
+    const subtitle = activeKey === "website_widget"
+      ? "Website Widget conversations and leads from the existing embedded widget records."
+      : "Hosted Front Desk page remains the primary surface; widget and embeds are secondary distribution.";
 
     return `
     <article class="v2-card v2-analytics-source-card">
       <div class="v2-section-header">
         <div>
           <h2 class="v2-section-title">${escapeHtml(context.t("analytics.entrySourceBreakdown"))}</h2>
-          <p class="v2-section-subtitle">Hosted Front Desk page remains the primary surface; widget and embeds are secondary distribution.</p>
+          <p class="v2-section-subtitle">${escapeHtml(subtitle)}</p>
         </div>
       </div>
       <div class="v2-donut-layout">
@@ -1219,7 +1274,11 @@
 
   function renderPerformanceBySource(sourceRows = [], report = {}, options = {}) {
     const context = createRenderContext(options);
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
     const total = Math.max(Number(report.conversationCount || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
+    const subtitle = activeKey === "website_widget"
+      ? "Review Website Widget conversations and leads using existing widget source data."
+      : "Compare Front Desk page, embed, and optional widget outcomes using real conversation data.";
     const rows = sourceRows.map((row) => {
       const conversations = Number(row.conversationCount || 0);
       const percent = total > 0 ? Math.round((conversations / total) * 100) : 0;
@@ -1245,7 +1304,7 @@
       <div class="v2-table-header">
         <div>
           <h2 class="v2-section-title">${escapeHtml(context.t("analytics.performanceBySource"))}</h2>
-          <p class="v2-section-subtitle">Compare Front Desk page, embed, and optional widget outcomes using real conversation data.</p>
+          <p class="v2-section-subtitle">${escapeHtml(subtitle)}</p>
         </div>
       </div>
       <div class="v2-data-table-wrap">
@@ -1271,22 +1330,27 @@
 
   function renderAnalyticsPageFragment(report = {}, ownerAnalyticsDashboard = null, topQuestionItems = [], userMessages = [], options = {}) {
     const context = createRenderContext(options);
-    const sourceRows = buildAssistantSourceRows(ownerAnalyticsDashboard?.assistantSource);
+    const renderOptions = { ...options, ...context };
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
+    const activeProductScope = options.sourceScope === "active_product" || options.hideProductTabs === true;
+    const allSourceRows = buildAssistantSourceRows(ownerAnalyticsDashboard?.assistantSource);
+    const sourceRows = activeProductScope ? scopeAssistantSourceRowsForProduct(allSourceRows, activeKey) : allSourceRows;
+    const sourceRowTotal = sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0);
     const sourceTotal = Math.max(
-      Number(ownerAnalyticsDashboard?.assistantSource?.totalConversations || 0),
+      activeProductScope ? sourceRowTotal : Number(ownerAnalyticsDashboard?.assistantSource?.totalConversations || 0),
       Number(report.conversationCount || 0)
     );
-    const metrics = buildMetricCards(report, sourceRows, context);
+    const metrics = buildMetricCards(report, sourceRows, renderOptions);
     const webCallHealth = ownerAnalyticsDashboard?.webCallHealth;
     const webCallRecentCalls = ownerAnalyticsDashboard?.webCallRecentCalls;
-    const hasWebCallActivity = hasWebCallHealthActivity(webCallHealth) || hasRecentWebCallActivity(webCallRecentCalls);
+    const hasWebCallActivity = !activeProductScope && (hasWebCallHealthActivity(webCallHealth) || hasRecentWebCallActivity(webCallRecentCalls));
 
     return `
     <div class="dashboard-v2-analytics">
-      ${renderAnalyticsCommandBrief(report, sourceRows, topQuestionItems, context)}
+      ${renderAnalyticsCommandBrief(report, sourceRows, topQuestionItems, renderOptions)}
       ${renderProductAnalyticsSection(sourceRows, ownerAnalyticsDashboard, options)}
       <section class="v2-grid v2-grid-6">
-        ${metrics.map((metric) => renderMetricCard(metric, context)).join("")}
+        ${metrics.map((metric) => renderMetricCard(metric, renderOptions)).join("")}
       </section>
       <section class="v2-analytics-columns v2-section">
         <div class="v2-analytics-column v2-analytics-column-main">
@@ -1299,25 +1363,27 @@
               </div>
               <button class="v2-button" type="button">${escapeHtml(context.t("analytics.daily"))} ${context.renderIcon("chevronDown")}</button>
             </div>
-            ${renderLineChart(report.conversationSeries, context)}
+            ${renderLineChart(report.conversationSeries, renderOptions)}
           </article>
-          ${renderHeatmap(userMessages, context)}
+          ${renderHeatmap(userMessages, renderOptions)}
         </div>
         <div class="v2-analytics-column">
-          ${renderAssistantSourceCard(sourceRows, sourceTotal, context)}
-          ${renderHandlingCard(report, context)}
+          ${renderAssistantSourceCard(sourceRows, sourceTotal, renderOptions)}
+          ${renderHandlingCard(report, renderOptions)}
         </div>
         <div class="v2-analytics-column">
-          ${renderTopQuestionsList(topQuestionItems, context)}
-          ${renderConversionCard(report, context)}
+          ${renderTopQuestionsList(topQuestionItems, renderOptions)}
+          ${renderConversionCard(report, renderOptions)}
         </div>
       </section>
-      ${renderPerformanceBySource(sourceRows, report, context)}
-      ${renderContactMixCard(report, context)}
-      <section class="v2-web-call-grid ${hasWebCallActivity ? "has-web-call-activity" : "is-web-call-empty"}" aria-label="Web Call analytics">
-        ${renderWebCallHealthCard(webCallHealth, context)}
-        ${renderRecentWebCallsCard(webCallRecentCalls, context)}
-      </section>
+      ${renderPerformanceBySource(sourceRows, report, renderOptions)}
+      ${renderContactMixCard(report, renderOptions)}
+      ${activeProductScope ? "" : `
+        <section class="v2-web-call-grid ${hasWebCallActivity ? "has-web-call-activity" : "is-web-call-empty"}" aria-label="Web Call analytics">
+          ${renderWebCallHealthCard(webCallHealth, renderOptions)}
+          ${renderRecentWebCallsCard(webCallRecentCalls, renderOptions)}
+        </section>
+      `}
     </div>
   `;
   }
