@@ -724,10 +724,12 @@ test("dashboard shows a visible loading state before workspace data resolves", a
     },
   });
 
-  assert.match(harness.getRootHtml(), /Preparing your workspace/i);
-  assert.match(harness.getRootHtml(), /Connecting your assistant, loading your business data, and getting your widget ready\./i);
-  assert.match(harness.getRootHtml(), /Syncing customer conversations/i);
-  assert.match(harness.getRootHtml(), /dashboard-skeleton-preview/i);
+  assert.match(harness.getRootHtml(), /Opening your workspace/i);
+  assert.match(harness.getRootHtml(), /Loading your Website Widget setup\.\.\./i);
+  assert.match(harness.getRootHtml(), /Free Render instances can take up to a minute after inactivity\./i);
+  assert.match(harness.getRootHtml(), /data-loading-refresh/i);
+  assert.doesNotMatch(harness.getRootHtml(), /Syncing customer conversations/i);
+  assert.doesNotMatch(harness.getRootHtml(), /dashboard-skeleton-preview/i);
   assert.doesNotMatch(harness.getRootHtml(), /\b72%/);
   assert.doesNotMatch(harness.getRootHtml(), /approvals/i);
 

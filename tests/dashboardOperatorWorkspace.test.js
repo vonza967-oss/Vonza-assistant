@@ -680,30 +680,35 @@ test("dashboard loading screen uses premium workspace preparation UI", () => {
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
 
   assert.match(html, /dashboard-loading-screen/);
-  assert.match(html, /Preparing your workspace/);
-  assert.match(html, /Connecting your assistant, loading your business data, and getting your widget ready\./);
-  assert.match(html, /Loading business profile/);
-  assert.match(html, /Syncing customer conversations/);
-  assert.match(html, /Preparing dashboard/);
-  assert.match(html, /dashboard-skeleton-preview/);
-  assert.match(html, /This usually takes a few seconds/);
+  assert.match(html, /Opening your workspace/);
+  assert.match(html, /Loading your Website Widget setup\.\.\./);
+  assert.match(html, /This usually takes a few seconds\./);
+  assert.match(html, /Free Render instances can take up to a minute after inactivity\./);
+  assert.match(html, /data-loading-refresh/);
+  assert.doesNotMatch(html, /Loading business profile/);
+  assert.doesNotMatch(html, /Syncing customer conversations/);
+  assert.doesNotMatch(html, /Preparing dashboard/);
+  assert.doesNotMatch(html, /dashboard-skeleton-preview/);
   assert.doesNotMatch(html, /\b72%/);
   assert.doesNotMatch(html, /approvals/i);
 
-  assert.match(script, /Preparing your workspace/);
-  assert.match(script, /Connecting your assistant, loading your business data, and getting your widget ready\./);
+  assert.match(script, /Opening your workspace/);
+  assert.match(script, /Loading your Website Widget setup\.\.\./);
   assert.match(script, /dashboard-loading-progress/);
-  assert.match(script, /dashboard-skeleton-preview/);
+  assert.match(script, /dashboard-loading-delayed/);
+  assert.doesNotMatch(script, /dashboard-skeleton-preview/);
   assert.doesNotMatch(script, /\b72%/);
   assert.doesNotMatch(script.match(/function renderLoadingState\(\)[\s\S]*?\n}/)?.[0] || "", /approvals/i);
 
   const loadingStyles = css.match(/\.dashboard-loading-screen\s*\{[\s\S]*?\n}/)?.[0] || "";
-  assert.match(loadingStyles, /min-height:\s*min\(680px,\s*calc\(100vh - 150px\)\)/);
+  assert.match(loadingStyles, /min-height:\s*calc\(100vh - 96px\)/);
   assert.match(loadingStyles, /align-content:\s*center/);
   assert.match(loadingStyles, /justify-items:\s*center/);
   assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)/);
-  assert.match(css, /\.dashboard-loading-steps\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(css, /\.dashboard-skeleton-preview\s*\{[^}]*grid-template-columns:\s*150px minmax\(0,\s*1fr\)/);
+  assert.match(css, /\.dashboard-loading-shell\s*\{[^}]*width:\s*min\(100%,\s*420px\)/);
+  assert.match(css, /\.dashboard-loading-delayed,\s*\n\.dashboard-loading-actions\s*\{[^}]*animation:\s*dashboardLoadingDelayedReveal/);
+  assert.doesNotMatch(css, /\.dashboard-loading-steps\s*\{/);
+  assert.doesNotMatch(css, /\.dashboard-skeleton-preview\s*\{/);
   assert.doesNotMatch(loadingStyles, /position:\s*absolute|top:\s*0|left:\s*0/i);
 });
 
@@ -990,10 +995,11 @@ test("Hungarian loading state stays fully Hungarian", () => {
   harness.renderLoadingState();
   const loading = harness.document.getElementById("dashboard-root").innerHTML;
 
-  assert.match(loading, /Előkészítjük a munkaterületedet/);
-  assert.match(loading, /Csatlakoztatjuk az asszisztenst, betöltjük az üzleti adatokat, és előkészítjük a widgetet\./);
-  assert.match(loading, /Ez általában csak néhány másodperc/);
-  assert.match(loading, /Ügyfélbeszélgetések szinkronizálása/);
+  assert.match(loading, /Megnyitjuk a munkaterületedet/);
+  assert.match(loading, /Betöltjük a Website Widget beállításait\.\.\./);
+  assert.match(loading, /Ez általában csak néhány másodperc\./);
+  assert.match(loading, /Az ingyenes Render példányok inaktivitás után akár egy percig is indulhatnak\./);
+  assert.match(loading, /Frissítés/);
   assert.doesNotMatch(loading, /Loading your workspace/);
   assert.doesNotMatch(loading, /Getting your customer service dashboard ready\./);
   assert.doesNotMatch(loading, /Syncing customer conversations/);
@@ -1325,6 +1331,8 @@ test("Hungarian core dashboard screens surface missing translation keys through 
   const requiredKeys = [
     "app.loading.title",
     "app.loading.copy",
+    "app.loading.delayed",
+    "app.loading.refresh",
     "nav.home",
     "nav.customers",
     "nav.frontDesk",
@@ -4811,7 +4819,7 @@ test("background dashboard refresh does not render the full preparing workspace 
 
   const beforeRefresh = harness.document.getElementById("dashboard-root").innerHTML;
   assert.match(beforeRefresh, /dashboard-v2-shell/);
-  assert.doesNotMatch(beforeRefresh, /Preparing your workspace/);
+  assert.doesNotMatch(beforeRefresh, /Opening your workspace/);
   assert.equal(harness._getDashboardRuntimeState().hasBooted, true);
 
   await harness.refreshDashboardInBackground({
@@ -4821,7 +4829,7 @@ test("background dashboard refresh does not render the full preparing workspace 
 
   const afterRefresh = harness.document.getElementById("dashboard-root").innerHTML;
   assert.match(afterRefresh, /dashboard-v2-shell/);
-  assert.doesNotMatch(afterRefresh, /Preparing your workspace/);
+  assert.doesNotMatch(afterRefresh, /Opening your workspace/);
   assertSettingsFrontDeskTabActive(afterRefresh, "voice");
   assert.deepEqual(JSON.parse(JSON.stringify(harness._getDashboardRuntimeState())), {
     hasBooted: true,

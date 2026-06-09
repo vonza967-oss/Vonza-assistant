@@ -1464,9 +1464,10 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /\/dashboardAnalytics\.js/);
         assert.match(dashboard.text, /\/dashboardToday\.js/);
         assert.match(dashboard.text, /\/dashboard\.js/);
-        assert.match(dashboard.text, /Preparing your workspace/);
-        assert.match(dashboard.text, /Connecting your assistant, loading your business data, and getting your widget ready\./);
-        assert.match(dashboard.text, /dashboard-skeleton-preview/);
+        assert.match(dashboard.text, /Opening your workspace/);
+        assert.match(dashboard.text, /Loading your Website Widget setup\.\.\./);
+        assert.match(dashboard.text, /Free Render instances can take up to a minute after inactivity\./);
+        assert.doesNotMatch(dashboard.text, /dashboard-skeleton-preview/);
         assert.doesNotMatch(dashboard.text, /approvals/i);
         assert.doesNotMatch(dashboard.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
 

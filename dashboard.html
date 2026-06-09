@@ -154,96 +154,25 @@
     </div>
     <div id="status-banner" class="status-banner" role="status" aria-live="polite" aria-atomic="true"></div>
     <div id="dashboard-root">
-      <section class="dashboard-loading-screen" role="status" aria-live="polite" aria-busy="true" aria-label="Preparing your workspace" data-loading-region>
-        <div class="dashboard-loading-orb dashboard-loading-orb-one" aria-hidden="true"></div>
-        <div class="dashboard-loading-orb dashboard-loading-orb-two" aria-hidden="true"></div>
+      <section class="dashboard-loading-screen" role="status" aria-live="polite" aria-busy="true" aria-label="Opening your workspace" data-loading-region>
         <div class="dashboard-loading-shell">
           <div class="dashboard-loading-header">
             <div class="dashboard-loading-mark" aria-hidden="true">V</div>
-            <h1 data-loading-title>Preparing your workspace</h1>
-            <p data-loading-copy>Connecting your assistant, loading your business data, and getting your front desk ready.</p>
+            <h1 data-loading-title>Opening your workspace</h1>
+            <p data-loading-copy>Loading your Website Widget setup...</p>
           </div>
 
-          <div class="dashboard-loading-progress" role="progressbar" aria-label="Preparing your workspace" aria-valuetext="Loading" data-loading-progress>
+          <div class="dashboard-loading-progress" role="progressbar" aria-label="Opening your workspace" aria-valuetext="Loading" data-loading-progress>
             <span></span>
           </div>
 
-          <ol class="dashboard-loading-steps" aria-label="Workspace preparation progress">
-            <li class="dashboard-loading-step is-complete">
-              <span class="dashboard-loading-step-icon" aria-hidden="true">
-                <svg viewBox="0 0 20 20" focusable="false">
-                  <path d="M7.8 13.6 4.5 10.3l1.4-1.4 1.9 1.9 6.3-6.2 1.4 1.4-7.7 7.6Z"></path>
-                </svg>
-              </span>
-              <span>
-                <strong data-loading-step-profile>Loading business profile</strong>
-                <em data-loading-step-completed>Completed</em>
-              </span>
-            </li>
-            <li class="dashboard-loading-step is-active">
-              <span class="dashboard-loading-step-icon" aria-hidden="true"></span>
-              <span>
-                <strong data-loading-step-conversations>Syncing customer conversations</strong>
-                <em data-loading-step-progress>In progress</em>
-              </span>
-            </li>
-            <li class="dashboard-loading-step is-next">
-              <span class="dashboard-loading-step-icon" aria-hidden="true"></span>
-              <span>
-                <strong data-loading-step-dashboard>Preparing dashboard</strong>
-                <em data-loading-step-next>Up next</em>
-              </span>
-            </li>
-          </ol>
-
-          <div class="dashboard-skeleton-preview" aria-hidden="true">
-            <div class="dashboard-skeleton-sidebar">
-              <span class="dashboard-skeleton-mini-mark"></span>
-              <span class="dashboard-skeleton-line short"></span>
-              <span class="dashboard-skeleton-line"></span>
-              <span class="dashboard-skeleton-line active"></span>
-              <span class="dashboard-skeleton-line"></span>
-              <span class="dashboard-skeleton-line"></span>
-              <span class="dashboard-skeleton-line"></span>
-            </div>
-            <div class="dashboard-skeleton-grid">
-              <div class="dashboard-skeleton-card dashboard-skeleton-chart">
-                <span class="dashboard-skeleton-line short"></span>
-                <svg viewBox="0 0 260 120" focusable="false">
-                  <path class="dashboard-skeleton-gridline" d="M18 92H242M18 60H242M18 28H242"></path>
-                  <path class="dashboard-skeleton-chartline" d="M18 96c18-20 28-14 44-33 20-23 38-4 58-14 24-12 34 2 58-10 26-13 34-35 64-47"></path>
-                </svg>
-              </div>
-              <div class="dashboard-skeleton-card dashboard-skeleton-list">
-                <span class="dashboard-skeleton-line short"></span>
-                <span></span><span></span><span></span>
-              </div>
-              <div class="dashboard-skeleton-card dashboard-skeleton-donut">
-                <span class="dashboard-skeleton-line short"></span>
-                <div class="dashboard-skeleton-donut-ring"></div>
-                <div class="dashboard-skeleton-donut-lines">
-                  <span></span><span></span><span></span>
-                </div>
-              </div>
-              <div class="dashboard-skeleton-card dashboard-skeleton-table">
-                <span class="dashboard-skeleton-line short"></span>
-                <span></span><span></span><span></span>
-              </div>
-              <div class="dashboard-skeleton-card dashboard-skeleton-table">
-                <span class="dashboard-skeleton-line short"></span>
-                <span></span><span></span><span></span>
-              </div>
-            </div>
-          </div>
-
           <p class="dashboard-loading-reassurance">
-            <span aria-hidden="true">
-              <svg viewBox="0 0 20 20" focusable="false">
-                <path d="M10 2.2 16.4 5v4.7c0 3.8-2.6 6.8-6.4 8.1-3.8-1.3-6.4-4.3-6.4-8.1V5L10 2.2Zm0 2.1L5.5 6.2v3.5c0 2.7 1.7 4.9 4.5 6 2.8-1.1 4.5-3.3 4.5-6V6.2L10 4.3Zm3.2 4.4-4 4-2.1-2.1 1.2-1.2.9.9L12 7.5l1.2 1.2Z"></path>
-              </svg>
-            </span>
-            <span data-loading-footer>This usually takes a few seconds</span>
+            <span data-loading-footer>This usually takes a few seconds.</span>
+            <span class="dashboard-loading-delayed" data-loading-delayed>Still loading? Free Render instances can take up to a minute after inactivity.</span>
           </p>
+          <div class="dashboard-loading-actions" aria-label="Loading actions">
+            <button class="ghost-button" type="button" data-loading-refresh>Refresh</button>
+          </div>
         </div>
       </section>
     </div>
@@ -263,12 +192,11 @@
       document.querySelector("[data-loading-title]").textContent = loadingTitle;
       document.querySelector("[data-loading-copy]").textContent = i18n.t("app.loading.copy", {}, language);
       document.querySelector("[data-loading-footer]").textContent = i18n.t("app.loading.footer", {}, language);
-      document.querySelector("[data-loading-step-profile]").textContent = i18n.t("app.loading.stepProfile", {}, language);
-      document.querySelector("[data-loading-step-completed]").textContent = i18n.t("app.loading.stepCompleted", {}, language);
-      document.querySelector("[data-loading-step-conversations]").textContent = i18n.t("app.loading.stepConversations", {}, language);
-      document.querySelector("[data-loading-step-progress]").textContent = i18n.t("app.loading.stepInProgress", {}, language);
-      document.querySelector("[data-loading-step-dashboard]").textContent = i18n.t("app.loading.stepDashboard", {}, language);
-      document.querySelector("[data-loading-step-next]").textContent = i18n.t("app.loading.stepUpNext", {}, language);
+      document.querySelector("[data-loading-delayed]").textContent = i18n.t("app.loading.delayed", {}, language);
+      document.querySelector("[data-loading-refresh]").textContent = i18n.t("app.loading.refresh", {}, language);
+      document.querySelector("[data-loading-refresh]").addEventListener("click", () => {
+        window.location.reload();
+      });
     })();
   </script>
   <script src="/settings/SettingsShell.js"></script>
