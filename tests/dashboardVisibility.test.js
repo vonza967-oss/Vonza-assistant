@@ -764,7 +764,9 @@ test("widget dashboard routes render widget-only home and sidebar copy", async (
     assert.match(html, /Website Widget home/, pathname);
     assert.match(html, /Website URL, import, install, analytics, and configuration for the Website Widget/, pathname);
     assert.match(html, /Install Website Widget/, pathname);
-    assert.match(html, /Existing widget configuration/, pathname);
+    assert.match(html, /Widget configuration/, pathname);
+    assert.match(html, /How the widget answers/, pathname);
+    assert.match(html, /Advanced guidance/, pathname);
     assert.match(html, /data-shell-target="overview"/, pathname);
     assert.match(html, /<span class="shell-nav-label">Overview<\/span>/, pathname);
     assert.match(html, /data-shell-target="contacts"/, pathname);
@@ -997,8 +999,14 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.match(html, /Copy widget snippet/);
   assert.match(html, /Verify installation/);
   assert.match(html, /Test widget/);
-  assert.match(html, /Existing widget configuration/);
-  assert.match(html, /Tune the embedded Website Widget using the existing snippet, launcher, install-status, and allowed-domain settings/);
+  assert.match(html, /Widget configuration/);
+  assert.match(html, /Edit how the embedded Website Widget appears, where it can run, and how the AI answers customers/);
+  assert.match(html, /How the widget answers/);
+  assert.match(html, /data-purpose-card="support"/);
+  assert.match(html, /data-tone-card="professional"/);
+  assert.match(html, /Advanced guidance/);
+  assert.match(html, /Import website knowledge|Retry website import/);
+  assert.match(html, /Live widget preview/);
   assert.match(html, /Save Website Widget/);
   assert.match(html, /Embed\/install status/);
   assert.match(html, /Allowed domains/);

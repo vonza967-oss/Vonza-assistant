@@ -9762,7 +9762,7 @@ function buildWebsiteWidgetInstallPanel(agent) {
   `;
 }
 
-function buildWebsiteWidgetConfigurationPanel(agent) {
+function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) && installStatus.allowedDomains.length
     ? installStatus.allowedDomains.join("\n")
@@ -9770,22 +9770,49 @@ function buildWebsiteWidgetConfigurationPanel(agent) {
       ? agent.allowedDomains.join("\n")
       : "";
   const purpose = getWidgetPurposeOption(agent.purpose || agent.widgetPurpose || agent.widget_purpose);
+  const selectedTone = trimText(agent.tone || "friendly").toLowerCase() || "friendly";
   const primaryColor = trimText(agent.primaryColor || agent.primary_color) || "#14b8a6";
   const secondaryColor = trimText(agent.secondaryColor || agent.secondary_color) || "#0f766e";
   const assistantName = trimText(agent.assistantName || agent.name) || "Website assistant";
   const welcomeMessage = trimText(agent.welcomeMessage) || "Welcome. Ask a question and we will help with the next step.";
+  const knowledgeActionLabel = setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge";
+  const knowledgeStateLabel = formatKnowledgeState(setup.knowledgeState || agent.knowledge?.state || "missing");
+  const knowledgeDescription = trimText(setup.knowledgeDescription || agent.knowledge?.description)
+    || "Import website knowledge so the widget can answer from the latest saved business context.";
   const allowedDomainCount = allowedDomains
     .split(/\r?\n/)
     .map(trimText)
     .filter(Boolean)
     .length;
+  const toneOptions = [
+    {
+      value: "friendly",
+      label: "Friendly",
+      description: "Warm and approachable while staying clear.",
+    },
+    {
+      value: "professional",
+      label: "Professional",
+      description: "Polished, concise, and business-ready.",
+    },
+    {
+      value: "sales",
+      label: "Sales-focused",
+      description: "More direct about services, value, and next steps.",
+    },
+    {
+      value: "support",
+      label: "Support-focused",
+      description: "Calm, practical, and problem-solving.",
+    },
+  ];
 
   return `
     <section class="workspace-page website-widget-page" data-shell-section="settings" hidden>
       ${buildPageHeader({
         eyebrow: "Website Widget",
-        title: "Existing widget configuration",
-        copy: "Tune the embedded Website Widget using the existing snippet, launcher, install-status, and allowed-domain settings.",
+        title: "Widget configuration",
+        copy: "Edit how the embedded Website Widget appears, where it can run, and how the AI answers customers.",
       })}
       <div class="workspace-page-body website-widget-config-layout">
         <section class="settings-operational-summary website-widget-config-summary" aria-label="Website Widget settings summary">
@@ -9801,15 +9828,23 @@ function buildWebsiteWidgetConfigurationPanel(agent) {
               <span>Allowed domains</span>
               <span class="${getBadgeClass(allowedDomainCount ? "Ready" : "Limited")}">${escapeHtml(allowedDomainCount ? `${allowedDomainCount} domain${allowedDomainCount === 1 ? "" : "s"}` : "Not limited")}</span>
             </div>
-            <p>The current allowed-domains field controls where the Website Widget should run.</p>
+            <p>Controls the real website hosts where this widget is allowed to appear.</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>AI answer mode</span>
+              <span class="${getBadgeClass("Ready")}">${escapeHtml(purpose.label)}</span>
+            </div>
+            <p>${escapeHtml(purpose.description)}</p>
           </article>
         </section>
         <form data-settings-form data-form-kind="appearance" class="website-widget-config-form">
           <section class="website-widget-panel">
             <div class="website-widget-panel-header">
               <div>
-                <p class="website-widget-kicker">Website and domains</p>
+                <p class="website-widget-kicker">Website</p>
                 <h2>Where the widget runs</h2>
+                <p>Keep this tied to the real public website and the domains where the snippet should be allowed.</p>
               </div>
             </div>
             <div class="form-grid two-col">
@@ -9825,7 +9860,48 @@ function buildWebsiteWidgetConfigurationPanel(agent) {
             <div class="field">
               <label for="website-widget-domains">Allowed domains</label>
               <textarea id="website-widget-domains" name="allowed_domains" rows="3">${escapeHtml(allowedDomains)}</textarea>
-              <p class="field-help">One domain per line. Keep this limited to real widget hosts.</p>
+              <p class="field-help">One domain per line. This prevents the widget from running on unapproved websites.</p>
+            </div>
+            <div class="website-widget-knowledge-row">
+              <div>
+                <span>Website knowledge</span>
+                <strong>${escapeHtml(knowledgeStateLabel)}</strong>
+                <p>${escapeHtml(knowledgeDescription)}</p>
+              </div>
+              <button class="ghost-button" type="button" data-action="import-knowledge" ${setup.knowledgeState === "limited" ? 'data-import-force="true"' : ""}>${escapeHtml(knowledgeActionLabel)}</button>
+            </div>
+          </section>
+
+          <section class="website-widget-panel">
+            <div class="website-widget-panel-header">
+              <div>
+                <p class="website-widget-kicker">AI behavior</p>
+                <h2>How the widget answers</h2>
+                <p>Choose the existing response mode and tone that best match the customer interaction you want.</p>
+              </div>
+            </div>
+            <div class="website-widget-choice-grid website-widget-choice-grid--purpose" aria-label="Widget purpose">
+              ${WIDGET_PURPOSE_OPTIONS.map((option) => `
+                <label class="website-widget-choice-card ${purpose.value === option.value ? "active" : ""}" data-purpose-card="${escapeHtml(option.value)}">
+                  <input type="radio" name="widget_purpose" value="${escapeHtml(option.value)}" ${purpose.value === option.value ? "checked" : ""}>
+                  <span>${escapeHtml(option.label)}</span>
+                  <em>${escapeHtml(option.description)}</em>
+                </label>
+              `).join("")}
+            </div>
+            <div class="website-widget-choice-grid" aria-label="Conversation tone">
+              ${toneOptions.map((option) => `
+                <label class="website-widget-choice-card ${selectedTone === option.value ? "active" : ""}" data-tone-card="${escapeHtml(option.value)}">
+                  <input type="radio" name="tone" value="${escapeHtml(option.value)}" ${selectedTone === option.value ? "checked" : ""}>
+                  <span>${escapeHtml(option.label)}</span>
+                  <em>${escapeHtml(option.description)}</em>
+                </label>
+              `).join("")}
+            </div>
+            <div class="field">
+              <label for="website-widget-guidance">Advanced guidance</label>
+              <textarea id="website-widget-guidance" name="system_prompt" rows="4" placeholder="Example: keep answers concise, guide pricing questions toward a quote, and avoid sounding pushy.">${escapeHtml(agent.systemPrompt || "")}</textarea>
+              <p class="field-help">Optional guidance for emphasis, tone, and edge cases. This uses the existing assistant guidance field.</p>
             </div>
           </section>
 
@@ -9834,6 +9910,7 @@ function buildWebsiteWidgetConfigurationPanel(agent) {
               <div>
                 <p class="website-widget-kicker">Launcher</p>
                 <h2>Widget appearance</h2>
+                <p>Set the visible name, first message, colors, and optional logo used by the embedded widget.</p>
               </div>
             </div>
             <div class="form-grid two-col">
@@ -9855,21 +9932,24 @@ function buildWebsiteWidgetConfigurationPanel(agent) {
               </div>
             </div>
             <div class="field">
-              <label for="website-widget-purpose">Widget purpose</label>
-              <select id="website-widget-purpose" name="widget_purpose">
-                ${WIDGET_PURPOSE_OPTIONS.map((option) => `
-                  <option value="${escapeHtml(option.value)}" ${purpose.value === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>
-                `).join("")}
-              </select>
-            </div>
-            <div class="field">
               <label for="website-widget-welcome">Welcome message</label>
               <textarea id="website-widget-welcome" name="welcome_message" rows="4">${escapeHtml(welcomeMessage)}</textarea>
             </div>
             <div class="field">
               <label for="website-widget-logo">Widget logo</label>
-              <input id="website-widget-logo" name="widget_logo_file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+              <label class="website-widget-file-control" for="website-widget-logo">
+                <span>Upload logo</span>
+                <em>PNG, JPG, WebP, or GIF</em>
+                <input id="website-widget-logo" name="widget_logo_file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+              </label>
               <p class="field-help">Optional small square logo.</p>
+            </div>
+          </section>
+
+          <section class="website-widget-panel website-widget-save-panel">
+            <div>
+              <h2>Save configuration</h2>
+              <p>Changes apply to the embedded Website Widget after saving.</p>
             </div>
             <div class="studio-save-row">
               <button class="primary-button" type="submit">Save Website Widget</button>
@@ -9883,18 +9963,32 @@ function buildWebsiteWidgetConfigurationPanel(agent) {
             <div class="website-widget-panel-header">
               <div>
                 <p class="website-widget-kicker">Preview</p>
-                <h2>Widget test area</h2>
+                <h2>Live widget preview</h2>
+                <p>This reflects the current name, message, launcher text, and colors before you save.</p>
               </div>
             </div>
-            <div class="brand-widget website-widget-preview" id="brand-widget-preview">
-              <div class="brand-widget-header">
-                <div id="brand-widget-avatar" class="brand-widget-avatar" style="--brand-primary:${escapeHtml(primaryColor)};--brand-secondary:${escapeHtml(secondaryColor)}">${escapeHtml(assistantName.charAt(0).toUpperCase())}</div>
-                <div>
-                  <p id="brand-widget-title" class="brand-widget-title">${escapeHtml(assistantName)}</p>
-                  <p class="brand-widget-subtitle">Website Widget</p>
+            <div class="website-widget-preview-stage">
+              <div class="brand-widget website-widget-preview" id="brand-widget-preview">
+                <div class="brand-widget-header">
+                  <div id="brand-widget-avatar" class="brand-widget-avatar" style="--brand-primary:${escapeHtml(primaryColor)};--brand-secondary:${escapeHtml(secondaryColor)}">${escapeHtml(assistantName.charAt(0).toUpperCase())}</div>
+                  <div>
+                    <p id="brand-widget-title" class="brand-widget-title">${escapeHtml(assistantName)}</p>
+                    <p class="brand-widget-subtitle">Website Widget</p>
+                  </div>
+                </div>
+                <div id="brand-widget-message" class="brand-message">${escapeHtml(welcomeMessage)}</div>
+                <div class="brand-cta-row">
+                  <span class="brand-cta-note">Purpose: <strong id="studio-summary-purpose">${escapeHtml(purpose.label)}</strong></span>
+                  <div id="brand-launcher" class="brand-launcher" style="--brand-primary:${escapeHtml(primaryColor)};--brand-secondary:${escapeHtml(secondaryColor)}">
+                    <span class="brand-launcher-dot"></span>
+                    <span id="brand-launcher-label">${escapeHtml(agent.buttonLabel || "Chat")}</span>
+                  </div>
                 </div>
               </div>
-              <div id="brand-widget-message" class="brand-message">${escapeHtml(welcomeMessage)}</div>
+            </div>
+            <div class="website-widget-preview-meta">
+              <span>Tone <strong id="studio-summary-tone">${escapeHtml(selectedTone)}</strong></span>
+              <span>Allowed hosts <strong>${escapeHtml(allowedDomainCount ? String(allowedDomainCount) : "Any saved host")}</strong></span>
             </div>
             <a class="test-link ${trimText(agent.publicAgentKey) ? "" : "disabled"}" href="${trimText(agent.publicAgentKey) ? escapeHtml(buildWidgetUrl(agent.publicAgentKey)) : "#"}" target="_blank" rel="noreferrer">Open test widget</a>
           </section>
@@ -9911,11 +10005,10 @@ function buildWebsiteWidgetExistingConfigurationPanel(
   actionQueue = createEmptyActionQueue(),
   connectedApps = workspaceState?.connectedApps || createEmptyConnectedAppsState()
 ) {
-  void setup;
   void operatorWorkspace;
   void actionQueue;
   void connectedApps;
-  return buildWebsiteWidgetConfigurationPanel(agent);
+  return buildWebsiteWidgetConfigurationPanel(agent, setup);
 }
 
 function buildCustomizePanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), frontDeskTraining = createEmptyFrontDeskTraining(), actionQueue = createEmptyActionQueue()) {
@@ -16919,24 +17012,25 @@ function updateStudioSummary(
   form = document.querySelector('form[data-form-kind="customize"]'),
   fallbackAgent = {}
 ) {
-  const nameEl = document.getElementById("studio-summary-name");
-  const copyEl = document.getElementById("studio-summary-copy");
-  const toneEl = document.getElementById("studio-summary-tone");
-  const buttonEl = document.getElementById("studio-summary-button");
-  const purposeEl = document.getElementById("studio-summary-purpose");
-  const verticalEl = document.getElementById("studio-summary-vertical");
-  const primarySwatch = document.getElementById("studio-swatch-primary");
-  const secondarySwatch = document.getElementById("studio-swatch-secondary");
-  const brandWidgetTitle = document.getElementById("brand-widget-title");
-  const brandWidgetMessage = document.getElementById("brand-widget-message");
-  const brandLauncherLabel = document.getElementById("brand-launcher-label");
-  const brandWidgetAvatar = document.getElementById("brand-widget-avatar");
-  const brandLauncher = document.getElementById("brand-launcher");
-
-  if (!form || !nameEl || !copyEl || !toneEl || !buttonEl) {
+  if (!form) {
     return;
   }
 
+  const scope = form.closest(".workspace-page, .workspace-panel") || document;
+  const findScoped = (id) => scope.querySelector?.(`#${id}`) || document.getElementById(id);
+  const nameEl = findScoped("studio-summary-name");
+  const copyEl = findScoped("studio-summary-copy");
+  const toneEl = findScoped("studio-summary-tone");
+  const buttonEl = findScoped("studio-summary-button");
+  const purposeEl = findScoped("studio-summary-purpose");
+  const verticalEl = findScoped("studio-summary-vertical");
+  const primarySwatch = findScoped("studio-swatch-primary");
+  const secondarySwatch = findScoped("studio-swatch-secondary");
+  const brandWidgetTitle = findScoped("brand-widget-title");
+  const brandWidgetMessage = findScoped("brand-widget-message");
+  const brandLauncherLabel = findScoped("brand-launcher-label");
+  const brandWidgetAvatar = findScoped("brand-widget-avatar");
+  const brandLauncher = findScoped("brand-launcher");
   const formData = new FormData(form);
   const getSummaryValue = (fieldName, fallbackValue = "") => {
     if (formData.has(fieldName)) {
@@ -16955,10 +17049,18 @@ function updateStudioSummary(
   const primaryColor = getSummaryValue("primary_color", fallbackAgent.primaryColor) || "#14b8a6";
   const secondaryColor = getSummaryValue("secondary_color", fallbackAgent.secondaryColor) || "#0f766e";
 
-  nameEl.textContent = assistantName;
-  copyEl.textContent = welcomeMessage;
-  toneEl.textContent = tone;
-  buttonEl.textContent = buttonLabel;
+  if (nameEl) {
+    nameEl.textContent = assistantName;
+  }
+  if (copyEl) {
+    copyEl.textContent = welcomeMessage;
+  }
+  if (toneEl) {
+    toneEl.textContent = tone;
+  }
+  if (buttonEl) {
+    buttonEl.textContent = buttonLabel;
+  }
   if (purposeEl) {
     purposeEl.textContent = purpose.label;
   }
@@ -16988,6 +17090,7 @@ function updateStudioSummary(
   if (brandWidgetAvatar) {
     brandWidgetAvatar.style.setProperty("--brand-primary", primaryColor);
     brandWidgetAvatar.style.setProperty("--brand-secondary", secondaryColor);
+    brandWidgetAvatar.textContent = assistantName.charAt(0).toUpperCase() || "V";
   }
 
   if (brandLauncher) {
@@ -17094,10 +17197,15 @@ function buildBehaviorSummary(tone, systemPrompt) {
 }
 
 function updateBehaviorSummary(form, fallbackAgent = {}) {
-  const summaryTitle = document.getElementById("behavior-summary-title");
-  const summaryCopy = document.getElementById("behavior-summary-copy");
+  if (!form) {
+    return;
+  }
 
-  if (!form || !summaryTitle || !summaryCopy) {
+  const scope = form.closest(".workspace-page, .workspace-panel") || document;
+  const summaryTitle = scope.querySelector?.("#behavior-summary-title") || document.getElementById("behavior-summary-title");
+  const summaryCopy = scope.querySelector?.("#behavior-summary-copy") || document.getElementById("behavior-summary-copy");
+
+  if (!summaryTitle || !summaryCopy) {
     return;
   }
 
@@ -17161,13 +17269,18 @@ function bindStudioState(form, agent) {
   }
 
   const initialSnapshot = JSON.stringify(Object.fromEntries(new FormData(form).entries()));
+  const stateScope = form.closest(".workspace-page, .workspace-panel") || document;
 
   const syncState = () => {
     updateStudioSummary(form, agent);
     updateBehaviorSummary(form, agent);
-    document.querySelectorAll("[data-tone-card]").forEach((toneCard) => {
+    stateScope.querySelectorAll("[data-tone-card]").forEach((toneCard) => {
       const input = toneCard.querySelector('input[name="tone"]');
       toneCard.classList.toggle("active", Boolean(input?.checked));
+    });
+    stateScope.querySelectorAll("[data-purpose-card]").forEach((purposeCard) => {
+      const input = purposeCard.querySelector('input[name="widget_purpose"]');
+      purposeCard.classList.toggle("active", Boolean(input?.checked));
     });
     const currentSnapshot = JSON.stringify(Object.fromEntries(new FormData(form).entries()));
 
