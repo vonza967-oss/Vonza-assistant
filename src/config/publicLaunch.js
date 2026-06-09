@@ -108,18 +108,18 @@ export function getPublicLaunchProfile({ operatorWorkspaceEnabled = false } = {}
   return {
     mode: "public_cohort_v1",
     product: {
-      name: "Vonza Website Widget",
-      headline: "AI agent on your website in 5 minutes, with no technical skill required.",
+      name: "Vonza AI Front Desk",
+      headline: "Hungarian-first AI Front Desk for SME customer questions, quotes, and follow-up.",
       purchaseSummary:
-        "The first public offer is the Website Widget plus website import, lead capture, AI disclosure, email handoff, install verification, analytics, and the shared AI Front Desk dashboard. Google-connected Inbox, Calendar, Automations, WhatsApp, and Voice stay out of the launch UI until they are intentionally enabled for a private workspace.",
+        "The first public offer is the full-page AI Front Desk plus website import, lead capture, AI disclosure, email handoff, install options, analytics, and the shared owner dashboard. Website Widget remains the fastest embedded install/channel option for existing websites. Google-connected Inbox, Calendar, Automations, WhatsApp, and Voice stay out of the launch UI until they are intentionally enabled for a private workspace.",
     },
     icp: {
       key: "service_businesses_with_inbound_leads",
-      label: "Service businesses with inbound leads",
-      shortLabel: "Service businesses",
+      label: "Hungarian SMEs with inbound customer questions",
+      shortLabel: "Hungarian SMEs",
       examples: ["home services", "clinics", "studios", "agencies", "consultants"],
       positioning:
-        "Best for SMBs that already get website visitors asking for quotes, bookings, callbacks, or availability and need a reliable website agent before a bigger back-office system.",
+        "Best for Hungarian SMEs that already get visitors asking for quotes, bookings, callbacks, or availability and need a reliable full-page AI Front Desk before a bigger back-office system. Use Website Widget as the fastest embedded channel when an existing site needs a compact launcher.",
     },
     matrix,
     ...buildStateLists(matrix),

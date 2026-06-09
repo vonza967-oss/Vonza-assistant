@@ -5,12 +5,12 @@ function trimText(value) {
 export const BILLING_INTERVAL_MONTH = "month";
 export const DEFAULT_BILLING_PLAN_KEY = "growth";
 export const BILLING_USAGE_COPY = Object.freeze({
-  sectionEyebrow: "Simple monthly plans",
-  sectionHeadline: "Choose the monthly plan for your Website Widget.",
+  sectionEyebrow: "Simple HUF monthly plans",
+  sectionHeadline: "Choose the monthly plan for your AI Front Desk.",
   sectionNote:
-    "All plans include the website widget, website import, lead capture, AI disclosure, dashboard, and email handoff. Growth and Pro add capacity and launch help.",
+    "All plans include the full-page AI Front Desk, website import, lead capture, AI disclosure, owner dashboard, email handoff, and Website Widget as the fastest embedded channel. Growth and Pro add capacity and launch help.",
   sharedFeatures: Object.freeze([
-    "Website Widget for one live site",
+    "Full-page AI Front Desk with Website Widget channel",
     "Website import for grounded answers",
     "Lead capture and email handoff",
     "AI disclosure copy",
@@ -34,9 +34,9 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     checkoutLabel: "Start with Starter",
     stripePriceEnvKey: "STRIPE_PRICE_ID_STARTER_MONTHLY",
     marketing: Object.freeze({
-      audience: "For one live website",
-      summary: "A simple way to launch a website AI agent",
-      detail: "Includes one website, AI widget, website import, lead capture, AI disclosure, dashboard, and email handoff",
+      audience: "For one Hungarian SME",
+      summary: "A simple way to launch a hosted AI Front Desk",
+      detail: "Includes one Front Desk workspace, Website Widget embedded channel, website import, lead capture, AI disclosure, dashboard, and email handoff",
       capacityLabel: "Lighter monthly AI capacity",
     }),
   }),
@@ -53,8 +53,8 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     recommended: true,
     marketing: Object.freeze({
       audience: "For regular customer questions",
-      summary: "Best for most growing small businesses",
-      detail: "Adds higher usage, richer analytics, team handoff, multiple widget templates, and booking links",
+      summary: "Best for most growing Hungarian SMEs",
+      detail: "Adds higher usage, richer analytics, team handoff, multiple Front Desk templates, and booking links",
       capacityLabel: "Regular monthly AI capacity",
     }),
   }),
@@ -69,7 +69,7 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     checkoutLabel: "Start with Pro",
     stripePriceEnvKey: "STRIPE_PRICE_ID_PRO_MONTHLY",
     marketing: Object.freeze({
-      audience: "For busier websites",
+      audience: "For busier Front Desk workspaces",
       summary: "More room for higher monthly customer volume",
       detail: "Adds multiple users, multi-location logic, API or webhook options, priority support, and white-glove tuning",
       capacityLabel: "Higher monthly AI capacity",

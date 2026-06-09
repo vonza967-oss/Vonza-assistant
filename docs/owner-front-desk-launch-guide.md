@@ -1,6 +1,6 @@
 # Owner Front Desk Launch Guide
 
-Use this checklist to launch the hosted AI Front Desk first, then add website installs where they help.
+Use this checklist to launch the hosted AI Front Desk first, then add website installs where they help. Vonza is Hungarian-first for the initial SME launch: default customer-facing copy should be natural Hungarian unless the business deliberately serves another language, and public plan prices are shown in HUF.
 
 ## 1. Open The Dashboard
 
@@ -12,11 +12,11 @@ Go to Settings → Business Profile. Add or confirm the website URL, then run Im
 
 ## 3. Practice And Improve Answers
 
-Go to Front Desk → Practice. Ask realistic visitor questions about services, pricing, booking, quotes, policies, and contact details. If an answer is weak, use Teach this answer or Save as improvement, then publish only guidance that should apply to future visitors.
+Go to Front Desk → Practice. Ask realistic Hungarian visitor questions about services, pricing, booking, quotes, policies, and contact details. If the business serves multiple languages, test those too, but keep Hungarian as the default launch path. If an answer is weak, use Teach this answer or Save as improvement, then publish only guidance that should apply to future visitors.
 
 ## 4. Publish The Hosted Front Desk
 
-Go to Settings → Front Desk → Full-page assistant. Confirm the headline, subtitle, action cards, trust/status copy, and design. Enable public Front Desk page access when the page is ready.
+Go to Settings → Front Desk → Full-page assistant. Confirm the Hungarian headline, subtitle, action cards, trust/status copy, and design. Enable public Front Desk page access when the page is ready.
 
 ## 5. Share By QR Or Direct Link
 
@@ -44,4 +44,4 @@ Use Analytics to watch Front Desk conversations, leads, source activity, top que
 
 ## 11. Billing And Access Basics
 
-Settings → Account & Billing shows owner access, plan status, subscription state, and monthly AI capacity. If access or capacity is limited, fix billing or plan status before relying on live customer traffic.
+Settings → Account & Billing shows owner access, plan status, subscription state, HUF monthly plan pricing, and monthly AI capacity. If access or capacity is limited, fix billing or plan status before relying on live customer traffic.

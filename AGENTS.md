@@ -10,10 +10,13 @@
 - `render.yaml`: Render deployment config
 
 ## Working Rules
-- Product direction: the full-page AI Front Desk is the primary customer-facing surface; the website widget is secondary.
+- Product direction: Vonza is a Hungarian-first AI Front Desk SaaS for SMEs.
+- The full-page AI Front Desk is the primary customer-facing product and public launch surface.
+- The Website Widget is secondary; describe it as the fastest embedded install/channel option for existing websites.
 - Production-ready changes must target `main` because Render deploys from `main`.
 - `db/schema.sql` is canonical. Keep it aligned with any migration file you add.
 - `/dashboard` is the main app route.
+- Keep product-facing positioning Hungarian-first and HUF-aware, while keeping developer documentation clear in English.
 - Do not touch `/widget`, `/embed.js`, `/embed-lite.js`, or chat logic unless the task truly requires it.
 - Do not weaken public access, auth, owner/agent scoping, RLS expectations, security checks, or factual-answer guardrails to make tests pass.
 - Never expose secrets or commit `.env` values.
