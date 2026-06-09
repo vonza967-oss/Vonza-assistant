@@ -178,6 +178,13 @@ export function getAppVersion() {
   return String(process.env.npm_package_version || "1.0.0").trim();
 }
 
+export function isProductionRuntime(env = process.env) {
+  const nodeEnv = String(env.NODE_ENV || "").trim().toLowerCase();
+  const deployEnv = String(env.VONZA_DEPLOY_ENV || "").trim().toLowerCase();
+
+  return nodeEnv === "production" || deployEnv === "production";
+}
+
 export function isDevFakeBillingEnabled() {
   return String(process.env.DEV_FAKE_BILLING || "").trim().toLowerCase() === "true";
 }
