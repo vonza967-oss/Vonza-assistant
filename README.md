@@ -1,11 +1,11 @@
 # Vonza
 
-Vonza is an AI Front Desk SaaS for small businesses. Its primary customer-facing surface is a hosted full-page AI Front Desk that owners can share by direct link, QR code, WordPress page, or smart embed. The website widget remains a secondary, optional launcher for normal website pages.
+Vonza is an AI Front Desk SaaS for small businesses. The current public launch wedge is the Website Widget: an AI agent on a customer website in 5 minutes, with no technical skill required. The broader AI Front Desk remains the shared dashboard and long-term product system behind the widget.
 
 ## Main Features
 
-- Hosted full-page AI Front Desk for direct links, QR codes, WordPress pages, and smart embeds
-- Optional website chat widget with install verification and allowed-domain checks
+- Website Widget for existing websites with install verification and allowed-domain checks
+- WordPress or one-line embed installation for the widget-first launch path
 - Website import that turns public site content into chat grounding
 - Configurable system prompt, tone, widget purpose, business context, and industry vertical
 - Lead capture for warm visitors, quote requests, booking intent, and contact handoff
@@ -21,7 +21,7 @@ Vonza is a Node.js and Express application backed by Supabase. The frontend is m
 
 ```text
 Website visitor
-  -> Vonza hosted Front Desk page, smart embed, QR/direct link, or optional widget
+  -> Vonza Website Widget on an existing site
   -> Express routes (/chat, /widget/bootstrap, /install/events)
   -> Services (chat, prompting, scraping, leads, analytics, billing)
   -> Supabase tables (businesses, agents, widget_configs, messages, leads, outcomes, usage)
@@ -67,7 +67,7 @@ Start the app:
 npm start
 ```
 
-Open the dashboard at `http://localhost:3000/dashboard`. Analytics renders inside the dashboard shell and reads JSON from `/dashboard/analytics/summary`; `/dashboard/analytics` is a JSON-only compatibility alias. The widget preview is served at `/widget`; the embeddable scripts are `/embed.js` and `/embed-lite.js`.
+Open the dashboard at `http://localhost:3000/website-widget/dashboard`. Legacy dashboard paths redirect to the Website Widget dashboard in the current public launch. Analytics renders inside the dashboard shell and reads JSON from `/dashboard/analytics/summary`; `/dashboard/analytics` is a JSON-only compatibility alias. The widget preview is served at `/widget`; the embeddable scripts are `/embed.js` and `/embed-lite.js`.
 
 ## Calendly Webhook Provisioning
 

@@ -11,15 +11,17 @@ const dashboardCustomers = window.VonzaDashboardCustomers || {};
 const dashboardAnalytics = window.VonzaDashboardAnalytics || {};
 const dashboardToday = window.VonzaDashboardToday || {};
 const activeDashboardProduct = dashboardState.ACTIVE_DASHBOARD_PRODUCT_CONTEXT || dashboardState.getDashboardProductContext?.(window.location.pathname) || {
-  key: "front_desk",
-  label: "Front Desk",
+  key: "website_widget",
+  label: "Website Widget",
+  dashboardLabel: "Website Widget workspace",
+  routePath: "/website-widget/dashboard",
+  canonicalPath: "/website-widget/dashboard",
+  isDedicatedProductDashboard: true,
 };
 const dashboardProductNavItems = typeof dashboardState.getDashboardProductNavItems === "function"
   ? dashboardState.getDashboardProductNavItems(activeDashboardProduct.key)
   : [
-    { key: "front_desk", label: "Front Desk", dashboardLabel: "AI Front Desk workspace", routePath: "/dashboard/front-desk", active: activeDashboardProduct.key === "front_desk" },
-    { key: "website_widget", label: "Website Widget", dashboardLabel: "Website Widget workspace", routePath: "/dashboard/widget", active: activeDashboardProduct.key === "website_widget" },
-    { key: "voice_agent", label: "Voice Agent", dashboardLabel: "Voice Agent workspace", routePath: "/dashboard/voice", active: activeDashboardProduct.key === "voice_agent" },
+    { key: "website_widget", label: "Website Widget", dashboardLabel: "Website Widget workspace", routePath: "/website-widget/dashboard", active: true },
   ];
 const DASHBOARD_V2_ENABLED = window.VONZA_DASHBOARD_V2_ENABLED !== false;
 const DASHBOARD_LOCAL_FIXTURE_ENABLED = window.VONZA_LOCAL_DASHBOARD_FIXTURE === true;
@@ -293,7 +295,7 @@ const DASHBOARD_CAPABILITY_MAP = {
 };
 const DASHBOARD_ENGLISH_FALLBACKS = {
   "app.loading.title": "Preparing your workspace",
-  "app.loading.copy": "Connecting your assistant, loading your business data, and getting your front desk ready.",
+  "app.loading.copy": "Connecting your assistant, loading your business data, and getting your widget ready.",
   "app.loading.footer": "This usually takes a few seconds",
   "app.loading.stepProfile": "Loading business profile",
   "app.loading.stepCompleted": "Completed",
@@ -2421,7 +2423,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Hosted full-page assistant": "Hosztolt teljes oldalas asszisztens",
   "Dedicated full-page AI Front Desk for customers who need answers, routing, and follow-up capture.": "Dedikált teljes oldalas AI Front Desk ügyfeleknek, akik válaszokat, útvonalakat és utánkövetés-rögzítést keresnek.",
   "Open Front Desk setup": "Front Desk beállítás megnyitása",
-  "Embedded website snippet and launcher for visitors who need quick answers without leaving a page.": "Beágyazott weboldali kódrészlet és indító látogatóknak, akik gyors válaszokat keresnek az oldal elhagyása nélkül.",
+  "Five-minute website AI agent for visitors who need quick answers without leaving a page.": "Ötperces weboldali AI ügyintéző látogatóknak, akik gyors választ keresnek az oldal elhagyása nélkül.",
   "Open widget setup": "Widget beállítás megnyitása",
   "Browser voice, spoken replies, and Web Call setup for hands-free customer conversations where configured.": "Böngészős hang, felolvasott válaszok és Web Call beállítás kéz nélküli ügyfélbeszélgetésekhez, ahol be van állítva.",
   "Open Web Call setup": "Web Call beállítás megnyitása",
@@ -2803,7 +2805,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Vonza found embed markup, but it points at a different install or a blocked domain.": "A Vonza talált beágyazási jelölést, de az másik telepítésre vagy blokkolt domainre mutat.",
   "Verification needs attention. Vonza either could not fetch the site or could not find the expected install snippet yet.": "Az ellenőrzés figyelmet igényel. A Vonza vagy nem tudta lekérni az oldalt, vagy még nem találta a várt telepítési kódrészletet.",
   "No website bubble install detected yet. The Front Desk page can still launch through the public page, WordPress, smart embed, or QR/direct link.": "Még nincs észlelt weboldali buboréktelepítés. A Front Desk oldal ettől még indítható publikus oldalon, WordPressen, okos beágyazással vagy QR/direkt linken keresztül.",
-  "No Website Widget install detected yet. The Front Desk page can still launch through the public page, WordPress, smart embed, or QR/direct link.": "Még nincs észlelt Website Widget telepítés. A Front Desk oldal ettől még indítható publikus oldalon, WordPressen, okos beágyazással vagy QR/direkt linken keresztül.",
+  "No Website Widget install detected yet. Paste the website URL, import content, choose a template and tone, preview the widget, then install with WordPress or one embed snippet.": "Még nincs észlelt Website Widget telepítés. Add meg a weboldal URL-jét, importáld a tartalmat, válassz sablont és hangnemet, nézd meg előnézetben, majd telepítsd WordPress-szel vagy egy beágyazási kóddal.",
   "Publish your AI Front Desk page through WordPress, smart embed, QR/direct link, or the optional website widget bubble.": "Tedd közzé az AI Front Desk oldalt WordPressen, okos beágyazással, QR/direkt linken vagy opcionális weboldali widget buborékkal.",
   "Front Desk configuration sections": "Front Desk beállítási szakaszok",
   "Adjust how the customer-facing Front Desk speaks, routes, and appears to visitors.": "Állítsd be, hogyan beszéljen, merre vezessen és hogyan jelenjen meg az ügyféloldali Front Desk.",
@@ -4458,8 +4460,8 @@ function buildInstallDomainChips(allowedDomains = []) {
   return dashboardInstallPanelHelpers.buildInstallDomainChips(allowedDomains);
 }
 
-function buildInstallSidePanel(agent, setup, messages = []) {
-  return dashboardInstallPanelHelpers.buildInstallSidePanel(agent, setup, messages);
+function buildInstallSidePanel(agent, setup, messages = [], options = {}) {
+  return dashboardInstallPanelHelpers.buildInstallSidePanel(agent, setup, messages, options);
 }
 const dashboardFrontDeskHelpers = dashboardFrontDesk.createFrontDeskHelpers({
   buildFullPageAssistantUrl,
@@ -6454,6 +6456,10 @@ function buildSidebarGroup(title, items, activeSection, options = {}) {
 }
 
 function buildDashboardProductSwitcher(activeProduct = activeDashboardProduct) {
+  if (!Array.isArray(dashboardProductNavItems) || dashboardProductNavItems.length <= 1) {
+    return "";
+  }
+
   const activeKey = activeProduct?.key || "front_desk";
   const productHash = getDashboardHashRoot() === "setup" ? "#setup" : "";
 
@@ -6609,7 +6615,7 @@ function buildSidebarShell(
       ${dedicatedWebsiteWidget ? "" : buildDashboardProductSwitcher(activeDashboardProduct)}
       ${buildSidebarGroup(translateDashboardText("Operate"), coreItems, activeSection, {
         note: dedicatedWebsiteWidget
-          ? "Customers, analytics, install, and configuration for the existing widget."
+          ? "Website URL, import, install, analytics, and configuration for the Website Widget."
           : (productHomeContext?.sidebarNote || "Front Desk is the primary full-page customer surface."),
       })}
       <div class="sidebar-footer">
@@ -6779,6 +6785,9 @@ function buildAssistantPreviewCard({
   prompts = [],
   statusLabel = "",
   live = false,
+  copy = "Current Front Desk greeting and starter prompts.",
+  defaultName = "Vonza Front Desk",
+  defaultGreeting = "Your front desk is ready to greet visitors with a clear, helpful first message.",
 } = {}) {
   const visiblePrompts = prompts.map((prompt) => trimText(prompt)).filter(Boolean).slice(0, 3);
 
@@ -6787,7 +6796,7 @@ function buildAssistantPreviewCard({
       <div class="glass-card-header">
         <div>
           <h2 class="glass-card-title">Assistant preview</h2>
-          <p class="glass-card-copy">Current Front Desk greeting and starter prompts.</p>
+          <p class="glass-card-copy">${escapeHtml(copy)}</p>
         </div>
         ${buildStatusPill({ label: statusLabel || (live ? "Live" : "Ready to test"), tone: live ? "online" : "neutral" })}
       </div>
@@ -6795,8 +6804,8 @@ function buildAssistantPreviewCard({
         <div class="assistant-preview-message">
           <span class="assistant-preview-avatar" aria-hidden="true">${escapeHtml((assistantName || "V").slice(0, 1).toUpperCase())}</span>
           <div>
-            <strong>${escapeHtml(assistantName || "Vonza Front Desk")}</strong>
-            <p>${escapeHtml(greeting || "Your front desk is ready to greet visitors with a clear, helpful first message.")}</p>
+            <strong>${escapeHtml(assistantName || defaultName)}</strong>
+            <p>${escapeHtml(greeting || defaultGreeting)}</p>
           </div>
         </div>
         ${visiblePrompts.length ? `
@@ -8639,7 +8648,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       tone: "warning",
       title: "Make service answers clearer",
       why: "Customers need to understand what you offer before they can choose the right service.",
-      change: "Add clearer service descriptions, examples, or FAQ answers where the front desk was unsure.",
+      change: "Add clearer service descriptions, examples, or FAQ answers where the assistant was unsure.",
       action: { type: "section", value: "analytics", label: "Improve service answers" },
     });
   }
@@ -8668,8 +8677,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     addPriority({
       tone: "slate",
       title: "Make contacting you easier",
-      why: "If the front desk is not visible or verified, customers may leave before getting help with pricing, services, booking, or contact.",
-      change: "Confirm the Front Desk page is live and any optional website bubble is installed on the right site.",
+      why: "If the widget is not visible or verified, customers may leave before getting help with pricing, services, booking, or contact.",
+      change: "Confirm the Website Widget is installed on the right site and verify the allowed domain.",
       action: { type: "focus", value: "install", label: "Open install" },
     });
   }
@@ -8877,19 +8886,51 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     .filter((item, index, items) => items.findIndex((candidate) => candidate.key === item.key) === index)
     .sort((left, right) => left.priority - right.priority)
     .slice(0, 6);
+  const isWebsiteWidgetProduct = (activeDashboardProduct?.key || "") === "website_widget";
   const setupNeedsAttention = !setup.isReady || !setup.knowledgeReady || setup.knowledgeLimited || !isInstallSeen(overview.installStatus);
-  const setupStatusItems = [
-    ...overview.progressItems,
-    {
-      title: "Website knowledge",
-      copy: setup.knowledgeReady
-        ? "Vonza has usable business knowledge for customer answers."
-        : setup.knowledgeLimited
-          ? "Knowledge is usable, but another pass would improve answers."
-          : "Import website knowledge so customer answers are grounded.",
-      done: setup.knowledgeReady && !setup.knowledgeLimited,
-    },
-  ];
+  const widgetReadinessItems = isWebsiteWidgetProduct && typeof dashboardState.getProductReadinessChecklist === "function"
+    ? dashboardState.getProductReadinessChecklist("website_widget", {
+      agent,
+      setup,
+      installStatus: overview.installStatus,
+      analyticsSummary: overview.analyticsSummary,
+      messages,
+      frontDeskTraining,
+      ownerAnalyticsDashboard: actionQueue.ownerAnalyticsDashboard || null,
+      widgetMetrics: agent.widgetMetrics || agent.widget_metrics || {},
+      webCallHealth: actionQueue.ownerAnalyticsDashboard?.webCallHealth || null,
+      recentWebCalls: actionQueue.ownerAnalyticsDashboard?.webCallRecentCalls || null,
+    }).map((item) => ({
+      title: item.label,
+      copy: item.copy,
+      done: item.complete === true,
+    }))
+    : [];
+  const setupStatusItems = isWebsiteWidgetProduct
+    ? [
+      ...widgetReadinessItems,
+      {
+        title: "Website knowledge",
+        copy: setup.knowledgeReady
+          ? "Vonza has usable business knowledge for widget answers."
+          : setup.knowledgeLimited
+            ? "Knowledge is usable, but another pass would improve widget answers."
+            : "Import website knowledge so widget answers are grounded.",
+        done: setup.knowledgeReady && !setup.knowledgeLimited,
+      },
+    ]
+    : [
+      ...overview.progressItems,
+      {
+        title: "Website knowledge",
+        copy: setup.knowledgeReady
+          ? "Vonza has usable business knowledge for customer answers."
+          : setup.knowledgeLimited
+            ? "Knowledge is usable, but another pass would improve answers."
+            : "Import website knowledge so customer answers are grounded.",
+        done: setup.knowledgeReady && !setup.knowledgeLimited,
+      },
+    ];
   const notAvailableLabel = productHomeContext.metricLabels?.empty || "not available yet";
   const priorityRows = attentionItems.slice(0, 3).map((item) => ({
     category: item.category || "",
@@ -8966,7 +9007,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     weakAnswerCount > 0
       ? {
         title: `${weakAnswerCount} answer${weakAnswerCount === 1 ? "" : "s"} still need work`,
-        copy: "Use Analytics or Front Desk improvements to tighten weak answers.",
+        copy: "Use Analytics and widget configuration to tighten weak answers.",
         icon: "review",
         tone: "violet",
       }
@@ -9015,11 +9056,19 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       },
     );
   }
-  const primarySetupAction = setupNeedsAttention
-    ? (!setup.knowledgeReady || setup.knowledgeLimited
-      ? { label: "Add knowledge", action: { type: "import", label: "Add knowledge" } }
-      : { label: "Continue setup", action: { type: "section", value: "customize", label: "Continue setup" } })
-    : { label: "Run test", action: { type: "preview", label: "Run test" } };
+  const primarySetupAction = isWebsiteWidgetProduct
+    ? (setupNeedsAttention
+      ? (!isInstallSeen(overview.installStatus)
+        ? { label: "Open install", action: { type: "section", value: "install", label: "Open install" } }
+        : (!setup.knowledgeReady || setup.knowledgeLimited)
+          ? { label: "Add knowledge", action: { type: "import", label: "Add knowledge" } }
+          : { label: "Open configuration", action: { type: "section", value: "settings", label: "Open configuration" } })
+      : { label: "Test widget", action: { type: "section", value: "install", label: "Test widget" } })
+    : (setupNeedsAttention
+      ? (!setup.knowledgeReady || setup.knowledgeLimited
+        ? { label: "Add knowledge", action: { type: "import", label: "Add knowledge" } }
+        : { label: "Continue setup", action: { type: "section", value: "customize", label: "Continue setup" } })
+      : { label: "Run test", action: { type: "preview", label: "Run test" } });
   const legacyQueueContractCopy = [
     ...dedupedQueueItems.flatMap((item) => [
       item?.label,
@@ -9052,7 +9101,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     setup.isReady ? "Ready to use" : "",
     "Focused work that needs owner attention",
     "What to improve next",
-    "Front Desk readiness",
+    isWebsiteWidgetProduct ? "Website widget readiness" : "Front Desk readiness",
     "Source activity",
     "Needs reply",
     "AI handled",
@@ -9061,8 +9110,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     "Unanswered or repeated question",
     "Review open needs",
     "Improve service answers",
-    "Public Front Desk page",
-    "Distribution channel selected",
+    isWebsiteWidgetProduct ? "Domain/install status" : "Public Front Desk page",
+    isWebsiteWidgetProduct ? "Routing/contact behavior configured" : "Distribution channel selected",
     "FAQ pricing contact quote booking follow-up next-step confidence trust friction",
     notAvailableLabel,
     primaryPriority?.title || "",
@@ -9222,6 +9271,13 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               prompts: fullPagePrompts,
               statusLabel: frontDeskLive ? "Live / ready" : (productHomeContext.previewActionLabel || "Ready to test"),
               live: frontDeskLive,
+              copy: isWebsiteWidgetProduct
+                ? "Current Website Widget greeting and starter prompts."
+                : "Current Front Desk greeting and starter prompts.",
+              defaultName: isWebsiteWidgetProduct ? "Website Widget" : "Vonza Front Desk",
+              defaultGreeting: isWebsiteWidgetProduct
+                ? "Your Website Widget is ready to greet visitors with a clear, helpful first message."
+                : "Your front desk is ready to greet visitors with a clear, helpful first message.",
             })}
           </section>
           ${buildStaffRequestQueueCard(actionQueue.staffRequests)}
@@ -9605,16 +9661,21 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
 }
 
 function buildInstallPanel(agent, setup, _operatorWorkspace = createEmptyOperatorWorkspace(), messages = [], actionQueue = createEmptyActionQueue()) {
-  const actionsMarkup = [
-    `<button class="ghost-button" type="button" data-action="verify-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>`,
-    `<button class="ghost-button" type="button" data-install-method-jump="page">${escapeHtml(t("install.viewFrontDeskPageSetup"))}</button>`,
-  ].join("");
+  const widgetOnly = isDedicatedWebsiteWidgetDashboard();
+  const actionsMarkup = widgetOnly
+    ? `<button class="ghost-button" type="button" data-action="verify-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>`
+    : [
+      `<button class="ghost-button" type="button" data-action="verify-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>`,
+      `<button class="ghost-button" type="button" data-install-method-jump="page">${escapeHtml(t("install.viewFrontDeskPageSetup"))}</button>`,
+    ].join("");
 
   return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="install" hidden>
       ${buildPageHeader({
         title: t("install.title"),
-        copy: t("install.publishFrontDeskPage"),
+        copy: widgetOnly
+          ? "Install the Website Widget snippet, confirm allowed domains, and verify the live site."
+          : t("install.publishFrontDeskPage"),
         actionsMarkup,
       })}
       <div class="workspace-page-body install-page-layout">
@@ -9624,9 +9685,10 @@ function buildInstallPanel(agent, setup, _operatorWorkspace = createEmptyOperato
             messages,
             actionQueue,
             setup,
+            widgetOnly,
           })}
         </section>
-        ${buildInstallSidePanel(agent, setup, messages)}
+        ${buildInstallSidePanel(agent, setup, messages, { widgetOnly })}
       </div>
     </section>
   `);
@@ -9649,7 +9711,7 @@ function getWebsiteWidgetInstallStatusCopy(installStatus = {}) {
     return "Verification needs attention. Vonza could not confirm the expected widget snippet yet.";
   }
 
-  return "No Website Widget install detected yet. Copy the snippet, publish it on an allowed site, then run verification.";
+  return "No Website Widget install detected yet. Paste the website URL, import content, choose a template and tone, preview the widget, then install with WordPress or one embed snippet.";
 }
 
 function getWebsiteWidgetStatusLabel(installStatus = {}, hasInstall = false) {
@@ -14391,7 +14453,7 @@ function renderAssistantShell(
   const setupHintMarkup = !setup.isReady
     ? `
       <div class="shell-inline-note">
-        Finish the Front Desk basics in Settings, test the live experience in Front Desk, and then move into Install when you are ready to publish.
+        Finish the Website Widget configuration, test the live widget, and then verify installation when you are ready to publish.
       </div>
     `
     : "";
@@ -14439,7 +14501,7 @@ function renderDashboardV2Shell(
   const setupHintMarkup = !setup.isReady
     ? `
       <div class="shell-inline-note dashboard-v2-inline-note">
-        Finish the Front Desk basics, test the live experience, and move into Install when you are ready to publish.
+        Finish the Website Widget configuration, test the live widget, and verify installation when you are ready to publish.
       </div>
     `
     : "";

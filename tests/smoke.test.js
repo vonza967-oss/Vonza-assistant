@@ -1306,67 +1306,57 @@ test("marketing homepage and app routes load without broken handoff paths", { co
       try {
         const marketingHome = await getText(server.baseUrl, "/");
         assert.equal(marketingHome.status, 200);
-        assert.match(marketingHome.text, /Your AI Front Desk for customer questions, quotes, bookings, and follow-ups/i);
-        assert.match(marketingHome.text, /dedicated page where they can ask questions, request quotes, leave details/i);
-        assert.match(marketingHome.text, /Create your Front Desk/i);
+        assert.match(marketingHome.text, /Website Widget for quick customer answers on your site/i);
+        assert.match(marketingHome.text, /AI agent on your website in 5 minutes/i);
+        assert.match(marketingHome.text, /Paste website URL/i);
+        assert.match(marketingHome.text, /Set up Website Widget/i);
+        assert.match(marketingHome.text, /href="\/website-widget\/dashboard\?from=site"/);
         assert.match(marketingHome.text, /href="\/dashboard\?from=site"/);
         assert.match(marketingHome.text, /id="site-auth-link"/);
         assert.match(marketingHome.text, /id="site-primary-cta"/);
         assert.match(marketingHome.text, /data-app-link/);
-        assert.match(marketingHome.text, /Dedicated Front Desk page/i);
-        assert.match(marketingHome.text, /More than a website widget/i);
-        assert.match(marketingHome.text, /WordPress plugin/i);
-        assert.match(marketingHome.text, /QR \/ direct link/i);
-        assert.match(marketingHome.text, /optional website widget/i);
+        assert.match(marketingHome.text, /Existing Website Widget runtime/i);
+        assert.match(marketingHome.text, /Embed snippet and allowed domains/i);
         assert.match(marketingHome.text, /Customers/i);
-        assert.match(marketingHome.text, /Front Desk/i);
         assert.match(marketingHome.text, /Analytics/i);
         assert.match(marketingHome.text, /Install/i);
-        assert.match(marketingHome.text, /Train it from real conversations/i);
-        assert.match(marketingHome.text, /No invented prices or policies/i);
+        assert.match(marketingHome.text, /configuration/i);
         assert.match(marketingHome.text, /\/marketing\.js/);
-        assert.match(marketingHome.text, /\/assets\/product\/front-desk-page-desktop\.webp/);
-        assert.doesNotMatch(marketingHome.text, /website chat widget/i);
+        assert.match(marketingHome.text, /\/assets\/product\/dashboard-install-front-desk\.webp/);
+        assert.doesNotMatch(marketingHome.text, /href="\/front-desk"|href="\/voice-agent"|Voice Agent|Enterprise Request Desk|\bQDH\b|ESG|Hotel Concierge/i);
         assert.doesNotMatch(marketingHome.text, /operator/i);
         assert.doesNotMatch(marketingHome.text, /copilot/i);
         assert.doesNotMatch(marketingHome.text, /approval-first/i);
-        assert.doesNotMatch(marketingHome.text, /workflow/i);
         assert.doesNotMatch(marketingHome.text, /internal queue/i);
-        assert.doesNotMatch(marketingHome.text, /Outcomes/i);
         assert.doesNotMatch(marketingHome.text, /Contacts/i);
         assert.doesNotMatch(marketingHome.text, /token usage|api spend|model cost|crm|automation platform/i);
 
         for (const route of ["/features", "/product", "/pricing", "/about"]) {
           const page = await getText(server.baseUrl, route);
           assert.equal(page.status, 200);
-          assert.match(page.text, /AI Front Desk|Front Desk page/i);
+          assert.match(page.text, /Website Widget for quick customer answers on your site/i);
+          assert.match(page.text, /href="\/website-widget\/dashboard\?from=site"/);
           assert.match(page.text, /\/marketing\.js/);
-          assert.doesNotMatch(page.text, /fully autonomous|human replacement|enterprise compliance|omnichannel/i);
+          assert.doesNotMatch(page.text, /href="\/front-desk"|href="\/voice-agent"|Voice Agent|Enterprise Request Desk|\bQDH\b|ESG|Hotel Concierge|fully autonomous|human replacement|enterprise compliance|omnichannel/i);
         }
 
         const pricingPage = await getText(server.baseUrl, "/pricing");
-        assert.match(pricingPage.text, /Simple monthly plans/i);
-        assert.match(pricingPage.text, /Choose the monthly capacity for your AI Front Desk/i);
-        assert.match(pricingPage.text, /Starter/);
-        assert.match(pricingPage.text, /Growth/);
-        assert.match(pricingPage.text, /Pro/);
-        assert.match(pricingPage.text, /\$20\/month/);
-        assert.match(pricingPage.text, /\$50\/month/);
-        assert.match(pricingPage.text, /\$100\/month/);
-        assert.match(pricingPage.text, /href="\/dashboard\?from=site&amp;plan=starter"/);
-        assert.match(pricingPage.text, /href="\/dashboard\?from=site&amp;plan=growth"/);
-        assert.match(pricingPage.text, /href="\/dashboard\?from=site&amp;plan=pro"/);
+        assert.match(pricingPage.text, /Website Widget for quick customer answers on your site/i);
+        assert.match(pricingPage.text, /Set up Website Widget/i);
+        assert.match(pricingPage.text, /19,900 HUF\/month/i);
+        assert.match(pricingPage.text, /49,900 HUF\/month/i);
+        assert.match(pricingPage.text, /99,900 HUF\/month/i);
+        assert.doesNotMatch(pricingPage.text, /data-product-checkout|data-product-plan-key|dashboard\/front-desk|dashboard\/voice|Buy Voice Agent|Buy Front Desk/i);
 
         const featuresPage = await getText(server.baseUrl, "/features");
-        assert.match(featuresPage.text, /WordPress Front Desk page/i);
-        assert.match(featuresPage.text, /Smart embed \/ QR \/ hosted link/i);
-        assert.match(featuresPage.text, /Feedback and training/i);
-        assert.match(featuresPage.text, /Analytics and source breakdown/i);
+        assert.match(featuresPage.text, /Existing Website Widget runtime/i);
+        assert.match(featuresPage.text, /Embed snippet and allowed domains/i);
+        assert.match(featuresPage.text, /Widget analytics/i);
 
         const productPage = await getText(server.baseUrl, "/product");
-        assert.match(productPage.text, /Training and feedback loop/i);
+        assert.match(productPage.text, /Website Widget for quick customer answers on your site/i);
         assert.match(productPage.text, /Customers and conversations/i);
-        assert.match(productPage.text, /Settings and customization/i);
+        assert.match(productPage.text, /configuration/i);
 
         const macPendingPage = await getText(server.baseUrl, "/download/mac");
         assert.equal(macPendingPage.status, 200);
@@ -1393,35 +1383,41 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         const hungarianHome = await getText(server.baseUrl, "/hu");
         assert.equal(hungarianHome.status, 200);
         assert.match(hungarianHome.text, /<html lang="hu">/);
-        assert.match(hungarianHome.text, /AI Front Desk magyar ügyfélkérdésekhez/);
-        assert.match(hungarianHome.text, /Front Desk létrehozása/);
+        assert.match(hungarianHome.text, /Website Widget/i);
+        assert.match(hungarianHome.text, /Widget beállítása/);
         assert.match(hungarianHome.text, /Funkciók/);
         assert.match(hungarianHome.text, /Árak/);
-        assert.match(hungarianHome.text, /AI Front Desk oldal ügyfélkérdésekhez/);
         assert.match(hungarianHome.text, /Adatvédelem/);
-        assert.doesNotMatch(hungarianHome.text, /Features|Pricing|Create Front Desk|An AI Front Desk page for customer questions/);
+        assert.doesNotMatch(hungarianHome.text, /Features|Pricing|Create Front Desk|Front Desk létrehozása|An AI Front Desk page for customer questions/);
         assert.doesNotMatch(hungarianHome.text, /<!-- VONZA_MARKETING_/);
 
         const marketingImageRefs = Array.from(marketingHome.text.matchAll(/<img[^>]+src="([^"]+)"/g), (match) => match[1]);
-        assert.ok(marketingImageRefs.length >= 5, "marketing homepage should render product screenshots");
+        assert.ok(marketingImageRefs.length >= 3, "marketing homepage should render product screenshots");
         marketingImageRefs.forEach((src) => {
           assert.doesNotThrow(() => readFileSync(path.join(repoRoot, "frontend", src.replace(/^\//, ""))));
         });
         [
-          "front-desk-page-desktop.webp",
-          "front-desk-answer-state.webp",
-          "wordpress-page-takeover-assistant.webp",
-          "front-desk-page-mobile.webp",
-          "dashboard-front-desk-practice.webp",
+          "dashboard-home-current.webp",
           "dashboard-install-front-desk.webp",
           "dashboard-customers.webp",
           "dashboard-analytics.webp",
-          "dashboard-settings-front-desk.webp",
         ].forEach((assetName) => {
           assert.doesNotThrow(() => readFileSync(path.join(repoRoot, "frontend", "assets", "product", assetName)));
         });
 
-        const dashboard = await getText(server.baseUrl, "/dashboard");
+        for (const [pathname, location] of [
+          ["/dashboard", "/website-widget/dashboard"],
+          ["/dashboard?from=site", "/website-widget/dashboard?from=site"],
+          ["/dashboard/widget", "/website-widget/dashboard"],
+          ["/dashboard/front-desk", "/website-widget/dashboard"],
+          ["/dashboard/voice", "/website-widget/dashboard"],
+        ]) {
+          const redirect = await getText(server.baseUrl, pathname, { redirect: "manual" });
+          assert.equal(redirect.status, 302, pathname);
+          assert.equal(redirect.headers.get("location"), location, pathname);
+        }
+
+        const dashboard = await getText(server.baseUrl, "/website-widget/dashboard");
         assert.equal(dashboard.status, 200);
         assert.match(dashboard.text, /dashboard-root/);
         assert.match(dashboard.text, /\/public-config\.js/);
@@ -1469,12 +1465,12 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /\/dashboardToday\.js/);
         assert.match(dashboard.text, /\/dashboard\.js/);
         assert.match(dashboard.text, /Preparing your workspace/);
-        assert.match(dashboard.text, /Connecting your assistant, loading your business data, and getting your front desk ready\./);
+        assert.match(dashboard.text, /Connecting your assistant, loading your business data, and getting your widget ready\./);
         assert.match(dashboard.text, /dashboard-skeleton-preview/);
         assert.doesNotMatch(dashboard.text, /approvals/i);
         assert.doesNotMatch(dashboard.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
 
-        for (const productDashboardPath of ["/dashboard/front-desk", "/dashboard/widget", "/dashboard/voice"]) {
+        for (const productDashboardPath of ["/website-widget/dashboard", "/widget/dashboard"]) {
           const productDashboard = await getText(server.baseUrl, productDashboardPath);
           assert.equal(productDashboard.status, 200);
           assert.match(productDashboard.headers.get("cache-control") || "", /no-store/);
@@ -2048,7 +2044,7 @@ test("signed-out marketing header keeps the normal CTA", async () => {
   const harness = createMarketingHarness({ storedSession: null, session: null });
   await harness.settle();
 
-  assert.equal(harness.primaryCta.textContent, "Create Front Desk");
+  assert.equal(harness.primaryCta.textContent, "Set up Widget");
   assert.equal(harness.primaryCta.getAttribute("href"), "/dashboard?from=site");
   assert.equal(harness.authLink.hidden, false);
   assert.equal(harness.footerAppLink.getAttribute("href"), "/dashboard?from=site");

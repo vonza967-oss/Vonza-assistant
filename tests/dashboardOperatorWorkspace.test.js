@@ -65,7 +65,13 @@ function createFakeElement(id) {
   };
 }
 
-function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
+function createDashboardHarness({
+  windowFlags = {},
+  fetchImpl,
+  pathname = "/legacy-dashboard-test",
+  search = "",
+  hash = "",
+} = {}) {
   const i18nScript = readFileSync(path.join(repoRoot, "frontend", "i18n", "dashboardI18n.js"), "utf8");
   const settingsShellScript = readFileSync(path.join(repoRoot, "frontend", "settings", "SettingsShell.js"), "utf8");
   const dashboardStateScript = readFileSync(path.join(repoRoot, "frontend", "dashboardState.js"), "utf8");
@@ -106,9 +112,10 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
     document,
     location: {
       origin: "http://127.0.0.1:3000",
-      href: "http://127.0.0.1:3000/dashboard",
-      search: "",
-      pathname: "/dashboard",
+      href: `http://127.0.0.1:3000${pathname}${search}${hash}`,
+      search,
+      hash,
+      pathname,
     },
     history: {
       replaceState() {},
@@ -434,15 +441,15 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
     operatorWorkspace
   );
 
-  assert.match(markup, /Front Desk conversations/);
-  assert.match(markup, /Front Desk leads/);
+  assert.match(markup, /Widget conversations/);
+  assert.match(markup, /Widget leads/);
   assert.match(markup, /Needs reply/);
   assert.match(markup, /AI handled/);
   assert.match(markup, /Recent activity/);
   assert.match(markup, /Can I book a consult\?/);
-  assert.match(markup, /Front Desk readiness/);
+  assert.match(markup, /Website widget readiness/);
   assert.match(markup, /Source activity/);
-  assert.match(markup, /Front Desk analytics will appear after customer conversations are recorded/);
+  assert.match(markup, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
   assert.doesNotMatch(markup, /Jessica Smith|Dylan Lee|Katherine Hall|Michael Miller|Sarah Brown|James Taylor|Lauren Martinez|David Carter/);
 
   const emptyMarkup = harness.buildOverviewPanel(
@@ -452,8 +459,8 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyMarkup, /Front Desk analytics will appear after customer conversations are recorded/);
-  assert.match(emptyMarkup, /Front Desk leads/);
+  assert.match(emptyMarkup, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
+  assert.match(emptyMarkup, /Widget leads/);
   assert.match(emptyMarkup, /Source activity/);
 });
 
@@ -674,7 +681,7 @@ test("dashboard loading screen uses premium workspace preparation UI", () => {
 
   assert.match(html, /dashboard-loading-screen/);
   assert.match(html, /Preparing your workspace/);
-  assert.match(html, /Connecting your assistant, loading your business data, and getting your front desk ready\./);
+  assert.match(html, /Connecting your assistant, loading your business data, and getting your widget ready\./);
   assert.match(html, /Loading business profile/);
   assert.match(html, /Syncing customer conversations/);
   assert.match(html, /Preparing dashboard/);
@@ -684,7 +691,7 @@ test("dashboard loading screen uses premium workspace preparation UI", () => {
   assert.doesNotMatch(html, /approvals/i);
 
   assert.match(script, /Preparing your workspace/);
-  assert.match(script, /Connecting your assistant, loading your business data, and getting your front desk ready\./);
+  assert.match(script, /Connecting your assistant, loading your business data, and getting your widget ready\./);
   assert.match(script, /dashboard-loading-progress/);
   assert.match(script, /dashboard-skeleton-preview/);
   assert.doesNotMatch(script, /\b72%/);
@@ -984,7 +991,7 @@ test("Hungarian loading state stays fully Hungarian", () => {
   const loading = harness.document.getElementById("dashboard-root").innerHTML;
 
   assert.match(loading, /Előkészítjük a munkaterületedet/);
-  assert.match(loading, /Csatlakoztatjuk az asszisztenst, betöltjük az üzleti adatokat, és előkészítjük a front desket\./);
+  assert.match(loading, /Csatlakoztatjuk az asszisztenst, betöltjük az üzleti adatokat, és előkészítjük a widgetet\./);
   assert.match(loading, /Ez általában csak néhány másodperc/);
   assert.match(loading, /Ügyfélbeszélgetések szinkronizálása/);
   assert.doesNotMatch(loading, /Loading your workspace/);
@@ -1640,7 +1647,7 @@ test("home overview AI priorities use business-facing wording and a calm empty s
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyPanel, /Front Desk analytics will appear after customer conversations are recorded/);
+  assert.match(emptyPanel, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
 });
 
 test("dashboard normalizes sparse operator payloads without forcing the legacy shell", async () => {
@@ -1879,9 +1886,9 @@ test("Home command center consolidates setup, priority workflows, and mobile-saf
   assert.doesNotMatch(overview, /data-target-id="knowledge-improvement"/);
   assert.match(overview, /Review replies/);
   assert.match(overview, /View analytics/);
-  assert.match(overview, /Front Desk readiness/);
-  assert.match(overview, /Public Front Desk page/);
-  assert.match(overview, /Distribution channel selected/);
+  assert.match(overview, /Website widget readiness/);
+  assert.match(overview, /Widget appearance configured/);
+  assert.match(overview, /Domain\/install status/);
 
   const sparseOverview = harness.buildOverviewPanel(
     { installId: "install-1", installStatus: { state: "seen_recently", label: "Seen recently" } },
@@ -1891,7 +1898,7 @@ test("Home command center consolidates setup, priority workflows, and mobile-saf
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(sparseOverview, /Front Desk analytics will appear after customer conversations are recorded/);
+  assert.match(sparseOverview, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
   assert.match(sparseOverview, /Today&#39;s priority|Today's priority/);
   assert.doesNotMatch(sparseOverview, /Notifications/);
 
@@ -2296,8 +2303,8 @@ test("today workspace render uses a dominant queue and support rail shell", () =
 
   assert.match(overviewPanel, /Home/);
   assert.match(overviewPanel, /Your AI customer service snapshot for today/);
-  assert.match(overviewPanel, /Front Desk conversations/);
-  assert.match(overviewPanel, /Front Desk leads/);
+  assert.match(overviewPanel, /Widget conversations/);
+  assert.match(overviewPanel, /Widget leads/);
   assert.match(overviewPanel, /Needs reply/);
   assert.match(overviewPanel, /AI handled/);
   assert.doesNotMatch(overviewPanel, /Customers helped today/);
@@ -2311,7 +2318,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.doesNotMatch(overviewPanel, /Vonza needs stronger support context/);
   assert.doesNotMatch(overviewPanel, /Finish the live launch/);
   assert.match(overviewPanel, /Recent activity/);
-  assert.match(overviewPanel, /Front Desk readiness/);
+  assert.match(overviewPanel, /Website widget readiness/);
   assert.match(overviewPanel, /Source activity/);
   assert.match(overviewPanel, /What to improve next/);
   assert.doesNotMatch(overviewPanel, /Today Copilot/);
@@ -3545,8 +3552,8 @@ test("sidebar rail keeps primary and utility navigation without placeholder conn
   );
 
   assert.match(sidebar, /Operate/);
-  assert.match(sidebar, /Front Desk is the primary full-page customer surface/);
-  assert.doesNotMatch(sidebar, /Connected Tools/);
+  assert.match(sidebar, /Website Widget is the five-minute on-site AI agent/);
+  assert.doesNotMatch(sidebar, /data-dashboard-product-nav|Connected Tools/);
   assert.doesNotMatch(sidebar, /\(coming soon\)/);
   assert.doesNotMatch(sidebar, /Email[\s\S]{0,80}Beta/);
   assert.doesNotMatch(sidebar, /Calendar[\s\S]{0,80}Beta/);

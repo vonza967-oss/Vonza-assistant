@@ -277,7 +277,7 @@
         return "Verification needs attention. Vonza either could not fetch the site or could not find the expected install snippet yet.";
       }
 
-      return "No Website Widget install detected yet. The Front Desk page can still launch through the public page, WordPress, smart embed, or QR/direct link.";
+      return "No Website Widget install detected yet. Paste the website URL, import content, choose a template and tone, preview the widget, then install with WordPress or one embed snippet.";
     }
 
     function getInstallStatusTone(installStatus = {}) {
@@ -393,12 +393,70 @@
       `;
     }
 
-    function buildInstallSetupProgress(agent, setup, installStatus, progress, messages = []) {
+    function buildInstallSetupProgress(agent, setup, installStatus, progress, messages = [], options = {}) {
       const hasConversation = Array.isArray(messages)
         && messages.some((message) => trimText(message?.content) && ["user", "assistant"].includes(trimText(message?.role)));
       const fullPageEnabled = isPublicFullPageEnabled(agent);
       const hasDistributionChannel = fullPageEnabled || Boolean(trimText(agent.installId)) || isInstallDetected(installStatus);
-      const items = [
+      const widgetOnly = options.widgetOnly === true;
+      const items = widgetOnly ? [
+        {
+          title: "Widget workspace created",
+          done: Boolean(trimText(agent.id || agent.publicAgentKey)),
+          detail: trimText(agent.assistantName || agent.name) || "Website Widget workspace",
+        },
+        {
+          title: "Website content imported",
+          done: setup.knowledgeReady === true || setup.knowledgeLimited === true,
+          detail: setup.knowledgeReady
+            ? "Imported content is ready for grounded widget answers"
+            : setup.knowledgeLimited
+              ? "Imported content is usable, but another pass could improve answers"
+              : "Paste the website URL and import public content",
+        },
+        {
+          title: "Template and tone chosen",
+          done: Boolean(trimText(agent.tone) && trimText(agent.purpose)),
+          detail: trimText(agent.tone) && trimText(agent.purpose)
+            ? "Tone and widget purpose are saved"
+            : "Choose the starting template, tone, and customer handoff behavior",
+        },
+        {
+          title: "Widget appearance configured",
+          done: Boolean(trimText(agent.buttonLabel || agent.welcomeMessage || agent.widgetLogoUrl)),
+          detail: trimText(agent.buttonLabel || agent.welcomeMessage || agent.widgetLogoUrl)
+            ? "Launcher settings are saved"
+            : "Review launcher text, welcome message, and logo",
+        },
+        {
+          title: "Allowed domains reviewed",
+          done: Array.isArray(installStatus.allowedDomains) && installStatus.allowedDomains.length > 0,
+          detail: Array.isArray(installStatus.allowedDomains) && installStatus.allowedDomains.length > 0
+            ? "Allowed domains are saved"
+            : "Add the real site domains before installing",
+        },
+        {
+          title: "Widget snippet ready",
+          done: Boolean(trimText(agent.installId)),
+          detail: trimText(agent.installId) ? "Embed code is ready to copy" : "Create an assistant before copying code",
+        },
+        {
+          title: "Widget install verified",
+          done: isInstallDetected(installStatus),
+          detail: isInstallDetected(installStatus)
+            ? "Install tracker has detected the widget"
+            : "Verify installation after publishing",
+        },
+        {
+          title: "First test conversation",
+          done: hasConversation || progress.previewOpened === true,
+          detail: hasConversation
+            ? "A conversation exists"
+            : progress.previewOpened
+              ? "Widget preview opened"
+              : "No test conversation yet",
+        },
+      ] : [
         {
           title: "Front Desk created",
           done: Boolean(trimText(agent.id || agent.publicAgentKey)),
@@ -485,6 +543,50 @@
 
       return `
         <ol class="install-stage-flow" aria-label="Install setup stages">
+          ${stages.map((stage) => `
+            <li class="install-stage-item ${escapeHtml(stage.state)}">
+              <span class="install-stage-number">${escapeHtml(stage.number)}</span>
+              <span>
+                <strong>${escapeHtml(stage.title)}</strong>
+                <small>${escapeHtml(stage.copy)}</small>
+              </span>
+            </li>
+          `).join("")}
+        </ol>
+      `;
+    }
+
+    function buildWidgetOnlyInstallStageProgress(installStatus, hasInstall) {
+      const verifyDone = isInstallSeen(installStatus) || installStatus.state === "installed_unseen";
+      const stages = [
+        {
+          number: "1",
+          title: "Paste website URL",
+          state: hasInstall ? "done" : "active",
+          copy: "Start from the public website so content import has real business facts.",
+        },
+        {
+          number: "2",
+          title: "Import and configure",
+          state: hasInstall ? "done" : "pending",
+          copy: "Import content, then choose the widget template, tone, welcome, and handoff basics.",
+        },
+        {
+          number: "3",
+          title: "Preview and install",
+          state: verifyDone ? "done" : hasInstall ? "active" : "pending",
+          copy: "Preview a real question, then use WordPress or the one-line embed snippet.",
+        },
+        {
+          number: "4",
+          title: "Verify live site",
+          state: isInstallSeen(installStatus) ? "done" : "pending",
+          copy: "Confirm the script is detected after publishing and send a realistic visitor question.",
+        },
+      ];
+
+      return `
+        <ol class="install-stage-flow" aria-label="Website Widget install setup stages">
           ${stages.map((stage) => `
             <li class="install-stage-item ${escapeHtml(stage.state)}">
               <span class="install-stage-number">${escapeHtml(stage.number)}</span>
@@ -689,11 +791,81 @@
       `;
     }
 
-    function buildInstallSidePanel(agent, setup, messages = []) {
+    function buildInstallSidePanel(agent, setup, messages = [], options = {}) {
       const installStatus = getDefaultInstallStatus(agent);
       const fullPageEnabled = isPublicFullPageEnabled(agent);
       const qrEndpoint = buildFullPageQrEndpoint(agent);
       const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
+      if (options.widgetOnly === true) {
+        const hasInstall = Boolean(trimText(agent.installId));
+        const widgetStatusRows = [
+          {
+            label: "Installation status",
+            value: installStatus.label || t("common.notInstalled"),
+            tone: getInstallStatusTone(installStatus),
+          },
+          {
+            label: "Allowed domains",
+            value: allowedDomains.length ? `${allowedDomains.length} saved` : "None saved",
+            tone: allowedDomains.length ? "Ready" : "Pending",
+          },
+          {
+            label: "Widget snippet",
+            value: hasInstall ? "Ready to copy" : "Create an assistant first",
+            tone: hasInstall ? "Ready" : "Pending",
+          },
+        ];
+        if (installStatus.lastSeenAt || installStatus.lastSeenUrl) {
+          const lastSeenValue = installStatus.lastSeenAt && installStatus.lastSeenUrl
+            ? `${formatSeenAt(installStatus.lastSeenAt)} on ${installStatus.lastSeenUrl}`
+            : installStatus.lastSeenAt
+              ? formatSeenAt(installStatus.lastSeenAt)
+              : installStatus.lastSeenUrl;
+          widgetStatusRows.splice(1, 0, {
+            label: "Last seen",
+            value: lastSeenValue,
+            tone: "Ready",
+          });
+        }
+
+        return `
+          <aside class="install-side-panel" aria-label="Website Widget install status and resources">
+            <section class="install-side-card install-side-card-status" role="status" aria-live="polite" aria-label="Widget readiness status">
+              <div class="install-side-card-header">
+                <p class="overview-label">Widget readiness</p>
+                <span class="${getBadgeClass(getInstallStatusTone(installStatus))}">${escapeHtml(isInstallSeen(installStatus) ? "Live" : installStatus.state === "installed_unseen" ? "Verified" : "Not live yet")}</span>
+              </div>
+              <p class="install-side-summary">${escapeHtml(getInstallStatusCopy(installStatus))}</p>
+              <div class="install-status-row-list">
+                ${widgetStatusRows.map((row) => `
+                  <div class="install-status-row">
+                    <span>${escapeHtml(row.label)}</span>
+                    <strong>${escapeHtml(row.value)}</strong>
+                  </div>
+                `).join("")}
+              </div>
+            </section>
+            ${buildInstallSetupProgress(agent, setup, installStatus, getInstallProgress(agent.id), messages, { widgetOnly: true })}
+            <section class="install-side-card install-preview-card">
+              <p class="overview-label">Preview</p>
+              <div class="install-preview-mini">
+                <span class="install-preview-avatar">${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>
+                <div>
+                  <strong>${escapeHtml(agent.assistantName || agent.name || "Your assistant")}</strong>
+                  <p>${escapeHtml(agent.welcomeMessage || "Preview the Website Widget before relying on live site traffic.")}</p>
+                </div>
+              </div>
+              <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test widget</a>
+            </section>
+            <section class="install-side-card install-resource-card">
+              <p class="overview-label">Widget shortcuts</p>
+              <button class="ghost-button" type="button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>Copy widget snippet</button>
+              <button class="ghost-button" type="button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>Verify installation</button>
+              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="website_widget">Open widget configuration</button>
+            </section>
+          </aside>
+        `;
+      }
       const statusRows = [
         {
           label: "Installation status",
@@ -778,6 +950,7 @@
       const {
         upcoming = false,
       } = options;
+      const widgetOnly = options.widgetOnly === true;
       const activeInstallMethod = getInstallMethodPanelKey(getDashboardUiStateValue("installMethod"));
       const activeFullPageInstallOption = normalizeInstallFullPageOption(getDashboardUiStateValue("installFullPageOption"));
       const hasInstall = Boolean(trimText(agent.installId));
@@ -809,6 +982,54 @@
       const mismatchMarkup = verifyDetails?.foundInstallIds?.length
         ? `<p class="install-help">Found install id${verifyDetails.foundInstallIds.length === 1 ? "" : "s"}: ${escapeHtml(verifyDetails.foundInstallIds.join(", "))}</p>`
         : "";
+      if (widgetOnly) {
+        return `
+        ${upcoming ? `<p class="install-upcoming">Finish the basic setup, then install the Website Widget on the allowed site.</p>` : ""}
+        ${buildWidgetOnlyInstallStageProgress(installStatus, hasInstall)}
+        <div class="install-options-grid install-options-grid-widget-only">
+          <section class="install-option-card active" id="install-panel-widget" role="tabpanel" data-install-method-panel="widget">
+            <div class="install-option-header">
+              <div>
+                <p class="install-option-eyebrow">Website Widget</p>
+                <h3 class="install-option-title">Website Widget embed</h3>
+                <p class="install-option-copy">Copy the Website Widget snippet for normal website pages, then review allowed domains, install status, launcher appearance, and a live test.</p>
+              </div>
+              <span class="${getBadgeClass(isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending")}">${escapeHtml(isInstallDetected(installStatus) ? "Detected" : hasInstall ? "Snippet ready" : "Setup")}</span>
+            </div>
+            <div class="install-cta-row">
+              <button class="primary-button" type="button" data-action="copy-install" aria-label="Copy Website Widget snippet" ${hasInstall ? "" : "disabled"}>Copy widget snippet</button>
+              <button class="ghost-button" type="button" data-action="verify-install" aria-label="${escapeHtml(t("install.verifyInstallation"))}" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>
+              <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test widget</a>
+            </div>
+            ${buildInstallCopyBlock({
+              id: "install-script-output",
+              label: "Website Widget embed snippet",
+              value: script,
+              rows: 5,
+              buttonAction: "copy-install",
+              buttonLabel: "Copy widget snippet",
+              disabled: !hasInstall,
+              className: "install-code-block",
+            })}
+            <p class="install-help">Paste this once into your site header only when you want the Website Widget launcher.</p>
+            <div class="install-detail-grid">
+              <div class="install-detail-card" role="status" aria-live="polite" aria-label="Detected install status">
+                <span>Allowed domains</span>
+                ${buildInstallDomainChips(allowedDomains)}
+              </div>
+              <div class="install-detail-card">
+                <span>Widget install status</span>
+                <strong>${escapeHtml(installStatus.label || t("common.notInstalled"))}</strong>
+                <p>${escapeHtml(statusCopy)}</p>
+                ${recentSeenMarkup}
+                ${verificationMarkup}
+                ${mismatchMarkup}
+              </div>
+            </div>
+          </section>
+        </div>
+      `;
+      }
       const qrEndpoint = buildFullPageQrEndpoint(agent);
       const methodCards = buildInstallMethodCards({
         qrEndpoint,

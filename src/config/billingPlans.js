@@ -6,17 +6,17 @@ export const BILLING_INTERVAL_MONTH = "month";
 export const DEFAULT_BILLING_PLAN_KEY = "growth";
 export const BILLING_USAGE_COPY = Object.freeze({
   sectionEyebrow: "Simple monthly plans",
-  sectionHeadline: "Choose the monthly capacity for your AI Front Desk.",
+  sectionHeadline: "Choose the monthly plan for your Website Widget.",
   sectionNote:
-    "All plans include the same core Front Desk experience. The difference is how much monthly AI usage is included.",
+    "All plans include the website widget, website import, lead capture, AI disclosure, dashboard, and email handoff. Growth and Pro add capacity and launch help.",
   sharedFeatures: Object.freeze([
-    "AI Front Desk page",
-    "WordPress, smart embed, QR/direct link",
-    "Optional website widget",
-    "Customer dashboard",
+    "Website Widget for one live site",
+    "Website import for grounded answers",
+    "Lead capture and email handoff",
+    "AI disclosure copy",
+    "Owner dashboard",
     "Conversations and summaries",
-    "Training with approved answers",
-    "Analytics and source breakdown",
+    "Approved answers and improvements",
     "Monthly AI usage included",
     "Upgrade anytime",
   ]),
@@ -28,14 +28,15 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     displayName: "Starter",
     monthlyPriceCents: 2000,
     monthlyPriceUsd: 20,
+    monthlyPriceHuf: 19900,
     billingInterval: BILLING_INTERVAL_MONTH,
     includedAiBudgetCents: 1000,
     checkoutLabel: "Start with Starter",
     stripePriceEnvKey: "STRIPE_PRICE_ID_STARTER_MONTHLY",
     marketing: Object.freeze({
-      audience: "For lighter website traffic",
-      summary: "A simple way to publish your AI Front Desk",
-      detail: "Best for launching a lower-volume Front Desk page",
+      audience: "For one live website",
+      summary: "A simple way to launch a website AI agent",
+      detail: "Includes one website, AI widget, website import, lead capture, AI disclosure, dashboard, and email handoff",
       capacityLabel: "Lighter monthly AI capacity",
     }),
   }),
@@ -44,6 +45,7 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     displayName: "Growth",
     monthlyPriceCents: 5000,
     monthlyPriceUsd: 50,
+    monthlyPriceHuf: 49900,
     billingInterval: BILLING_INTERVAL_MONTH,
     includedAiBudgetCents: 3000,
     checkoutLabel: "Start with Growth",
@@ -52,7 +54,7 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     marketing: Object.freeze({
       audience: "For regular customer questions",
       summary: "Best for most growing small businesses",
-      detail: "Best for a live Front Desk with regular customer questions",
+      detail: "Adds higher usage, richer analytics, team handoff, multiple widget templates, and booking links",
       capacityLabel: "Regular monthly AI capacity",
     }),
   }),
@@ -61,6 +63,7 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     displayName: "Pro",
     monthlyPriceCents: 10000,
     monthlyPriceUsd: 100,
+    monthlyPriceHuf: 99900,
     billingInterval: BILLING_INTERVAL_MONTH,
     includedAiBudgetCents: 8000,
     checkoutLabel: "Start with Pro",
@@ -68,7 +71,7 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     marketing: Object.freeze({
       audience: "For busier websites",
       summary: "More room for higher monthly customer volume",
-      detail: "More monthly AI capacity for a busier Front Desk",
+      detail: "Adds multiple users, multi-location logic, API or webhook options, priority support, and white-glove tuning",
       capacityLabel: "Higher monthly AI capacity",
     }),
   }),
@@ -90,6 +93,11 @@ function clonePlan(plan) {
 export function formatUsdPriceFromCents(cents) {
   const dollars = Number(cents || 0) / 100;
   return Number.isInteger(dollars) ? `$${dollars}` : `$${dollars.toFixed(2)}`;
+}
+
+export function formatHufPrice(value) {
+  const amount = Number(value || 0);
+  return `${Number.isFinite(amount) ? amount.toLocaleString("en-US") : "0"} HUF`;
 }
 
 export function normalizeBillingPlanKey(value, fallback = DEFAULT_BILLING_PLAN_KEY) {
@@ -115,7 +123,9 @@ export function listPublicBillingPlans() {
     displayName: plan.displayName,
     monthlyPriceCents: plan.monthlyPriceCents,
     monthlyPriceUsd: plan.monthlyPriceUsd,
-    monthlyPriceLabel: `${formatUsdPriceFromCents(plan.monthlyPriceCents)}/month`,
+    monthlyPriceHuf: plan.monthlyPriceHuf,
+    monthlyPriceLabel: `${formatHufPrice(plan.monthlyPriceHuf)}/month`,
+    billingCurrency: "HUF",
     billingInterval: plan.billingInterval,
     checkoutLabel: plan.checkoutLabel,
     recommended: plan.recommended === true,

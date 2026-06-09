@@ -129,9 +129,11 @@ test("billing plan config exposes starter, growth, and pro with public-friendly 
 
   assert.deepEqual(plans.map((plan) => plan.key), ["starter", "growth", "pro"]);
   assert.equal(DEFAULT_BILLING_PLAN_KEY, "growth");
-  assert.equal(plans[0].monthlyPriceLabel, "$20/month");
-  assert.equal(plans[1].monthlyPriceLabel, "$50/month");
-  assert.equal(plans[2].monthlyPriceLabel, "$100/month");
+  assert.equal(plans[0].monthlyPriceLabel, "19,900 HUF/month");
+  assert.equal(plans[1].monthlyPriceLabel, "49,900 HUF/month");
+  assert.equal(plans[2].monthlyPriceLabel, "99,900 HUF/month");
+  assert.equal(plans[0].billingCurrency, "HUF");
+  assert.match(plans[0].marketing.detail, /AI widget|website import|lead capture|email handoff/i);
   assert.doesNotMatch(JSON.stringify(plans), /token|api[- ]?cost|api[- ]?spend|model cost/i);
 });
 

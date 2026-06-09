@@ -10,16 +10,16 @@ export const ACTIVATION_WIZARD_STEPS = Object.freeze([
 ]);
 
 const STEP_LABELS = Object.freeze({
-  business_basics: "Business Basics",
-  import_knowledge: "Import Knowledge",
-  configure_assistant: "Configure Assistant",
-  install_widget: "Publish Front Desk",
-  test_improve: "Test and Improve",
+  business_basics: "Paste Website URL",
+  import_knowledge: "Import Content",
+  configure_assistant: "Choose Template and Tone",
+  install_widget: "Install Widget",
+  test_improve: "Verify and Improve",
 });
 
 const STEP_NEXT_ACTIONS = Object.freeze({
   business_basics: {
-    label: "Save basics",
+    label: "Save website URL",
     action: "save_business_basics",
     target: "wizard",
   },
@@ -29,17 +29,17 @@ const STEP_NEXT_ACTIONS = Object.freeze({
     target: "knowledge",
   },
   configure_assistant: {
-    label: "Save configuration",
+    label: "Save template and tone",
     action: "save_configuration",
     target: "settings",
   },
   install_widget: {
-    label: "Open install",
+    label: "Open WordPress or embed install",
     action: "open_install",
     target: "install",
   },
   test_improve: {
-    label: "Ask a sample question",
+    label: "Preview widget",
     action: "test_preview",
     target: "preview",
   },
@@ -215,7 +215,7 @@ function deriveCompletedSteps(signals) {
   if (signals.hasAssistantConfig) {
     completed.push("configure_assistant");
   }
-  if (signals.publicFrontDeskPageEnabled || signals.hasLiveInstall) {
+  if (signals.hasDetectedInstall) {
     completed.push("install_widget");
   }
   if (signals.hasPreviewTest) {
@@ -238,8 +238,8 @@ function chooseCurrentStep(completedSteps, preferredStep = "") {
 function buildStepCopy(stepKey, signals, progress) {
   if (stepKey === "business_basics") {
     return signals.hasBusinessBasics
-      ? "Business name and website are saved."
-      : "Save the business name, website URL, and vertical so Vonza knows what it represents.";
+      ? "Business name and website URL are saved."
+      : "Paste the business website URL so Vonza can build the widget from the real site.";
   }
 
   if (stepKey === "import_knowledge") {
@@ -247,31 +247,28 @@ function buildStepCopy(stepKey, signals, progress) {
       return progress.importError || "Website import failed. Retry when the website is reachable.";
     }
     if (signals.knowledgeReady) {
-      return "Website knowledge is imported and ready for customer questions.";
+      return "Website content is imported and ready for grounded widget answers.";
     }
     if (signals.knowledgeImported) {
-      return "Website knowledge was imported with limited detail. You can retry to strengthen it.";
+      return "Website content was imported with limited detail. You can retry to strengthen widget answers.";
     }
     return "Import the public website so answers are grounded in real business detail.";
   }
 
   if (stepKey === "configure_assistant") {
     return signals.hasAssistantConfig
-      ? "Assistant name, tone, purpose, and first customer-facing settings are saved."
-      : "Set the visible name, tone, purpose, and contact or CTA basics.";
+      ? "Template, visible name, tone, and first customer-facing widget settings are saved."
+      : "Choose the template, tone, visible name, welcome text, and contact or CTA basics.";
   }
 
   if (stepKey === "install_widget") {
-    if (signals.publicFrontDeskPageEnabled) {
-      return "Your public Front Desk page is live. Choose any optional distribution channels in Install.";
-    }
     if (signals.hasLiveInstall) {
-      return "You are live. Vonza has received a ping from the optional website bubble.";
+      return "Your Website Widget is live. Vonza has received a ping from the installed site.";
     }
     if (signals.hasDetectedInstall) {
-      return "The optional website bubble snippet was found. Open the live site once so Vonza can confirm a real page-load ping.";
+      return "The Website Widget snippet was found. Open the live site once so Vonza can confirm a real page-load ping.";
     }
-    return "Enable and share the Front Desk page first, then use Install for WordPress, smart embed, QR/direct link, or the optional website bubble.";
+    return "Install through WordPress or copy the one-line embed snippet, then run verification on the live site.";
   }
 
   if (signals.needsImprovement) {
@@ -282,13 +279,13 @@ function buildStepCopy(stepKey, signals, progress) {
     return "A sample conversation exists. Send the owner to Home to watch the first real usage.";
   }
 
-  return "Ask one realistic customer question in preview, then improve knowledge if the answer is weak.";
+  return "Preview the widget with one realistic customer question, then improve knowledge if the answer is weak.";
 }
 
 function buildStepNextAction(stepKey, signals) {
   if (stepKey === "install_widget" && signals.hasLiveInstall) {
     return {
-      label: "Test customer answer",
+      label: "Preview widget",
       action: "go_to_test",
       target: "preview",
     };

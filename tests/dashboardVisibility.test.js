@@ -37,7 +37,7 @@ function createStorageMock() {
 }
 
 function createDashboardHarness({
-  pathname = "/dashboard",
+  pathname = "/legacy-dashboard-test",
   search = "?from=app",
   hash = "",
   session = {
@@ -725,7 +725,7 @@ test("dashboard shows a visible loading state before workspace data resolves", a
   });
 
   assert.match(harness.getRootHtml(), /Preparing your workspace/i);
-  assert.match(harness.getRootHtml(), /Connecting your assistant, loading your business data, and getting your front desk ready\./i);
+  assert.match(harness.getRootHtml(), /Connecting your assistant, loading your business data, and getting your widget ready\./i);
   assert.match(harness.getRootHtml(), /Syncing customer conversations/i);
   assert.match(harness.getRootHtml(), /dashboard-skeleton-preview/i);
   assert.doesNotMatch(harness.getRootHtml(), /\b72%/);
@@ -748,50 +748,42 @@ test("dashboard renders visible shell content when data loads normally", async (
   assert.match(harness.getRootHtml(), /Analytics/);
 });
 
-test("product dashboard routes render product-specific home and sidebar copy", async () => {
-  const cases = [
-    {
-      pathname: "/dashboard/front-desk",
-      title: /Front Desk home/,
-      copy: /full-page AI Front Desk/,
-      action: /Preview\/test assistant/,
-      sidebar: /primary full-page customer surface/,
-    },
-    {
-      pathname: "/dashboard/widget",
-      title: /Website Widget home/,
-      copy: /embedded on-site assistant/,
-      action: /Embed\/install snippet/,
-      sidebar: /embedded on-site assistant/,
-    },
-    {
-      pathname: "/dashboard/voice",
-      title: /Voice Agent home/,
-      copy: /browser\/Web Call voice assistant/,
-      action: /Test voice agent/,
-      sidebar: /browser\/Web Call voice assistant/,
-    },
-  ];
-
-  for (const entry of cases) {
+test("widget dashboard routes render widget-only home and sidebar copy", async () => {
+  for (const pathname of ["/dashboard", "/dashboard/widget", "/website-widget/dashboard", "/widget/dashboard"]) {
     const harness = createDashboardHarness({
-      pathname: entry.pathname,
+      pathname,
       agents: () => [createActiveAgent()],
     });
     await harness.settle();
     const html = harness.getRootHtml();
 
-    assert.match(html, entry.title, entry.pathname);
-    assert.match(html, entry.copy, entry.pathname);
-    assert.match(html, entry.action, entry.pathname);
-    assert.match(html, entry.sidebar, entry.pathname);
+    assert.match(html, /data-website-widget-dashboard="dedicated"/, pathname);
+    assert.match(html, /Website Widget workspace/, pathname);
+    assert.match(html, /Website Widget home/, pathname);
+    assert.match(html, /Website URL, import, install, analytics, and configuration for the Website Widget/, pathname);
+    assert.match(html, /Install Website Widget/, pathname);
+    assert.match(html, /Existing widget configuration/, pathname);
+    assert.match(html, /data-shell-target="overview"/, pathname);
+    assert.match(html, /<span class="shell-nav-label">Overview<\/span>/, pathname);
+    assert.match(html, /data-shell-target="contacts"/, pathname);
+    assert.match(html, /<span class="shell-nav-label">Customers<\/span>/, pathname);
+    assert.match(html, /data-shell-target="analytics"/, pathname);
+    assert.match(html, /<span class="shell-nav-label">Analytics<\/span>/, pathname);
+    assert.match(html, /data-shell-target="install"/, pathname);
+    assert.match(html, /<span class="shell-nav-label">Install<\/span>/, pathname);
+    assert.match(html, /data-shell-target="settings"/, pathname);
+    assert.match(html, /<span class="shell-nav-label">Configuration<\/span>/, pathname);
+    assert.doesNotMatch(html, /data-dashboard-product-nav|data-shell-target="customize"/, pathname);
+    assert.doesNotMatch(html, />\s*(Front Desk|Voice Agent|QDH|ESG|Enterprise Request Desk|Web Call|Hotel Concierge)\s*</i, pathname);
+    assert.doesNotMatch(html, /Front Desk created|Public Front Desk page|Front Desk customized|Distribution channel selected|Front Desk improvements|Current Front Desk greeting/i, pathname);
+    assert.doesNotMatch(html, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"/i, pathname);
     assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
   }
 });
 
-test("widget and voice product homes link to existing setup hashes without unsupported phone claims", async () => {
+test("widget dashboard links to existing widget setup hashes without unsupported product claims", async () => {
   const widgetHarness = createDashboardHarness({
-    pathname: "/dashboard/widget",
+    pathname: "/website-widget/dashboard",
     agents: () => [createActiveAgent()],
   });
   await widgetHarness.settle();
@@ -799,95 +791,45 @@ test("widget and voice product homes link to existing setup hashes without unsup
 
   assert.match(widgetHtml, /href="#install\/embed"/);
   assert.match(widgetHtml, /href="#settings\/widget\/optional-widget"/);
-  assert.match(widgetHtml, /Allowed domains\/status/);
-  assert.match(widgetHtml, /Launcher behavior/);
+  assert.match(widgetHtml, /Allowed domains/);
+  assert.match(widgetHtml, /Launcher/);
   assert.match(widgetHtml, /Test widget/);
-  assert.match(widgetHtml, /Widget conversations\/leads/);
-
-  const voiceHarness = createDashboardHarness({
-    pathname: "/dashboard/voice",
-    agents: () => [createActiveAgent()],
-  });
-  await voiceHarness.settle();
-  const voiceHtml = voiceHarness.getRootHtml();
-  const voiceProductHome = voiceHtml.match(/data-product-context-panel="voice_agent"[\s\S]*?<div class="product-context-shared">/)?.[0] || "";
-
-  assert.match(voiceHtml, /Browser\/Web Call status/);
-  assert.match(voiceProductHome, /Browser voice\/Web Call setup/);
-  assert.match(voiceProductHome, /Voice\/personality settings/);
-  assert.match(voiceProductHome, /Test voice agent/);
-  assert.match(voiceProductHome, /href="#settings\/voice\/voice"/);
-  assert.match(voiceProductHome, /Web Call transcripts\/analytics/);
-  assert.doesNotMatch(voiceProductHome, /telephony|phone|Phone\/web-call/i);
+  assert.match(widgetHtml, /Customers/);
+  assert.doesNotMatch(widgetHtml, />\s*(Front Desk|Voice Agent|Web Call|Hotel Concierge|Enterprise Request Desk)\s*</i);
+  assert.doesNotMatch(widgetHtml, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"|browser voice|telephony/i);
 });
 
-test("product dashboard routes render product-aware analytics links and customer empty states", async () => {
-  const cases = [
-    {
-      pathname: "/dashboard/front-desk",
-      analyticsTitle: /No Front Desk analytics yet\./,
-      analyticsCopy: /full-page Front Desk/,
-      customerTitle: /No Front Desk customer conversations yet\./,
-      customerCopy: /page visitors use the full-page Front Desk/,
-      analyticsLinks: [/href="#install\/full-page"/, /href="#settings\/front-desk\/full-page-assistant"/],
-      customerLinks: [/href="#install\/full-page"/, /href="#front-desk\/practice"/],
-    },
-    {
-      pathname: "/dashboard/widget",
-      analyticsTitle: /No Website Widget analytics yet\./,
-      analyticsCopy: /Install the embed/,
-      customerTitle: /No Website Widget customer conversations yet\./,
-      customerCopy: /website visitors use the embedded assistant/,
-      analyticsLinks: [/href="#install\/embed"/, /href="#settings\/widget\/optional-widget"/],
-      customerLinks: [/href="#install\/embed"/, /href="#settings\/widget\/optional-widget"/],
-    },
-    {
-      pathname: "/dashboard/voice",
-      analyticsTitle: /No Voice Agent analytics yet\./,
-      analyticsCopy: /browser voice and Web Call/,
-      customerTitle: /No Voice Agent conversations yet\./,
-      customerCopy: /Web Call conversations are recorded/,
-      analyticsLinks: [/href="#settings\/voice\/voice"/],
-      customerLinks: [/href="#settings\/voice\/voice"/, /href="#analytics"/],
-      deniedEmptyStateWords: /phone|telephony/i,
-    },
-  ];
-
-  for (const entry of cases) {
+test("widget dashboard routes render widget analytics links and customer empty states", async () => {
+  for (const pathname of ["/dashboard", "/dashboard/widget", "/website-widget/dashboard", "/widget/dashboard"]) {
     const analyticsHarness = createDashboardHarness({
-      pathname: entry.pathname,
+      pathname,
       hash: "#analytics",
       agents: () => [createActiveAgent()],
     });
     await analyticsHarness.settle();
     const analyticsHtml = analyticsHarness.getRootHtml();
 
-    assert.match(analyticsHtml, /data-product-analytics-view=/, `${entry.pathname} analytics product view`);
-    for (const linkPattern of entry.analyticsLinks) {
-      assert.match(analyticsHtml, linkPattern, `${entry.pathname} analytics link ${linkPattern}`);
-    }
+    assert.match(analyticsHtml, /data-product-analytics-view="website_widget"/, `${pathname} analytics product view`);
+    assert.match(analyticsHtml, /No Website Widget analytics yet\.|Website Widget analytics/, pathname);
+    assert.match(analyticsHtml, /href="#install\/embed"/, pathname);
+    assert.match(analyticsHtml, /href="#settings\/widget\/optional-widget"/, pathname);
     assert.doesNotMatch(analyticsHtml, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
+    assert.doesNotMatch(analyticsHtml, />\s*(Front Desk|Voice Agent|Web Call|Enterprise Request Desk|Hotel Concierge)\s*</i);
+    assert.doesNotMatch(analyticsHtml, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"/i);
 
     const customerHarness = createDashboardHarness({
-      pathname: entry.pathname,
+      pathname,
       hash: "#customers",
       agents: () => [createActiveAgent()],
     });
     await customerHarness.settle();
     const customerHtml = customerHarness.getRootHtml();
 
-    assert.match(customerHtml, entry.customerTitle, `${entry.pathname} customer title`);
-    assert.match(customerHtml, entry.customerCopy, `${entry.pathname} customer copy`);
-    for (const linkPattern of entry.customerLinks) {
-      assert.match(customerHtml, linkPattern, `${entry.pathname} customer link ${linkPattern}`);
-    }
-
-    if (entry.deniedEmptyStateWords) {
-      const analyticsEmptyState = analyticsHtml.match(/data-product-analytics-empty-state="voice_agent"[\s\S]{0,900}/)?.[0] || "";
-      const customerEmptyState = customerHtml.match(/No Voice Agent conversations yet\.[\s\S]{0,600}/)?.[0] || "";
-      assert.doesNotMatch(analyticsEmptyState, entry.deniedEmptyStateWords);
-      assert.doesNotMatch(customerEmptyState, entry.deniedEmptyStateWords);
-    }
+    assert.match(customerHtml, /No Website Widget customer conversations yet\.|Website Widget customer conversations|Customers/, `${pathname} customer title`);
+    assert.match(customerHtml, /website visitors use the embedded assistant|existing widget contacts and leads|Widget Lead|Customers/, `${pathname} customer copy`);
+    assert.match(customerHtml, /href="#install\/embed"|href="#settings\/widget\/optional-widget"/, `${pathname} customer link`);
+    assert.doesNotMatch(customerHtml, />\s*(Front Desk|Voice Agent|Web Call|Enterprise Request Desk|Hotel Concierge)\s*</i);
+    assert.doesNotMatch(customerHtml, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"|telephony/i);
   }
 });
 
@@ -1045,9 +987,9 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.match(html, /data-website-widget-dashboard="dedicated"/);
   assert.match(html, /data-dashboard-product="website_widget"/);
   assert.match(html, /Website Widget workspace/);
-  assert.match(html, /Customers, analytics, install, and configuration for the existing widget/);
+  assert.match(html, /Website URL, import, install, analytics, and configuration for the Website Widget/);
   assert.match(html, /Website Widget home/);
-  assert.match(html, /Use the existing install\/embed and Website Widget settings areas/);
+  assert.match(html, /Paste the website URL, import content, choose template and tone, preview the widget/);
   assert.match(html, /Install Website Widget/);
   assert.match(html, /Website Widget embed snippet/);
   assert.match(html, /Copy widget snippet/);
@@ -1072,7 +1014,10 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.match(html, /data-shell-target="install"[\s\S]{0,260}aria-current="page"/);
   assert.doesNotMatch(html, /Widget Conversations|Widget source leads|Widget Analytics/);
   assert.doesNotMatch(html, /Page-only question/);
-  assert.doesNotMatch(html, /Voice Agent|\bQDH\b|ESG|Enterprise Request Desk|Web Call|Connected Tools|generic engine/i);
+  const shellLabels = Array.from(html.matchAll(/<span class="shell-nav-label">([^<]+)<\/span>/g), (match) => match[1]);
+  assert.deepEqual(Array.from(new Set(shellLabels)), ["Overview", "Customers", "Analytics", "Install", "Configuration"]);
+  assert.doesNotMatch(shellLabels.join(" "), /Front Desk|Voice Agent|QDH|ESG|Enterprise Request Desk|Web Call|Hotel Concierge|Connected Tools/i);
+  assert.doesNotMatch(html, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"|generic engine/i);
   assert.doesNotMatch(html, /data-dashboard-product-nav/);
   assert.doesNotMatch(html, /data-shell-target="customize"|data-shell-target="inbox"|data-shell-target="calendar"|data-shell-target="automations"/);
 });
@@ -1427,13 +1372,13 @@ test("dashboard Home renders the real-data V2 snapshot without command-center pl
   const html = harness.getRootHtml();
 
   assert.match(html, /Review replies/);
-  assert.match(html, /Front Desk analytics/);
-  assert.match(html, /Front Desk conversations/);
-  assert.match(html, /Front Desk leads/);
+  assert.match(html, /Website Widget analytics/);
+  assert.match(html, /Widget conversations/);
+  assert.match(html, /Widget leads/);
   assert.match(html, /Needs reply/);
   assert.match(html, /AI handled/);
   assert.match(html, /Today.?s priority/);
-  assert.match(html, /Front Desk analytics will appear after customer conversations are recorded/);
+  assert.match(html, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
   assert.doesNotMatch(html, /data-target-id="knowledge-improvement"/);
   assert.doesNotMatch(html, /data-target-id="notifications"/);
 });
@@ -1974,7 +1919,7 @@ test("dedicated Website Widget dashboard uses the same signed-out auth gate as d
 
   assert.match(dashboardHarness.getRootHtml(), /Create your Vonza account|Sign in to continue into Vonza/);
   assert.match(widgetHarness.getRootHtml(), /Create your Vonza account|Sign in to continue into Vonza/);
-  assert.equal(dashboardHarness.getGlobal("document").title, "Vonza | Home");
+  assert.equal(dashboardHarness.getGlobal("document").title, "Vonza | Website Widget");
   assert.equal(widgetHarness.getGlobal("document").title, "Vonza | Website Widget");
   assert.equal(
     widgetHarness.fetchCalls.some((call) => call.pathname === "/agents/list"),

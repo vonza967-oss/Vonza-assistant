@@ -44,6 +44,8 @@
     },
   ];
   const SETTINGS_SECTIONS = Object.freeze(SETTINGS_SECTION_DETAILS.map((section) => section.key));
+  const WIDGET_ONLY_SETTINGS_SECTION_DETAILS = Object.freeze(SETTINGS_SECTION_DETAILS.filter((section) => section.key === "website_widget"));
+  const WIDGET_ONLY_SETTINGS_SECTIONS = Object.freeze(WIDGET_ONLY_SETTINGS_SECTION_DETAILS.map((section) => section.key));
   const FRONT_DESK_SETTINGS_TABS = Object.freeze(["identity", "voice", "full_page", "routing", "appearance"]);
   const FRONT_DESK_SETTINGS_TAB_HASH_SEGMENTS = Object.freeze({
     identity: "identity-welcome",
@@ -180,6 +182,19 @@
     privacy_controls: "privacy_legal",
     "privacy-legal": "privacy_legal",
   });
+
+  function isWidgetOnlySettingsMode() {
+    return global.VONZA_WIDGET_ONLY_DASHBOARD === true
+      || global.document?.documentElement?.dataset?.dashboardWidgetOnly === "true";
+  }
+
+  function getVisibleSettingsSectionDetails() {
+    return isWidgetOnlySettingsMode() ? WIDGET_ONLY_SETTINGS_SECTION_DETAILS : SETTINGS_SECTION_DETAILS;
+  }
+
+  function getVisibleSettingsSections() {
+    return isWidgetOnlySettingsMode() ? WIDGET_ONLY_SETTINGS_SECTIONS : SETTINGS_SECTIONS;
+  }
   const DEFAULT_TRANSLATIONS = Object.freeze({
     "language.settingsTitle": "Dashboard language",
     "language.settingsCopy": "Choose the language used by the logged-in dashboard.",
@@ -1014,7 +1029,7 @@
       {
         key: "website_widget",
         name: "Website Widget",
-        targetUseCase: "Embedded website snippet and launcher for visitors who need quick answers without leaving a page.",
+        targetUseCase: "Five-minute website AI agent for visitors who need quick answers without leaving a page.",
         setupLabel: "Open widget setup",
         setupHref: "/dashboard/widget",
         pricingLabel: "Product pricing coming soon",
@@ -1457,21 +1472,26 @@
   function normalizeSettingsSection(sectionKey) {
     const dashboardState = getDashboardStateHelpers();
     if (typeof dashboardState.normalizeSettingsMainTab === "function") {
-      return dashboardState.normalizeSettingsMainTab(sectionKey);
+      const normalizedFromDashboard = dashboardState.normalizeSettingsMainTab(sectionKey);
+      return isWidgetOnlySettingsMode() && normalizedFromDashboard !== "website_widget"
+        ? "website_widget"
+        : normalizedFromDashboard;
     }
 
     const normalized = defaultTrimText(sectionKey).toLowerCase();
     const normalizedAlias = normalized.replace(/-/g, "_");
+    const visibleSections = getVisibleSettingsSections();
 
-    if (SETTINGS_SECTIONS.includes(normalized)) {
+    if (visibleSections.includes(normalized)) {
       return normalized;
     }
 
-    if (SETTINGS_SECTIONS.includes(normalizedAlias)) {
+    if (visibleSections.includes(normalizedAlias)) {
       return normalizedAlias;
     }
 
-    return SETTINGS_SECTION_ALIASES[normalized] || SETTINGS_SECTION_ALIASES[normalizedAlias] || SETTINGS_SECTIONS[0];
+    const alias = SETTINGS_SECTION_ALIASES[normalized] || SETTINGS_SECTION_ALIASES[normalizedAlias];
+    return visibleSections.includes(alias) ? alias : visibleSections[0];
   }
 
   function getSettingsSectionFromHash() {
@@ -1683,7 +1703,8 @@
   }
 
   function getSectionByKey(sectionKey) {
-    return SETTINGS_SECTION_DETAILS.find((section) => section.key === normalizeSettingsSection(sectionKey)) || SETTINGS_SECTION_DETAILS[0];
+    const visibleDetails = getVisibleSettingsSectionDetails();
+    return visibleDetails.find((section) => section.key === normalizeSettingsSection(sectionKey)) || visibleDetails[0];
   }
 
   function getKnowledgeImportSettingsState(setup = {}) {
@@ -1725,8 +1746,9 @@
     const hashSection = getSettingsSectionFromHash();
     const storedSection = normalizeSettingsSection(global.localStorage?.getItem(SETTINGS_STORAGE_KEY));
     const section = hashSection || storedSection;
+    const visibleSections = getVisibleSettingsSections();
 
-    return SETTINGS_SECTIONS.includes(section) ? section : SETTINGS_SECTIONS[0];
+    return visibleSections.includes(section) ? section : visibleSections[0];
   }
 
   function setActiveSettingsSection(section) {
@@ -2117,7 +2139,7 @@
     return `
       <div class="settings-shell-nav-group settings-shell-top-nav-group" data-settings-nav="desktop">
         <div class="settings-shell-nav">
-          ${SETTINGS_SECTION_DETAILS.map((section) => `
+          ${getVisibleSettingsSectionDetails().map((section) => `
             <button
               class="settings-shell-nav-button ${activeSettingsSection === section.key ? "active" : ""}"
               type="button"
@@ -2145,7 +2167,7 @@
           data-settings-target="select"
           aria-label="Settings section"
         >
-          ${SETTINGS_SECTION_DETAILS.map((section) => `
+          ${getVisibleSettingsSectionDetails().map((section) => `
             <option value="${escapeHtml(section.key)}" ${activeSettingsSection === section.key ? "selected" : ""}>${escapeHtml(translateDashboardText(section.label))}</option>
           `).join("")}
         </select>
@@ -4803,6 +4825,217 @@
     `;
   }
 
+  function buildWidgetOnlySettingsForm(agent, helpers) {
+    const selectedPurpose = defaultTrimText(agent.widgetPurpose || agent.widget_purpose || "support") || "support";
+    const selectedPurposeOption = WIDGET_PURPOSE_OPTIONS.find((option) => option.value === selectedPurpose) || WIDGET_PURPOSE_OPTIONS[1] || WIDGET_PURPOSE_OPTIONS[0];
+    const primaryColor = normalizeFullPageColor(agent.primaryColor || agent.primary_color || "#14b8a6", "#14b8a6");
+    const allowedDomains = Array.isArray(agent.allowedDomains) ? agent.allowedDomains : [];
+    const installStatus = agent.installStatus || {};
+    const installDetected = ["installed_unseen", "seen_recently", "seen_stale"].includes(defaultTrimText(installStatus.state));
+    const routingDestinationCount = [
+      agent.contactEmail,
+      agent.contactPhone,
+      agent.bookingUrl,
+      agent.quoteUrl,
+      agent.checkoutUrl,
+    ].filter((value) => defaultTrimText(value)).length;
+
+    return `
+      <form data-settings-form data-form-kind="customize" data-settings-section="website_widget" class="settings-shell-form settings-shell-form--system settings-frontdesk-form settings-frontdesk-form--website_widget" id="settings-section-website_widget">
+        <header class="settings-shell-page-header">
+          <div class="settings-shell-page-title-group">
+            <p class="studio-kicker">Website Widget</p>
+            <h2 class="settings-shell-page-title">Website Widget</h2>
+            <p class="settings-shell-page-copy">Configure the existing embedded widget launcher, answer posture, routing destinations, and allowed domains.</p>
+          </div>
+          <div class="settings-shell-page-meta">
+            <span class="badge success">${defaultEscapeHtml(selectedPurposeOption.label)}</span>
+            <span class="${helpers.getBadgeClass(installDetected ? "Ready" : "Pending")}">${defaultEscapeHtml(installDetected ? "Install detected" : "Install not detected")}</span>
+            <span class="badge success">${defaultEscapeHtml(agent.tone || "friendly")}</span>
+          </div>
+        </header>
+
+        <section class="settings-operational-summary" aria-label="Website Widget settings summary">
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Launcher</span>
+              <span class="${helpers.getBadgeClass(defaultTrimText(agent.buttonLabel || agent.welcomeMessage) ? "Ready" : "Pending")}">${defaultEscapeHtml(defaultTrimText(agent.buttonLabel || agent.welcomeMessage) ? "Configured" : "Review")}</span>
+            </div>
+            <p>${defaultEscapeHtml(defaultTrimText(agent.buttonLabel || agent.welcomeMessage) ? "Launcher copy or welcome text is saved." : "Review the launcher text and welcome message before installing.")}</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Allowed domains</span>
+              <span class="${helpers.getBadgeClass(allowedDomains.length ? "Ready" : "Pending")}">${defaultEscapeHtml(allowedDomains.length ? `${allowedDomains.length} saved` : "None saved")}</span>
+            </div>
+            <p>${defaultEscapeHtml(allowedDomains.length ? "The widget is scoped to saved domains." : "Add the real website domains that should load the widget.")}</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Routing</span>
+              <span class="${helpers.getBadgeClass(routingDestinationCount ? "Ready" : "Pending")}">${defaultEscapeHtml(routingDestinationCount ? `${routingDestinationCount} destination${routingDestinationCount === 1 ? "" : "s"}` : "No destinations")}</span>
+            </div>
+            <p>${defaultEscapeHtml(routingDestinationCount ? "Widget handoff destinations are available." : "Add at least one contact or next-step destination.")}</p>
+          </article>
+        </section>
+
+        <div class="settings-frontdesk-layout">
+          <div class="settings-frontdesk-editor">
+            <section class="settings-shell-section">
+              <div class="settings-shell-section-header">
+                <div>
+                  <h3 class="settings-shell-section-title">Widget purpose</h3>
+                  <p class="settings-shell-section-copy">Set the main job for the embedded assistant on normal website pages.</p>
+                </div>
+              </div>
+              <div class="settings-shell-choice-list">
+                ${WIDGET_PURPOSE_OPTIONS.map((option) => `
+                  <label class="settings-shell-choice-row" for="widget-purpose-${defaultEscapeHtml(option.value)}">
+                    <div class="settings-shell-choice-main">
+                      <p class="settings-shell-choice-title">${defaultEscapeHtml(option.label)}</p>
+                      <p class="settings-shell-key-value-copy">${defaultEscapeHtml(option.description)}</p>
+                    </div>
+                    <input id="widget-purpose-${defaultEscapeHtml(option.value)}" name="widget_purpose" type="radio" value="${defaultEscapeHtml(option.value)}" ${selectedPurpose === option.value ? "checked" : ""}>
+                  </label>
+                `).join("")}
+              </div>
+            </section>
+
+            <section class="settings-shell-section">
+              <div class="settings-shell-section-header">
+                <div>
+                  <h3 class="settings-shell-section-title">Launcher and welcome</h3>
+                  <p class="settings-shell-section-copy">Keep the launcher compact and recognizable on the customer website.</p>
+                </div>
+              </div>
+              <div class="settings-shell-field-stack">
+                <div class="field">
+                  <label for="assistant-name">Assistant name</label>
+                  <input id="assistant-name" name="assistant_name" type="text" value="${defaultEscapeHtml(agent.assistantName || agent.name || "")}">
+                </div>
+                <div class="field">
+                  <label for="assistant-tone">Conversation tone</label>
+                  <select id="assistant-tone" name="tone">
+                    <option value="friendly" ${agent.tone === "friendly" ? "selected" : ""}>friendly</option>
+                    <option value="professional" ${agent.tone === "professional" ? "selected" : ""}>professional</option>
+                    <option value="sales" ${agent.tone === "sales" ? "selected" : ""}>sales</option>
+                    <option value="support" ${agent.tone === "support" ? "selected" : ""}>support</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="assistant-button-label">Launcher text</label>
+                  <input id="assistant-button-label" name="button_label" type="text" value="${defaultEscapeHtml(agent.buttonLabel || "")}">
+                </div>
+                <div class="field">
+                  <label for="settings-primary-color">Accent color</label>
+                  <input id="settings-primary-color" name="primary_color" type="color" value="${defaultEscapeHtml(primaryColor)}">
+                </div>
+                <div class="field settings-field-wide">
+                  <label for="assistant-welcome">Welcome message</label>
+                  <textarea id="assistant-welcome" name="welcome_message">${defaultEscapeHtml(agent.welcomeMessage || "")}</textarea>
+                </div>
+                <div class="field settings-field-wide">
+                  <label for="assistant-widget-logo">Widget logo</label>
+                  <div class="settings-shell-logo-upload">
+                    <div class="settings-shell-logo-preview" aria-hidden="true">
+                      ${agent.widgetLogoUrl ? `<img src="${defaultEscapeHtml(agent.widgetLogoUrl)}" alt="">` : `<span>${defaultEscapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>`}
+                    </div>
+                    <div>
+                      <input id="assistant-widget-logo" name="widget_logo_file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+                      <p class="field-help">Use a small square PNG, JPG, WebP, or GIF.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-shell-section">
+              <div class="settings-shell-section-header">
+                <div>
+                  <h3 class="settings-shell-section-title">Routing and domains</h3>
+                  <p class="settings-shell-section-copy">Set safe handoff destinations and the domains allowed to host the widget.</p>
+                </div>
+              </div>
+              <div class="settings-shell-field-stack">
+                <div class="field">
+                  <label for="assistant-primary-cta-mode">Primary CTA mode</label>
+                  <select id="assistant-primary-cta-mode" name="primary_cta_mode">
+                    <option value="contact" ${defaultTrimText(agent.primaryCtaMode || "contact") === "contact" ? "selected" : ""}>contact</option>
+                    <option value="booking" ${defaultTrimText(agent.primaryCtaMode) === "booking" ? "selected" : ""}>booking</option>
+                    <option value="quote" ${defaultTrimText(agent.primaryCtaMode) === "quote" ? "selected" : ""}>quote</option>
+                    <option value="checkout" ${defaultTrimText(agent.primaryCtaMode) === "checkout" ? "selected" : ""}>checkout</option>
+                    <option value="capture" ${defaultTrimText(agent.primaryCtaMode) === "capture" ? "selected" : ""}>capture</option>
+                    <option value="chat" ${defaultTrimText(agent.primaryCtaMode) === "chat" ? "selected" : ""}>chat</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="assistant-contact-email">Contact email</label>
+                  <input id="assistant-contact-email" name="contact_email" type="email" value="${defaultEscapeHtml(agent.contactEmail || "")}" placeholder="team@example.com">
+                </div>
+                <div class="field">
+                  <label for="assistant-contact-phone">Contact phone</label>
+                  <input id="assistant-contact-phone" name="contact_phone" type="tel" value="${defaultEscapeHtml(agent.contactPhone || "")}" placeholder="+1 555 555 5555">
+                </div>
+                <div class="field">
+                  <label for="assistant-allowed-domains">Allowed domains</label>
+                  <textarea id="assistant-allowed-domains" name="allowed_domains" placeholder="example.com&#10;www.example.com">${defaultEscapeHtml(allowedDomains.join("\n"))}</textarea>
+                  <p class="field-help">One domain per line. Keep this limited to real widget hosts.</p>
+                </div>
+                <div class="field">
+                  <label for="assistant-booking-url">Booking URL</label>
+                  <input id="assistant-booking-url" name="booking_url" type="text" value="${defaultEscapeHtml(agent.bookingUrl || "")}" placeholder="https://example.com/book">
+                </div>
+                <div class="field">
+                  <label for="assistant-quote-url">Quote URL</label>
+                  <input id="assistant-quote-url" name="quote_url" type="text" value="${defaultEscapeHtml(agent.quoteUrl || "")}" placeholder="https://example.com/quote">
+                </div>
+                <div class="field">
+                  <label for="assistant-checkout-url">Checkout URL</label>
+                  <input id="assistant-checkout-url" name="checkout_url" type="text" value="${defaultEscapeHtml(agent.checkoutUrl || "")}" placeholder="https://example.com/checkout">
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-shell-section">
+              <div class="settings-shell-section-header">
+                <div>
+                  <h3 class="settings-shell-section-title">Advanced guidance</h3>
+                  <p class="settings-shell-section-copy">Optional guidance for emphasis, tone, and edge cases.</p>
+                </div>
+              </div>
+              <div class="settings-shell-field-stack">
+                <div class="field">
+                  <label for="assistant-instructions">Advanced guidance</label>
+                  <textarea id="assistant-instructions" name="system_prompt">${defaultEscapeHtml(agent.systemPrompt || "")}</textarea>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="settings-frontdesk-preview" aria-label="Website Widget live readout" data-frontdesk-settings-preview>
+            <section class="settings-shell-section">
+              <div class="settings-shell-section-header">
+                <div>
+                  <h3 class="settings-shell-section-title">Current live readout</h3>
+                  <p class="settings-shell-section-copy">Review how the embedded assistant will appear.</p>
+                </div>
+              </div>
+              <div class="settings-shell-live-summary">
+                <h3 id="studio-summary-name" class="studio-summary-name">${defaultEscapeHtml(agent.assistantName || agent.name || "")}</h3>
+                <p id="studio-summary-copy" class="studio-summary-copy">${defaultEscapeHtml(agent.welcomeMessage || "The widget is ready to greet visitors with a clear, helpful first message.")}</p>
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        <div class="settings-shell-form-actions">
+          <button class="primary-button" type="submit">Save Website Widget</button>
+          <span class="settings-shell-save-state" data-settings-save-state>No changes yet.</span>
+        </div>
+      </form>
+    `;
+  }
+
   function buildActiveSettingsSection(sectionKey, options, helpers) {
     const agent = options.agent || {};
     const setup = options.setup || {};
@@ -4814,6 +5047,9 @@
       case "front_desk":
       case "website_widget":
       case "voice_agent":
+        if (isWidgetOnlySettingsMode()) {
+          return buildWidgetOnlySettingsForm(agent, helpers);
+        }
         return buildFrontDeskSettingsForm(agent, setup, helpers, { sectionKey: activeSettingsSection });
       case "business_profile":
         return buildBusinessContextSetupPanel(agent, setup, operatorWorkspace, helpers);
@@ -4845,12 +5081,15 @@
 
   function buildSettingsPanel(options = {}) {
     const helpers = getHelpers(options);
+    const widgetOnly = isWidgetOnlySettingsMode();
 
     const html = `
       <section class="workspace-page settings-shell-root" data-shell-section="settings" hidden>
         ${helpers.buildPageHeader({
-          title: helpers.t("settings.title"),
-          copy: helpers.t("settings.copy"),
+          title: widgetOnly ? "Configuration" : helpers.t("settings.title"),
+          copy: widgetOnly
+            ? "Manage the Website Widget launcher, routing destinations, allowed domains, and answer posture."
+            : helpers.t("settings.copy"),
         })}
         <div class="workspace-page-body settings-shell-layout">
           ${buildSettingsOverviewPanel(options, helpers)}
@@ -4963,7 +5202,7 @@
     settingsTargets.forEach((target) => {
       if (target.tagName === "SELECT") {
         target.addEventListener("change", () => {
-          showSettingsSection(normalizeSettingsSection(target.value || SETTINGS_SECTIONS[0]));
+          showSettingsSection(normalizeSettingsSection(target.value || getVisibleSettingsSections()[0]));
           const settingsPanel = root.querySelector?.('[data-shell-section="settings"]');
           settingsPanel?.scrollIntoView?.({ behavior: "smooth", block: "start" });
         });
@@ -4971,7 +5210,7 @@
       }
 
       target.addEventListener("click", () => {
-        showSettingsSection(normalizeSettingsSection(target.dataset.settingsTarget || SETTINGS_SECTIONS[0]));
+        showSettingsSection(normalizeSettingsSection(target.dataset.settingsTarget || getVisibleSettingsSections()[0]));
         const settingsPanel = root.querySelector?.('[data-shell-section="settings"]');
         settingsPanel?.scrollIntoView?.({ behavior: "smooth", block: "start" });
       });

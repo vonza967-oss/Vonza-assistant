@@ -53,8 +53,8 @@ function renderAccountBillingSettings({
       document,
       location: {
         hash: "",
-        href: "http://127.0.0.1:3000/dashboard#settings/account-billing",
-        pathname: "/dashboard",
+        href: "http://127.0.0.1:3000/legacy-dashboard-test#settings/account-billing",
+        pathname: "/legacy-dashboard-test",
       },
       localStorage: {
         getItem(key) {
@@ -93,47 +93,54 @@ function renderAccountBillingSettings({
 test("dashboard product context resolves exact dashboard entry paths", () => {
   const { state } = loadDashboardState();
 
-  assert.equal(state.getDashboardProductContext("/dashboard").key, "front_desk");
-  assert.equal(state.getDashboardProductContext("/dashboard/front-desk").key, "front_desk");
-  assert.equal(state.getDashboardProductContext("/dashboard/widget").key, "website_widget");
-  assert.equal(state.getDashboardProductContext("/dashboard/voice").key, "voice_agent");
-  assert.equal(state.getDashboardProductContext("/website-widget/dashboard").key, "website_widget");
-  assert.equal(state.getDashboardProductContext("/widget/dashboard").key, "website_widget");
-  assert.equal(state.getDashboardProductContext("/website-widget/dashboard").isDedicatedProductDashboard, true);
-  assert.equal(state.getDashboardProductContext("/widget/dashboard").canonicalPath, "/website-widget/dashboard");
+  for (const pathname of ["/dashboard", "/dashboard/widget", "/website-widget/dashboard", "/widget/dashboard"]) {
+    const context = state.getDashboardProductContext(pathname);
+    assert.equal(context.key, "website_widget", pathname);
+    assert.equal(context.canonicalPath, "/website-widget/dashboard", pathname);
+    assert.equal(context.isKnownProductPath, true, pathname);
+    assert.equal(context.isDedicatedProductDashboard, true, pathname);
+  }
+
+  assert.equal(state.getDashboardProductContext("/dashboard").isDefaultDashboardPath, true);
+  assert.equal(state.getDashboardProductContext("/dashboard/front-desk").key, "website_widget");
+  assert.equal(state.getDashboardProductContext("/dashboard/front-desk").isKnownProductPath, false);
+  assert.equal(state.getDashboardProductContext("/dashboard/voice").key, "website_widget");
+  assert.equal(state.getDashboardProductContext("/dashboard/voice").isKnownProductPath, false);
 });
 
 test("dashboard analytics API path is not treated as a product route", () => {
   const { state } = loadDashboardState();
   const context = state.getDashboardProductContext("/dashboard/analytics");
 
-  assert.equal(context.key, "front_desk");
+  assert.equal(context.key, "website_widget");
   assert.equal(context.routeSegment, "analytics");
   assert.equal(context.isKnownProductPath, false);
+  assert.equal(context.isDedicatedProductDashboard, false);
 });
 
 test("dashboard product links resolve to exact aliases", () => {
   const { state } = loadDashboardState();
 
-  assert.equal(state.getDashboardProductRoutePath("front_desk"), "/dashboard/front-desk");
-  assert.equal(state.getDashboardProductRoutePath("widget"), "/dashboard/widget");
-  assert.equal(state.getDashboardProductRoutePath("voice"), "/dashboard/voice");
+  assert.equal(state.getDashboardProductRoutePath("front_desk"), "/website-widget/dashboard");
+  assert.equal(state.getDashboardProductRoutePath("widget"), "/website-widget/dashboard");
+  assert.equal(state.getDashboardProductRoutePath("voice"), "/website-widget/dashboard");
+  assert.equal(state.getDashboardProductRoutePath("website_widget"), "/website-widget/dashboard");
 
   const links = state.getDashboardProductNavItems("/dashboard/widget").map((item) => item.routePath);
-  assert.deepEqual(links, ["/dashboard/front-desk", "/dashboard/widget", "/dashboard/voice"]);
+  assert.deepEqual(links, ["/website-widget/dashboard"]);
 });
 
-test("product packaging metadata exists for all commercial product keys", () => {
+test("product packaging metadata exposes Website Widget only", () => {
   const { state } = loadDashboardState();
   const products = state.listDashboardProductPackaging();
 
-  assert.deepEqual(products.map((product) => product.key), ["front_desk", "website_widget", "voice_agent"]);
-  assert.deepEqual(products.map((product) => product.name), ["Front Desk", "Website Widget", "Voice Agent"]);
-  assert.deepEqual(products.map((product) => product.setupHref), ["/dashboard/front-desk#setup", "/dashboard/widget#setup", "/dashboard/voice#setup"]);
-  assert.deepEqual(products.map((product) => product.setupLabel), ["Open Front Desk setup", "Open widget setup", "Open Web Call setup"]);
-  assert.match(products.find((product) => product.key === "front_desk").targetUseCase, /full-page AI Front Desk/);
-  assert.match(products.find((product) => product.key === "website_widget").targetUseCase, /Embedded website snippet and launcher/);
-  assert.match(products.find((product) => product.key === "voice_agent").targetUseCase, /Browser voice, spoken replies, and Web Call/);
+  assert.deepEqual(products.map((product) => product.key), ["website_widget"]);
+  assert.deepEqual(products.map((product) => product.name), ["Website Widget"]);
+  assert.deepEqual(products.map((product) => product.setupHref), ["/dashboard/widget#setup"]);
+  assert.deepEqual(products.map((product) => product.setupLabel), ["Open widget setup"]);
+  assert.match(products.find((product) => product.key === "website_widget").targetUseCase, /Five-minute website AI agent/);
+  assert.equal(state.getDashboardProductPackaging("front_desk").key, "website_widget");
+  assert.equal(state.getDashboardProductPackaging("voice_agent").key, "website_widget");
   products.forEach((product) => {
     assert.equal(product.pricingLabel, "Product pricing coming soon");
     assert.equal(product.availabilitySource, "account_access");
@@ -141,13 +148,13 @@ test("product packaging metadata exists for all commercial product keys", () => 
   });
 });
 
-test("product home context exists for all dashboard product keys", () => {
+test("product home context exposes Website Widget only", () => {
   const { state } = loadDashboardState();
   const contexts = ["front_desk", "website_widget", "voice_agent"].map((key) =>
     state.getDashboardProductHomeContext(key)
   );
 
-  assert.deepEqual(contexts.map((context) => context.key), ["front_desk", "website_widget", "voice_agent"]);
+  assert.deepEqual(contexts.map((context) => context.key), ["website_widget", "website_widget", "website_widget"]);
   contexts.forEach((context) => {
     assert.ok(context.homeTitle.length > 8);
     assert.ok(context.homeSubtitle.length > 20);
@@ -161,23 +168,23 @@ test("product home context exists for all dashboard product keys", () => {
   });
 });
 
-test("product setup context exists for distinct setup experiences", () => {
+test("product setup context exposes Website Widget for every product alias", () => {
   const { state } = loadDashboardState();
   const frontDesk = state.getDashboardProductSetupContext("front_desk");
   const widget = state.getDashboardProductSetupContext("website_widget");
   const voice = state.getDashboardProductSetupContext("voice_agent");
   const voiceCopy = JSON.stringify(voice);
 
-  assert.equal(frontDesk.title, "Set up Front Desk");
+  assert.equal(frontDesk.title, "Set up Website Widget");
   assert.equal(widget.title, "Set up Website Widget");
-  assert.equal(voice.title, "Set up Voice Agent");
-  assert.match(JSON.stringify(frontDesk), /Business identity|Knowledge\/training|QR\/direct link|Preview\/test assistant/);
-  assert.match(JSON.stringify(widget), /Widget appearance|Allowed domains|Embed\/install snippet|Install verification|Test widget|Widget analytics\/conversations/);
-  assert.match(voiceCopy, /Browser voice\/Web Call readiness|Voice\/personality settings|Spoken replies|Routing\/contact handoff|Test Web Call|Web Call analytics\/transcripts/);
-  assert.doesNotMatch(voiceCopy, /telephony|phone/i);
+  assert.equal(voice.title, "Set up Website Widget");
+  assert.match(JSON.stringify(frontDesk), /Template and tone|Allowed domains|WordPress or embed snippet|Install verification|Test widget|Widget analytics\/conversations/);
+  assert.match(JSON.stringify(widget), /Template and tone|Allowed domains|WordPress or embed snippet|Install verification|Test widget|Widget analytics\/conversations/);
+  assert.match(voiceCopy, /Template and tone|Allowed domains|WordPress or embed snippet|Install verification|Test widget|Widget analytics\/conversations/);
+  assert.doesNotMatch(voiceCopy, /telephony|phone|Web Call|Voice Agent/i);
 });
 
-test("product home context points widget and voice at safe existing surfaces", () => {
+test("product home context points every product alias at safe widget surfaces", () => {
   const { state } = loadDashboardState();
   const frontDesk = state.getDashboardProductHomeContext("front_desk");
   const widget = state.getDashboardProductHomeContext("widget");
@@ -186,14 +193,8 @@ test("product home context points widget and voice at safe existing surfaces", (
   const widgetLinks = JSON.stringify(widget);
   const voiceCopy = JSON.stringify(voice);
 
-  assert.match(frontDeskLinks, /Publish\/open full-page/);
-  assert.match(frontDeskLinks, /QR\/direct link/);
-  assert.match(frontDeskLinks, /#install\/full-page/);
-  assert.match(frontDeskLinks, /#settings\/front-desk\/full-page-assistant/);
-  assert.match(frontDeskLinks, /Business identity/);
-  assert.match(frontDeskLinks, /Knowledge\/training/);
-  assert.match(frontDeskLinks, /Routing\/contact capture/);
-  assert.match(frontDeskLinks, /Preview\/test assistant/);
+  assert.match(frontDeskLinks, /#install\/embed/);
+  assert.match(frontDeskLinks, /#settings\/widget\/optional-widget/);
   assert.match(widgetLinks, /#install\/embed/);
   assert.match(widgetLinks, /#settings\/widget\/optional-widget/);
   assert.match(widgetLinks, /Embed\/install snippet/);
@@ -201,12 +202,9 @@ test("product home context points widget and voice at safe existing surfaces", (
   assert.match(widgetLinks, /Launcher behavior/);
   assert.match(widgetLinks, /Test widget/);
   assert.match(widgetLinks, /Widget analytics/);
-  assert.match(voiceCopy, /browser\/Web Call|Web Call|browser voice/);
-  assert.match(voiceCopy, /Voice\/personality settings/);
-  assert.match(voiceCopy, /Spoken replies readiness/);
-  assert.match(voiceCopy, /Test voice agent/);
-  assert.match(voiceCopy, /#settings\/voice\/voice/);
-  assert.doesNotMatch(voiceCopy, /telephony|phone/i);
+  assert.match(voiceCopy, /#install\/embed/);
+  assert.match(voiceCopy, /#settings\/widget\/optional-widget/);
+  assert.doesNotMatch(voiceCopy, /Voice Agent|Web Call|telephony|phone/i);
 });
 
 test("existing billing plan keys remain account capacity plans", () => {
@@ -255,9 +253,9 @@ test("frontend product cards tolerate missing availability data", () => {
     },
   });
 
-  assert.match(html, /data-product-packaging-card="front_desk"/);
   assert.match(html, /data-product-packaging-card="website_widget"/);
-  assert.match(html, /data-product-packaging-card="voice_agent"/);
+  assert.doesNotMatch(html, /data-product-packaging-card="front_desk"/);
+  assert.doesNotMatch(html, /data-product-packaging-card="voice_agent"/);
   assert.match(html, /Included in current workspace/);
   assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
 });
@@ -270,35 +268,20 @@ test("frontend product cards read canonical product availability when present", 
     operatorWorkspace: {
       product_availability: [
         {
-          product_key: "front_desk",
-          status: "available",
-          reason_code: "account_access_active",
-          is_enforced: false,
-        },
-        {
           product_key: "website_widget",
           status: "pending_account_access",
           reason_code: "account_access_pending",
-          is_enforced: false,
-        },
-        {
-          product_key: "voice_agent",
-          status: "unavailable",
-          reason_code: "account_capacity_capped",
           is_enforced: false,
         },
       ],
     },
   });
 
-  assert.match(html, /data-product-availability-status="available"/);
   assert.match(html, /data-product-availability-status="pending_account_access"/);
-  assert.match(html, /data-product-availability-status="unavailable"/);
-  assert.match(html, /Included in current workspace/);
   assert.match(html, /Account access pending/);
-  assert.match(html, /Product availability: Account Access Active/);
-  assert.match(html, /Product availability: Account Capacity Capped/);
+  assert.match(html, /Product availability: Account Access Pending/);
   assert.match(html, /data-product-availability-enforced="false"/);
+  assert.doesNotMatch(html, /data-product-packaging-card="front_desk"|data-product-packaging-card="voice_agent"/);
   assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
 });
 
@@ -310,7 +293,7 @@ test("frontend product cards prefer product entitlement labels when present", ()
     operatorWorkspace: {
       product_availability: [
         {
-          product_key: "front_desk",
+          product_key: "website_widget",
           status: "unavailable",
           reason_code: "account_capacity_capped",
           is_enforced: false,
@@ -318,26 +301,10 @@ test("frontend product cards prefer product entitlement labels when present", ()
       ],
       product_entitlements: [
         {
-          product_key: "front_desk",
+          product_key: "website_widget",
           status: "available",
           entitlement_status: "active",
           entitlement_source: "workspace_plan",
-          entitlement_row_exists: true,
-          is_enforced: false,
-        },
-        {
-          product_key: "website_widget",
-          status: "available",
-          entitlement_status: "grandfathered",
-          entitlement_source: "legacy_workspace_plan",
-          entitlement_row_exists: true,
-          is_enforced: false,
-        },
-        {
-          product_key: "voice_agent",
-          status: "available",
-          entitlement_status: "beta",
-          entitlement_source: "manual_beta",
           entitlement_row_exists: true,
           is_enforced: false,
         },
@@ -346,14 +313,11 @@ test("frontend product cards prefer product entitlement labels when present", ()
   });
 
   assert.match(html, /Included with current workspace/);
-  assert.match(html, /Grandfathered/);
-  assert.match(html, /Beta/);
   assert.match(html, /Product entitlement: Workspace Plan/);
   assert.match(html, /data-product-entitlement-status="active"/);
-  assert.match(html, /data-product-entitlement-status="grandfathered"/);
-  assert.match(html, /data-product-entitlement-status="beta"/);
   assert.match(html, /data-product-entitlement-row-exists="true"/);
   assert.match(html, /data-product-availability-enforced="false"/);
+  assert.doesNotMatch(html, /data-product-packaging-card="front_desk"|data-product-packaging-card="voice_agent"/);
   assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
 });
 
@@ -365,7 +329,7 @@ test("missing entitlement rows stay read-only and do not block product setup lin
     operatorWorkspace: {
       product_entitlements: [
         {
-          product_key: "front_desk",
+          product_key: "website_widget",
           status: "available",
           entitlement_status: "free",
           entitlement_source: "manual_free",
@@ -377,13 +341,10 @@ test("missing entitlement rows stay read-only and do not block product setup lin
   });
 
   assert.match(html, /Free/);
-  assert.match(html, /Missing entitlement record/);
+  assert.doesNotMatch(html, /Missing entitlement record/);
   assert.match(html, /data-product-entitlement-status="free"/);
-  assert.match(html, /data-product-entitlement-status="missing"/);
-  assert.match(html, /data-product-entitlement-row-exists="false"/);
-  assert.match(html, /href="\/dashboard\/front-desk#setup" data-product-packaging-link="front_desk"/);
   assert.match(html, /href="\/dashboard\/widget#setup" data-product-packaging-link="website_widget"/);
-  assert.match(html, /href="\/dashboard\/voice#setup" data-product-packaging-link="voice_agent"/);
+  assert.doesNotMatch(html, /data-product-packaging-link="front_desk"|data-product-packaging-link="voice_agent"/);
   assert.match(html, /Product pricing coming soon/);
   assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk|checkout_url/);
 });
@@ -407,12 +368,11 @@ test("active product context drives product nav state", () => {
   assert.deepEqual(
     items.map((item) => [item.key, item.active]),
     [
-      ["front_desk", false],
-      ["website_widget", false],
-      ["voice_agent", true],
+      ["website_widget", true],
     ]
   );
-  assert.equal(state.ACTIVE_DASHBOARD_PRODUCT_CONTEXT.key, "voice_agent");
+  assert.equal(state.ACTIVE_DASHBOARD_PRODUCT_CONTEXT.key, "website_widget");
+  assert.equal(state.ACTIVE_DASHBOARD_PRODUCT_CONTEXT.isKnownProductPath, false);
 });
 
 test("dashboard product context preserves hash routing as separate state", () => {
@@ -454,19 +414,16 @@ test("product-scoped settings hashes normalize to the right settings context", (
 
 test("dashboard product landing links point at product-scoped settings hashes", () => {
   const { state } = loadDashboardState();
-  const links = [
-    ...state.getDashboardProductHomeContext("front_desk").shortcuts,
-    ...state.getDashboardProductHomeContext("website_widget").shortcuts,
-    ...state.getDashboardProductHomeContext("voice_agent").shortcuts,
-  ];
+  const links = state.getDashboardProductHomeContext("website_widget").shortcuts;
 
-  assert.ok(links.some((link) => link.href === "#settings/front-desk/full-page-assistant" && link.settingsTarget === "front_desk"));
   assert.ok(links.some((link) => link.href === "#settings/widget/optional-widget" && link.settingsTarget === "website_widget"));
-  assert.ok(links.some((link) => link.href === "#settings/voice/voice" && link.settingsTarget === "voice_agent"));
+  assert.ok(links.some((link) => link.href === "#install/embed" && link.installMethod === "widget"));
+  assert.equal(links.some((link) => link.href === "#settings/front-desk/full-page-assistant"), false);
+  assert.equal(links.some((link) => link.href === "#settings/voice/voice"), false);
   assert.equal(links.some((link) => link.href === "#settings/front-desk/optional-widget"), false);
 });
 
-test("product readiness helper returns product-specific checklist items", () => {
+test("product readiness helper returns the widget checklist for every product alias", () => {
   const { state } = loadDashboardState();
   const snapshot = {
     agent: {
@@ -500,42 +457,19 @@ test("product readiness helper returns product-specific checklist items", () => 
     },
   };
   const keys = (items) => Array.from(items, (item) => item.key);
+  const expectedWidgetKeys = [
+    "widget_appearance",
+    "widget_embed_method",
+    "widget_domain_status",
+    "widget_routing",
+    "widget_test",
+    "widget_analytics",
+  ];
 
-  assert.deepEqual(
-    keys(state.getProductReadinessChecklist("front_desk", snapshot)),
-    [
-      "front_desk_identity",
-      "front_desk_full_page",
-      "front_desk_knowledge",
-      "front_desk_qr_direct_link",
-      "front_desk_routing",
-      "front_desk_test",
-      "front_desk_publish",
-    ]
-  );
-  assert.deepEqual(
-    keys(state.getProductReadinessChecklist("widget", snapshot)),
-    [
-      "widget_appearance",
-      "widget_embed_method",
-      "widget_domain_status",
-      "widget_routing",
-      "widget_test",
-      "widget_analytics",
-    ]
-  );
-  assert.deepEqual(
-    keys(state.getProductReadinessChecklist("voice", snapshot)),
-    [
-      "voice_settings",
-      "voice_personality",
-      "voice_spoken_replies",
-      "voice_routing",
-      "voice_availability",
-      "voice_test",
-      "voice_analytics",
-    ]
-  );
+  assert.deepEqual(keys(state.getProductReadinessChecklist("front_desk", snapshot)), expectedWidgetKeys);
+  assert.deepEqual(keys(state.getProductReadinessChecklist("widget", snapshot)), expectedWidgetKeys);
+  assert.deepEqual(keys(state.getProductReadinessChecklist("voice", snapshot)), expectedWidgetKeys);
+  assert.deepEqual(keys(state.getProductReadinessChecklist(undefined, snapshot)), expectedWidgetKeys);
 });
 
 test("product readiness helper derives only existing saved state and leaves setup-only actions neutral", () => {
@@ -561,7 +495,7 @@ test("product readiness helper derives only existing saved state and leaves setu
   assert.equal(domainStatus.complete, false);
 });
 
-test("product readiness keeps default widget appearance and disabled public page from completing setup", () => {
+test("product readiness keeps default widget appearance from completing setup", () => {
   const { state } = loadDashboardState();
   const widgetChecklist = state.getProductReadinessChecklist("website_widget", {
     agent: {
@@ -571,48 +505,35 @@ test("product readiness keeps default widget appearance and disabled public page
       secondaryColor: "#7c4dff",
     },
   });
-  const frontDeskChecklist = state.getProductReadinessChecklist("front_desk", {
-    agent: {
-      fullPageConfig: {
-        publicPageEnabled: false,
-        publicPageKey: "page-key",
-        headline: "Custom headline",
-        subtitle: "Custom subtitle",
-      },
-    },
-  });
+  const frontDeskAliasChecklist = state.getProductReadinessChecklist("front_desk");
 
   assert.equal(widgetChecklist.find((item) => item.key === "widget_appearance").complete, false);
-  assert.equal(frontDeskChecklist.find((item) => item.key === "front_desk_full_page").complete, false);
-  assert.equal(frontDeskChecklist.find((item) => item.key === "front_desk_publish").complete, false);
+  assert.ok(frontDeskAliasChecklist.some((item) => item.key === "widget_appearance"));
+  assert.equal(frontDeskAliasChecklist.some((item) => item.key === "front_desk_full_page"), false);
+  assert.equal(frontDeskAliasChecklist.some((item) => item.key === "front_desk_publish"), false);
 });
 
 test("product readiness counts only explicit routing destinations", () => {
   const { state } = loadDashboardState();
-  const defaultCtaChecklist = state.getProductReadinessChecklist("front_desk", {
+  const defaultCtaChecklist = state.getProductReadinessChecklist("website_widget", {
     agent: {
       ctaMode: "contact",
       directCtaMode: "booking",
       leadCaptureMode: "quote",
     },
   });
-  const routedChecklist = state.getProductReadinessChecklist("front_desk", {
+  const routedChecklist = state.getProductReadinessChecklist("website_widget", {
     agent: {
       bookingUrl: "https://example.com/book",
     },
   });
 
-  assert.equal(defaultCtaChecklist.find((item) => item.key === "front_desk_routing").complete, false);
-  assert.equal(routedChecklist.find((item) => item.key === "front_desk_routing").complete, true);
+  assert.equal(defaultCtaChecklist.find((item) => item.key === "widget_routing").complete, false);
+  assert.equal(routedChecklist.find((item) => item.key === "widget_routing").complete, true);
 });
 
-test("product readiness uses product-scoped activity for page, widget, and Web Call tests", () => {
+test("product readiness uses widget-scoped activity for widget tests", () => {
   const { state } = loadDashboardState();
-  const frontDeskChecklist = state.getProductReadinessChecklist("front_desk", {
-    messages: [
-      { id: "msg-page-1", displayMode: "page", role: "user", sessionKey: "page-session" },
-    ],
-  });
   const widgetChecklist = state.getProductReadinessChecklist("website_widget", {
     ownerAnalyticsDashboard: {
       assistantSource: {
@@ -620,35 +541,27 @@ test("product readiness uses product-scoped activity for page, widget, and Web C
       },
     },
   });
-  const voiceChecklist = state.getProductReadinessChecklist("voice_agent", {
-    messages: [
-      { id: "msg-web-call-1", conversationSource: "web_call", role: "user", sessionKey: "voice-session" },
-    ],
-  });
-  const voiceHealthChecklist = state.getProductReadinessChecklist("voice_agent", {
+  const voiceAliasChecklist = state.getProductReadinessChecklist("voice_agent", {
     ownerAnalyticsDashboard: {
-      webCallHealth: { starts: 1 },
-      webCallRecentCalls: { total: 1, calls: [{ id: "call-1", latestActivityAt: "2026-05-31T10:00:00.000Z" }] },
+      assistantSource: {
+        widget: { conversationCount: 1 },
+      },
     },
   });
 
   assert.deepEqual(
     [
-      frontDeskChecklist.find((item) => item.key === "front_desk_test"),
       widgetChecklist.find((item) => item.key === "widget_test"),
-      voiceChecklist.find((item) => item.key === "voice_test"),
-      voiceHealthChecklist.find((item) => item.key === "voice_test"),
+      voiceAliasChecklist.find((item) => item.key === "widget_test"),
     ].map((item) => [item.kind, item.complete]),
     [
-      ["derived", true],
-      ["derived", true],
       ["derived", true],
       ["derived", true],
     ]
   );
 });
 
-test("product readiness action-only items stay neutral and voice copy avoids phone claims", () => {
+test("product readiness action-only items stay neutral and old product copy stays hidden", () => {
   const { state } = loadDashboardState();
   const widgetChecklist = state.getProductReadinessChecklist("website_widget");
   const voiceChecklist = state.getProductReadinessChecklist("voice_agent");
@@ -659,8 +572,8 @@ test("product readiness action-only items stay neutral and voice copy avoids pho
   actionItems.forEach((item) => {
     assert.equal(item.complete, null);
   });
-  assert.match(voiceCopy, /Web Call|browser voice/);
-  assert.doesNotMatch(voiceCopy, /telephony|phone/i);
+  assert.match(voiceCopy, /Website Widget|widget/i);
+  assert.doesNotMatch(voiceCopy, /Voice Agent|Web Call|browser voice|telephony|phone/i);
 });
 
 test("product readiness checklist links point to existing safe dashboard hashes", () => {
@@ -671,15 +584,11 @@ test("product readiness checklist links point to existing safe dashboard hashes"
     ...state.getProductReadinessChecklist("voice_agent"),
   ].map((item) => item.href);
 
-  assert.ok(allLinks.includes("#settings/front-desk/identity-welcome"));
-  assert.ok(allLinks.includes("#settings/front-desk/full-page-assistant"));
-  assert.ok(allLinks.includes("#settings/business-profile"));
   assert.ok(allLinks.includes("#settings/widget/optional-widget"));
   assert.ok(allLinks.includes("#settings/widget/routing"));
-  assert.ok(allLinks.includes("#settings/voice/voice"));
-  assert.ok(allLinks.includes("#install/full-page"));
   assert.ok(allLinks.includes("#install/embed"));
   assert.ok(allLinks.includes("#analytics"));
+  assert.equal(allLinks.some((href) => /front-desk|voice|full-page|business-profile/.test(href)), false);
   assert.equal(allLinks.some((href) => /^\/dashboard\/[^#]/.test(href)), false);
 });
 

@@ -30,6 +30,31 @@ async function withServer(fn) {
   }
 }
 
+async function withEnv(overrides, fn) {
+  const previous = new Map();
+
+  for (const [key, value] of Object.entries(overrides)) {
+    previous.set(key, process.env[key]);
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+
+  try {
+    return await fn();
+  } finally {
+    for (const [key, value] of previous.entries()) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
 async function getHtml(baseUrl, pathname) {
   const response = await fetch(`${baseUrl}${pathname}`);
   assert.equal(response.status, 200, pathname);
@@ -45,25 +70,25 @@ async function getHtmlResponse(baseUrl, pathname) {
   return { response, text };
 }
 
-test("public product marketing pages render with product-specific dashboard CTAs", async () => {
+async function getManualRedirect(baseUrl, pathname) {
+  return fetch(`${baseUrl}${pathname}`, { redirect: "manual" });
+}
+
+test("non-widget product marketing pages redirect to the Website Widget page", async () => {
   await withServer(async (baseUrl) => {
-    const frontDesk = await getHtml(baseUrl, "/front-desk");
-    assert.match(frontDesk, /data-marketing-page="frontDesk"/);
-    assert.match(frontDesk, /Front Desk is the recommended Vonza product/);
-    assert.match(frontDesk, /href="\/dashboard\/front-desk\?from=site"/);
-    assert.doesNotMatch(frontDesk, /href="\/widget"/);
+    for (const pathname of ["/front-desk", "/voice-agent", "/how-it-works"]) {
+      const response = await getManualRedirect(baseUrl, pathname);
+      assert.equal(response.status, 302, pathname);
+      assert.equal(response.headers.get("location"), "/website-widget", pathname);
+    }
 
     const websiteWidget = await getHtml(baseUrl, "/website-widget");
     assert.match(websiteWidget, /data-marketing-page="websiteWidget"/);
-    assert.match(websiteWidget, /Website Widget adds Vonza to an existing site/);
+    assert.match(websiteWidget, /Website Widget for quick customer answers on your site/);
+    assert.match(websiteWidget, /AI agent on your website in 5 minutes/i);
     assert.match(websiteWidget, /href="\/website-widget\/dashboard\?from=site"/);
-    assert.match(websiteWidget, /on-site embedded assistant/i);
-
-    const voiceAgent = await getHtml(baseUrl, "/voice-agent");
-    assert.match(voiceAgent, /data-marketing-page="voiceAgent"/);
-    assert.match(voiceAgent, /configured web voice conversations/i);
-    assert.match(voiceAgent, /href="\/dashboard\/voice\?from=site"/);
-    assert.match(voiceAgent, /not positioned as a phone-line or telephony replacement/i);
+    assert.match(websiteWidget, /Existing Website Widget runtime/i);
+    assert.doesNotMatch(websiteWidget, /href="\/dashboard\/front-desk|href="\/dashboard\/voice|Voice Agent|Enterprise Request Desk|\bQDH\b|ESG|Hotel Concierge/i);
   });
 });
 
@@ -84,59 +109,164 @@ test("website widget dashboard routes serve the private dashboard document", asy
   });
 });
 
-test("homepage and product page link to separate product marketing pages", async () => {
+test("legacy dashboard product routes redirect to the Website Widget dashboard", async () => {
+  await withServer(async (baseUrl) => {
+    const cases = [
+      ["/dashboard", "/website-widget/dashboard"],
+      ["/dashboard?from=site", "/website-widget/dashboard?from=site"],
+      ["/dashboard/widget", "/website-widget/dashboard"],
+      ["/dashboard/front-desk", "/website-widget/dashboard"],
+      ["/dashboard/voice", "/website-widget/dashboard"],
+      ["/generator", "/website-widget/dashboard"],
+    ];
+
+    for (const [pathname, location] of cases) {
+      const response = await getManualRedirect(baseUrl, pathname);
+      assert.equal(response.status, 302, pathname);
+      assert.equal(response.headers.get("location"), location, pathname);
+    }
+  });
+});
+
+test("homepage and product page expose Website Widget only", async () => {
   await withServer(async (baseUrl) => {
     for (const pathname of ["/", "/product"]) {
       const html = await getHtml(baseUrl, pathname);
-      assert.match(html, /href="\/front-desk"/, pathname);
       assert.match(html, /href="\/website-widget"/, pathname);
-      assert.match(html, /href="\/voice-agent"/, pathname);
-      assert.match(html, /Vonza is one company with three products/, pathname);
+      assert.match(html, /Website Widget for quick customer answers on your site/, pathname);
+      assert.match(html, /AI agent on your website in 5 minutes/i, pathname);
+      assert.doesNotMatch(html, /href="\/front-desk"|href="\/voice-agent"|Vonza is one company with three products|Voice Agent|Enterprise Request Desk|\bQDH\b|ESG|Hotel Concierge/i, pathname);
     }
   });
 });
 
-test("global marketing navigation exposes the three product pages", async () => {
+test("global marketing navigation exposes Website Widget only", async () => {
   await withServer(async (baseUrl) => {
     const html = await getHtml(baseUrl, "/");
 
-    for (const [href, label] of [
-      ["/front-desk", "Front Desk"],
-      ["/website-widget", "Website Widget"],
-      ["/voice-agent", "Voice Agent"],
-    ]) {
-      const navLinkPattern = new RegExp(`<a href="${href}" data-nav-page="[^"]+">${label}</a>`);
-      const footerLinkPattern = new RegExp(`<a href="${href}">${label}</a>`);
-      assert.match(html, navLinkPattern);
-      assert.match(html, footerLinkPattern);
-    }
+    assert.match(html, /<a href="\/website-widget" data-nav-page="websiteWidget">Website Widget<\/a>/);
+    assert.match(html, /<a href="\/website-widget">Website Widget<\/a>/);
+    assert.doesNotMatch(html, /<a href="\/front-desk"|<a href="\/voice-agent"|>Front Desk<\/a>|>Voice Agent<\/a>/);
   });
 });
 
-test("/widget still returns the runtime widget document", async () => {
+test("/widget and embed runtimes are still served", async () => {
   await withServer(async (baseUrl) => {
     const html = await getHtml(baseUrl, "/widget");
     assert.match(html, /<title id="page-title">Vonza AI<\/title>/);
     assert.match(html, /id="assistant-name"/);
     assert.doesNotMatch(html, /data-marketing-page=/);
-    assert.doesNotMatch(html, /Website Widget adds Vonza to an existing site/);
+    assert.doesNotMatch(html, /Website Widget for quick customer answers on your site/);
+
+    for (const pathname of ["/embed.js", "/embed-lite.js", "/assistant-embed.js"]) {
+      const response = await fetch(`${baseUrl}${pathname}`);
+      const text = await response.text();
+      assert.equal(response.status, 200, pathname);
+      assert.match(response.headers.get("content-type") || "", /javascript|application\/octet-stream|text\/plain/i, pathname);
+      assert.match(text, /Vonza|assistant|widget/i, pathname);
+    }
   });
 });
 
-test("pricing plan checkout links stay on account-capacity plan checkout paths", async () => {
+test("production widget pilot disables non-widget product routes while keeping widget routes active", { concurrency: false }, async () => {
+  await withEnv({
+    NODE_ENV: "production",
+    VONZA_DEPLOY_ENV: "production",
+  }, async () => {
+    await withServer(async (baseUrl) => {
+      for (const pathname of ["/website-widget", "/website-widget/dashboard", "/widget/dashboard", "/widget"]) {
+        const response = await fetch(`${baseUrl}${pathname}`);
+        assert.equal(response.status, 200, pathname);
+      }
+
+      for (const pathname of ["/embed.js", "/embed-lite.js", "/assistant-embed.js"]) {
+        const response = await fetch(`${baseUrl}${pathname}`);
+        assert.equal(response.status, 200, pathname);
+      }
+
+      for (const [pathname, location] of [
+        ["/dashboard", "/website-widget/dashboard"],
+        ["/dashboard/widget", "/website-widget/dashboard"],
+        ["/dashboard/front-desk", "/website-widget/dashboard"],
+        ["/dashboard/voice", "/website-widget/dashboard"],
+      ]) {
+        const response = await getManualRedirect(baseUrl, pathname);
+        assert.equal(response.status, 302, pathname);
+        assert.equal(response.headers.get("location"), location, pathname);
+      }
+
+      const disabledPages = [
+        "/qdh",
+        "/quote-desk-hu",
+        "/qdh/setup",
+        "/quote-desk-hu/setup",
+        "/qdh/intake",
+        "/quote-desk-hu/intake",
+        "/qdh/dashboard",
+        "/quote-desk-hu/dashboard",
+        "/enterprise-request-desk",
+        "/esg-request-desk",
+        "/enterprise-request-desk/setup",
+        "/esg-request-desk/setup",
+        "/enterprise-request-desk/intake",
+        "/esg-request-desk/intake",
+        "/enterprise-request-desk/demo",
+        "/esg-request-desk/demo",
+        "/enterprise-request-desk/dashboard",
+        "/esg-request-desk/dashboard",
+        "/front-desk",
+        "/voice-agent",
+        "/how-it-works",
+      ];
+
+      for (const pathname of disabledPages) {
+        const response = await getManualRedirect(baseUrl, pathname);
+        assert.equal(response.status, 302, pathname);
+        assert.equal(response.headers.get("location"), "/website-widget", pathname);
+      }
+
+      for (const pathname of [
+        "/qdh/intake-fixture",
+        "/quote-desk-hu/dashboard-fixture",
+        "/enterprise-request-desk/intake-fixture",
+        "/esg-request-desk/dashboard-fixture",
+        "/qdh-dashboard.html",
+        "/qdh-dashboard.js",
+        "/enterprise-request-desk-dashboard.html",
+        "/enterprise-request-desk-demo.js",
+        "/full-page-assistant-v2-preview.html",
+      ]) {
+        const response = await fetch(`${baseUrl}${pathname}`, { redirect: "manual" });
+        assert.equal(response.status, 404, pathname);
+      }
+
+      for (const pathname of [
+        "/quote-desk-hu/setup",
+        "/quote-desk-hu/intake-requests",
+        "/enterprise-request-desk/setup",
+        "/enterprise-request-desk/demo/analyze",
+      ]) {
+        const response = await fetch(`${baseUrl}${pathname}`, {
+          method: "POST",
+          redirect: "manual",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+        assert.equal(response.status, 404, pathname);
+      }
+    });
+  });
+});
+
+test("pricing page remains widget-focused and does not expose product checkout links", async () => {
   await withServer(async (baseUrl) => {
     const html = await getHtml(baseUrl, "/pricing");
 
-    assert.match(html, /account-capacity plans for the shared Vonza workspace/);
-    assert.match(html, /not separate product checkouts/);
-
-    for (const planKey of ["starter", "growth", "pro"]) {
-      assert.match(html, new RegExp(`data-plan-key="${planKey}"`));
-      assert.match(html, new RegExp(`href="/dashboard\\?from=site&amp;plan=${planKey}"`));
-    }
-
-    assert.doesNotMatch(html, /dashboard\/front-desk\?from=site&amp;plan=/);
-    assert.doesNotMatch(html, /dashboard\/widget\?from=site&amp;plan=/);
-    assert.doesNotMatch(html, /dashboard\/voice\?from=site&amp;plan=/);
+    assert.match(html, /Website Widget for quick customer answers on your site/);
+    assert.match(html, /href="\/website-widget\/dashboard\?from=site"/);
+    assert.match(html, /19,900 HUF\/month/);
+    assert.match(html, /49,900 HUF\/month/);
+    assert.match(html, /99,900 HUF\/month/);
+    assert.doesNotMatch(html, /dashboard\/front-desk|dashboard\/widget|dashboard\/voice|data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Front Desk/i);
   });
 });

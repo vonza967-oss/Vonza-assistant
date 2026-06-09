@@ -19,7 +19,7 @@ const PUBLIC_COHORT_V1_MATRIX = Object.freeze({
   },
   front_desk: {
     state: FEATURE_STATES.STABLE,
-    label: "AI front desk",
+    label: "AI Front Desk control center",
   },
   website_import: {
     state: FEATURE_STATES.STABLE,
@@ -43,7 +43,7 @@ const PUBLIC_COHORT_V1_MATRIX = Object.freeze({
   },
   customize: {
     state: FEATURE_STATES.STABLE,
-    label: "Front Desk",
+    label: "Widget configuration",
   },
   lead_capture: {
     state: FEATURE_STATES.STABLE,
@@ -108,10 +108,10 @@ export function getPublicLaunchProfile({ operatorWorkspaceEnabled = false } = {}
   return {
     mode: "public_cohort_v1",
     product: {
-      name: "Vonza Front Desk",
-      headline: "AI front desk for service businesses with a simple customer service workspace.",
+      name: "Vonza Website Widget",
+      headline: "AI agent on your website in 5 minutes, with no technical skill required.",
       purchaseSummary:
-        "The first public offer is the AI front desk plus Home, Customers, Front Desk, Analytics, website import, and install. Google-connected Inbox, Calendar, and Automations stay out of the launch UI until they are intentionally enabled for a private workspace.",
+        "The first public offer is the Website Widget plus website import, lead capture, AI disclosure, email handoff, install verification, analytics, and the shared AI Front Desk dashboard. Google-connected Inbox, Calendar, Automations, WhatsApp, and Voice stay out of the launch UI until they are intentionally enabled for a private workspace.",
     },
     icp: {
       key: "service_businesses_with_inbound_leads",
@@ -119,7 +119,7 @@ export function getPublicLaunchProfile({ operatorWorkspaceEnabled = false } = {}
       shortLabel: "Service businesses",
       examples: ["home services", "clinics", "studios", "agencies", "consultants"],
       positioning:
-        "Best for SMBs that already get website visitors asking for quotes, bookings, callbacks, or availability and need a reliable front desk before a bigger back-office system.",
+        "Best for SMBs that already get website visitors asking for quotes, bookings, callbacks, or availability and need a reliable website agent before a bigger back-office system.",
     },
     matrix,
     ...buildStateLists(matrix),

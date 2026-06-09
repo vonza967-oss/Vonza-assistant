@@ -96,6 +96,8 @@ test("new owner sees activation wizard entry state", () => {
   assert.equal(wizard.shouldShow, true);
   assert.equal(wizard.currentStep, "business_basics");
   assert.equal(wizard.steps.find((step) => step.key === "business_basics")?.active, true);
+  assert.equal(wizard.steps.find((step) => step.key === "business_basics")?.label, "Paste Website URL");
+  assert.match(wizard.steps.find((step) => step.key === "business_basics")?.copy || "", /Paste the business website URL/i);
 });
 
 test("existing configured owner is not forced through activation wizard", () => {
@@ -192,6 +194,8 @@ test("each activation step exposes the correct next action", () => {
   });
   assert.equal(installWizard.currentStep, "install_widget");
   assert.equal(installWizard.nextAction.action, "open_install");
+  assert.equal(installWizard.steps.find((step) => step.key === "install_widget")?.label, "Install Widget");
+  assert.match(installWizard.steps.find((step) => step.key === "install_widget")?.copy || "", /WordPress|embed snippet/i);
 });
 
 test("skip and return behavior keeps dashboard usable", async () => {
@@ -268,7 +272,7 @@ test("install verified state confirms the owner is live", () => {
 
   const installStep = wizard.steps.find((step) => step.key === "install_widget");
   assert.equal(installStep.complete, true);
-  assert.match(installStep.copy, /You are live/i);
+  assert.match(installStep.copy, /Website Widget is live/i);
 });
 
 test("weak test state routes to Analytics", () => {

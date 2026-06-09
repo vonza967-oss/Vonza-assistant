@@ -98,10 +98,10 @@
     appearance: "Optional widget",
   });
   const DASHBOARD_UI_STATE_DEFAULTS = Object.freeze({
-    settingsMainTab: "general",
+    settingsMainTab: "website_widget",
     settingsFrontDeskTab: "identity-welcome",
     settingsFullPageTab: "content",
-    installMethod: "full-page",
+    installMethod: "widget",
     installFullPageOption: "share",
     frontDeskTab: "practice",
     customersFilter: "all",
@@ -147,34 +147,21 @@
     settings: "settings",
   });
   const DASHBOARD_PRODUCT_REGISTRY = Object.freeze({
-    front_desk: Object.freeze({
-      key: "front_desk",
-      routeSegment: "front-desk",
-      routePath: "/dashboard/front-desk",
-      label: "Front Desk",
-      dashboardLabel: "AI Front Desk workspace",
-    }),
     website_widget: Object.freeze({
       key: "website_widget",
-      routeSegment: "widget",
-      routePath: "/dashboard/widget",
+      routeSegment: "website-widget",
+      routePath: "/website-widget/dashboard",
       label: "Website widget",
       dashboardLabel: "Website widget workspace",
     }),
-    voice_agent: Object.freeze({
-      key: "voice_agent",
-      routeSegment: "voice",
-      routePath: "/dashboard/voice",
-      label: "Voice agent",
-      dashboardLabel: "Voice agent workspace",
-    }),
   });
   const DASHBOARD_PRODUCT_ROUTE_SEGMENTS = Object.freeze({
-    "front-desk": "front_desk",
     widget: "website_widget",
-    voice: "voice_agent",
+    "website-widget": "website_widget",
   });
-  const WEBSITE_WIDGET_DEDICATED_DASHBOARD_PATHS = Object.freeze([
+  const WEBSITE_WIDGET_DASHBOARD_PATHS = Object.freeze([
+    "/dashboard",
+    "/dashboard/widget",
     "/website-widget/dashboard",
     "/widget/dashboard",
   ]);
@@ -192,7 +179,7 @@
     website_widget: Object.freeze({
       key: "website_widget",
       name: "Website Widget",
-      targetUseCase: "Embedded website snippet and launcher for visitors who need quick answers without leaving a page.",
+      targetUseCase: "Five-minute website AI agent for visitors who need quick answers without leaving a page.",
       setupLabel: "Open widget setup",
       setupHref: "/dashboard/widget#setup",
       settingsHref: "#settings/widget/optional-widget",
@@ -253,8 +240,8 @@
     website_widget: Object.freeze({
       key: "website_widget",
       homeTitle: "Website Widget home",
-      homeSubtitle: "Operate the embedded on-site assistant without changing the shared workspace.",
-      sidebarNote: "Website Widget is the embedded on-site assistant.",
+      homeSubtitle: "Operate the on-site AI agent customers can use from your existing website.",
+      sidebarNote: "Website Widget is the five-minute on-site AI agent.",
       statusKicker: "Widget status",
       statusLiveTitle: "Your Website Widget is installed",
       statusReadyTitle: "Your Website Widget is ready to test",
@@ -262,8 +249,8 @@
       statusLiveCopy: "Install verification has detected the embedded widget on a site.",
       statusReadyCopy: "Review embed setup and appearance, then test the widget on the install surface.",
       statusSetupCopy: "Finish install/embed setup, allowed domains, and widget appearance before relying on site traffic.",
-      contextTitle: "Install and tune the Website Widget",
-      contextCopy: "Use the existing install/embed and Website Widget settings areas. Contacts, conversations, analytics, and billing stay shared.",
+      contextTitle: "Launch the Website Widget in 5 minutes",
+      contextCopy: "Paste the website URL, import content, choose template and tone, preview the widget, then install through WordPress or one embed snippet. Contacts, conversations, analytics, and billing stay shared.",
       metricLabels: Object.freeze({
         conversations: "Widget conversations",
         leads: "Widget leads",
@@ -351,20 +338,20 @@
       key: "website_widget",
       title: "Set up Website Widget",
       eyebrow: "Website Widget setup",
-      copy: "Configure the secondary embedded launcher using the existing widget settings, install, verification, and analytics surfaces.",
-      primaryAction: Object.freeze({ label: "Open embed/install snippet", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
+      copy: "Paste the website URL, import content, choose template and tone, preview the widget, then install through WordPress or one embed snippet.",
+      primaryAction: Object.freeze({ label: "Open WordPress or embed install", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
       secondaryActions: Object.freeze([
-        Object.freeze({ label: "Widget appearance", note: "Review launcher copy, colors, and welcome text", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
+        Object.freeze({ label: "Template and tone", note: "Review launcher copy, tone, colors, and welcome text", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
         Object.freeze({ label: "Allowed domains", note: "Use the existing install surface for domain guidance and status", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
-        Object.freeze({ label: "Embed/install snippet", note: "Open the current Website Widget snippet", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
+        Object.freeze({ label: "WordPress or embed snippet", note: "Open the current Website Widget snippet and WordPress install path", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
         Object.freeze({ label: "Install verification", note: "Check whether widget markup has been detected", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
         Object.freeze({ label: "Test widget", note: "Use the existing widget install/test surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "sparkle" }),
         Object.freeze({ label: "Widget analytics/conversations", note: "Review shared analytics and customer records", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
       ]),
       launchPath: Object.freeze([
-        Object.freeze({ label: "Style", note: "Confirm widget appearance and launcher behavior.", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
-        Object.freeze({ label: "Install", note: "Copy the embed snippet and verify it on an allowed domain.", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
-        Object.freeze({ label: "Measure", note: "Review widget conversations and analytics after traffic arrives.", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+        Object.freeze({ label: "Import", note: "Paste the website URL and import public content.", href: "#setup", shellTarget: "setup", icon: "sparkle" }),
+        Object.freeze({ label: "Preview", note: "Confirm the template, tone, and launcher behavior.", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
+        Object.freeze({ label: "Install", note: "Use WordPress or copy the embed snippet and verify it on an allowed domain.", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
       ]),
     }),
     voice_agent: Object.freeze({
@@ -410,25 +397,25 @@
     };
     const candidate = aliases[normalized] || normalized;
 
-    return hasOwnEntry(DASHBOARD_PRODUCT_REGISTRY, candidate) ? candidate : "front_desk";
+    return hasOwnEntry(DASHBOARD_PRODUCT_REGISTRY, candidate) ? candidate : "website_widget";
   }
 
-  function getDashboardProduct(key = "front_desk") {
-    return DASHBOARD_PRODUCT_REGISTRY[normalizeDashboardProductKey(key)] || DASHBOARD_PRODUCT_REGISTRY.front_desk;
+  function getDashboardProduct(key = "website_widget") {
+    return DASHBOARD_PRODUCT_REGISTRY[normalizeDashboardProductKey(key)] || DASHBOARD_PRODUCT_REGISTRY.website_widget;
   }
 
   function getDashboardProductContext(pathname = global.location?.pathname || "/dashboard") {
     const normalizedPath = `/${trimText(pathname).split(/[?#]/)[0].replace(/^\/+|\/+$/g, "")}`;
-    const isDedicatedWebsiteWidgetDashboard = WEBSITE_WIDGET_DEDICATED_DASHBOARD_PATHS.includes(normalizedPath);
-    if (isDedicatedWebsiteWidgetDashboard) {
+    const isWebsiteWidgetDashboard = WEBSITE_WIDGET_DASHBOARD_PATHS.includes(normalizedPath);
+    if (isWebsiteWidgetDashboard) {
       const product = getDashboardProduct("website_widget");
 
       return Object.freeze({
         ...product,
-        routeSegment: "website-widget",
+        routeSegment: normalizedPath === "/dashboard/widget" ? "widget" : "website-widget",
         currentPath: normalizedPath,
         canonicalPath: "/website-widget/dashboard",
-        isDefaultDashboardPath: false,
+        isDefaultDashboardPath: normalizedPath === "/dashboard",
         isKnownProductPath: true,
         isDedicatedProductDashboard: true,
       });
@@ -436,27 +423,27 @@
 
     const parts = normalizedPath.split("/").filter(Boolean);
     const routeSegment = parts[0] === "dashboard" ? parts[1] || "" : "";
-    const routeProductKey = DASHBOARD_PRODUCT_ROUTE_SEGMENTS[routeSegment] || "front_desk";
+    const routeProductKey = DASHBOARD_PRODUCT_ROUTE_SEGMENTS[routeSegment] || "website_widget";
     const product = getDashboardProduct(routeProductKey);
 
     return Object.freeze({
       ...product,
       routeSegment,
       currentPath: normalizedPath === "/" ? "/dashboard" : normalizedPath,
-      canonicalPath: product.routePath,
-      isDefaultDashboardPath: normalizedPath === "/dashboard",
+      canonicalPath: "/website-widget/dashboard",
+      isDefaultDashboardPath: false,
       isKnownProductPath: normalizedPath === "/dashboard" || DASHBOARD_PRODUCT_ROUTE_SEGMENTS[routeSegment] === product.key,
       isDedicatedProductDashboard: false,
     });
   }
 
-  function getDashboardProductRoutePath(key = "front_desk") {
+  function getDashboardProductRoutePath(key = "website_widget") {
     return getDashboardProduct(key).routePath;
   }
 
-  function getDashboardProductPackaging(key = "front_desk") {
+  function getDashboardProductPackaging(key = "website_widget") {
     const product = getDashboardProduct(normalizeDashboardProductKey(key));
-    const packaging = DASHBOARD_PRODUCT_PACKAGING[product.key] || DASHBOARD_PRODUCT_PACKAGING.front_desk;
+    const packaging = DASHBOARD_PRODUCT_PACKAGING[product.key] || DASHBOARD_PRODUCT_PACKAGING.website_widget;
 
     return Object.freeze({
       ...packaging,
@@ -468,17 +455,17 @@
   }
 
   function listDashboardProductPackaging() {
-    return Object.freeze(Object.keys(DASHBOARD_PRODUCT_PACKAGING).map((key) => getDashboardProductPackaging(key)));
+    return Object.freeze(Object.values(DASHBOARD_PRODUCT_REGISTRY).map((product) => getDashboardProductPackaging(product.key)));
   }
 
-  function getDashboardProductHomeContext(key = "front_desk") {
+  function getDashboardProductHomeContext(key = "website_widget") {
     const product = getDashboardProduct(normalizeDashboardProductKey(key));
-    return DASHBOARD_PRODUCT_HOME_CONTEXT[product.key] || DASHBOARD_PRODUCT_HOME_CONTEXT.front_desk;
+    return DASHBOARD_PRODUCT_HOME_CONTEXT[product.key] || DASHBOARD_PRODUCT_HOME_CONTEXT.website_widget;
   }
 
-  function getDashboardProductSetupContext(key = "front_desk") {
+  function getDashboardProductSetupContext(key = "website_widget") {
     const product = getDashboardProduct(normalizeDashboardProductKey(key));
-    return DASHBOARD_PRODUCT_SETUP_CONTEXT[product.key] || DASHBOARD_PRODUCT_SETUP_CONTEXT.front_desk;
+    return DASHBOARD_PRODUCT_SETUP_CONTEXT[product.key] || DASHBOARD_PRODUCT_SETUP_CONTEXT.website_widget;
   }
 
   function getDashboardProductNavItems(activeProduct = global.location?.pathname || "/dashboard") {
@@ -506,6 +493,7 @@
 
     root.dataset.dashboardProductContext = context.key;
     root.dataset.dashboardProductPath = context.currentPath;
+    root.dataset.dashboardWidgetOnly = context.key === "website_widget" && context.isDedicatedProductDashboard === true ? "true" : "false";
   }
 
   exposeDashboardProductContext();
@@ -901,7 +889,7 @@
     });
   }
 
-  function getProductReadinessChecklist(productKey = "front_desk", snapshot = {}) {
+  function getProductReadinessChecklist(productKey = "website_widget", snapshot = {}) {
     const normalizedProductKey = normalizeDashboardProductKey(productKey);
     const agent = snapshot.agent || {};
     const setup = snapshot.setup || {};
