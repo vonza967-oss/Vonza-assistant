@@ -2,7 +2,7 @@ import { cleanText } from "../../utils/text.js";
 
 export const DASHBOARD_PREFERENCES_TABLE = "user_dashboard_preferences";
 export const SUPPORTED_DASHBOARD_LANGUAGES = Object.freeze(["en", "hu"]);
-export const DEFAULT_DASHBOARD_LANGUAGE = "en";
+export const DEFAULT_DASHBOARD_LANGUAGE = "hu";
 
 export function normalizeDashboardLanguage(value) {
   const normalized = cleanText(value).toLowerCase();

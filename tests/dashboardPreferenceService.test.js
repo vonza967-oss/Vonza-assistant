@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  DEFAULT_DASHBOARD_LANGUAGE,
   getDashboardPreferences,
   normalizeDashboardLanguage,
   saveDashboardLanguagePreference,
@@ -57,6 +58,22 @@ test("dashboard preferences read saved owner-level dashboard language", async ()
   assert.equal(preferences.persistenceAvailable, true);
 });
 
+test("dashboard preferences keep no saved row distinct from saved Hungarian", async () => {
+  const { table } = createPreferenceTable({ row: null });
+  const supabase = {
+    from(tableName) {
+      assert.equal(tableName, "user_dashboard_preferences");
+      return table;
+    },
+  };
+
+  const preferences = await getDashboardPreferences(supabase, { ownerUserId: "owner-1" });
+
+  assert.equal(preferences.dashboardLanguage, null);
+  assert.equal(preferences.persistenceAvailable, true);
+  assert.equal(preferences.migrationRequired, false);
+});
+
 test("dashboard language save validates language and does not overwrite unrelated settings", async () => {
   const { table, state } = createPreferenceTable();
   const supabase = {
@@ -107,7 +124,10 @@ test("dashboard language save failure is explicit when preference table is missi
   );
 });
 
-test("dashboard language normalizer safely falls back to English", () => {
+test("dashboard language normalizer safely falls back to Hungarian", () => {
+  assert.equal(DEFAULT_DASHBOARD_LANGUAGE, "hu");
+  assert.equal(normalizeDashboardLanguage("en"), "en");
   assert.equal(normalizeDashboardLanguage("hu"), "hu");
-  assert.equal(normalizeDashboardLanguage("fr"), "en");
+  assert.equal(normalizeDashboardLanguage("fr"), "hu");
+  assert.equal(normalizeDashboardLanguage(""), "hu");
 });

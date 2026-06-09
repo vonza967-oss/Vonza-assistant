@@ -560,7 +560,9 @@ let dashboardHelpState = null;
 let workspaceRefreshBound = false;
 let workspaceRefreshAgentId = "";
 let workspaceRefreshTimeout = null;
-let dashboardLanguage = window.VonzaDashboardI18n?.getCachedLanguage?.() || "en";
+let dashboardLanguage = window.VonzaDashboardI18n?.getCachedLanguage?.()
+  || window.VonzaDashboardI18n?.DEFAULT_LANGUAGE
+  || "hu";
 
 function isDevFakeBillingEnabled() {
   return Boolean(window.VONZA_DEV_FAKE_BILLING);
@@ -1789,7 +1791,9 @@ function getDashboardBackgroundOption(value = "") {
 }
 
 function normalizeDashboardLanguage(value = "") {
-  return window.VonzaDashboardI18n?.normalizeLanguage?.(value) || "en";
+  return window.VonzaDashboardI18n?.normalizeLanguage?.(value)
+    || window.VonzaDashboardI18n?.DEFAULT_LANGUAGE
+    || "hu";
 }
 
 function getDashboardLanguage() {
@@ -21244,20 +21248,23 @@ async function boot(options = {}) {
 
       if (preferences.persistenceAvailable === false) {
         if (!hasCachedDashboardLanguage()) {
-          applyDashboardLanguage("en");
+          cacheDashboardLanguage("hu");
+        } else {
+          applyDashboardLanguage(getDashboardLanguage());
         }
         setStatus(t("language.settingsError"));
       } else if (preferences.dashboardLanguage) {
         cacheDashboardLanguage(preferences.dashboardLanguage);
       } else if (preferences.persistenceAvailable === true && !hasCachedDashboardLanguage()) {
-        renderDashboardLanguageChooser();
-        return;
+        cacheDashboardLanguage("hu");
       } else {
         applyDashboardLanguage(getDashboardLanguage());
       }
     } catch {
       if (!hasCachedDashboardLanguage()) {
-        applyDashboardLanguage("en");
+        cacheDashboardLanguage("hu");
+      } else {
+        applyDashboardLanguage(getDashboardLanguage());
       }
       setStatus(t("language.settingsError"));
     }

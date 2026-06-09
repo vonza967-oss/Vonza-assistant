@@ -62,6 +62,10 @@ test("ambiguous short message uses the most recent clear customer language", () 
   );
 });
 
+test("ambiguous first customer message defaults to Hungarian", () => {
+  assert.equal(selectResponseLanguage("ok", []), "Hungarian");
+});
+
 test("explicit language requests override the latest customer language", () => {
   assert.equal(detectExplicitLanguageRequest("Válaszolj angolul, kérlek."), "English");
   assert.equal(selectResponseLanguage("Please reply in Hungarian.", []), "Hungarian");

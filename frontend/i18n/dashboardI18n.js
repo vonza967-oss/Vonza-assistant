@@ -1,5 +1,6 @@
 (function registerVonzaDashboardI18n(global) {
   const STORAGE_KEY = "vonza_dashboard_language";
+  const DEFAULT_LANGUAGE = "hu";
   const SUPPORTED_LANGUAGES = Object.freeze([
     { code: "en", label: "English", nativeLabel: "English" },
     { code: "hu", label: "Hungarian", nativeLabel: "Magyar" },
@@ -457,14 +458,14 @@
 
   function normalizeLanguage(value) {
     const normalized = String(value || "").trim().toLowerCase();
-    return SUPPORTED_LANGUAGE_CODES.has(normalized) ? normalized : "en";
+    return SUPPORTED_LANGUAGE_CODES.has(normalized) ? normalized : DEFAULT_LANGUAGE;
   }
 
   function getCachedLanguage() {
     try {
       return normalizeLanguage(global.localStorage?.getItem(STORAGE_KEY));
     } catch {
-      return "en";
+      return DEFAULT_LANGUAGE;
     }
   }
 
@@ -479,6 +480,7 @@
 
   global.VonzaDashboardI18n = Object.freeze({
     STORAGE_KEY,
+    DEFAULT_LANGUAGE,
     SUPPORTED_LANGUAGES,
     TRANSLATIONS: translations,
     normalizeLanguage,

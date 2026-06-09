@@ -229,7 +229,7 @@ export function selectResponseLanguage(message, history = []) {
     }
   }
 
-  return "English";
+  return "Hungarian";
 }
 
 export function detectResponseLanguage(message) {

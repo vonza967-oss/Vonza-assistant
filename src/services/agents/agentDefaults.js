@@ -5,9 +5,9 @@ export const DEFAULT_LANGUAGE = "auto";
 
 export const DEFAULT_WIDGET_CONFIG = {
   assistantName: "Vonza AI",
-  welcomeMessage: "How may I be of your service today?",
-  buttonLabel: "Chat with Vonza",
-  launcherText: "YOUR PERSONAL ASSISTANT",
+  welcomeMessage: "Szia! Miben segíthetünk ma?",
+  buttonLabel: "Front Desk megnyitása",
+  launcherText: "Üzleti asszisztens",
   widgetLogoUrl: "",
   primaryColor: "#10a37f",
   secondaryColor: "#0c7f75",
@@ -66,47 +66,47 @@ export const FULL_PAGE_ACTION_CARD_TYPES = Object.freeze([
 
 export const DEFAULT_FULL_PAGE_ACTION_CARDS = Object.freeze([
   Object.freeze({
-    label: "Ask about services",
-    description: "See what this business can help with.",
-    prompt: "What services do you offer?",
+    label: "Szolgáltatások",
+    description: "Nézd meg, miben tud segíteni ez a vállalkozás.",
+    prompt: "Milyen szolgáltatásokat kínáltok?",
     type: "services",
     enabled: true,
   }),
   Object.freeze({
-    label: "Ask about pricing",
-    description: "Ask what affects price, scope, and next steps.",
-    prompt: "How much does it cost?",
+    label: "Árak",
+    description: "Kérdezz az árakról, a terjedelemről és a következő lépésről.",
+    prompt: "Mennyibe kerül?",
     type: "pricing",
     enabled: true,
   }),
   Object.freeze({
-    label: "Request a quote",
-    description: "Share what you need so the business can follow up.",
-    prompt: "I'd like to request a quote.",
+    label: "Ajánlatkérés",
+    description: "Írd le, mire van szükséged, hogy a vállalkozás megfelelő részletekkel követhessen.",
+    prompt: "Szeretnék ajánlatot kérni.",
     type: "quote",
     enabled: true,
   }),
   Object.freeze({
-    label: "Contact details",
-    description: "Find the best way to reach the team.",
-    prompt: "How can I contact you?",
+    label: "Elérhetőségek",
+    description: "Találd meg a legjobb kapcsolatfelvételi módot, vagy hagyd meg az adataidat.",
+    prompt: "Hogyan tudlak elérni benneteket?",
     type: "contact",
     enabled: true,
   }),
 ]);
 
 export const DEFAULT_FULL_PAGE_BOOKING_ACTION_CARD = Object.freeze({
-  label: "Book a time",
-  description: "Ask about appointments, calls, visits, or the next step.",
-  prompt: "I'd like to book a time.",
+  label: "Időpontfoglalás",
+  description: "Kérdezz időpontról, hívásról, helyszíni látogatásról vagy a legjobb következő lépésről.",
+  prompt: "Szeretnék időpontot foglalni.",
   type: "booking",
   enabled: true,
 });
 
 export const DEFAULT_FULL_PAGE_TRUST_ITEMS = Object.freeze([
-  "Replies instantly",
-  "AI assistant",
-  "Leave your details if needed",
+  "Azonnal válaszol",
+  "AI asszisztens",
+  "Szükség esetén megadhatod az adataidat",
 ]);
 
 export const FULL_PAGE_DESIGN_PRESETS = Object.freeze([
@@ -224,9 +224,14 @@ export const DEFAULT_FULL_PAGE_CONFIG = Object.freeze({
   publicPageEnabled: false,
   publicPageKey: "",
   headline: null,
-  subtitle: null,
+  subtitle: "Kérdezz szolgáltatásokról, árakról, ajánlatról vagy elérhetőségről.",
   actionCards: DEFAULT_FULL_PAGE_ACTION_CARDS,
-  suggestedQuestions: [],
+  suggestedQuestions: [
+    "Milyen szolgáltatásokat kínáltok?",
+    "Mennyibe kerül?",
+    "Szeretnék ajánlatot kérni.",
+    "Hogyan tudlak elérni benneteket?",
+  ],
   accentColor: null,
   logoUrl: null,
   showBooking: false,

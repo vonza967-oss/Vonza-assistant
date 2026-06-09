@@ -58,6 +58,14 @@ const EMBED_FINGERPRINT =
 let visitorStorageConsentGranted = false;
 let transientVisitorSessionKey = "";
 
+const DEFAULT_ASSISTANT_LANGUAGE = "hu";
+const DEFAULT_WIDGET_WELCOME_MESSAGE_EN = "Hi! How can we help today?";
+const DEFAULT_WIDGET_WELCOME_MESSAGE_HU = "Szia! Miben segíthetünk ma?";
+const DEFAULT_WIDGET_LAUNCHER_TEXT_EN = "Business front desk";
+const DEFAULT_WIDGET_LAUNCHER_TEXT_HU = "Üzleti front desk";
+const DEFAULT_FULL_PAGE_SUBTITLE_EN = "Ask about services, pricing, quotes, or contact details.";
+const DEFAULT_FULL_PAGE_SUBTITLE_HU = "Kérdezz szolgáltatásokról, árakról, ajánlatról vagy elérhetőségről.";
+
 const LEGACY_WIDGET_DEFAULTS = {
   assistantName: "Vonza AI",
   welcomeMessage: "How may I be of your service today?",
@@ -68,9 +76,9 @@ const LEGACY_WIDGET_DEFAULTS = {
 
 const DEFAULT_WIDGET_CONFIG = {
   assistantName: "Front Desk",
-  welcomeMessage: "Hi! How can we help today?",
+  welcomeMessage: DEFAULT_WIDGET_WELCOME_MESSAGE_EN,
   buttonLabel: "Open Front Desk",
-  launcherText: "Business front desk",
+  launcherText: DEFAULT_WIDGET_LAUNCHER_TEXT_EN,
   widgetLogoUrl: "",
   primaryColor: "#5b61ff",
   secondaryColor: "#7c4dff",
@@ -113,7 +121,7 @@ const CALL_MODE_STATES = Object.freeze({
   STOPPED: "stopped",
   UNAVAILABLE: "unavailable",
 });
-const DEFAULT_FULL_PAGE_SUBTITLE = "Ask about services, pricing, quotes, or contact details.";
+const DEFAULT_FULL_PAGE_SUBTITLE = DEFAULT_FULL_PAGE_SUBTITLE_EN;
 const FULL_PAGE_DESIGN_PRESETS = Object.freeze([
   "clean-light",
   "dark-professional",
@@ -925,8 +933,6 @@ function getAssistantLanguage(config = widgetConfig) {
     window.VonzaWidgetConfig?.dashboard_language,
     window.VonzaWidgetConfig?.language,
     getCachedDashboardLanguage(),
-    document.documentElement?.lang,
-    navigator.language,
   ];
 
   for (const candidate of candidates) {
@@ -936,7 +942,7 @@ function getAssistantLanguage(config = widgetConfig) {
     }
   }
 
-  return "en";
+  return DEFAULT_ASSISTANT_LANGUAGE;
 }
 
 function assistantT(key, params = {}, config = widgetConfig) {
@@ -1330,7 +1336,9 @@ function getAssistantMark(name = widgetConfig.assistantName) {
 
 function isDefaultWelcomeMessage(message) {
   const normalized = trimText(message);
-  return !normalized || normalized === DEFAULT_WIDGET_CONFIG.welcomeMessage;
+  return !normalized
+    || normalized === DEFAULT_WIDGET_CONFIG.welcomeMessage
+    || normalized === DEFAULT_WIDGET_WELCOME_MESSAGE_HU;
 }
 
 function isUnsafeCanvasIntroMessage(message) {
@@ -1339,10 +1347,25 @@ function isUnsafeCanvasIntroMessage(message) {
 
   return !normalized
     || lower === DEFAULT_WIDGET_CONFIG.welcomeMessage.toLowerCase()
+    || lower === DEFAULT_WIDGET_WELCOME_MESSAGE_HU.toLowerCase()
     || lower === LEGACY_WIDGET_DEFAULTS.welcomeMessage.toLowerCase()
     || /^hi[,!.\s]+my name is vonza\b/i.test(normalized)
     || /^hi[,!.\s]+i'?m vonza\b/i.test(normalized)
     || /^hi[,!.\s]+how can we help today\??$/i.test(normalized);
+}
+
+function isDefaultLauncherText(message) {
+  const normalized = trimText(message);
+  return !normalized
+    || normalized === DEFAULT_WIDGET_CONFIG.launcherText
+    || normalized === DEFAULT_WIDGET_LAUNCHER_TEXT_HU;
+}
+
+function isDefaultFullPageSubtitle(message) {
+  const normalized = trimText(message);
+  return !normalized
+    || normalized === DEFAULT_FULL_PAGE_SUBTITLE_EN
+    || normalized === DEFAULT_FULL_PAGE_SUBTITLE_HU;
 }
 
 function normalizeBoolean(value, fallbackValue = false) {
@@ -1662,7 +1685,9 @@ function getFullPageConfig(config = widgetConfig) {
 
   return {
     headline: normalizeLimitedText(rawConfig.headline, 80),
-    subtitle: normalizeLimitedText(rawConfig.subtitle, 180),
+    subtitle: isDefaultFullPageSubtitle(rawConfig.subtitle)
+      ? ""
+      : normalizeLimitedText(rawConfig.subtitle, 180),
     introMessage: normalizeLimitedText(
       rawConfig.introMessage
         || rawConfig.intro_message
@@ -1692,7 +1717,7 @@ function getFullPageConfig(config = widgetConfig) {
 function hasCustomFullPageSubtitle(config = widgetConfig) {
   const rawConfig = getRawFullPageConfig(config);
   const rawSubtitle = normalizeLimitedText(rawConfig.subtitle, 180);
-  return Boolean(rawSubtitle && rawSubtitle !== DEFAULT_FULL_PAGE_SUBTITLE);
+  return Boolean(rawSubtitle && !isDefaultFullPageSubtitle(rawSubtitle));
 }
 
 function hasConfiguredFullPageActionCards(config = widgetConfig) {
@@ -2018,14 +2043,12 @@ function normalizeWidgetConfig(input = {}) {
     next.launcherText = DEFAULT_WIDGET_CONFIG.launcherText;
   }
 
-  if (getAssistantLanguage(next) === "hu") {
-    if (isDefaultWelcomeMessage(next.welcomeMessage)) {
-      next.welcomeMessage = assistantT("assistant.defaultWelcome", {}, next);
-    }
+  if (isDefaultWelcomeMessage(next.welcomeMessage)) {
+    next.welcomeMessage = assistantT("assistant.defaultWelcome", {}, next);
+  }
 
-    if (trimText(next.launcherText) === DEFAULT_WIDGET_CONFIG.launcherText) {
-      next.launcherText = assistantT("assistant.defaultLauncher", {}, next);
-    }
+  if (isDefaultLauncherText(next.launcherText)) {
+    next.launcherText = assistantT("assistant.defaultLauncher", {}, next);
   }
 
   return next;
@@ -6276,8 +6299,8 @@ syncWidgetPhaseWithIdentity(visitorIdentity);
 applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
 if (isPageMode()) {
   setPageShellState(hasAssistantConfig() ? "loading" : "unavailable", {
-    title: "Assistant unavailable",
-    copy: "This assistant is not available right now. Please contact the business directly.",
+    title: assistantT("assistant.unavailable.title"),
+    copy: assistantT("assistant.unavailable.copy"),
   });
 }
 loadWidgetBootstrap();

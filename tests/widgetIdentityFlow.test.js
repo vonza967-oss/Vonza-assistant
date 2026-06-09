@@ -125,11 +125,14 @@ function createFakeElement(id = "") {
 function createWidgetHarness({
   customFetch = null,
   widgetRuntimeConfig = {},
-  initialLocalStorage = {},
+  initialLocalStorage = {
+    vonza_dashboard_language: "en",
+  },
   location = {},
   mediaDevices = null,
   MediaRecorder = null,
   RTCPeerConnection = null,
+  navigatorLanguage = "en-US",
   isSecureContext = true,
   mobileViewport = false,
   innerWidth = 1024,
@@ -435,7 +438,9 @@ function createWidgetHarness({
     },
     globalThis: null,
   };
-  context.navigator = mediaDevices ? { mediaDevices } : {};
+  context.navigator = mediaDevices
+    ? { mediaDevices, language: navigatorLanguage }
+    : { language: navigatorLanguage };
 
   context.window.fetch = context.fetch;
   context.globalThis = context;
@@ -579,6 +584,48 @@ test("fresh widget renders only the entry phase before identity is chosen", () =
   assert.equal(harness.elements.get("welcome-panel").hidden, false);
   assert.equal(harness.elements.get("identity-choice-panel").hidden, false);
   assert.equal(harness.localStorage.getItem("vonza_visitor_session_default"), null);
+});
+
+test("public assistant defaults to Hungarian when no language signal exists", () => {
+  const harness = createWidgetHarness({
+    initialLocalStorage: {},
+    navigatorLanguage: "en-US",
+  });
+
+  assert.equal(harness.hooks.getAssistantLanguage(), "hu");
+  assert.equal(harness.elements.get("welcome-title").textContent, "Szia! Miben segíthetünk ma?");
+  assert.equal(harness.elements.get("identity-email-title").textContent, "Folytatás emaillel");
+  assert.equal(harness.elements.get("identity-guest-title").textContent, "Folytatás vendégként");
+  assert.equal(harness.elements.get("input").placeholder, "Írd be a kérdésed...");
+  assert.equal(harness.elements.get("composer-status").textContent, "Állítsd be a Front Desket a Vonzában, mielőtt teszteled ezt az asszisztensoldalt.");
+  assert.doesNotMatch(
+    [
+      harness.elements.get("welcome-title").textContent,
+      harness.elements.get("identity-email-title").textContent,
+      harness.elements.get("identity-guest-title").textContent,
+      harness.elements.get("composer-status").textContent,
+    ].join(" "),
+    /Hi!|Continue with email|Continue as guest|Set up your Front Desk/i
+  );
+});
+
+test("public assistant preserves explicit English language selection", () => {
+  const harness = createWidgetHarness({
+    initialLocalStorage: {},
+    navigatorLanguage: "hu-HU",
+    location: {
+      search: "?language=en",
+      pathname: "/widget",
+      href: "https://example.com/widget?language=en",
+    },
+  });
+
+  assert.equal(harness.hooks.getAssistantLanguage(), "en");
+  assert.equal(harness.elements.get("welcome-title").textContent, "Hi! How can we help today?");
+  assert.equal(harness.elements.get("identity-email-title").textContent, "Continue with email");
+  assert.equal(harness.elements.get("identity-guest-title").textContent, "Continue as guest");
+  assert.equal(harness.elements.get("input").placeholder, "Type your question...");
+  assert.equal(harness.elements.get("composer-status").textContent, "Set up your Front Desk in Vonza before testing this assistant page.");
 });
 
 test("Hungarian public assistant initial shell renders localized entry copy", () => {

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hu">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -129,7 +129,7 @@
         document.documentElement.style.setProperty("--vz-glass-highlight-alpha", "0.86");
       }
       try {
-        const language = window.localStorage?.getItem("vonza_dashboard_language") === "hu" ? "hu" : "en";
+        const language = window.localStorage?.getItem("vonza_dashboard_language") === "en" ? "en" : "hu";
         document.documentElement.dataset.dashboardLanguage = language;
         document.documentElement.lang = language;
       } catch {}
@@ -154,24 +154,24 @@
     </div>
     <div id="status-banner" class="status-banner" role="status" aria-live="polite" aria-atomic="true"></div>
     <div id="dashboard-root">
-      <section class="dashboard-loading-screen" role="status" aria-live="polite" aria-busy="true" aria-label="Opening your workspace" data-loading-region>
+      <section class="dashboard-loading-screen" role="status" aria-live="polite" aria-busy="true" aria-label="Megnyitjuk a munkaterületedet" data-loading-region>
         <div class="dashboard-loading-shell">
           <div class="dashboard-loading-header">
             <div class="dashboard-loading-mark" aria-hidden="true">V</div>
-            <h1 data-loading-title>Opening your workspace</h1>
-            <p data-loading-copy>Loading your Website Widget setup...</p>
+            <h1 data-loading-title>Megnyitjuk a munkaterületedet</h1>
+            <p data-loading-copy>Betöltjük a Website Widget beállításait...</p>
           </div>
 
-          <div class="dashboard-loading-progress" role="progressbar" aria-label="Opening your workspace" aria-valuetext="Loading" data-loading-progress>
+          <div class="dashboard-loading-progress" role="progressbar" aria-label="Megnyitjuk a munkaterületedet" aria-valuetext="Betöltés" data-loading-progress>
             <span></span>
           </div>
 
           <p class="dashboard-loading-reassurance">
-            <span data-loading-footer>This usually takes a few seconds.</span>
-            <span class="dashboard-loading-delayed" data-loading-delayed>Still loading? Free Render instances can take up to a minute after inactivity.</span>
+            <span data-loading-footer>Ez általában csak néhány másodperc.</span>
+            <span class="dashboard-loading-delayed" data-loading-delayed>Még tölt? Az ingyenes Render példányok inaktivitás után akár egy percig is indulhatnak.</span>
           </p>
           <div class="dashboard-loading-actions" aria-label="Loading actions">
-            <button class="ghost-button" type="button" data-loading-refresh>Refresh</button>
+            <button class="ghost-button" type="button" data-loading-refresh>Frissítés</button>
           </div>
         </div>
       </section>

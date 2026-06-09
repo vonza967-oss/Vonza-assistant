@@ -51,7 +51,9 @@ function createDashboardHarness({
   getSessionError = null,
   customFetch = null,
   operatorWorkspaceFlag = true,
-  initialLocalStorage = {},
+  initialLocalStorage = {
+    vonza_dashboard_language: "en",
+  },
 } = {}) {
   const settingsShellScript = readFileSync(settingsShellBundlePath, "utf8");
   const dashboardI18nScript = readFileSync(dashboardI18nPath, "utf8");
@@ -735,6 +737,92 @@ test("dashboard shows a visible loading state before workspace data resolves", a
 
   resolveList();
   await harness.settle();
+});
+
+test("dashboard defaults to Hungarian when no saved or cached language exists", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+    initialLocalStorage: {},
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/dashboard/preferences") {
+        return buildResponse({
+          status: 200,
+          body: {
+            dashboardLanguage: null,
+            persistenceAvailable: true,
+            migrationRequired: false,
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+  assert.equal(harness.getGlobal("getDashboardLanguage")(), "hu");
+  assert.equal(harness.getGlobal("window").localStorage.getItem("vonza_dashboard_language"), "hu");
+  assert.match(html, /Kezdőlap/);
+  assert.match(html, /Mai AI ügyfélszolgálati áttekintés/);
+  assert.doesNotMatch(html, /dashboard-language-first-run/);
+});
+
+test("dashboard preserves saved English preference when no cached language exists", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+    initialLocalStorage: {},
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/dashboard/preferences") {
+        return buildResponse({
+          status: 200,
+          body: {
+            dashboardLanguage: "en",
+            persistenceAvailable: true,
+            migrationRequired: false,
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+  assert.equal(harness.getGlobal("getDashboardLanguage")(), "en");
+  assert.equal(harness.getGlobal("window").localStorage.getItem("vonza_dashboard_language"), "en");
+  assert.match(html, /Home/);
+  assert.match(html, /Your AI customer service snapshot for today/);
+  assert.doesNotMatch(html, /Mai AI ügyfélszolgálati áttekintés/);
+});
+
+test("dashboard preserves cached English when the preference row is missing", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+    initialLocalStorage: {
+      vonza_dashboard_language: "en",
+    },
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/dashboard/preferences") {
+        return buildResponse({
+          status: 200,
+          body: {
+            dashboardLanguage: null,
+            persistenceAvailable: true,
+            migrationRequired: false,
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  assert.equal(harness.getGlobal("getDashboardLanguage")(), "en");
+  assert.equal(harness.getGlobal("window").localStorage.getItem("vonza_dashboard_language"), "en");
+  assert.match(harness.getRootHtml(), /Your AI customer service snapshot for today/);
 });
 
 test("dashboard renders visible shell content when data loads normally", async () => {
