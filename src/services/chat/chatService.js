@@ -1452,7 +1452,7 @@ async function generateRepairedChatReply({
       ],
       conversationGuidance,
       model: "gpt-4o-mini",
-      temperature: 0.3,
+      temperature: 0.6,
       presencePenalty: 0,
       frequencyPenalty: 0,
       postProcess: stripRawAssetUrls,
@@ -1483,7 +1483,7 @@ async function generateRepairedChatReply({
           return issues;
         },
         buildRewritePrompt: () => buildBusinessReplyRepairPrompt(request.language),
-        temperature: 0.25,
+        temperature: 0.5,
       },
       onUsage(entry) {
         usageEntries.push(entry);

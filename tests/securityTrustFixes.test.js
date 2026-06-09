@@ -1546,7 +1546,7 @@ test("normal hosted page chat does not add web call spoken prompt guidance", asy
   assert.match(systemPrompt, /Use short, readable answers with 1-2 sentence paragraphs/i);
 });
 
-test("front-desk answers use low temperature and repair invented pricing when pricing data is missing", async () => {
+test("front-desk answers use configured temperature and repair invented pricing when pricing data is missing", async () => {
   const supabase = createFakeSupabase({
     ...buildChatState(),
     website_content: [
@@ -1594,8 +1594,8 @@ test("front-desk answers use low temperature and repair invented pricing when pr
     },
   });
 
-  assert.equal(calls[0].temperature, 0.3);
-  assert.equal(calls[1].temperature, 0.25);
+  assert.equal(calls[0].temperature, 0.6);
+  assert.equal(calls[1].temperature, 0.5);
   assert.doesNotMatch(result.reply, /\$99/);
   assert.match(result.reply, /do not have a published emergency plumbing price/i);
 });
