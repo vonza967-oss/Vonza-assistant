@@ -24,6 +24,8 @@ test("business vertical templates expose required sectors and prompt guidance", 
   const promptBlock = formatBusinessVerticalPromptBlock("home_services");
   assert.match(promptBlock, /Home services/i);
   assert.match(promptBlock, /Do you serve my area/i);
+  assert.match(promptBlock, /Internal-use only/i);
+  assert.match(promptBlock, /do not quote them verbatim/i);
 });
 
 test("chat prompting incorporates selected business vertical", () => {

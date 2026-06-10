@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 
 import { getAgentPackage } from "../src/agentPackages/index.js";
 import { compileAgentSystemPrompt } from "../src/services/chat/promptCompiler.js";
-import { buildChatSystemPrompt } from "../src/services/chat/prompting.js";
+import {
+  buildBusinessReplyRepairPrompt,
+  buildChatSystemPrompt,
+  buildConversationGuidance,
+  getFactualReplyGuardrailIssues,
+} from "../src/services/chat/prompting.js";
 
 test("compileAgentSystemPrompt includes the existing Front Desk role line", () => {
   const prompt = compileAgentSystemPrompt({
@@ -124,6 +129,104 @@ test("buildChatSystemPrompt remains backward-compatible for existing callers", (
   assert.match(prompt, /Web Call spoken response style:/);
   assert.match(prompt, /- preferred tone: support/);
   assert.match(prompt, /Additional agent instructions:\nAsk for project scope before discussing timelines\./);
+});
+
+test("Hungarian system prompt uses default-Hungarian policy without English fallback examples", () => {
+  const prompt = compileAgentSystemPrompt({
+    language: "Hungarian",
+    agent: { name: "Vonza Front Desk" },
+  });
+
+  assert.match(prompt, /Reply in Hungarian/);
+  assert.match(prompt, /explicit selected\/requested language wins/);
+  assert.match(prompt, /visitor language is ambiguous or missing, default to Hungarian/);
+  assert.match(prompt, /tegezés/);
+  assert.match(prompt, /Ezt az adatot nem látom megerősítve/);
+  assert.doesNotMatch(prompt, /I do not have a confirmed contact detail/i);
+  assert.doesNotMatch(prompt, /You can leave your details/i);
+  assert.doesNotMatch(prompt, /Front Desk does not have that detail/i);
+  assert.doesNotMatch(prompt, /Please contact us|listed contact details/i);
+});
+
+test("explicit English system prompt preserves English fallback behavior", () => {
+  const prompt = compileAgentSystemPrompt({
+    language: "English",
+    agent: { name: "Vonza Front Desk" },
+  });
+
+  assert.match(prompt, /Reply in English/);
+  assert.match(prompt, /If the visitor language is clearly English, answer in English/);
+  assert.match(prompt, /I do not have a confirmed contact detail for this business here/);
+  assert.match(prompt, /Front Desk does not have that detail/);
+});
+
+test("Hungarian conversation and repair guidance avoid exact English fallback phrases", () => {
+  const conversationGuidance = buildConversationGuidance("Hogyan tudom felvenni a kapcsolatot?", [], {
+    language: "Hungarian",
+  });
+  const repairPrompt = buildBusinessReplyRepairPrompt("Hungarian");
+
+  assert.match(conversationGuidance, /Itt nincs megerősített elérhetőségem/);
+  assert.match(repairPrompt, /biztonságos magyar hiányzó-információs/);
+  assert.doesNotMatch(conversationGuidance, /I do not have a confirmed contact detail/i);
+  assert.doesNotMatch(conversationGuidance, /You can leave your details/i);
+  assert.doesNotMatch(repairPrompt, /Front Desk does not have that detail/i);
+});
+
+test("Hungarian factual guardrails catch invented services, prices, hours, policies, availability, and denials", () => {
+  const cases = [
+    {
+      userMessage: "Milyen szolgáltatásokat kínáltok?",
+      businessContext: "Most relevant website excerpts:\nKapcsolatfelvétel az űrlapon keresztül.",
+      reply: "Vízvezeték-szerelést és klímaszerelést vállalnak. Melyik érdekel?",
+      expected: /invents a service/i,
+    },
+    {
+      userMessage: "Mennyibe kerül a sürgősségi kiszállás?",
+      businessContext: "Most relevant website excerpts:\nKérj ajánlatot az űrlapon keresztül.",
+      reply: "A sürgősségi kiszállás 25000 Ft. Mikor lenne szükséged rá?",
+      expected: /invents a price/i,
+    },
+    {
+      userMessage: "Mikor vagytok nyitva?",
+      businessContext: "Most relevant website excerpts:\nKérdés esetén írj üzenetet.",
+      reply: "Hétfőtől péntekig 9-17 között nyitva vannak. Melyik nap lenne jó?",
+      expected: /invents a policy/i,
+    },
+    {
+      userMessage: "Mi a lemondási szabályzat?",
+      businessContext: "Most relevant website excerpts:\nKérdés esetén írj üzenetet.",
+      reply: "24 órán belül ingyenes a lemondás. Szeretnél időpontot módosítani?",
+      expected: /invents a policy/i,
+    },
+    {
+      userMessage: "Van szabad időpont holnap?",
+      businessContext: "Most relevant website excerpts:\nIdőpontkérést az űrlapon lehet elküldeni.",
+      reply: "Holnap 10-kor van szabad időpont. Megfelel?",
+      expected: /invents a policy/i,
+    },
+    {
+      userMessage: "Javítotok elektromos rollert?",
+      businessContext: "Most relevant website excerpts:\nElektromos roller javítás nem szerepel. Szolgáltatások: kerékpár karbantartás.",
+      reply: "Nem javítanak elektromos rollert. Kerékpár karbantartás érdekel?",
+      expected: /unsupported service denial/i,
+    },
+  ];
+
+  for (const entry of cases) {
+    const issues = getFactualReplyGuardrailIssues(entry);
+    assert.ok(
+      issues.some((issue) => entry.expected.test(issue)),
+      `Expected ${entry.expected} for: ${entry.userMessage}; got ${issues.join(", ")}`
+    );
+  }
+
+  const safeIssues = getFactualReplyGuardrailIssues({
+    userMessage: "Van szabad időpont holnap?",
+    businessContext: "Most relevant website excerpts:\nIdőpontkérést az űrlapon lehet elküldeni.",
+    reply: "Ezt az időpontot nem látom megerősítve a rendelkezésre álló információkban. Szeretnéd megadni az adataidat utánkövetéshez?",
+  });
+  assert.deepEqual(safeIssues, []);
 });
 
 test("representative Front Desk prompt preserves expected behavior phrases after extraction", () => {

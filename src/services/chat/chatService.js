@@ -127,7 +127,11 @@ function appendImageLines(reply, websiteContent, userMessage) {
   return `${reply}\n\nRelevant image links:\n${imageUrls.map((url) => `- ${url}`).join("\n")}`;
 }
 
-function buildLimitedKnowledgeReply(language, agentName, websiteContent) {
+function isHungarianLanguage(language = "") {
+  return cleanText(language).toLowerCase() === "hungarian";
+}
+
+export function buildLimitedKnowledgeReply(language, agentName, websiteContent) {
   const name = cleanText(agentName || websiteContent?.pageTitle || "This assistant");
   const rawMetaDescription = cleanText(websiteContent?.metaDescription || "");
   const metaDescription =
@@ -141,11 +145,12 @@ function buildLimitedKnowledgeReply(language, agentName, websiteContent) {
       "the business"
   );
 
-  if (language === "Hungarian") {
-    const summary = metaDescription
-      ? `${name} kapcsán ennyi látszik biztosan a weboldalból: ${metaDescription}`
-      : `${name} kapcsán nem látok elég részletes információt a weboldalból ehhez a kérdéshez.`;
-    return `${summary} Ha szeretnéd, segítek leszűkíteni a következő lépést. Szolgáltatást keresel, árazás érdekel, vagy az a fontos, hogyan tudod felvenni velük a kapcsolatot?`;
+  if (isHungarianLanguage(language)) {
+    if (metaDescription) {
+      return `${name} kapcsán ezt látom biztosan: ${metaDescription}\n\nMelyik rész érdekel: szolgáltatás, ár, időpont vagy kapcsolat?`;
+    }
+
+    return "Erről nincs elég biztos információm a vállalkozás adatai alapján. Melyik rész érdekel: szolgáltatás, ár, időpont vagy kapcsolat?";
   }
 
   const summary = metaDescription
@@ -155,9 +160,9 @@ function buildLimitedKnowledgeReply(language, agentName, websiteContent) {
 }
 
 export function buildNoWebsiteContentFallbackReply(language) {
-  return language === "Hungarian"
-    ? "Sajnálom, ezt még nem tudom biztosan. Kérlek, vedd fel velünk a kapcsolatot az űrlapon vagy a megadott elérhetőségeken."
-    : "I’m sorry, I don’t know that yet. Please contact us via our form or the listed contact details.";
+  return isHungarianLanguage(language)
+    ? "Ezt az adatot nem látom megerősítve a rendelkezésre álló információkban. Ha szeretnéd, megadhatod az adataidat, és a vállalkozás utánkövethet."
+    : "I don’t have that confirmed in the available information yet. You can leave your details and the business can follow up.";
 }
 
 async function resolveWidgetConversationContext(supabase, options = {}) {
@@ -297,9 +302,9 @@ function replyContainsUntrustedContactDetail(reply = "", evidence = {}) {
     || urls.some((url) => !evidence.trustedUrls?.has(url));
 }
 
-function buildMissingVerifiedContactReply(language) {
-  if (language === "Hungarian") {
-    return "I do not have a confirmed contact detail for this business here.\n\nYou can leave your details and the business can follow up.";
+export function buildMissingVerifiedContactReply(language) {
+  if (isHungarianLanguage(language)) {
+    return "Itt nincs megerősített elérhetőségem ehhez a vállalkozáshoz. Ha szeretnéd, megadhatod az adataidat, és a vállalkozás utánkövethet.";
   }
 
   return "I do not have a confirmed contact detail for this business here.\n\nYou can leave your details and the business can follow up.";
@@ -374,33 +379,34 @@ function replyUsesApprovedContactGuidance(reply = "", approvedAnswers = []) {
 }
 
 function replyIncludesMissingInfoFallback(reply = "") {
-  return /\b(?:do not have|don't have|does not have|does not list|not listed|not shown|not confirmed|cannot confirm|can(?:'|\u2019)t confirm|Front Desk does not have|I do not have|nem látok|nincs megadva|nem szerepel)\b/i.test(cleanText(reply));
+  return /\b(?:do not have|don't have|does not have|does not list|not listed|not shown|not confirmed|cannot confirm|can(?:'|\u2019)t confirm|Front Desk does not have|I do not have|nem látok|nincs megadva|nem szerepel|nem tudom megerősíteni|nem tudok biztos választ|nem látom megerősítve|nincs elég biztos információm|nincs megerősített|nem megerősített)\b/i.test(cleanText(reply));
 }
 
-function getRequestedUnlistedServiceLabel(userMessage = "") {
+function getRequestedUnlistedServiceLabel(userMessage = "", language = "English") {
   const normalized = cleanText(userMessage).toLowerCase();
+  const hungarianLanguage = isHungarianLanguage(language);
 
-  if (/\belectric scooters?\b/i.test(normalized)) {
-    return "electric scooter repair";
+  if (/\belectric scooters?\b|elektromos\s+roller|e-?roller/i.test(normalized)) {
+    return hungarianLanguage ? "az elektromos roller javítást" : "electric scooter repair";
   }
 
-  if (/\bmotorcycles?\b/i.test(normalized)) {
-    return "motorcycle repair";
+  if (/\bmotorcycles?\b|\bmotor\b|motorkerékpár|motorkerekpar/i.test(normalized)) {
+    return hungarianLanguage ? "a motorjavítást" : "motorcycle repair";
   }
 
-  if (/\bon-?site\b|\bmobile repair\b/i.test(normalized)) {
-    return "on-site mobile repair";
+  if (/\bon-?site\b|\bmobile repair\b|helyszíni|helyszini|mobil javítás|mobil javitas/i.test(normalized)) {
+    return hungarianLanguage ? "a helyszíni javítást" : "on-site mobile repair";
   }
 
-  if (/\b24\/7\b|\bemergency repair\b/i.test(normalized)) {
-    return "24/7 emergency repair";
+  if (/\b24\/7\b|\b0-?24\b|\bemergency repair\b|sürgősségi|surgossegi/i.test(normalized)) {
+    return hungarianLanguage ? "a 0-24-es sürgősségi javítást" : "24/7 emergency repair";
   }
 
   return "";
 }
 
 function trustedContextSaysRequestedServiceIsUnlisted(context = "", userMessage = "") {
-  const serviceLabel = getRequestedUnlistedServiceLabel(userMessage);
+  const serviceLabel = getRequestedUnlistedServiceLabel(userMessage, "English");
   if (!serviceLabel) {
     return false;
   }
@@ -411,22 +417,39 @@ function trustedContextSaysRequestedServiceIsUnlisted(context = "", userMessage 
     .split(/\s+/)
     .map((term) => term.trim())
     .filter(Boolean);
-  const hasMissingServiceSignal = /\b(?:does not|doesn't|do not|don't)\s+list\b|\bnot listed\b|\bnot shown\b/i.test(normalizedContext);
+  const hasMissingServiceSignal = /\b(?:does not|doesn't|do not|don't)\s+list\b|\bnot listed\b|\bnot shown\b|\b(?:nem szerepel|nincs feltüntetve|nincs feltuntetve|nem látható|nem lathato|nincs megadva)\b/i.test(normalizedContext);
 
   return hasMissingServiceSignal && requiredTerms.every((term) => normalizedContext.includes(term));
 }
 
 export function buildMissingListedServiceReply(language, userMessage = "") {
   const normalizedMessage = cleanText(userMessage).toLowerCase();
-  const serviceLabel = /\belectric scooters?\b/i.test(normalizedMessage)
-    ? "electric scooter repair"
-    : "that service";
+  const serviceLabel = getRequestedUnlistedServiceLabel(normalizedMessage, language);
 
-  if (language === "Hungarian") {
-    return `Front Desk does not have ${serviceLabel} listed for this business here.\n\nYou can share the details and the business can follow up.`;
+  if (isHungarianLanguage(language)) {
+    const label = serviceLabel || "ezt a szolgáltatást";
+    return `${label} nem látom megerősítve a rendelkezésre álló üzleti adatokban.\n\nHa szeretnéd, megadhatod a részleteket, és a vállalkozás utánkövethet.`;
   }
 
-  return `Front Desk does not have ${serviceLabel} listed for this business here.\n\nYou can share the details and the business can follow up.`;
+  const englishLabel = serviceLabel || "that service";
+  return `Front Desk does not have ${englishLabel} listed for this business here.\n\nYou can share the details and the business can follow up.`;
+}
+
+export function buildTemporaryAssistantFailureReply(language) {
+  if (isHungarianLanguage(language)) {
+    return "Most átmenetileg nem tudok biztos választ adni. Próbáld újra pár perc múlva, vagy hagyd meg az elérhetőségedet, hogy a vállalkozás folytathassa.";
+  }
+
+  return "I can’t provide a reliable answer right now. Please try again in a few minutes, or leave your contact details so the business can follow up.";
+}
+
+function isVisitorSafeGenerationFailure(error) {
+  const statusCode = Number(error?.statusCode || error?.status || 0);
+  const code = cleanText(error?.code);
+
+  return code === "openai_unavailable"
+    || statusCode === 502
+    || (statusCode >= 500 && statusCode < 600);
 }
 
 function buildAiCapacityReachedReply(language) {
@@ -656,7 +679,7 @@ function bookingRequestIntentPhrase(intentType, language) {
   const hungarian = language === "Hungarian";
   const phrases = {
     booking_request: hungarian ? "időpontkérés" : "booking request",
-    availability_question: hungarian ? "elérhetőségi kérés" : "availability request",
+    availability_question: hungarian ? "szabad időpont kérdés" : "availability request",
     cancel_request: hungarian ? "lemondási kérés" : "cancellation request",
     reschedule_request: hungarian ? "módosítási kérés" : "change request",
   };
@@ -861,6 +884,7 @@ async function resolvePublicChatContext({
   const conversationGuidance = services.buildConversationGuidance(request.message, request.history, {
     agentPackage,
     vertical: agentWithBusinessContext.vertical,
+    language: request.language,
   });
 
   return {
@@ -1715,6 +1739,7 @@ export async function generateSharedChatAssistantTurn(options = {}, deps = {}) {
     conversationGuidance: services.buildConversationGuidance(request.message, request.history, {
       agentPackage,
       vertical: agentWithBusinessContext.vertical,
+      language: request.language,
     }),
   };
   const websiteContent = await loadSharedChatTurnWebsiteContent({
@@ -1761,14 +1786,35 @@ export async function generateSharedChatAssistantTurn(options = {}, deps = {}) {
     websiteContent,
     services,
   });
-  const generatedReply = await generateRepairedChatReply({
-    supabase: options.supabase,
-    request,
-    publicContext,
-    capacityContext,
-    knowledge,
-    services,
-  });
+  let generatedReply;
+
+  try {
+    generatedReply = await generateRepairedChatReply({
+      supabase: options.supabase,
+      request,
+      publicContext,
+      capacityContext,
+      knowledge,
+      services,
+    });
+  } catch (error) {
+    if (!isVisitorSafeGenerationFailure(error)) {
+      throw error;
+    }
+
+    console.warn("[chat] Shared assistant generation failed; returning temporary fallback.", {
+      agentId: agent.id,
+      businessId: business.id,
+      message: error?.message || "Unknown assistant generation error",
+    });
+
+    return {
+      reply: buildTemporaryAssistantFailureReply(request.language),
+      usedSharedEngine: false,
+      fallbackReason: "assistant_generation_failed",
+    };
+  }
+
   const finalReply = applyFinalReplySafetyValidation({
     reply: generatedReply,
     request,
@@ -1965,20 +2011,42 @@ export async function handleChatRequest({
     websiteContent,
     services,
   });
-  const generatedReply = await generateRepairedChatReply({
-    supabase,
-    request,
-    publicContext,
-    capacityContext,
-    knowledge,
-    services,
-  });
-  const finalReply = applyFinalReplySafetyValidation({
-    reply: generatedReply,
-    request,
-    publicContext,
-    knowledge,
-  });
+  let generatedReply;
+  let generationFallbackApplied = false;
+
+  try {
+    generatedReply = await generateRepairedChatReply({
+      supabase,
+      request,
+      publicContext,
+      capacityContext,
+      knowledge,
+      services,
+    });
+  } catch (error) {
+    if (!isVisitorSafeGenerationFailure(error)) {
+      throw error;
+    }
+
+    console.warn("[chat] Assistant generation failed; returning temporary fallback.", {
+      agentId: publicContext.agent.id,
+      businessId: websiteContent.businessId,
+      installId: request.installId,
+      pageUrl: request.pageUrl,
+      message: error?.message || "Unknown assistant generation error",
+    });
+    generatedReply = buildTemporaryAssistantFailureReply(request.language);
+    generationFallbackApplied = true;
+  }
+
+  const finalReply = generationFallbackApplied
+    ? generatedReply
+    : applyFinalReplySafetyValidation({
+        reply: generatedReply,
+        request,
+        publicContext,
+        knowledge,
+      });
   const leadAndRouting = await resolveLeadCaptureAndDirectRouting({
     supabase,
     request,

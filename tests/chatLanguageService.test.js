@@ -10,8 +10,11 @@ import {
   selectResponseLanguage,
 } from "../src/utils/text.js";
 import {
+  buildLimitedKnowledgeReply,
+  buildMissingVerifiedContactReply,
   buildMissingListedServiceReply,
   buildNoWebsiteContentFallbackReply,
+  buildTemporaryAssistantFailureReply,
   normalizeChatRequestBody,
   validateNormalizedChatRequest,
 } from "../src/services/chat/chatService.js";
@@ -39,7 +42,8 @@ test("Hungarian latest customer message keeps Hungarian despite English business
 
   assert.equal(language, "Hungarian");
   assert.match(systemPrompt, /Reply in Hungarian/);
-  assert.match(systemPrompt, /same language as the customer's latest message/);
+  assert.match(systemPrompt, /Language policy: explicit selected\/requested language wins/);
+  assert.match(systemPrompt, /If the visitor language is ambiguous or missing, default to Hungarian/);
   assert.match(systemPrompt, /Do not translate business names, service names, URLs, addresses, emails, or phone numbers/);
   assert.match(businessContext, /\+1 206 867 2400/);
 });
@@ -146,10 +150,43 @@ test("chat request validation preserves the public chat error contract", () => {
 test("Hungarian missing-website-content contact fallback stays Hungarian", () => {
   const reply = buildNoWebsiteContentFallbackReply("Hungarian");
 
-  assert.match(reply, /Sajnálom/);
-  assert.match(reply, /Kérlek, vedd fel velünk a kapcsolatot/);
-  assert.match(reply, /elérhetőségeken/);
-  assert.doesNotMatch(reply, /Please contact us|listed contact details/i);
+  assert.match(reply, /nem látom megerősítve/i);
+  assert.match(reply, /vállalkozás utánkövethet/i);
+  assert.doesNotMatch(reply, /Please contact us|listed contact details|velünk/i);
+});
+
+test("Hungarian missing contact fallback stays Hungarian and business-neutral", () => {
+  const reply = buildMissingVerifiedContactReply("Hungarian");
+
+  assert.match(reply, /nincs megerősített elérhetőségem/i);
+  assert.match(reply, /vállalkozás utánkövethet/i);
+  assert.doesNotMatch(reply, /I do not have|You can leave|the business can follow up|Please contact us|velünk/i);
+});
+
+test("Hungarian missing listed service fallback avoids English and categorical denial", () => {
+  const reply = buildMissingListedServiceReply("Hungarian", "Javítotok elektromos rollert?");
+
+  assert.match(reply, /elektromos roller javítást/i);
+  assert.match(reply, /nem látom megerősítve/i);
+  assert.doesNotMatch(reply, /Front Desk does not have|You can share|does not provide|nem javít|nem vállal/i);
+});
+
+test("Hungarian limited-knowledge fallback stays Hungarian", () => {
+  const reply = buildLimitedKnowledgeReply("Hungarian", "Vonza Front Desk", {
+    content: "Limited content available. This assistant may give general answers.",
+  });
+
+  assert.match(reply, /nincs elég biztos információm/i);
+  assert.match(reply, /szolgáltatás, ár, időpont vagy kapcsolat/i);
+  assert.doesNotMatch(reply, /I don't have|services, pricing|how to contact/i);
+});
+
+test("Hungarian provider failure fallback stays Hungarian", () => {
+  const reply = buildTemporaryAssistantFailureReply("Hungarian");
+
+  assert.match(reply, /átmenetileg nem tudok biztos választ adni/i);
+  assert.match(reply, /vállalkozás folytathassa/i);
+  assert.doesNotMatch(reply, /reliable answer|try again|business can follow up/i);
 });
 
 test("missing listed service fallback avoids categorical service denial", () => {

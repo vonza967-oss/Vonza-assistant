@@ -89,7 +89,7 @@ export const DEFAULT_FULL_PAGE_ACTION_CARDS = Object.freeze([
   Object.freeze({
     label: "Elérhetőségek",
     description: "Találd meg a legjobb kapcsolatfelvételi módot, vagy hagyd meg az adataidat.",
-    prompt: "Hogyan tudlak elérni benneteket?",
+    prompt: "Hogyan tudom felvenni a kapcsolatot?",
     type: "contact",
     enabled: true,
   }),

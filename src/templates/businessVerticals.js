@@ -133,6 +133,7 @@ export function formatBusinessVerticalPromptBlock(value) {
     `Business type: ${template.description}`,
     "Vertical-specific guidance:",
     template.systemInstructions,
+    "Internal-use only: Vertical labels and common questions may be written in English for operators. Treat them as guidance, not visitor-facing wording; translate or paraphrase naturally in the selected reply language and do not quote them verbatim unless the visitor is using English.",
     "Common visitor questions and suggested answer direction:",
     ...template.commonQuestions.map((entry) => `- ${entry.question}: ${entry.answer}`),
   ].join("\n");

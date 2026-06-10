@@ -627,6 +627,28 @@ test("unsafe quote prompt does not create a request", async () => {
   assert.equal(result.reply, "Please contact the business directly for anything urgent or specific.");
 });
 
+test("Hungarian model provider failure returns temporary localized fallback", async () => {
+  const { deps, captured } = createFrontDeskBookingChatDeps();
+  const providerError = new Error("OpenAI chat completions are unavailable.");
+  providerError.code = "openai_unavailable";
+  deps.generateAssistantReply = async (payload) => {
+    captured.generatedPayload = payload;
+    throw providerError;
+  };
+
+  const result = await runFrontDeskBookingChat({
+    deps,
+    message: "Miben tudtok segíteni?",
+  });
+
+  assert.ok(captured.generatedPayload);
+  assert.equal(captured.generatedPayload.conversationGuidance.includes("magyar"), true);
+  assert.match(result.reply, /átmenetileg nem tudok biztos választ adni/i);
+  assert.match(result.reply, /vállalkozás folytathassa/i);
+  assert.doesNotMatch(result.reply, /reliable answer|try again|business can follow up/i);
+  assert.equal(result.leadCapture, captured.routingPayload.leadCapture);
+});
+
 test("booking request flag on creates a Front Desk staff-review request without OpenAI", async () => {
   const { deps, captured } = createFrontDeskBookingChatDeps({
     bookingRequestsFromChatEnabled: true,
@@ -683,7 +705,7 @@ test("availability question creates a request without claiming availability", as
 
   const result = await runFrontDeskBookingChat({
     deps,
-    message: "Do you have Saturday availability?",
+    message: "Is there appointment availability on Saturday?",
     openai: () => {
       throw new Error("OpenAI should not be called for deterministic availability acknowledgement.");
     },
@@ -695,6 +717,34 @@ test("availability question creates a request without claiming availability", as
   assert.equal(result.bookingRequest.status, "needs_info");
   assert.match(result.reply, /staff for review/i);
   assert.doesNotMatch(result.reply, /\bavailable|open slot|found a slot\b/i);
+});
+
+test("Hungarian booking or availability question creates a localized request-only handoff", async () => {
+  const { deps, captured } = createFrontDeskBookingChatDeps({
+    bookingRequestsFromChatEnabled: "enabled",
+    buildChatBookingRequestDraft: buildRealChatBookingRequestDraft,
+    createAgentBookingRequest: async (_supabase, payload) => ({
+      status: payload.status,
+    }),
+  });
+
+  const result = await runFrontDeskBookingChat({
+    deps,
+    message: "Van szabad időpont holnap délelőtt?",
+    openai: () => {
+      throw new Error("OpenAI should not be called for deterministic Hungarian availability acknowledgement.");
+    },
+  });
+
+  assert.equal(captured.generatedPayload, null);
+  assert.equal(captured.bookingRequestPayload.status, "needs_info");
+  assert.equal(captured.bookingRequestPayload.evidence.proof_source_type, "request_only");
+  assert.equal(captured.bookingRequestPayload.metadata.intent_type, "booking_request");
+  assert.match(result.reply, /munkatársaknak átnézésre/i);
+  assert.match(result.reply, /A vállalkozásnak közvetlenül kell egyeztetnie/i);
+  assert.match(result.reply, /nincs időpont véglegesítve/i);
+  assert.match(result.reply, /időpontkérés/i);
+  assert.doesNotMatch(result.reply, /staff for review|No time is confirmed|available|szabad időpont van|garantált/i);
 });
 
 test("cancel and reschedule requests become request statuses without mutation claims", async () => {
