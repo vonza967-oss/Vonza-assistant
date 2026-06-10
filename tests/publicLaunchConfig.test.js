@@ -9,10 +9,12 @@ test("public launch profile defines the stable core and hides Google workspace s
   });
 
   assert.equal(profile.mode, "public_cohort_v1");
-  assert.equal(profile.product.name, "Vonza Website Widget");
-  assert.match(profile.product.headline, /AI agent on your website in 5 minutes/i);
-  assert.match(profile.product.purchaseSummary, /Website Widget/i);
+  assert.equal(profile.product.name, "Vonza AI Front Desk");
+  assert.match(profile.product.headline, /Hungarian-first AI Front Desk/i);
+  assert.match(profile.product.purchaseSummary, /full-page AI Front Desk/i);
+  assert.match(profile.product.purchaseSummary, /Website Widget remains the fastest embedded/i);
   assert.equal(profile.icp.key, "service_businesses_with_inbound_leads");
+  assert.equal(profile.icp.shortLabel, "Hungarian SMEs");
   assert.equal(profile.matrix.front_desk.state, FEATURE_STATES.STABLE);
   assert.equal(profile.matrix.customize.label, "Widget configuration");
   assert.equal(profile.matrix.today.state, FEATURE_STATES.STABLE);

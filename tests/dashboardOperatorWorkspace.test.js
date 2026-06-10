@@ -71,6 +71,9 @@ function createDashboardHarness({
   pathname = "/legacy-dashboard-test",
   search = "",
   hash = "",
+  initialLocalStorage = {
+    vonza_dashboard_language: "en",
+  },
 } = {}) {
   const i18nScript = readFileSync(path.join(repoRoot, "frontend", "i18n", "dashboardI18n.js"), "utf8");
   const settingsShellScript = readFileSync(path.join(repoRoot, "frontend", "settings", "SettingsShell.js"), "utf8");
@@ -84,7 +87,9 @@ function createDashboardHarness({
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8")
     .replace(/\nboot\(\)\.catch\(\(error\) => \{\n\s*handleFatalDashboardError\(error, "boot-unhandled"\);\n\}\);\s*$/, "\n")
     .replace(/\nboot\(\);\s*$/, "\n");
-  const storage = new Map();
+  const storage = new Map(
+    Object.entries(initialLocalStorage).map(([key, value]) => [key, String(value)])
+  );
   const elements = new Map();
   const document = {
     body: createFakeElement("body"),
@@ -680,10 +685,11 @@ test("dashboard loading screen uses premium workspace preparation UI", () => {
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
 
   assert.match(html, /dashboard-loading-screen/);
-  assert.match(html, /Opening your workspace/);
-  assert.match(html, /Loading your Website Widget setup\.\.\./);
-  assert.match(html, /This usually takes a few seconds\./);
-  assert.match(html, /Free Render instances can take up to a minute after inactivity\./);
+  assert.match(html, /<html lang="hu">/);
+  assert.match(html, /Megnyitjuk a munkaterületedet/);
+  assert.match(html, /Betöltjük a Website Widget beállításait\.\.\./);
+  assert.match(html, /Ez általában csak néhány másodperc\./);
+  assert.match(html, /Az ingyenes Render példányok inaktivitás után akár egy percig is indulhatnak\./);
   assert.match(html, /data-loading-refresh/);
   assert.doesNotMatch(html, /Loading business profile/);
   assert.doesNotMatch(html, /Syncing customer conversations/);
@@ -1372,7 +1378,8 @@ test("dashboard language preference requests stay separate from widget reply lan
   assert.match(dashboardScript, /vonza_dashboard_language/);
   assert.match(dashboardScript, /\/dashboard\/preferences/);
   assert.doesNotMatch(chatPromptCompiler, /dashboard_language|vonza_dashboard_language/);
-  assert.match(chatPromptCompiler, /same language as the customer's latest message/);
+  assert.match(chatPromptCompiler, /Language policy: explicit selected\/requested language wins/);
+  assert.match(chatPromptCompiler, /visitor language is ambiguous or missing, default to Hungarian/);
 });
 
 test("home AI priorities translate raw signals into practical business recommendations", () => {

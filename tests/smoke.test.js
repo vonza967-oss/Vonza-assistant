@@ -1456,6 +1456,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /\/dashboard-front-desk\.css/);
         assert.match(dashboard.text, /\/settings\/settings\.css/);
         assert.match(dashboard.text, /\/settings\/SettingsShell\.js/);
+        assert.match(dashboard.text, /\/i18n\/dashboardI18n\.js/);
         assert.match(dashboard.text, /\/dashboardState\.js/);
         assert.match(dashboard.text, /\/dashboardLabels\.js/);
         assert.match(dashboard.text, /\/dashboardInstall\.js/);
@@ -1464,12 +1465,19 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /\/dashboardAnalytics\.js/);
         assert.match(dashboard.text, /\/dashboardToday\.js/);
         assert.match(dashboard.text, /\/dashboard\.js/);
-        assert.match(dashboard.text, /Opening your workspace/);
-        assert.match(dashboard.text, /Loading your Website Widget setup\.\.\./);
-        assert.match(dashboard.text, /Free Render instances can take up to a minute after inactivity\./);
+        assert.match(dashboard.text, /<html lang="hu">/);
+        assert.match(dashboard.text, /Megnyitjuk a munkaterületedet/);
+        assert.match(dashboard.text, /Betöltjük a Website Widget beállításait\.\.\./);
+        assert.match(dashboard.text, /ingyenes Render példányok inaktivitás után akár egy percig is indulhatnak\./);
         assert.doesNotMatch(dashboard.text, /dashboard-skeleton-preview/);
         assert.doesNotMatch(dashboard.text, /approvals/i);
         assert.doesNotMatch(dashboard.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
+
+        const dashboardI18n = await getText(server.baseUrl, "/i18n/dashboardI18n.js");
+        assert.equal(dashboardI18n.status, 200);
+        assert.match(dashboardI18n.text, /DEFAULT_LANGUAGE = "hu"/);
+        assert.match(dashboardI18n.text, /"app\.loading\.title": "Opening your workspace"/);
+        assert.match(dashboardI18n.text, /"app\.loading\.copy": "Loading your Website Widget setup\.\.\."/);
 
         for (const productDashboardPath of ["/website-widget/dashboard", "/widget/dashboard"]) {
           const productDashboard = await getText(server.baseUrl, productDashboardPath);
