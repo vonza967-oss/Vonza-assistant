@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const dashboardScript = readFileSync("frontend/dashboard.js", "utf8");
 const dashboardFrontDeskScript = readFileSync("frontend/dashboardFrontDesk.js", "utf8");
 const dashboardInstallScript = readFileSync("frontend/dashboardInstall.js", "utf8");
+const dashboardI18nScript = readFileSync("frontend/i18n/dashboardI18n.js", "utf8");
 const dashboardCustomersScript = readFileSync("frontend/dashboardCustomers.js", "utf8");
 const settingsShellScript = readFileSync("frontend/settings/SettingsShell.js", "utf8");
 const publicWidgetScript = readFileSync("frontend/script.js", "utf8");
@@ -16,7 +17,7 @@ test("Settings Front Desk stays configuration-only", () => {
   assert.match(settingsShellScript, /Front Desk page/);
   assert.match(settingsShellScript, /Routing/);
   assert.match(settingsShellScript, /Voice/);
-  assert.match(settingsShellScript, /Optional widget/);
+  assert.match(settingsShellScript, /Website Widget/);
   assert.match(settingsShellScript, /Spoken replies are AI-generated on demand/);
   assert.match(settingsShellScript, /Owner voice QA simulator/);
   assert.match(settingsShellScript, /\/api\/voice\/transcribe/);
@@ -56,7 +57,7 @@ test("Dashboard Front Desk renders training workspace tabs and empty states", ()
   assert.doesNotMatch(frontDeskDashboardSurface, /Send AI draft/);
 });
 
-test("primary launch path exposes status and form accessibility semantics", () => {
+test("widget-first launch path exposes status and form accessibility semantics", () => {
   const launchSurface = `${dashboardHtml}\n${dashboardScript}\n${dashboardInstallScript}\n${dashboardFrontDeskScript}\n${settingsShellScript}`;
 
   assert.match(dashboardHtml, /id="status-banner"[^>]+role="status"[^>]+aria-live="polite"[^>]+aria-atomic="true"/);
@@ -68,6 +69,15 @@ test("primary launch path exposes status and form accessibility semantics", () =
   assert.match(launchSurface, /aria-label="Retry website knowledge import"/);
   assert.match(launchSurface, /data-action="import-knowledge"[\s\S]{0,240}Import website knowledge/);
   assert.match(launchSurface, /<label class="settings-shell-choice-row" for="full-page-public-enabled">/);
+});
+
+test("dashboard install source copy stays Widget-first", () => {
+  const setupSurface = `${dashboardScript}\n${dashboardInstallScript}\n${dashboardFrontDeskScript}\n${dashboardI18nScript}\n${settingsShellScript}`;
+
+  assert.doesNotMatch(setupSurface, /hosted page first/i);
+  assert.doesNotMatch(setupSurface, /widget optional/i);
+  assert.doesNotMatch(setupSurface, /keep the widget secondary/i);
+  assert.doesNotMatch(setupSurface, /fastest launch path/i);
 });
 
 test("README leads with Hungarian Website Widget while preserving Front Desk expansion channel", () => {

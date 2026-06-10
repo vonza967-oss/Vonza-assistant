@@ -445,7 +445,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.basedOnAnswerQuality": "Estimated from weak answers and owner attention",
   "analytics.operatorBrief": "Operator brief",
   "analytics.waitingForTraffic": "Waiting for live Front Desk traffic",
-  "analytics.waitingForTrafficCopy": "After customers use the hosted Front Desk page, QR/direct link, embed, or optional widget, performance signals will appear here.",
+  "analytics.waitingForTrafficCopy": "After customers use the Website Widget, hosted Front Desk page, QR/direct link, or embed, performance signals will appear here.",
   "analytics.operatorBriefCopy": "Customer-service performance from Front Desk conversations, owner follow-ups, leads, answer quality, and improvement signals.",
   "analytics.whatToWatch": "What to watch",
   "analytics.webCallHealth": "Web Call health",
@@ -455,7 +455,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.frontDeskAnalytics": "Front Desk analytics",
   "analytics.frontDeskAnalyticsCopy": "Full-page and hosted Front Desk outcomes from existing conversation source data.",
   "analytics.widgetAnalytics": "Website Widget analytics",
-  "analytics.widgetAnalyticsCopy": "Optional widget outcomes from existing conversation source data.",
+  "analytics.widgetAnalyticsCopy": "Website Widget outcomes from existing conversation source data.",
   "analytics.voiceAnalytics": "Voice Agent analytics",
   "analytics.voiceAnalyticsCopy": "Browser Web Call outcomes from existing conversation and safe call-health data.",
   "analytics.frontDeskEmptyTitle": "No Front Desk analytics yet.",
@@ -2289,9 +2289,9 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Publish reviewed guidance": "Tedd közzé az átnézett útmutatást",
   "Ground Front Desk in real business facts": "Alapozd a Front Desket valós üzleti tényekre",
   "Finish the Front Desk setup": "Fejezd be a Front Desk beállítását",
-  "Prepare the hosted Front Desk page": "Készítsd elő a hosztolt Front Desk oldalt",
+  "Prepare the companion Front Desk page": "Készítsd elő a kiegészítő Front Desk oldalt",
   "Keep testing the live Front Desk": "Teszteld tovább az élő Front Desket",
-  "Practice once, enable the public page, then share the direct link or QR before treating the optional widget as secondary.": "Gyakorolj egyszer, engedélyezd a nyilvános oldalt, majd oszd meg a közvetlen linket vagy QR-t, mielőtt az opcionális widgetet másodlagosként kezelnéd.",
+  "Practice once, install the Website Widget, then enable the public page for QR, direct links, or dedicated assistant pages.": "Gyakorolj egyszer, telepítsd a Website Widgetet, majd engedélyezd a publikus oldalt QR-hez, direkt linkekhez vagy dedikált asszisztensoldalakhoz.",
   "Open improvements": "Javítások megnyitása",
   "Review drafts": "Piszkozatok áttekintése",
   "Open knowledge": "Tudás megnyitása",
@@ -2302,10 +2302,10 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Answer quality": "Válaszminőség",
   "No queued fixes": "Nincs sorban álló javítás",
   "Setup needed": "Beállítás szükséges",
-  "Hosted page first, widget optional": "Először hosztolt oldal, a widget opcionális",
+  "Widget first, page companion": "Először a widget, az oldal kiegészítő",
   "AI Front Desk workspace": "AI Front Desk munkaterület",
   "Operator command center": "Operátori vezérlőközpont",
-  "Front Desk is the primary customer surface.": "A Front Desk az elsődleges ügyféloldali felület.",
+  "Website Widget is the recommended customer surface.": "A Website Widget az ajánlott ügyféloldali felület.",
   "No website URL": "Nincs megadott weboldal URL",
   "Prompt starters": "Indító kérdések",
   "Use a few realistic customer questions to see whether the Front Desk sounds grounded and offers the right next step.": "Használj néhány valósághű ügyfélkérdést, hogy lásd, mennyire megalapozott a Front Desk, és a megfelelő következő lépést ajánlja-e.",
@@ -2392,6 +2392,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Follow-ups": "Utánkövetések",
   "Performance": "Teljesítmény",
   "Front Desk page, QR, and optional bubble": "Front Desk oldal, QR és opcionális buborék",
+  "Widget install, page links, QR": "Widget telepítés, oldallinkek, QR",
   "Privacy and workspace": "Adatvédelem és munkaterület",
   "Not detected on a live site yet": "Még nincs észlelve élő oldalon",
   "Review replies": "Válaszok áttekintése",
@@ -2405,7 +2406,8 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Account & Billing": "Fiók és számlázás",
   "Privacy & Legal": "Adatvédelem és jogi információk",
   "Workspace status, dashboard language, and launch posture.": "Munkaterület állapota, irányítópult nyelve és élesítési állapot.",
-  "Identity, full-page assistant, routing, and optional widget.": "Identitás, teljes oldalas asszisztens, útvonalak és opcionális widget.",
+  "Website Widget launcher, appearance, install, and domains.": "Website Widget indító, megjelenés, telepítés és domainek.",
+  "Identity, full-page companion, routing, and Website Widget.": "Identitás, teljes oldalas kiegészítő, útvonalak és Website Widget.",
   "Grounding facts and readiness for customer answers.": "Megalapozó tények és készenlét az ügyfélválaszokhoz.",
   "Public trust, privacy, and legal pages.": "Publikus bizalmi, adatvédelmi és jogi oldalak.",
   "Business profile readiness summary": "Üzleti profil készenléti összefoglaló",
@@ -2418,6 +2420,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Import website knowledge": "Weboldali tudás importálása",
   "Save website": "Weboldal mentése",
   "Business Profile readiness": "Üzleti profil készenléte",
+  "Keep the business facts Vonza should trust when the Website Widget, hosted Front Desk page, QR links, or embeds answer customer questions.": "Tartsd naprakészen azokat az üzleti tényeket, amelyekben a Vonza megbízhat, amikor a Website Widget, a hosztolt Front Desk oldal, QR-linkek vagy beágyazások válaszolnak ügyfélkérdésekre.",
   "Review what is ready and what still needs detail before this profile supports live customer questions.": "Nézd át, mi áll készen és mi igényel még részleteket, mielőtt ez a profil élő ügyfélkérdéseket támogat.",
   "Front Desk launch settings summary": "Front Desk élesítési beállítások összefoglalója",
   "Hosted full-page assistant": "Hosztolt teljes oldalas asszisztens",
@@ -2425,9 +2428,14 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Open Front Desk setup": "Front Desk beállítás megnyitása",
   "Five-minute website AI agent for visitors who need quick answers without leaving a page.": "Ötperces weboldali AI ügyintéző látogatóknak, akik gyors választ keresnek az oldal elhagyása nélkül.",
   "Open widget setup": "Widget beállítás megnyitása",
+  "Website Widget is the recommended launch surface; Front Desk remains available for companion pages.": "A Website Widget az ajánlott élesítési felület; a Front Desk továbbra is elérhető kiegészítő oldalakhoz.",
+  "Website Widget is the recommended customer-facing launch surface. Use Front Desk practice and the full-page setup for companion pages, QR, and later expansion.": "A Website Widget az ajánlott ügyféloldali élesítési felület. A Front Desk gyakorlást és a teljes oldalas beállítást kiegészítő oldalakhoz, QR-hez és későbbi bővítéshez használd.",
+  "Companion page": "Kiegészítő oldal",
+  "Share, embed, or QR the hosted page after widget setup": "A widget beállítása után oszd meg, ágyazd be vagy QR-ezd a hosztolt oldalt",
   "Browser voice, spoken replies, and Web Call setup for hands-free customer conversations where configured.": "Böngészős hang, felolvasott válaszok és Web Call beállítás kéz nélküli ügyfélbeszélgetésekhez, ahol be van állítva.",
   "Open Web Call setup": "Web Call beállítás megnyitása",
-  "Tune the embedded Website Widget using the existing snippet, launcher, install-status, and allowed-domain settings.": "Hangold a beágyazott Website Widgetet a meglévő kódrészlet-, indító-, telepítésiállapot- és engedélyezett domain beállításokkal.",
+  "Tune the recommended Website Widget launch surface using the existing snippet, launcher, install-status, and allowed-domain settings.": "Hangold az ajánlott Website Widget élesítési felületet a meglévő kódrészlet-, indító-, telepítésiállapot- és engedélyezett domain beállításokkal.",
+  "Configure the companion full-page Front Desk experience for QR, direct links, dedicated assistant pages, and embedded expansion.": "Állítsd be a kiegészítő teljes oldalas Front Desk élményt QR-hez, direkt linkekhez, dedikált asszisztensoldalakhoz és beágyazott bővítéshez.",
   "Embed/install status": "Beágyazási/telepítési állapot",
   "Uses the existing Website Widget snippet and install verification flow.": "A meglévő Website Widget kódrészletet és telepítés-ellenőrzési folyamatot használja.",
   "The current allowed-domains field controls where the Website Widget should run.": "A jelenlegi engedélyezett domainek mező szabályozza, hol fusson a Website Widget.",
@@ -2440,11 +2448,12 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Needs routes": "Útvonalak szükségesek",
   "Contact, booking, quote, or checkout destinations are available for customer next steps.": "Kapcsolatfelvételi, foglalási, ajánlatkérési vagy fizetési célok elérhetők az ügyfél következő lépéseihez.",
   "Add contact, booking, quote, or checkout destinations before relying on handoffs.": "Adj meg kapcsolatfelvételi, foglalási, ajánlatkérési vagy fizetési célokat, mielőtt az átadásokra támaszkodsz.",
-  "Secondary launcher. The hosted Front Desk page remains the primary customer-facing surface.": "Másodlagos indító. A hosztolt Front Desk oldal marad az elsődleges ügyféloldali felület.",
+  "Defines how the companion full-page assistant frames its help.": "Meghatározza, hogyan keretezi a segítséget a kiegészítő teljes oldalas asszisztens.",
+  "Website Widget is the recommended launch surface. The hosted Front Desk page remains available for companion links, QR codes, and embeds.": "A Website Widget az ajánlott élesítési felület. A hosztolt Front Desk oldal továbbra is elérhető kiegészítő linkekhez, QR-kódokhoz és beágyazásokhoz.",
   "Hosted page live": "Hosztolt oldal él",
   "Hosted page off": "Hosztolt oldal kikapcsolva",
-  "Configure the customer-facing Front Desk page first, then routing, appearance, and the optional website widget.": "Először az ügyféloldali Front Desk oldalt állítsd be, utána az útvonalakat, a megjelenést és az opcionális weboldali widgetet.",
-  "Full-page assistant and hosted page": "Teljes oldalas asszisztens és hosztolt oldal",
+  "Configure the Website Widget launch surface first, then companion Front Desk page, routing, and appearance.": "Először a Website Widget élesítési felületet állítsd be, majd a kiegészítő Front Desk oldalt, az útvonalakat és a megjelenést.",
+  "Full-page companion and hosted page": "Teljes oldalas kiegészítő és hosztolt oldal",
   "Account and billing summary": "Fiók- és számlázási összefoglaló",
   "Owner access": "Tulajdonosi hozzáférés",
   "Subscription": "Előfizetés",
@@ -2452,6 +2461,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Owner account unavailable": "A tulajdonosi fiók nem érhető el",
   "Monthly capacity status appears after billing sync.": "A havi kapacitás állapota számlázási szinkron után jelenik meg.",
   "Public legal pages": "Publikus jogi oldalak",
+  "Open the public legal and privacy pages used by the website, app, hosted Front Desk page, Website Widget, and checkout.": "Nyisd meg a weboldal, app, hosztolt Front Desk oldal, Website Widget és fizetés által használt publikus jogi és adatvédelmi oldalakat.",
   "These links are presented as operational references for owner review and public trust checks.": "Ezek a linkek működési hivatkozásként szolgálnak tulajdonosi áttekintéshez és publikus bizalmi ellenőrzésekhez.",
   "Dashboard language, appearance, and workspace status.": "Irányítópult nyelve, megjelenés és munkaterület-állapot.",
   "Customer-facing behavior, welcome, routing, and launch readiness.": "Ügyféloldali működés, üdvözlés, útvonalak és élesítési készenlét.",
@@ -2476,8 +2486,6 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Launch readiness": "Élesítési készenlét",
   "Core setup ready": "Az alapbeállítás kész",
   "Knowledge limited": "A tudás korlátozott",
-  "Optional widget": "Opcionális widget",
-  "Optional website widget": "Opcionális weboldali widget",
   "Your main workspace is ready.": "A fő munkaterületed készen áll.",
   "Run a real practice conversation": "Futtass egy valódi gyakorló beszélgetést",
   "Practice first": "Gyakorolj először",
@@ -2588,15 +2596,19 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Review": "Áttekintés",
   "AI handled": "AI kezelte",
   "A test or customer conversation exists.": "Van teszt- vagy ügyfélbeszélgetés.",
+  "Run one realistic Website Widget or Front Desk conversation.": "Futtass egy valósághű Website Widget vagy Front Desk beszélgetést.",
   "The AI Front Desk workspace exists.": "Az AI Front Desk munkaterület létrejött.",
   "The front desk has the core details it needs.": "A Front Desk rendelkezik a szükséges alapadatokkal.",
   "Public Front Desk page": "Publikus Front Desk oldal",
-  "At least one Front Desk distribution path is available.": "Legalább egy Front Desk terjesztési út elérhető.",
+  "At least one Website Widget or companion Front Desk path is available.": "Legalább egy Website Widget vagy kiegészítő Front Desk út elérhető.",
   "Launch health for the customer-facing Front Desk page.": "Az ügyféloldali Front Desk oldal élesítési állapota.",
   "Training ready": "Tanítás kész",
   "Vonza has usable business knowledge for customer answers.": "A Vonza használható üzleti tudással rendelkezik az ügyfélválaszokhoz.",
   "Website knowledge and grounding are ready for practice.": "A weboldali tudás és megalapozás készen áll a gyakorlásra.",
+  "Home is open. The next step is finishing Website Widget setup.": "A Kezdőlap nyitva van. A következő lépés a Website Widget beállításának befejezése.",
+  "Use website import, Front Desk practice, and Settings to shape grounded answers, then install the Website Widget as the first launch surface.": "Használd a weboldalimportot, a Front Desk gyakorlást és a Beállításokat a megalapozott válaszokhoz, majd első élesítési felületként telepítsd a Website Widgetet.",
   "Enable the public assistant page before sharing QR codes or links.": "Engedélyezd a publikus asszisztensoldalt QR-kódok vagy linkek megosztása előtt.",
+  "Enable the public assistant page only when you need QR codes, links, or a dedicated assistant page.": "Csak akkor engedélyezd a publikus asszisztensoldalt, ha QR-kódokra, linkekre vagy dedikált asszisztensoldalra van szükség.",
   "First test conversation": "Első tesztbeszélgetés",
   "Distribution channel selected": "Terjesztési csatorna kiválasztva",
   "Front Desk created": "Front Desk létrehozva",
@@ -2607,10 +2619,17 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Your Front Desk page is live": "A Front Desk oldalad él",
   "Your Front Desk page is disabled": "A Front Desk oldalad le van tiltva",
   "Your Front Desk page is disabled.": "A Front Desk oldalad le van tiltva.",
-  "Your Front Desk page is close to launch.": "A Front Desk oldalad közel áll az élesítéshez.",
+  "Your companion Front Desk page is live": "A kiegészítő Front Desk oldalad él",
+  "Your companion Front Desk page is live.": "A kiegészítő Front Desk oldalad él.",
+  "The public assistant page is enabled for links, QR, and dedicated pages. Keep the Website Widget install path first for normal website traffic.": "A publikus asszisztensoldal linkekhez, QR-hez és dedikált oldalakhoz engedélyezett. Normál weboldali forgalomhoz maradjon első a Website Widget telepítési út.",
+  "Your Website Widget is published and waiting for first live traffic": "A Website Widget közzétéve, és az első élő forgalomra vár",
+  "Vonza found the Website Widget snippet. Verify the live site and test the widget; the public Front Desk page can stay as a companion for links or QR.": "A Vonza megtalálta a Website Widget kódrészletet. Ellenőrizd az élő oldalt és teszteld a widgetet; a publikus Front Desk oldal maradhat kiegészítő linkekhez vagy QR-hez.",
+  "Your Website Widget is ready for install": "A Website Widget készen áll a telepítésre",
+  "The setup is in place. Install the Website Widget with the snippet or WordPress flow, verify the live site, then test a real customer question. Add the Front Desk page, QR, direct link, or embeds as companion channels.": "A beállítás kész. Telepítsd a Website Widgetet kódrészlettel vagy WordPress folyamattal, ellenőrizd az élő oldalt, majd tesztelj egy valós ügyfélkérdést. A Front Desk oldalt, QR-t, direkt linket vagy beágyazást kiegészítő csatornaként add hozzá.",
+  "Your Front Desk companion page is ready to add.": "A kiegészítő Front Desk oldalad hozzáadásra kész.",
   "A few essentials still need attention before you publish.": "Néhány alapvető elem még figyelmet igényel közzététel előtt.",
-  "Confirm the experience, enable the public Front Desk page, then choose WordPress, smart embed, QR/direct link, or the optional website bubble.": "Ellenőrizd az élményt, engedélyezd a publikus Front Desk oldalt, majd válassz WordPresst, okos beágyazást, QR/direkt linket vagy opcionális weboldali buborékot.",
-  "This space keeps the launch path clear by showing what still needs attention before Install and distribution.": "Ez a rész tisztán tartja az élesítési utat azzal, hogy megmutatja, mi igényel még figyelmet a Telepítés és a terjesztés előtt.",
+  "Install the Website Widget first, then enable the public Front Desk page for QR, direct links, dedicated assistant pages, or embedded expansion.": "Először a Website Widgetet telepítsd, majd engedélyezd a publikus Front Desk oldalt QR-hez, direkt linkekhez, dedikált asszisztensoldalakhoz vagy beágyazott bővítéshez.",
+  "This space keeps companion launch options clear by showing what still needs attention before Install and distribution.": "Ez a rész tisztán tartja a kiegészítő élesítési opciókat azzal, hogy megmutatja, mi igényel még figyelmet a Telepítés és a terjesztés előtt.",
   "Live traffic confirmed": "Élő forgalom megerősítve",
   "Installed, waiting for first live visit": "Telepítve, az első élő látogatásra vár",
   "Verification needs attention": "Az ellenőrzés figyelmet igényel",
@@ -2624,7 +2643,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Use Install to share the QR code anywhere customers already are.": "Használd a Telepítést, hogy a QR-kódot ott oszd meg, ahol az ügyfelek már jelen vannak.",
   "QR is available after the public page is enabled.": "A QR a publikus oldal engedélyezése után érhető el.",
   "Use Install for page takeover, smart embed, and live-domain verification.": "Használd a Telepítést oldalátvételhez, okos beágyazáshoz és élő domain ellenőrzéshez.",
-  "Use Install to choose WordPress, smart embed, QR/direct link, or the optional website bubble before launch is complete.": "Az élesítés lezárása előtt a Telepítésben válassz WordPresst, okos beágyazást, QR/direkt linket vagy opcionális weboldali buborékot.",
+  "Use Install to launch the Website Widget first, then add WordPress, smart embed, QR, or direct-link companion channels as needed.": "A Telepítésben először a Website Widgetet élesítsd, majd szükség szerint adj hozzá WordPresst, okos beágyazást, QR-t vagy direkt linkes kiegészítő csatornákat.",
   "Front Desk owns practice, training, answer quality, and launch readiness. Install only manages distribution channels and verification.": "A Front Desk kezeli a gyakorlást, tanítást, válaszminőséget és élesítési készenlétet. A Telepítés csak a terjesztési csatornákat és az ellenőrzést kezeli.",
   "Enable public access before sharing links or QR": "Engedélyezd a publikus hozzáférést linkek vagy QR megosztása előtt",
   "Custom full-page settings saved": "Az egyedi teljes oldalas beállítások mentve",
@@ -2635,48 +2654,62 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "A conversation exists": "Van beszélgetés",
   "Front desk preview opened": "Front Desk előnézet megnyitva",
   "No test conversation yet": "Még nincs tesztbeszélgetés",
-  "Hosted page, QR/direct link, WordPress/smart embed, or optional bubble is ready": "Hosztolt oldal, QR/direkt link, WordPress/okos beágyazás vagy opcionális buborék készen áll",
-  "Choose a primary launch path in Install": "Válassz elsődleges élesítési utat a Telepítésben",
+  "Website Widget or a companion Front Desk channel is ready": "Website Widget vagy kiegészítő Front Desk csatorna készen áll",
+  "Start with the Website Widget install path": "Kezdd a Website Widget telepítési útjával",
   "Setup progress": "Beállítási állapot",
-  "Choose method": "Módszer kiválasztása",
-  "Start with hosted page, QR/direct link, or WordPress/smart embed.": "Kezdd hosztolt oldallal, QR/direkt linkkel vagy WordPress/okos beágyazással.",
-  "Configure": "Beállítás",
-  "Copy the link, page embed, smart snippet, or optional bubble code.": "Másold a linket, oldalbeágyazást, okos kódrészletet vagy opcionális buborékkódot.",
-  "Copy the Front Desk link, page embed, smart snippet, or Website Widget snippet.": "Másold a Front Desk linket, oldalbeágyazást, okos kódrészletet vagy Website Widget kódrészletet.",
+  "Start with website": "Kezdd a weboldallal",
+  "Use the website URL/import path, then configure the Website Widget.": "Használd a weboldal URL/import útvonalat, majd állítsd be a Website Widgetet.",
+  "Install widget": "Widget telepítése",
+  "Copy the Website Widget snippet or use the WordPress flow after configuration.": "A beállítás után másold a Website Widget kódrészletet, vagy használd a WordPress folyamatot.",
+  "Paste website URL": "Weboldal URL beillesztése",
+  "Start from the public website so content import has real business facts.": "A publikus weboldalból indulj ki, hogy a tartalomimport valós üzleti tényeket kapjon.",
+  "Import and configure widget": "Widget importálása és beállítása",
+  "Import content, then choose the widget template, tone, welcome, and handoff basics.": "Importáld a tartalmat, majd válaszd ki a widget sablont, hangnemet, üdvözlést és átadási alapokat.",
+  "Install snippet or WordPress": "Kódrészlet vagy WordPress telepítése",
+  "Use WordPress or the one-line embed snippet on the live website.": "Használj WordPresst vagy egysoros beágyazási kódrészletet az élő weboldalon.",
+  "Verify live site": "Élő oldal ellenőrzése",
+  "Confirm the script is detected after publishing.": "Közzététel után ellenőrizd, hogy a szkript észlelhető.",
+  "Test a visitor question": "Látogatói kérdés tesztelése",
+  "Open the live widget and send one realistic customer question.": "Nyisd meg az élő widgetet, és küldj egy valósághű ügyfélkérdést.",
   "Verify": "Ellenőrzés",
-  "Confirm website embed or bubble installs after publishing.": "Közzététel után ellenőrizd a weboldali beágyazásokat vagy buboréktelepítéseket.",
-  "Confirm website embed or widget installs after publishing.": "Közzététel után ellenőrizd a weboldali beágyazásokat vagy widget telepítéseket.",
-  "Share the hosted page, QR, or embedded page; keep the widget secondary.": "Oszd meg a hosztolt oldalt, QR-t vagy beágyazott oldalt; a widget maradjon másodlagos.",
+  "Confirm the widget snippet after publishing; keep page links and QR as companion channels.": "Közzététel után ellenőrizd a widget kódrészletet; az oldallinkek és QR-kódok maradjanak kiegészítő csatornák.",
+  "Test live path": "Élő út tesztelése",
+  "Test the live widget first, then add Front Desk page links, QR, or embeds where useful.": "Először az élő widgetet teszteld, majd ahol hasznos, adj hozzá Front Desk oldallinkeket, QR-t vagy beágyazásokat.",
+  "Start with the Website Widget, then add Front Desk page, QR, direct link, or embed channels as needed.": "Kezdd a Website Widgettel, majd szükség szerint adj hozzá Front Desk oldalt, QR-t, direkt linket vagy beágyazási csatornákat.",
+  "Once the Website Widget is installed on a live site, Vonza will start showing real usage and recent customer questions here.": "Amint a Website Widget telepítve van az élő oldalon, a Vonza itt kezdi mutatni a valós használatot és a legutóbbi ügyfélkérdéseket.",
+  "Website Widget live": "Website Widget él",
+  "Companion Front Desk page live": "Kiegészítő Front Desk oldal él",
+  "Website Widget not installed yet": "A Website Widget még nincs telepítve",
+  "Vonza has detected the Website Widget on the live site. Test one customer question next.": "A Vonza észlelte a Website Widgetet az élő oldalon. Ezután tesztelj egy ügyfélkérdést.",
+  "The companion Front Desk page is ready for links or QR. Install and verify the Website Widget next.": "A kiegészítő Front Desk oldal készen áll linkekhez vagy QR-hez. Ezután telepítsd és ellenőrizd a Website Widgetet.",
+  "Open Install, copy the Website Widget snippet or WordPress flow, verify the live site, then test the widget.": "Nyisd meg a Telepítést, másold a Website Widget kódrészletet vagy WordPress folyamatot, ellenőrizd az élő oldalt, majd teszteld a widgetet.",
   "Launch path hierarchy": "Élesítési útvonalak sorrendje",
   "Pick the customer entry point": "Válaszd ki az ügyfél belépési pontját",
-  "Full-page first": "Először a teljes oldalas felület",
+  "Widget first": "Először a widget",
   "QR available": "QR elérhető",
   "Code ready": "Kód kész",
   "Not generated": "Nincs létrehozva",
   "View setup": "Beállítás megnyitása",
-  "Fastest launch path. Share the protected hosted page from buttons, menus, emails, and owner follow-ups.": "A leggyorsabb élesítési út. Oszd meg a védett hosztolt oldalt gombokból, menükből, emailekből és tulajdonosi utánkövetésekből.",
-  "Same hosted page, packaged for print, reception desks, invoices, menus, and offline traffic.": "Ugyanaz a hosztolt oldal nyomtatványokhoz, recepciókhoz, számlákhoz, menükhöz és offline forgalomhoz csomagolva.",
-  "Use the plugin, dedicated page embed, or smart snippet when Front Desk belongs inside the website.": "Használd a plugint, dedikált oldalbeágyazást vagy okos kódrészletet, ha a Front Desknek a weboldalon belül kell megjelennie.",
-  "Optional compact launcher for normal website pages after the full-page launch path is prepared.": "Opcionális kompakt indító normál weboldalakhoz, miután a teljes oldalas élesítési út elkészült.",
-  "Optional embedded launcher for normal website pages, with snippet, domain, status, and test tools.": "Opcionális beágyazott indító normál weboldalakhoz kódrészlettel, domainnel, állapottal és teszteszközökkel.",
+  "Default launch path for normal website traffic. Install the snippet or WordPress flow, verify allowed domains, and test the launcher on the live site.": "Alapértelmezett élesítési út a normál weboldali forgalomhoz. Telepítsd a kódrészletet vagy WordPress folyamatot, ellenőrizd az engedélyezett domaineket, majd teszteld az indítót az élő oldalon.",
+  "Full-page companion for QR codes, direct links, dedicated assistant pages, and later modular surfaces.": "Teljes oldalas kiegészítő QR-kódokhoz, direkt linkekhez, dedikált asszisztensoldalakhoz és későbbi moduláris felületekhez.",
+  "Opens the companion Front Desk page from print, reception desks, invoices, menus, and offline traffic.": "Nyomtatványokról, recepciókról, számlákról, menükből és offline forgalomból nyitja meg a kiegészítő Front Desk oldalt.",
+  "Use a dedicated page embed or smart snippet when the full-page Front Desk should live inside the website after widget launch.": "Használj dedikált oldalbeágyazást vagy okos kódrészletet, ha a teljes oldalas Front Desknek a widget élesítése után a weboldalon belül kell megjelennie.",
   "Installation methods": "Telepítési módszerek",
   "Optional add-on": "Opcionális kiegészítő",
   "Website widget bubble": "Weboldali widget buborék",
   "Website Widget": "Website Widget",
   "Website Widget embed": "Website Widget beágyazás",
-  "Launch the hosted Front Desk page first, then use WordPress or smart embed when it should live on your site.": "Először a hosztolt Front Desk oldalt élesítsd, majd használj WordPresst vagy okos beágyazást, ha a saját weboldaladon kell megjelennie.",
-  "Open the same hosted Front Desk page from signs, menus, invoices, emails, or direct links.": "Nyisd meg ugyanazt a hosztolt Front Desk oldalt táblákról, menükből, számlákról, emailekből vagy direkt linkekből.",
-  "Add a compact chat bubble only after the full-page Front Desk launch path is clear.": "Csak akkor adj hozzá kompakt chatbuborékot, ha a teljes oldalas Front Desk élesítési út már tiszta.",
-  "Copy the embed snippet, review allowed domains/status, and test the optional launcher.": "Másold a beágyazási kódrészletet, ellenőrizd az engedélyezett domaineket/állapotot, és teszteld az opcionális indítót.",
-  "Paste this code into your website header only if you also want a compact chat launcher on normal website pages. Your Front Desk page stays the primary product.": "Csak akkor illeszd ezt a kódot a weboldal fejlécébe, ha a normál weboldalakon is szeretnél kompakt chatindítót. A Front Desk oldal marad az elsődleges termék.",
+  "Recommended launch path. Configure the widget, install the snippet or WordPress flow, verify the live site, then test a visitor question.": "Ajánlott élesítési út. Állítsd be a widgetet, telepítsd a kódrészletet vagy WordPress folyamatot, ellenőrizd az élő oldalt, majd tesztelj egy látogatói kérdést.",
+  "Companion full-page surface for QR codes, direct links, dedicated assistant pages, and later modular surfaces.": "Kiegészítő teljes oldalas felület QR-kódokhoz, direkt linkekhez, dedikált asszisztensoldalakhoz és későbbi moduláris felületekhez.",
+  "Companion channel that opens the full-page Front Desk from signs, menus, invoices, emails, or direct links.": "Kiegészítő csatorna, amely táblákról, menükből, számlákról, emailekből vagy direkt linkekből nyitja meg a teljes oldalas Front Desket.",
+  "Copy the Website Widget snippet for normal website pages, review allowed domains and install status, then verify and test the live launcher.": "Másold a Website Widget kódrészletet normál weboldalakhoz, ellenőrizd az engedélyezett domaineket és a telepítési állapotot, majd ellenőrizd és teszteld az élő indítót.",
   "Copy the Website Widget snippet for normal website pages, then review allowed domains, install status, launcher appearance, and a live test.": "Másold a Website Widget kódrészletet normál weboldalakhoz, majd ellenőrizd az engedélyezett domaineket, a telepítési állapotot, az indító megjelenését és az élő tesztet.",
-  "Optional installed": "Opcionális telepítve",
-  "Secondary installed": "Másodlagos telepítve",
-  "Secondary": "Másodlagos",
-  "Primary ready": "Elsődleges kész",
-  "Optional": "Opcionális",
+  "Recommended": "Ajánlott",
+  "Companion": "Kiegészítő",
+  "Expansion": "Bővítés",
+  "QR ready": "QR kész",
+  "Enable page for QR": "Oldal engedélyezése QR-hez",
   "Snippet ready": "Kódrészlet kész",
-  "Copy website bubble code": "Weboldali buborék kódjának másolása",
   "Copy Website Widget snippet": "Website Widget kódrészlet másolása",
   "Copy widget snippet": "Widget kódrészlet másolása",
   "Test website bubble": "Weboldali buborék tesztelése",
@@ -2684,16 +2717,16 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Website widget bubble code": "Weboldali widget buborék kódja",
   "Website Widget embed snippet": "Website Widget beágyazási kódrészlet",
   "Copy bubble code": "Buborék kódjának másolása",
-  "Paste this once into your site header only when you want the optional bubble.": "Ezt egyszer illeszd be az oldal fejlécébe, csak ha kéred az opcionális buborékot.",
-  "Paste this once into your site header only when you want the Website Widget launcher.": "Ezt egyszer illeszd be az oldal fejlécébe, csak ha kéred a Website Widget indítót.",
+  "Paste this once into your site header to launch the Website Widget on normal site pages.": "Ezt egyszer illeszd be az oldal fejlécébe, hogy a Website Widget elinduljon a normál weboldalakon.",
   "Detected install status": "Észlelt telepítési állapot",
   "Widget install status": "Widget telepítési állapot",
   "Recommended method": "Ajánlott módszer",
-  "Choose how customers should open the AI Front Desk page. Vonza generates the hosted link, WordPress guidance, smart embed, or fallback iframe.": "Válaszd ki, hogyan nyissák meg az ügyfelek az AI Front Desk oldalt. A Vonza elkészíti a hosztolt linket, WordPress útmutatót, okos beágyazást vagy tartalék iframe-et.",
+  "Companion channel": "Kiegészítő csatorna",
+  "Use the full-page AI Front Desk as a companion for QR codes, direct links, dedicated assistant pages, and future expansion surfaces.": "Használd a teljes oldalas AI Front Desket kiegészítőként QR-kódokhoz, direkt linkekhez, dedikált asszisztensoldalakhoz és későbbi bővítési felületekhez.",
   "WordPress Front Desk page": "WordPress Front Desk oldal",
-  "For WordPress, use the Vonza plugin to create a dedicated Front Desk page. This avoids manual snippets and theme content boxes.": "WordPresshez használd a Vonza plugint dedikált Front Desk oldal létrehozásához. Így elkerülhetők a kézi kódrészletek és a sablon tartalomdobozai.",
+  "For WordPress, use the Website Widget as the launch path. Create a dedicated Front Desk page when you also need a companion full-page assistant.": "WordPresshez a Website Widget legyen az élesítési út. Dedikált Front Desk oldalt akkor hozz létre, ha kiegészítő teljes oldalas asszisztensre is szükség van.",
   "Use dedicated page embed": "Dedikált oldalbeágyazás használata",
-  "Your Front Desk page is disabled. Enable public Front Desk page access in Settings before sharing links, embeds, or QR codes.": "A Front Desk oldalad le van tiltva. Linkek, beágyazások vagy QR-kódok megosztása előtt engedélyezd a publikus Front Desk hozzáférést a Beállításokban.",
+  "Your Front Desk page is disabled. Enable public Front Desk page access in Settings before sharing companion links, embeds, or QR codes.": "A Front Desk oldalad le van tiltva. Kiegészítő linkek, beágyazások vagy QR-kódok megosztása előtt engedélyezd a publikus Front Desk hozzáférést a Beállításokban.",
   "Enable public Front Desk page": "Publikus Front Desk oldal engedélyezése",
   "Front Desk page install options": "Front Desk oldal telepítési opciói",
   "Front Desk page link": "Front Desk oldal linkje",
@@ -2701,41 +2734,36 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Platform install guidance": "Platform telepítési útmutató",
   "Platform quick guides": "Platform gyors útmutatók",
   "Install-only website guidance": "Csak telepítési weboldal útmutató",
-  "Start with the hosted AI Front Desk page. Use embeds when you want Front Desk inside a website page, and keep the website bubble as a secondary launcher.": "Kezdd a hosztolt AI Front Desk oldallal. Beágyazást akkor használj, ha a Front Desket egy weboldalon belül szeretnéd megjeleníteni, a weboldali buborék pedig maradjon másodlagos indító.",
-  "Start with the hosted AI Front Desk page. Use embeds when you want Front Desk inside a website page, and keep the Website Widget as a secondary launcher.": "Kezdd a hosztolt AI Front Desk oldallal. Beágyazást akkor használj, ha a Front Desket egy weboldalon belül szeretnéd megjeleníteni, a Website Widget pedig maradjon másodlagos indító.",
+  "Start with the Website Widget: website URL/import -> configure widget -> install snippet or WordPress -> verify -> test. Use the hosted Front Desk, QR/direct links, and full-page embeds as companion and expansion channels.": "Kezdd a Website Widgettel: weboldal URL/import -> widget beállítása -> kódrészlet vagy WordPress telepítése -> ellenőrzés -> teszt. A hosztolt Front Desk, QR/direkt linkek és teljes oldalas beágyazások kiegészítő és bővítési csatornák.",
   "Generic HTML / smart embed": "Általános HTML / okos beágyazás",
-  "Start here": "Itt kezdd",
-  "Recommended page": "Ajánlott oldal",
-  "Link first": "Először link",
-  "Hosted page first": "Először hosztolt oldal",
   "Embed-ready": "Beágyazásra kész",
   "Paste or link": "Beillesztés vagy link",
-  "Hosted page vs embed": "Hosztolt oldal vagy beágyazás",
+  "Widget first / companion": "Widget először / kiegészítő",
   "Limitation": "Korlát",
-  "Paste the smart embed or dedicated page snippet into the page HTML, or add the Front Desk page link to a button or menu.": "Illeszd be az okos beágyazást vagy a dedikált oldal kódrészletét az oldal HTML-jébe, vagy add a Front Desk oldal linkjét egy gombhoz vagy menühöz.",
-  "Use the hosted Front Desk page for the fastest launch. Use the smart embed when Front Desk should live inside an existing page.": "A leggyorsabb élesítéshez használd a hosztolt Front Desk oldalt. Az okos beágyazást akkor használd, ha a Front Desknek egy meglévő oldalon belül kell megjelennie.",
+  "Paste the Website Widget snippet into the site header or pages where the launcher should appear. Add the Front Desk page link or smart embed only for a dedicated companion page.": "Illeszd be a Website Widget kódrészletet az oldal fejlécébe vagy azokra az oldalakra, ahol az indítónak meg kell jelennie. Front Desk oldallinket vagy okos beágyazást csak dedikált kiegészítő oldalhoz adj hozzá.",
+  "Start with website URL/import, configure the widget, install the snippet, verify, then test. Add the full-page Front Desk for QR/direct-link or embedded expansion.": "Kezdd weboldal URL/importtal, állítsd be a widgetet, telepítsd a kódrészletet, ellenőrizd, majd teszteld. A teljes oldalas Front Desket QR/direkt linkes vagy beágyazott bővítéshez add hozzá.",
   "Use the raw iframe fallback only when the site blocks scripts.": "A nyers iframe tartalékot csak akkor használd, ha az oldal blokkolja a szkripteket.",
-  "Publish, open the page as a visitor, and ask one realistic customer question. If you also add the bubble snippet, run Verify installation.": "Tedd közzé, nyisd meg az oldalt látogatóként, és tegyél fel egy valósághű ügyfélkérdést. Ha a buborék kódrészletét is hozzáadod, futtasd a Telepítés ellenőrzését.",
-  "Add the hosted Front Desk page link to a menu or button, or use the Vonza plugin or dedicated page embed on a new WordPress page.": "Add a hosztolt Front Desk oldal linkjét egy menühöz vagy gombhoz, vagy használd a Vonza plugint vagy a dedikált oldalbeágyazást egy új WordPress oldalon.",
-  "Use the hosted Front Desk page for checkout, order status, and account areas. Use the embed on normal content pages.": "Pénztárhoz, rendelési állapothoz és fiókoldalakhoz használd a hosztolt Front Desk oldalt. Normál tartalmi oldalakon használd a beágyazást.",
+  "Publish, run Verify installation, open the page as a visitor, and ask one realistic customer question. Test companion page links separately.": "Tedd közzé, futtasd a Telepítés ellenőrzését, nyisd meg az oldalt látogatóként, és tegyél fel egy valósághű ügyfélkérdést. A kiegészítő oldallinkeket külön teszteld.",
+  "Use the widget snippet or WordPress install flow for the site launcher. Add a dedicated Front Desk page or QR link later for companion flows.": "Használd a widget kódrészletet vagy WordPress telepítési folyamatot az oldali indítóhoz. Dedikált Front Desk oldalt vagy QR-linket később adj hozzá kiegészítő folyamatokhoz.",
+  "Use the Website Widget on normal site pages. Use the full-page Front Desk for QR, direct links, or restricted checkout and account areas.": "A Website Widgetet normál weboldalakon használd. A teljes oldalas Front Desket QR-hez, direkt linkekhez vagy korlátozott pénztár- és fiókterületekhez használd.",
   "WooCommerce product and order data are not connected by this install step.": "Ez a telepítési lépés nem kapcsol WooCommerce termék- vagy rendelési adatokat.",
-  "Publish the page, open it while signed out, and ask a test question. If you add the optional bubble, run Verify installation.": "Tedd közzé az oldalt, nyisd meg kijelentkezve, és tegyél fel egy tesztkérdést. Ha hozzáadod az opcionális buborékot, futtasd a Telepítés ellenőrzését.",
-  "Add the hosted Front Desk page link to a site button or menu, or paste the smart embed into an Embed HTML or custom code area.": "Add a hosztolt Front Desk oldal linkjét egy weboldali gombhoz vagy menühöz, vagy illeszd be az okos beágyazást egy Embed HTML vagy egyéni kód területre.",
-  "Use the hosted page when the Wix editor strips scripts. Use the embed only on pages where custom HTML is allowed.": "Használd a hosztolt oldalt, ha a Wix szerkesztő eltávolítja a szkripteket. Beágyazást csak olyan oldalon használj, ahol engedélyezett az egyéni HTML.",
+  "Publish, run Verify installation, open the site while signed out, and ask a test question in the widget.": "Tedd közzé, futtasd a Telepítés ellenőrzését, nyisd meg az oldalt kijelentkezve, és tegyél fel egy tesztkérdést a widgetben.",
+  "Add the Website Widget snippet in Wix custom code when available. Use the Front Desk page link from a button or menu when Wix blocks scripts.": "Add hozzá a Website Widget kódrészletet Wix egyéni kódban, ha elérhető. Ha a Wix blokkolja a szkripteket, használd a Front Desk oldallinket gombból vagy menüből.",
+  "Treat the full-page Front Desk as a companion fallback for QR/direct links or script-restricted Wix areas.": "A teljes oldalas Front Desket kiegészítő tartalékként kezeld QR/direkt linkekhez vagy szkriptkorlátozott Wix területekhez.",
   "Some Wix areas can restrict custom code, so the iframe fallback may be needed.": "Egyes Wix területek korlátozhatják az egyéni kódot, ezért szükség lehet az iframe tartalékra.",
-  "Publish the site, open the public page, and complete one visitor-style test question.": "Tedd közzé az oldalt, nyisd meg a publikus oldalt, és futtass végig egy látogatói tesztkérdést.",
-  "Add the Front Desk page link to navigation, a page, or a theme section. Use the smart embed only where the theme allows custom liquid or HTML.": "Add a Front Desk oldal linkjét a navigációhoz, egy oldalhoz vagy egy sablonszakaszhoz. Az okos beágyazást csak ott használd, ahol a sablon enged egyéni liquidet vagy HTML-t.",
-  "Use the hosted Front Desk page for checkout, customer account, and policy areas where custom scripts may be restricted.": "A pénztárhoz, ügyfélfiókhoz és szabályzati területekhez használd a hosztolt Front Desk oldalt, ahol az egyéni szkriptek korlátozva lehetnek.",
+  "Publish the site, run Verify installation, open the public page, and complete one visitor-style widget test.": "Tedd közzé az oldalt, futtasd a Telepítés ellenőrzését, nyisd meg a publikus oldalt, és futtass végig egy látogatói widget tesztet.",
+  "Install the Website Widget snippet in the theme where scripts are allowed. Use the Front Desk page link for navigation, pages, or restricted checkout/account areas.": "Telepítsd a Website Widget kódrészletet a sablonban ott, ahol a szkriptek engedélyezettek. Front Desk oldallinket navigációhoz, oldalakhoz vagy korlátozott pénztár-/fiókterületekhez használj.",
+  "Use the full-page Front Desk as a companion for QR/direct links and areas where Shopify restricts custom scripts.": "A teljes oldalas Front Desket kiegészítőként használd QR/direkt linkekhez és olyan területekhez, ahol a Shopify korlátozza az egyéni szkripteket.",
   "Products, carts, and orders are not connected by this install step.": "Ez a telepítési lépés nem kapcsol termékeket, kosarakat vagy rendeléseket.",
-  "Publish the theme change, open the storefront as a visitor, and test the Front Desk link or embedded page.": "Tedd közzé a sablonmódosítást, nyisd meg a boltot látogatóként, és teszteld a Front Desk linket vagy a beágyazott oldalt.",
-  "Add the Front Desk page link to a nav item or button, or paste the smart embed into a Webflow Embed element on a dedicated page.": "Add a Front Desk oldal linkjét egy navigációs elemhez vagy gombhoz, vagy illeszd be az okos beágyazást egy Webflow Embed elembe egy dedikált oldalon.",
-  "Use the hosted page for quick launch and QR links. Use the embed when the Front Desk should appear within a Webflow page.": "Gyors élesítéshez és QR-linkekhez használd a hosztolt oldalt. Beágyazást akkor használj, ha a Front Desknek egy Webflow oldalon belül kell megjelennie.",
+  "Publish the theme change, run Verify installation, open the storefront as a visitor, and test the widget.": "Tedd közzé a sablonmódosítást, futtasd a Telepítés ellenőrzését, nyisd meg a boltot látogatóként, és teszteld a widgetet.",
+  "Paste the Website Widget snippet into custom code for site-wide launch. Add the Front Desk page link or smart embed to a dedicated page for expansion.": "Illeszd be a Website Widget kódrészletet egyéni kódba az egész oldalas élesítéshez. Bővítéshez adj Front Desk oldallinket vagy okos beágyazást dedikált oldalhoz.",
+  "Use the full-page Front Desk for QR/direct links or when a Webflow page should host a dedicated assistant experience.": "A teljes oldalas Front Desket QR/direkt linkekhez vagy akkor használd, ha egy Webflow oldalnak dedikált asszisztensélményt kell hostolnia.",
   "Custom code publishing can depend on the Webflow site setup.": "Az egyéni kód közzététele a Webflow oldal beállításaitól függhet.",
-  "Publish to the live domain, open the page in a private window, and send one test question.": "Tedd közzé az élő domainen, nyisd meg az oldalt privát ablakban, és küldj egy tesztkérdést.",
-  "Add the hosted Front Desk page link to navigation or a button, or paste the embed into a Code Block or Code Injection area.": "Add a hosztolt Front Desk oldal linkjét a navigációhoz vagy egy gombhoz, vagy illeszd be a beágyazást egy Code Block vagy Code Injection területre.",
-  "Use the hosted page when Squarespace blocks scripts on the target page. Use the iframe fallback if scripts are not allowed.": "Használd a hosztolt oldalt, ha a Squarespace blokkolja a szkripteket a céloldalon. Ha a szkriptek nem engedélyezettek, használd az iframe tartalékot.",
+  "Publish to the live domain, run Verify installation, open the page in a private window, and send one widget test question.": "Tedd közzé az élő domainen, futtasd a Telepítés ellenőrzését, nyisd meg az oldalt privát ablakban, és küldj egy widget tesztkérdést.",
+  "Add the Website Widget snippet through Code Injection where available. Use the Front Desk page link from navigation or a button when scripts are blocked.": "Add hozzá a Website Widget kódrészletet Code Injectionön keresztül, ahol elérhető. Ha a szkriptek blokkolva vannak, használd a Front Desk oldallinket navigációból vagy gombból.",
+  "Use the full-page Front Desk as a companion fallback for QR/direct links or Squarespace areas that block scripts.": "A teljes oldalas Front Desket kiegészítő tartalékként használd QR/direkt linkekhez vagy olyan Squarespace területekhez, amelyek blokkolják a szkripteket.",
   "Some templates and editing areas can limit script embeds.": "Egyes sablonok és szerkesztési területek korlátozhatják a szkriptbeágyazásokat.",
-  "Publish, open the public page, and confirm the Front Desk loads before sharing the link.": "Tedd közzé, nyisd meg a publikus oldalt, és ellenőrizd, hogy a Front Desk betölt, mielőtt megosztod a linket.",
+  "Publish, run Verify installation, open the public page, and confirm the widget loads before sharing companion links.": "Tedd közzé, futtasd a Telepítés ellenőrzését, nyisd meg a publikus oldalt, és a kiegészítő linkek megosztása előtt ellenőrizd, hogy a widget betölt.",
   "Smart embed": "Okos beágyazás",
   "Place the Front Desk inside part of an existing page.": "Helyezd el a Front Desket egy meglévő oldal egy részében.",
   "WordPress / dedicated page": "WordPress / dedikált oldal",
@@ -2768,7 +2796,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Raw iframe backgrounds stay inside the iframe. Use the smart dedicated page embed when you want the background to fill the page area.": "A nyers iframe hátterek az iframe-en belül maradnak. Használd az okos dedikált oldalbeágyazást, ha azt szeretnéd, hogy a háttér kitöltse az oldalterületet.",
   "Copy raw iframe": "Nyers iframe másolása",
   "Selected method": "Kiválasztott módszer",
-  "Use a QR code or direct link that opens the hosted full-page Front Desk page.": "Használj QR-kódot vagy direkt linket, amely megnyitja a hosztolt teljes oldalas Front Desk oldalt.",
+  "Use a QR code or direct link that opens the companion full-page Front Desk page.": "Használj QR-kódot vagy direkt linket, amely megnyitja a kiegészítő teljes oldalas Front Desk oldalt.",
   "Print/download": "Nyomtatás/letöltés",
   "Enable page first": "Előbb engedélyezd az oldalt",
   "Front Desk page QR code": "Front Desk oldal QR-kódja",
@@ -2776,7 +2804,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Enable the public Front Desk page before sharing.": "Megosztás előtt engedélyezd a publikus Front Desk oldalt.",
   "Use this QR code on menus, flyers, signs, invoices, and reception desks.": "Ezt a QR-kódot használd menükön, szórólapokon, táblákon, számlákon és recepción.",
   "Enable the public Front Desk page before downloading or sharing a QR code.": "QR-kód letöltése vagy megosztása előtt engedélyezd a publikus Front Desk oldalt.",
-  "The QR code opens the same customer-facing Front Desk page link.": "A QR-kód ugyanazt az ügyféloldali Front Desk linket nyitja meg.",
+  "The QR code opens the companion Front Desk page link.": "A QR-kód a kiegészítő Front Desk oldallinket nyitja meg.",
   "Download QR code": "QR-kód letöltése",
   "Installation status": "Telepítési állapot",
   "Domain status": "Domain állapota",
@@ -2789,7 +2817,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Verified": "Ellenőrizve",
   "Resources": "Erőforrások",
   "View Front Desk page setup": "Front Desk oldal beállításainak megnyitása",
-  "View optional website bubble": "Opcionális weboldali buborék megnyitása",
+  "View companion Front Desk setup": "Kiegészítő Front Desk beállítás megnyitása",
   "View Website Widget setup": "Website Widget beállítás megnyitása",
   "Last seen page:": "Utoljára látott oldal:",
   "Last verified": "Utoljára ellenőrizve",
@@ -2800,13 +2828,12 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Live install detected on": "Élő telepítés észlelve ezen:",
   "last seen": "utoljára észlelve",
   "your website": "a weboldaladon",
-  "The optional website bubble snippet was found on the site, but Vonza has not yet received a live visitor ping.": "Az opcionális weboldali buborék kódrészlete megtalálható az oldalon, de a Vonza még nem kapott élő látogatói jelzést.",
   "The Website Widget snippet was found on the site, but Vonza has not yet received a live visitor ping.": "A Website Widget kódrészlet megtalálható az oldalon, de a Vonza még nem kapott élő látogatói jelzést.",
   "Vonza found embed markup, but it points at a different install or a blocked domain.": "A Vonza talált beágyazási jelölést, de az másik telepítésre vagy blokkolt domainre mutat.",
   "Verification needs attention. Vonza either could not fetch the site or could not find the expected install snippet yet.": "Az ellenőrzés figyelmet igényel. A Vonza vagy nem tudta lekérni az oldalt, vagy még nem találta a várt telepítési kódrészletet.",
   "No website bubble install detected yet. The Front Desk page can still launch through the public page, WordPress, smart embed, or QR/direct link.": "Még nincs észlelt weboldali buboréktelepítés. A Front Desk oldal ettől még indítható publikus oldalon, WordPressen, okos beágyazással vagy QR/direkt linken keresztül.",
   "No Website Widget install detected yet. Paste the website URL, import content, choose a template and tone, preview the widget, then install with WordPress or one embed snippet.": "Még nincs észlelt Website Widget telepítés. Add meg a weboldal URL-jét, importáld a tartalmat, válassz sablont és hangnemet, nézd meg előnézetben, majd telepítsd WordPress-szel vagy egy beágyazási kóddal.",
-  "Publish your AI Front Desk page through WordPress, smart embed, QR/direct link, or the optional website widget bubble.": "Tedd közzé az AI Front Desk oldalt WordPressen, okos beágyazással, QR/direkt linken vagy opcionális weboldali widget buborékkal.",
+  "Launch the Website Widget first, then add the AI Front Desk page through WordPress, smart embed, QR, or direct link as a companion channel.": "Először a Website Widgetet élesítsd, majd az AI Front Desk oldalt WordPressen, okos beágyazással, QR-kóddal vagy direkt linkkel add hozzá kiegészítő csatornaként.",
   "Front Desk configuration sections": "Front Desk beállítási szakaszok",
   "Adjust how the customer-facing Front Desk speaks, routes, and appears to visitors.": "Állítsd be, hogyan beszéljen, merre vezessen és hogyan jelenjen meg az ügyféloldali Front Desk.",
   "Identity & welcome": "Identitás és üdvözlés",
@@ -2921,7 +2948,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Transcript sent to Practice.": "Az átirat elküldve a Gyakorlásba.",
   "Could not open Practice with this transcript.": "Nem sikerült megnyitni a Gyakorlást ezzel az átirattal.",
   "Practice is not available right now.": "A Gyakorlás most nem érhető el.",
-  "Customize the primary Front Desk page customers open from links, WordPress pages, smart embeds, QR codes, and direct assistant pages.": "Testreszabhatod az elsődleges Front Desk oldalt, amelyet az ügyfelek linkekből, WordPress oldalakról, okos beágyazásokból, QR-kódokból és direkt asszisztensoldalakról nyitnak meg.",
+  "Customize the companion Front Desk page customers open from QR codes, direct links, WordPress pages, smart embeds, and dedicated assistant pages.": "Testreszabhatod a kiegészítő Front Desk oldalt, amelyet az ügyfelek QR-kódokból, direkt linkekből, WordPress oldalakból, okos beágyazásokból és dedikált asszisztensoldalakból nyitnak meg.",
   "Front Desk page customization sections": "Front Desk oldal testreszabási szakaszai",
   "Content": "Tartalom",
   "Design": "Dizájn",
@@ -2932,7 +2959,6 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Leave blank to show the default title, Front Desk.": "Hagyd üresen az alapértelmezett Front Desk cím megjelenítéséhez.",
   "Subtitle": "Alcím",
   "Logo/avatar URL": "Logó/avatar URL",
-  "Optional. Leave blank to use the assistant initial or optional website bubble logo.": "Opcionális. Hagyd üresen az asszisztens kezdőbetűjének vagy az opcionális weboldali buborék logójának használatához.",
   "Optional. Leave blank to use the assistant initial or Website Widget logo.": "Opcionális. Hagyd üresen az asszisztens kezdőbetűjének vagy a Website Widget logójának használatához.",
   "Show booking card": "Foglalási kártya megjelenítése",
   "Show quote card": "Ajánlatkérési kártya megjelenítése",
@@ -3004,10 +3030,9 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Success URL match mode": "Siker URL egyezési mód",
   "Fallback outcome mode": "Tartalék eredménymód",
   "Turn this on only when the owner needs a real fallback.": "Csak akkor kapcsold be, ha a tulajdonosnak valódi tartalékra van szüksége.",
-  "Optional website bubble": "Opcionális weboldali buborék",
+  "Website Widget install": "Website Widget telepítés",
   "Website Widget launcher": "Website Widget indító",
-  "Configure the compact Website Widget launcher. This does not control the primary Front Desk page.": "Állítsd be a kompakt Website Widget indítót. Ez nem vezérli az elsődleges Front Desk oldalt.",
-  "Configure the compact website chat bubble. This does not control the primary Front Desk page.": "Állítsd be a kompakt weboldali chatbuborékot. Ez nem vezérli az elsődleges Front Desk oldalt.",
+  "Configure the Website Widget launcher for the recommended website launch path. Full-page Front Desk settings stay in the companion page section.": "Állítsd be a Website Widget indítót az ajánlott weboldali élesítési úthoz. A teljes oldalas Front Desk beállításai a kiegészítő oldal szakaszban maradnak.",
   "Use a small square PNG, JPG, WebP, or GIF.": "Használj kis négyzetes PNG, JPG, WebP vagy GIF képet.",
   "Optional guidance for emphasis, tone, and edge cases.": "Opcionális útmutatás hangsúlyhoz, hangnemhez és kivételes esetekhez.",
   "Front Desk live readout": "Front Desk élő összefoglaló",
@@ -6517,7 +6542,7 @@ function buildSidebarShell(
       {
         key: "install",
         label: t("nav.install"),
-        note: "Page links, QR, optional widget",
+        note: "Widget install, page links, QR",
       },
       {
         key: "settings",
@@ -6548,7 +6573,7 @@ function buildSidebarShell(
       ${buildSidebarGroup(translateDashboardText("Operate"), coreItems, activeSection, {
         note: dedicatedWebsiteWidget
           ? "Website URL, import, install, analytics, and configuration for the Website Widget."
-          : (productHomeContext?.sidebarNote || "Front Desk is the primary full-page customer surface."),
+          : (productHomeContext?.sidebarNote || "Website Widget is the recommended launch surface; Front Desk remains available for companion pages."),
       })}
       <div class="sidebar-footer">
         <div class="sidebar-status-dock">
@@ -7856,7 +7881,7 @@ function getProductLandingContext(product = activeDashboardProduct) {
   return {
     eyebrow: label,
     title: homeContext?.contextTitle || "Launch the full-page AI Front Desk",
-    copy: homeContext?.contextCopy || "Front Desk is the primary customer-facing product. Start in practice, tune the full-page setup, then publish through the existing install flow.",
+    copy: homeContext?.contextCopy || "Website Widget is the recommended customer-facing launch surface. Use Front Desk practice and the full-page setup for companion pages, QR, and later expansion.",
     setupLink: dedicatedWebsiteWidget
       ? { label: "Embed/install snippet", note: "Open the existing widget install surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }
       : { label: setupContext?.eyebrow || "Open setup", note: "Open the product-specific setup checklist", href: "#setup", shellTarget: "setup", icon: "review", primary: true },
@@ -7867,7 +7892,7 @@ function getProductLandingContext(product = activeDashboardProduct) {
     ] : Array.isArray(homeContext?.shortcuts) ? homeContext.shortcuts : [
       { label: "Practice", note: "Test the current customer experience", href: "#front-desk/practice", shellTarget: "customize", icon: "frontdesk", primary: true },
       { label: "Full-page setup", note: "Open existing Front Desk page settings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" },
-      { label: "Publish page", note: "Share, embed, or QR the hosted page", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install" },
+      { label: "Companion page", note: "Share, embed, or QR the hosted page after widget setup", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install" },
     ],
   };
 }
@@ -13236,8 +13261,8 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
   let copy;
 
   if (!setup.isReady) {
-    title = "Home is open. The next step is finishing the Front Desk page.";
-    copy = "Use Front Desk and Settings to shape the experience, confirm routing and website knowledge, and make sure the customer-facing page feels ready before you share it.";
+    title = "Home is open. The next step is finishing Website Widget setup.";
+    copy = "Use website import, Front Desk practice, and Settings to shape grounded answers, then install the Website Widget as the first launch surface.";
     primaryAction = {
       label: "Continue setup",
       type: "section",
@@ -13320,8 +13345,8 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       });
     }
   } else if (fullPageEnabled) {
-    title = "Your Front Desk page is live";
-    copy = "The public assistant page is enabled. Test the Front Desk, keep improving answer quality, and choose the distribution channels that fit the business.";
+    title = "Your companion Front Desk page is live";
+    copy = "The public assistant page is enabled for links, QR, and dedicated pages. Keep the Website Widget install path first for normal website traffic.";
     primaryAction = {
       label: "Open Front Desk page",
       type: "preview",
@@ -13332,10 +13357,10 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       value: "customize",
     });
   } else if (installStatus.state === "installed_unseen") {
-    title = "Your website bubble is published and waiting for first live traffic";
-    copy = "Vonza found the optional website widget snippet. The primary launch step is still enabling and testing the public Front Desk page.";
+    title = "Your Website Widget is published and waiting for first live traffic";
+    copy = "Vonza found the Website Widget snippet. Verify the live site and test the widget; the public Front Desk page can stay as a companion for links or QR.";
     primaryAction = {
-      label: "Enable Front Desk page",
+      label: "Review settings",
       type: "section",
       value: "settings",
     };
@@ -13369,8 +13394,8 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       type: "install",
     });
   } else {
-    title = "Your Front Desk page is almost ready to go live";
-    copy = "The setup is in place. Enable the public Front Desk page, test a real customer question, then choose a distribution channel such as WordPress, smart embed, QR/direct link, or the optional website bubble.";
+    title = "Your Website Widget is ready for install";
+    copy = "The setup is in place. Install the Website Widget with the snippet or WordPress flow, verify the live site, then test a real customer question. Add the Front Desk page, QR, direct link, or embeds as companion channels.";
     primaryAction = {
       label: "Open install",
       type: "focus",
@@ -13404,8 +13429,8 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
     {
       title: "Public Front Desk page",
       copy: fullPageEnabled
-        ? "Your Front Desk page is live."
-        : "Enable the public assistant page before sharing QR codes or links.",
+        ? "Your companion Front Desk page is live."
+        : "Enable the public assistant page only when you need QR codes, links, or a dedicated assistant page.",
       done: fullPageEnabled,
     },
     {
@@ -13426,14 +13451,14 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       title: "First test conversation",
       copy: hasConversation
         ? "A test or customer conversation exists."
-        : "Run one realistic Front Desk conversation.",
+        : "Run one realistic Website Widget or Front Desk conversation.",
       done: hasConversation,
     },
     {
       title: "Distribution channel selected",
       copy: hasDistributionChannel
-        ? "At least one Front Desk distribution path is available."
-        : "Choose WordPress, smart embed, QR/direct link, or the optional website bubble.",
+        ? "At least one Website Widget or companion Front Desk path is available."
+        : "Start with the Website Widget, then add Front Desk page, QR, direct link, or embed channels as needed.",
       done: hasDistributionChannel,
     },
   ];
@@ -13477,7 +13502,7 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       title: "Next best move",
       copy: isInstallSeen(installStatus)
         ? "Keep testing the front desk on your site and review the wording, welcome message, routing, and response style until it feels like a natural part of the business."
-        : "Once the front desk is installed on a live site, Vonza will start showing real usage and recent customer questions here.",
+        : "Once the Website Widget is installed on a live site, Vonza will start showing real usage and recent customer questions here.",
     });
   }
 
@@ -13667,13 +13692,13 @@ function buildActivationWizardActionMarkup(agent, wizard, activeStep) {
       <div class="activation-install-summary">
         <div class="activation-detail-row">
           <span>Status</span>
-          <strong>${escapeHtml(frontDeskPageLive ? "Front Desk page live" : live ? "Optional website bubble live" : installStatus.label || "Front Desk page not enabled yet")}</strong>
+          <strong>${escapeHtml(live ? "Website Widget live" : frontDeskPageLive ? "Companion Front Desk page live" : installStatus.label || "Website Widget not installed yet")}</strong>
         </div>
         <div class="activation-detail-row">
-          <span>Front Desk page</span>
-          <strong>${escapeHtml(frontDeskPageLive ? "Enabled" : "Disabled")}</strong>
+          <span>Website Widget</span>
+          <strong>${escapeHtml(live ? "Detected" : "Not verified yet")}</strong>
         </div>
-        <p>${escapeHtml(frontDeskPageLive ? "Your public Front Desk page is ready to share. Test one customer question next." : live ? "Vonza has detected the optional website bubble on the live site. Enable and test the Front Desk page next." : "Enable the Front Desk page first, then use the optional website bubble snippet only if you want a compact launcher on the live site.")}</p>
+        <p>${escapeHtml(live ? "Vonza has detected the Website Widget on the live site. Test one customer question next." : frontDeskPageLive ? "The companion Front Desk page is ready for links or QR. Install and verify the Website Widget next." : "Open Install, copy the Website Widget snippet or WordPress flow, verify the live site, then test the widget.")}</p>
       </div>
       <div class="activation-actions">
         ${frontDeskPageLive || live

@@ -130,10 +130,10 @@
           : "Not live yet";
 
     return {
-      launchHeadline: setup.isReady ? "Your Front Desk page is close to launch." : "A few essentials still need attention before you publish.",
+      launchHeadline: setup.isReady ? "Your Front Desk companion page is ready to add." : "A few essentials still need attention before you publish.",
       launchCopy: setup.isReady
-        ? "Confirm the experience, enable the public Front Desk page, then choose WordPress, smart embed, QR/direct link, or the optional website bubble."
-        : "This space keeps the launch path clear by showing what still needs attention before Install and distribution.",
+        ? "Install the Website Widget first, then enable the public Front Desk page for QR, direct links, dedicated assistant pages, or embedded expansion."
+        : "This space keeps companion launch options clear by showing what still needs attention before Install and distribution.",
       publicPageLabel: publicFrontDeskLive ? "Your Front Desk page is live" : "Your Front Desk page is disabled",
       liveVerificationLabel,
     };
@@ -433,8 +433,8 @@
       if (!publicFrontDeskLive) {
         return {
           label: "Next action",
-          title: "Prepare the hosted Front Desk page",
-          copy: "Practice once, enable the public page, then share the direct link or QR before treating the optional widget as secondary.",
+          title: "Prepare the companion Front Desk page",
+          copy: "Practice once, install the Website Widget, then enable the public page for QR, direct links, or dedicated assistant pages.",
           button: "Open launch",
           frontDeskTarget: "launch",
           tone: "ready",
@@ -492,7 +492,7 @@
         {
           label: "Launch",
           value: publicFrontDeskLive ? "Page live" : hasPreview ? "Page prepared" : "Setup needed",
-          copy: installStatus.label || "Hosted page first, widget optional",
+          copy: installStatus.label || "Widget first, page companion",
         },
       ];
 
@@ -982,14 +982,19 @@
               <strong class="frontdesk-detail-row-value">${sanitizeHtml(qrEndpoint ? "Available in Install" : "Available after the public Front Desk page is enabled.")}</strong>
             </div>
             <div class="frontdesk-detail-row">
-              <span class="frontdesk-detail-row-label">Optional website bubble</span>
+              <span class="frontdesk-detail-row-label">Website Widget install</span>
               <strong class="frontdesk-detail-row-value">${sanitizeHtml(installStatus.label || liveVerificationLabel)}</strong>
             </div>
           </div>
           <div class="frontdesk-section-divider"></div>
           <div class="frontdesk-launch-channel-grid">
             <article>
-              <span>Primary</span>
+              <span>Recommended</span>
+              <strong>Website Widget</strong>
+              <p>${sanitizeHtml(installStatus.label || liveVerificationLabel)}</p>
+            </article>
+            <article>
+              <span>Companion</span>
               <strong>Hosted Front Desk page</strong>
               <p>${sanitizeHtml(fullPageUrl || "Enable the public Front Desk page to create the customer-facing link.")}</p>
             </article>
@@ -999,14 +1004,9 @@
               <p>${sanitizeHtml(qrEndpoint ? "Use Install to share the QR code anywhere customers already are." : "QR is available after the public page is enabled.")}</p>
             </article>
             <article>
-              <span>Website install</span>
+              <span>Expansion</span>
               <strong>WordPress / smart embed</strong>
               <p>Use Install for page takeover, smart embed, and live-domain verification.</p>
-            </article>
-            <article>
-              <span>Secondary</span>
-              <strong>Optional website widget</strong>
-              <p>${sanitizeHtml(installStatus.label || liveVerificationLabel)}</p>
             </article>
           </div>
           <div class="frontdesk-section-divider"></div>
@@ -1050,10 +1050,10 @@
                 <p class="frontdesk-step-copy">${sanitizeHtml(isInstallSeen(installStatus)
                   ? "Vonza is already seeing live traffic from the site. Keep Install handy for quick verification checks."
                   : isInstallDetected(installStatus)
-                    ? "The optional website bubble snippet is in place, and the next step is simply confirming the first live visit."
+                    ? "The Website Widget snippet is in place, and the next step is simply confirming the first live visit."
                     : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
                       ? "Verification needs attention before the launch can be treated as confidently live."
-                      : "Use Install to choose WordPress, smart embed, QR/direct link, or the optional website bubble before launch is complete.")}</p>
+                      : "Use Install to launch the Website Widget first, then add WordPress, smart embed, QR, or direct-link companion channels as needed.")}</p>
               </div>
             </article>
           </div>

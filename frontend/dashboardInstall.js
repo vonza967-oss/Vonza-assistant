@@ -50,28 +50,28 @@
   } = {}) {
     return [
       {
+        key: "widget",
+        icon: "install",
+        title: "Website Widget",
+        copy: "Recommended launch path. Configure the widget, install the snippet or WordPress flow, verify the live site, then test a visitor question.",
+        status: installDetected ? "Detected" : hasInstall ? "Recommended" : "Start here",
+        tone: installDetected ? "ready" : "ready",
+      },
+      {
         key: "page",
         icon: "frontdesk",
         title: "Front Desk page",
-        copy: "Launch the hosted Front Desk page first, then use WordPress or smart embed when it should live on your site.",
-        status: "Primary",
-        tone: "ready",
+        copy: "Companion full-page surface for QR codes, direct links, dedicated assistant pages, and later modular surfaces.",
+        status: "Companion",
+        tone: "neutral",
       },
       {
         key: "qr",
         icon: "review",
         title: "QR / direct link",
-        copy: "Open the same hosted Front Desk page from signs, menus, invoices, emails, or direct links.",
-        status: qrEndpoint ? "Primary ready" : "Enable page first",
+        copy: "Companion channel that opens the full-page Front Desk from signs, menus, invoices, emails, or direct links.",
+        status: qrEndpoint ? "QR ready" : "Enable page for QR",
         tone: qrEndpoint ? "neutral" : "warning",
-      },
-      {
-        key: "widget",
-        icon: "install",
-        title: "Website widget",
-        copy: "Copy the embed snippet, review allowed domains/status, and test the optional launcher.",
-        status: installDetected ? "Detected" : hasInstall ? "Snippet ready" : "Setup",
-        tone: installDetected ? "ready" : "neutral",
       },
     ];
   }
@@ -463,9 +463,9 @@
           detail: trimText(agent.assistantName || agent.name) || "Front Desk workspace",
         },
         {
-          title: "Public Front Desk page enabled",
+          title: "Companion Front Desk page enabled",
           done: fullPageEnabled,
-          detail: fullPageEnabled ? "Your Front Desk page is live" : "Enable public access before sharing links or QR",
+          detail: fullPageEnabled ? "Full-page companion is ready for links and QR" : "Enable only when you need links, QR, or a dedicated assistant page",
         },
         {
           title: "Front Desk customized",
@@ -494,8 +494,8 @@
           title: "Launch path selected",
           done: hasDistributionChannel,
           detail: hasDistributionChannel
-            ? "Hosted page, QR/direct link, WordPress/smart embed, or optional bubble is ready"
-            : "Choose a primary launch path in Install",
+            ? "Website Widget or a companion Front Desk channel is ready"
+            : "Start with the Website Widget install path",
         },
       ];
 
@@ -517,27 +517,27 @@
       const stages = [
         {
           number: "1",
-          title: "Choose method",
+          title: "Start with website",
           state: "active",
-          copy: "Start with hosted page, QR/direct link, or WordPress/smart embed.",
+          copy: "Use the website URL/import path, then configure the Website Widget.",
         },
         {
           number: "2",
-          title: "Configure",
+          title: "Install widget",
           state: hasInstall || fullPageUrl || qrEndpoint ? "done" : "pending",
-          copy: "Copy the Front Desk link, page embed, smart snippet, or Website Widget snippet.",
+          copy: "Copy the Website Widget snippet or use the WordPress flow after configuration.",
         },
         {
           number: "3",
           title: "Verify",
           state: verifyDone ? "done" : "pending",
-          copy: "Confirm website embed or widget installs after publishing.",
+          copy: "Confirm the widget snippet after publishing; keep page links and QR as companion channels.",
         },
         {
           number: "4",
-          title: "Go live",
+          title: "Test live path",
           state: isInstallSeen(installStatus) ? "done" : "pending",
-          copy: "Share the hosted page, QR, or embedded page; keep the widget secondary.",
+          copy: "Test the live widget first, then add Front Desk page links, QR, or embeds where useful.",
         },
       ];
 
@@ -567,21 +567,27 @@
         },
         {
           number: "2",
-          title: "Import and configure",
+          title: "Import and configure widget",
           state: hasInstall ? "done" : "pending",
           copy: "Import content, then choose the widget template, tone, welcome, and handoff basics.",
         },
         {
           number: "3",
-          title: "Preview and install",
+          title: "Install snippet or WordPress",
           state: verifyDone ? "done" : hasInstall ? "active" : "pending",
-          copy: "Preview a real question, then use WordPress or the one-line embed snippet.",
+          copy: "Use WordPress or the one-line embed snippet on the live website.",
         },
         {
           number: "4",
           title: "Verify live site",
           state: isInstallSeen(installStatus) ? "done" : "pending",
-          copy: "Confirm the script is detected after publishing and send a realistic visitor question.",
+          copy: "Confirm the script is detected after publishing.",
+        },
+        {
+          number: "5",
+          title: "Test a visitor question",
+          state: isInstallSeen(installStatus) ? "done" : "pending",
+          copy: "Open the live widget and send one realistic customer question.",
         },
       ];
 
@@ -619,10 +625,19 @@
     function buildLaunchPathComparison(fullPageEnabled, qrEndpoint, hasInstall, installStatus) {
       const paths = [
         {
+          key: "widget",
+          title: "Website Widget",
+          label: "Recommended",
+          copy: "Default launch path for normal website traffic. Install the snippet or WordPress flow, verify allowed domains, and test the launcher on the live site.",
+          state: isInstallDetected(installStatus) ? "Seen live" : hasInstall ? "Code ready" : "Not generated",
+          tone: isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending",
+          action: "widget",
+        },
+        {
           key: "hosted",
           title: "Hosted Front Desk page",
-          label: "Primary",
-          copy: "Fastest launch path. Share the protected hosted page from buttons, menus, emails, and owner follow-ups.",
+          label: "Companion",
+          copy: "Full-page companion for QR codes, direct links, dedicated assistant pages, and later modular surfaces.",
           state: fullPageEnabled ? "Live" : "Enable in Settings",
           tone: fullPageEnabled ? "Ready" : "Pending",
           action: "page",
@@ -630,8 +645,8 @@
         {
           key: "qr",
           title: "QR / direct link",
-          label: "Primary",
-          copy: "Same hosted page, packaged for print, reception desks, invoices, menus, and offline traffic.",
+          label: "Companion",
+          copy: "Opens the companion Front Desk page from print, reception desks, invoices, menus, and offline traffic.",
           state: qrEndpoint ? "QR available" : "Enable page first",
           tone: qrEndpoint ? "Ready" : "Pending",
           action: "qr",
@@ -639,20 +654,11 @@
         {
           key: "embed",
           title: "WordPress / smart embed",
-          label: "Primary",
-          copy: "Use the plugin, dedicated page embed, or smart snippet when Front Desk belongs inside the website.",
+          label: "Expansion",
+          copy: "Use a dedicated page embed or smart snippet when the full-page Front Desk should live inside the website after widget launch.",
           state: fullPageEnabled ? "Code ready" : "Enable page first",
           tone: fullPageEnabled ? "Ready" : "Pending",
           action: "page",
-        },
-        {
-          key: "widget",
-          title: "Website Widget",
-          label: "Secondary",
-          copy: "Optional embedded launcher for normal website pages, with snippet, domain, status, and test tools.",
-          state: isInstallDetected(installStatus) ? "Seen live" : hasInstall ? "Code ready" : "Not generated",
-          tone: isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending",
-          action: "widget",
         },
       ];
 
@@ -663,7 +669,7 @@
               <p class="overview-label">Launch path hierarchy</p>
               <h3>Pick the customer entry point</h3>
             </div>
-            <span>Full-page first</span>
+            <span>Widget first</span>
           </div>
           <div class="install-launch-path-grid">
             ${paths.map((path) => `
@@ -707,7 +713,7 @@
               <dd>${escapeHtml(paste)}</dd>
             </div>
             <div>
-              <dt>Hosted page vs embed</dt>
+              <dt>Widget first / companion</dt>
               <dd>${escapeHtml(useHosted)}</dd>
             </div>
             <div>
@@ -727,51 +733,51 @@
       const platformGuides = [
         {
           platform: "Generic HTML / smart embed",
-          recommended: "Start here",
-          paste: "Paste the smart embed or dedicated page snippet into the page HTML, or add the Front Desk page link to a button or menu.",
-          useHosted: "Use the hosted Front Desk page for the fastest launch. Use the smart embed when Front Desk should live inside an existing page.",
+          recommended: "Widget first",
+          paste: "Paste the Website Widget snippet into the site header or pages where the launcher should appear. Add the Front Desk page link or smart embed only for a dedicated companion page.",
+          useHosted: "Start with website URL/import, configure the widget, install the snippet, verify, then test. Add the full-page Front Desk for QR/direct-link or embedded expansion.",
           limitation: "Use the raw iframe fallback only when the site blocks scripts.",
-          verify: "Publish, open the page as a visitor, and ask one realistic customer question. If you also add the bubble snippet, run Verify installation.",
+          verify: "Publish, run Verify installation, open the page as a visitor, and ask one realistic customer question. Test companion page links separately.",
         },
         {
           platform: "WordPress / WooCommerce",
-          recommended: "Recommended page",
-          paste: "Add the hosted Front Desk page link to a menu or button, or use the Vonza plugin or dedicated page embed on a new WordPress page.",
-          useHosted: "Use the hosted Front Desk page for checkout, order status, and account areas. Use the embed on normal content pages.",
+          recommended: "Widget first",
+          paste: "Use the widget snippet or WordPress install flow for the site launcher. Add a dedicated Front Desk page or QR link later for companion flows.",
+          useHosted: "Use the Website Widget on normal site pages. Use the full-page Front Desk for QR, direct links, or restricted checkout and account areas.",
           limitation: "WooCommerce product and order data are not connected by this install step.",
-          verify: "Publish the page, open it while signed out, and ask a test question. If you add the optional bubble, run Verify installation.",
+          verify: "Publish, run Verify installation, open the site while signed out, and ask a test question in the widget.",
         },
         {
           platform: "Wix",
-          recommended: "Link first",
-          paste: "Add the hosted Front Desk page link to a site button or menu, or paste the smart embed into an Embed HTML or custom code area.",
-          useHosted: "Use the hosted page when the Wix editor strips scripts. Use the embed only on pages where custom HTML is allowed.",
+          recommended: "Widget first",
+          paste: "Add the Website Widget snippet in Wix custom code when available. Use the Front Desk page link from a button or menu when Wix blocks scripts.",
+          useHosted: "Treat the full-page Front Desk as a companion fallback for QR/direct links or script-restricted Wix areas.",
           limitation: "Some Wix areas can restrict custom code, so the iframe fallback may be needed.",
-          verify: "Publish the site, open the public page, and complete one visitor-style test question.",
+          verify: "Publish the site, run Verify installation, open the public page, and complete one visitor-style widget test.",
         },
         {
           platform: "Shopify",
-          recommended: "Hosted page first",
-          paste: "Add the Front Desk page link to navigation, a page, or a theme section. Use the smart embed only where the theme allows custom liquid or HTML.",
-          useHosted: "Use the hosted Front Desk page for checkout, customer account, and policy areas where custom scripts may be restricted.",
+          recommended: "Widget first",
+          paste: "Install the Website Widget snippet in the theme where scripts are allowed. Use the Front Desk page link for navigation, pages, or restricted checkout/account areas.",
+          useHosted: "Use the full-page Front Desk as a companion for QR/direct links and areas where Shopify restricts custom scripts.",
           limitation: "Products, carts, and orders are not connected by this install step.",
-          verify: "Publish the theme change, open the storefront as a visitor, and test the Front Desk link or embedded page.",
+          verify: "Publish the theme change, run Verify installation, open the storefront as a visitor, and test the widget.",
         },
         {
           platform: "Webflow",
           recommended: "Embed-ready",
-          paste: "Add the Front Desk page link to a nav item or button, or paste the smart embed into a Webflow Embed element on a dedicated page.",
-          useHosted: "Use the hosted page for quick launch and QR links. Use the embed when the Front Desk should appear within a Webflow page.",
+          paste: "Paste the Website Widget snippet into custom code for site-wide launch. Add the Front Desk page link or smart embed to a dedicated page for expansion.",
+          useHosted: "Use the full-page Front Desk for QR/direct links or when a Webflow page should host a dedicated assistant experience.",
           limitation: "Custom code publishing can depend on the Webflow site setup.",
-          verify: "Publish to the live domain, open the page in a private window, and send one test question.",
+          verify: "Publish to the live domain, run Verify installation, open the page in a private window, and send one widget test question.",
         },
         {
           platform: "Squarespace",
-          recommended: "Link first",
-          paste: "Add the hosted Front Desk page link to navigation or a button, or paste the embed into a Code Block or Code Injection area.",
-          useHosted: "Use the hosted page when Squarespace blocks scripts on the target page. Use the iframe fallback if scripts are not allowed.",
+          recommended: "Widget first",
+          paste: "Add the Website Widget snippet through Code Injection where available. Use the Front Desk page link from navigation or a button when scripts are blocked.",
+          useHosted: "Use the full-page Front Desk as a companion fallback for QR/direct links or Squarespace areas that block scripts.",
           limitation: "Some templates and editing areas can limit script embeds.",
-          verify: "Publish, open the public page, and confirm the Front Desk loads before sharing the link.",
+          verify: "Publish, run Verify installation, open the public page, and confirm the widget loads before sharing companion links.",
         },
       ];
 
@@ -781,7 +787,7 @@
             <div>
               <p class="install-option-eyebrow">Platform quick guides</p>
               <h3 class="install-platform-guides-title">Install-only website guidance</h3>
-              <p class="install-option-copy">Start with the hosted AI Front Desk page. Use embeds when you want Front Desk inside a website page, and keep the Website Widget as a secondary launcher.</p>
+              <p class="install-option-copy">Start with the Website Widget: website URL/import -> configure widget -> install snippet or WordPress -> verify -> test. Use the hosted Front Desk, QR/direct links, and full-page embeds as companion and expansion channels.</p>
             </div>
           </div>
           <div class="install-platform-grid">
@@ -937,9 +943,9 @@
           </section>
           <section class="install-side-card install-resource-card">
             <p class="overview-label">Launch shortcuts</p>
-            <button class="ghost-button" type="button" data-install-method-jump="page">View Front Desk page setup</button>
-            <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageEnabled ? "" : "disabled"}>Copy Front Desk page link</button>
             <button class="ghost-button" type="button" data-install-method-jump="widget">View Website Widget setup</button>
+            <button class="ghost-button" type="button" data-install-method-jump="page">View companion Front Desk setup</button>
+            <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageEnabled ? "" : "disabled"}>Copy Front Desk page link</button>
             <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize Front Desk page</button>
           </section>
         </aside>
@@ -1011,7 +1017,7 @@
               disabled: !hasInstall,
               className: "install-code-block",
             })}
-            <p class="install-help">Paste this once into your site header only when you want the Website Widget launcher.</p>
+            <p class="install-help">Paste this once into your site header to launch the Website Widget on normal site pages.</p>
             <div class="install-detail-grid">
               <div class="install-detail-card" role="status" aria-live="polite" aria-label="Detected install status">
                 <span>Allowed domains</span>
@@ -1042,7 +1048,7 @@
       const wordpressCallout = `
         <div class="operator-inline-alert install-wordpress-callout">
           <strong>WordPress Front Desk page</strong>
-          <p>For WordPress, use the Vonza plugin to create a dedicated Front Desk page. This avoids manual snippets and theme content boxes.</p>
+          <p>For WordPress, use the Website Widget as the launch path. Create a dedicated Front Desk page when you also need a companion full-page assistant.</p>
           <div class="inline-actions">
             <button class="ghost-button" type="button" data-full-page-option="dedicated">Use dedicated page embed</button>
           </div>
@@ -1050,7 +1056,7 @@
       `;
 
       return `
-        ${upcoming ? `<p class="install-upcoming">This becomes the final step once your front desk feels ready to go live.</p>` : ""}
+        ${upcoming ? `<p class="install-upcoming">Install the Website Widget once setup feels ready; add the Front Desk page, QR, or embeds as companion channels.</p>` : ""}
         ${buildInstallStageProgress(installStatus, hasInstall, publicFullPageUrl, qrEndpoint)}
         <div class="install-method-grid" role="tablist" aria-label="Installation methods">
           ${methodCards.map((item) => {
@@ -1078,9 +1084,9 @@
           <section class="install-option-card ${activeInstallMethod === "widget" ? "active" : ""}" id="install-panel-widget" role="tabpanel" data-install-method-panel="widget" ${activeInstallMethod === "widget" ? "" : "hidden"}>
             <div class="install-option-header">
               <div>
-                <p class="install-option-eyebrow">Optional add-on</p>
+                <p class="install-option-eyebrow">Recommended method</p>
                 <h3 class="install-option-title">Website Widget embed</h3>
-                <p class="install-option-copy">Copy the Website Widget snippet for normal website pages, then review allowed domains, install status, launcher appearance, and a live test.</p>
+                <p class="install-option-copy">Copy the Website Widget snippet for normal website pages, review allowed domains and install status, then verify and test the live launcher.</p>
               </div>
               <span class="${getBadgeClass(isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending")}">${escapeHtml(isInstallDetected(installStatus) ? "Detected" : hasInstall ? "Snippet ready" : "Setup")}</span>
             </div>
@@ -1099,7 +1105,7 @@
               disabled: !hasInstall,
               className: "install-code-block",
             })}
-            <p class="install-help">Paste this once into your site header only when you want the Website Widget launcher.</p>
+            <p class="install-help">Paste this once into your site header to launch the Website Widget on normal site pages.</p>
             <div class="install-detail-grid">
               <div class="install-detail-card" role="status" aria-live="polite" aria-label="Detected install status">
                 <span>Allowed domains</span>
@@ -1118,16 +1124,16 @@
           <section class="install-option-card ${activeInstallMethod === "page" ? "active" : ""}" id="install-panel-page" role="tabpanel" data-install-method-panel="page" ${activeInstallMethod === "page" ? "" : "hidden"}>
             <div class="install-option-header">
               <div>
-                <p class="install-option-eyebrow">Recommended method</p>
+                <p class="install-option-eyebrow">Companion channel</p>
                 <h3 class="install-option-title">Front Desk page</h3>
-                <p class="install-option-copy">Choose how customers should open the AI Front Desk page. Vonza generates the hosted link, WordPress guidance, smart embed, or fallback iframe.</p>
+                <p class="install-option-copy">Use the full-page AI Front Desk as a companion for QR codes, direct links, dedicated assistant pages, and future expansion surfaces.</p>
               </div>
               ${publicPageStatusBadge}
             </div>
             ${wordpressCallout}
             ${!fullPageEnabled ? `
               <div class="operator-inline-alert" role="status" aria-live="polite">
-                Your Front Desk page is disabled. Enable public Front Desk page access in Settings before sharing links, embeds, or QR codes.
+                Your Front Desk page is disabled. Enable public Front Desk page access in Settings before sharing companion links, embeds, or QR codes.
                 <div class="inline-actions">
                   <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable public Front Desk page</button>
                 </div>
@@ -1245,9 +1251,9 @@
           <section class="install-option-card install-option-card-qr ${activeInstallMethod === "qr" ? "active" : ""}" id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" ${activeInstallMethod === "qr" ? "" : "hidden"}>
             <div class="install-option-header">
               <div>
-                <p class="install-option-eyebrow">Selected method</p>
+                <p class="install-option-eyebrow">Companion channel</p>
                 <h3 class="install-option-title">QR / direct link</h3>
-                <p class="install-option-copy">Use a QR code or direct link that opens the hosted full-page Front Desk page.</p>
+                <p class="install-option-copy">Use a QR code or direct link that opens the companion full-page Front Desk page.</p>
               </div>
               <span class="${getBadgeClass(qrEndpoint ? "Ready" : "Pending")}">${escapeHtml(qrEndpoint ? "Print/download" : "Enable page first")}</span>
             </div>
@@ -1261,7 +1267,7 @@
                   <strong>${escapeHtml(publicFullPageUrl || "Enable the public Front Desk page before sharing.")}</strong>
                 </div>
                 <p class="install-help">${escapeHtml(qrEndpoint ? "Use this QR code on menus, flyers, signs, invoices, and reception desks." : "Enable the public Front Desk page before downloading or sharing a QR code.")}</p>
-                <p class="install-help">The QR code opens the same customer-facing Front Desk page link.</p>
+                <p class="install-help">The QR code opens the companion Front Desk page link.</p>
                 <div class="install-cta-row">
                   <button class="ghost-button" type="button" data-action="copy-full-page-url" ${publicFullPageUrl ? "" : "disabled"}>Copy Front Desk page link</button>
                   ${!qrEndpoint ? '<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable public Front Desk page</button>' : ""}

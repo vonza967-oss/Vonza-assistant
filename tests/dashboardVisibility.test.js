@@ -1180,7 +1180,9 @@ test("Install dashboard renders website platform guidance cards", async () => {
   assert.match(html, /data-install-platform="generic-html-smart-embed"/);
   assert.match(html, /data-install-platform="wordpress-woocommerce"/);
   assert.match(html, /data-install-platform="shopify"/);
-  assert.match(html, /Use the hosted Front Desk page for the fastest launch/);
+  assert.match(html, /Start with the Website Widget: website URL\/import -> configure widget -> install snippet or WordPress -> verify -> test/);
+  assert.match(html, /Widget first \/ companion/);
+  assert.match(html, /Publish, run Verify installation/);
   assert.match(html, /Website Widget embed/);
   assert.match(html, /data-install-id=&quot;install-1&quot;|data-install-id="install-1"/);
   assert.match(html, /data-agent-id=&quot;agent-1&quot;|data-agent-id="agent-1"/);
@@ -1214,12 +1216,42 @@ test("Hungarian Install dashboard localizes platform guidance", async () => {
   assert.match(installHtml, /Csak telepítési weboldal útmutató/);
   assert.match(installHtml, /Általános HTML \/ okos beágyazás/);
   assert.match(installHtml, /Beillesztés vagy link/);
-  assert.match(installHtml, /Hosztolt oldal vagy beágyazás/);
+  assert.match(installHtml, /Widget először \/ kiegészítő/);
   assert.match(installHtml, /Korlát/);
+  assert.match(installHtml, /Kezdd a (?:Weboldal Widgettel|Website Widgettel)/);
   assert.match(installHtml, /Ez a telepítési lépés nem kapcsol WooCommerce termék- vagy rendelési adatokat/);
   assert.match(installHtml, /Ez a telepítési lépés nem kapcsol termékeket, kosarakat vagy rendeléseket/);
   assert.match(installHtml, /Egyes Wix területek korlátozhatják az egyéni kódot/);
-  assert.doesNotMatch(installHtml, /Platform quick guides|Install-only website guidance|Start with the hosted AI Front Desk page|Paste or link|Hosted page vs embed|Limitation|Products, carts, and orders are not connected|Some Wix areas can restrict custom code/i);
+  assert.doesNotMatch(installHtml, /Platform quick guides|Install-only website guidance|Start with the hosted AI Front Desk page|Paste or link|Hosted page vs embed|Limitation|Products, carts, and orders are not connected|Some Wix areas can restrict custom code|Hosted page first|widget optional/i);
+});
+
+test("Hungarian Website Widget install route stays Widget-first", async () => {
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    hash: "#install",
+    agents: () => [createActiveAgent({
+      installId: "install-1",
+      installStatus: {
+        state: "not_installed",
+        label: "Not installed yet",
+        allowedDomains: ["example.com"],
+      },
+    })],
+    initialLocalStorage: {
+      vonza_dashboard_language: "hu",
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+  const marker = 'data-shell-section="install"';
+  const start = html.indexOf(marker);
+  const next = html.indexOf('data-shell-section="', start + marker.length);
+  const installHtml = html.slice(start, next > start ? next : undefined);
+  assert.match(installHtml, /Website Widget embed snippet|Weboldal Widget beágyazási kódrészlet/);
+  assert.match(installHtml, /Copy widget snippet|Kódrészlet vagy WordPress telepítése|Weboldal Widget telepítés/);
+  assert.match(installHtml, /Copy the existing widget snippet|Ezt egyszer illeszd be az oldal fejlécébe, hogy a Weboldal Widget elinduljon/);
+  assert.doesNotMatch(installHtml, /Először hosztolt oldal|hosztolt AI Front Desk oldallal|opcionális widget|widget opcionális|másodlagos/i);
 });
 
 test("Hungarian launch path copy localizes release-facing Install Front Desk and Settings strings", async () => {
@@ -1227,8 +1259,8 @@ test("Hungarian launch path copy localizes release-facing Install Front Desk and
     {
       hash: "#install",
       marker: 'data-shell-section="install"',
-      expected: [/Élesítési útvonalak sorrendje/, /Hosztolt Front Desk oldal/, /WordPress \/ okos beágyazás/, /Weboldali widget|Website Widget/],
-      englishLeak: /Launch path hierarchy|Fastest launch path|Copy website bubble code|Use this QR code/i,
+      expected: [/Élesítési útvonalak sorrendje/, /Weboldal Widget|Website Widget/, /Kiegészítő|Bővítés/, /WordPress \/ okos beágyazás/],
+      englishLeak: /Launch path hierarchy|Fastest launch path|Copy website bubble code|Use this QR code|Hosted page first|widget optional/i,
     },
     {
       hash: "#front-desk/knowledge",
@@ -1245,7 +1277,7 @@ test("Hungarian launch path copy localizes release-facing Install Front Desk and
     {
       hash: "#front-desk/customization/full-page-assistant",
       marker: 'data-frontdesk-section="customization"',
-      expected: [/Teljes oldalas asszisztens és hosztolt oldal/, /Tartalom/, /Dizájn/, /Elrendezés/, /A Front Desk oldalad/],
+      expected: [/Teljes oldalas kiegészítő és hosztolt oldal/, /Tartalom/, /Dizájn/, /Elrendezés/, /A Front Desk oldalad/],
       englishLeak: /Full-page assistant and hosted page|Front Desk page customization sections|Your Front Desk page is disabled|Customize the primary Front Desk page/i,
     },
     {

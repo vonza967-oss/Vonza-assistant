@@ -15,7 +15,7 @@
     {
       key: "website_widget",
       label: "Website Widget",
-      note: "Optional widget launcher, appearance, install, and domains.",
+      note: "Website Widget launcher, appearance, install, and domains.",
     },
     {
       key: "voice_agent",
@@ -1551,7 +1551,7 @@
       return {
         kicker: "Website Widget",
         title: "Website Widget",
-        copy: "Tune the embedded Website Widget using the existing snippet, launcher, install-status, and allowed-domain settings.",
+        copy: "Tune the recommended Website Widget launch surface using the existing snippet, launcher, install-status, and allowed-domain settings.",
         ariaLabel: "Website Widget settings summary",
         saveLabel: "Save Website Widget",
         tabs: getProductSettingsTabs(normalizedSection, details.activeTab),
@@ -1612,7 +1612,7 @@
     return {
       kicker: "Front Desk",
       title: "Front Desk",
-      copy: "Configure the primary full-page Front Desk experience, then set customer routing for live handoffs.",
+      copy: "Configure the companion full-page Front Desk experience for QR, direct links, dedicated assistant pages, and embedded expansion.",
       ariaLabel: "Front Desk launch settings summary",
       saveLabel: "Save Front Desk",
       tabs: getProductSettingsTabs(normalizedSection, details.activeTab),
@@ -1637,7 +1637,7 @@
           label: "Front Desk purpose",
           value: selectedPurposeOption.label || "Guidance",
           tone: "Ready",
-          copy: selectedPurposeOption.description || "Defines how the primary customer-facing assistant frames its help.",
+          copy: selectedPurposeOption.description || "Defines how the companion full-page assistant frames its help.",
         },
       ],
     };
@@ -2188,7 +2188,7 @@
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Business profile</p>
             <h2 class="settings-shell-page-title">Business profile</h2>
-            <p class="settings-shell-page-copy">Keep the business facts Vonza should trust when the hosted Front Desk page, QR links, embeds, or optional widget answer customer questions.</p>
+            <p class="settings-shell-page-copy">Keep the business facts Vonza should trust when the Website Widget, hosted Front Desk page, QR links, or embeds answer customer questions.</p>
           </div>
           <div class="settings-shell-page-meta">
             <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs details" : "Profile ready"}</span>
@@ -2454,7 +2454,7 @@
           ${frontDeskTabButton("identity", "Identity & welcome")}
           ${frontDeskTabButton("full_page", "Full-page assistant")}
           ${frontDeskTabButton("routing", "Routing")}
-          ${frontDeskTabButton("appearance", "Optional widget")}
+          ${frontDeskTabButton("appearance", "Website Widget")}
           ${frontDeskTabButton("voice", "Voice")}
         </div>
 
@@ -2667,8 +2667,8 @@
             <section class="settings-shell-section settings-full-page-section" id="settings-front-desk-full-page" data-frontdesk-settings-panel="full_page" ${frontDeskPanelAttrs("full_page")}>
               <div class="settings-shell-section-header">
                 <div>
-                  <h3 class="settings-shell-section-title">Full-page assistant and hosted page</h3>
-                  <p class="settings-shell-section-copy">Customize the primary Front Desk page customers open from links, WordPress pages, smart embeds, QR codes, and direct assistant pages.</p>
+                  <h3 class="settings-shell-section-title">Full-page companion and hosted page</h3>
+                  <p class="settings-shell-section-copy">Customize the companion Front Desk page customers open from QR codes, direct links, WordPress pages, smart embeds, and dedicated assistant pages.</p>
                 </div>
               </div>
               <div class="settings-full-page-subnav" role="tablist" aria-label="Front Desk page customization sections">
@@ -3070,7 +3070,7 @@
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Website Widget launcher</h3>
-                  <p class="settings-shell-section-copy">Configure the compact Website Widget launcher. This does not control the primary Front Desk page.</p>
+                  <p class="settings-shell-section-copy">Configure the Website Widget launcher for the recommended website launch path. Full-page Front Desk settings stay in the companion page section.</p>
                 </div>
               </div>
               <div class="settings-shell-field-stack">
@@ -3511,7 +3511,7 @@
             <span>${escapeHtml(setup.isReady ? "Core setup ready" : setup.knowledgeLimited ? "Knowledge limited" : "Needs setup")}</span>
           </div>
           <div class="settings-status-row">
-            <strong>Optional widget</strong>
+            <strong>Website Widget</strong>
             <span>${escapeHtml(installStatus.label || "Not installed yet")}</span>
           </div>
         </div>
@@ -3872,7 +3872,7 @@
             <div class="settings-shell-page-title-group">
               <p class="studio-kicker">Privacy & Legal</p>
               <h2 class="settings-shell-page-title">Privacy & Legal</h2>
-              <p class="settings-shell-page-copy">Open the public legal and privacy pages used by the website, app, hosted Front Desk page, optional widget, and checkout.</p>
+              <p class="settings-shell-page-copy">Open the public legal and privacy pages used by the website, app, hosted Front Desk page, Website Widget, and checkout.</p>
             </div>
           </header>
           <section class="settings-operational-summary settings-operational-summary--privacy" aria-label="Privacy and legal summary">

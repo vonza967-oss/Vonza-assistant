@@ -530,7 +530,7 @@ test("dashboard V2 Install keeps real widget, full-page assistant, QR, copy, and
     harness.createEmptyActionQueue()
   );
 
-  assert.match(markup, /Website widget/);
+  assert.match(markup, /Website Widget/);
   assert.match(markup, /data-action="copy-install"/);
   assert.match(markup, /data-action="verify-install"/);
   assert.match(markup, /https:\/\/app\.example\.com\/embed\.js/);
@@ -1300,7 +1300,7 @@ test("English dashboard still renders the supported dashboard UI in English", ()
 
   assert.match(settings, /Workspace preferences/);
   assert.match(settings, /Dashboard language/);
-  assert.match(install, /View Front Desk page setup/);
+  assert.match(install, /View companion Front Desk setup/);
   assert.match(analytics, /Conversations over time/);
   assert.equal(harness.t("settings.title"), "Settings");
 });
@@ -2921,7 +2921,7 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.match(panel, /Open customization/);
   assert.match(panel, /Practice the answer customers will see/);
   assert.match(panel, /Next action/);
-  assert.match(panel, /Prepare the hosted Front Desk page/);
+  assert.match(panel, /Prepare the companion Front Desk page/);
   assert.match(panel, /Ask a question as if you were a visitor/);
   assert.match(panel, /Practice mode — visitors will not see this conversation/);
   assert.match(panel, /Draft improvements/);
@@ -2929,7 +2929,7 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.match(panel, /Recently published improvements/);
   assert.match(panel, /Published answers Front Desk can use when visitors ask similar questions/);
   assert.match(panel, /Open install/);
-  assert.match(panel, /Optional website bubble/);
+  assert.match(panel, /Website Widget install/);
   assert.match(panel, /Front Desk page link/);
   assert.match(panel, /QR code/);
   assert.match(panel, /distribution channels and verification/);
@@ -4033,30 +4033,32 @@ test("install section stays focused on install methods and verification", () => 
   const qrPanel = markup.slice(markup.indexOf('id="install-panel-qr"'));
 
   assert.match(markup, /Install setup stages/);
-  assert.match(markup, /Choose method/);
-  assert.match(markup, /Configure/);
+  assert.match(markup, /Start with website/);
+  assert.match(markup, /Install widget/);
   assert.match(markup, /Verify/);
-  assert.match(markup, /Go live/);
+  assert.match(markup, /Test live path/);
   assert.match(markup, /Allowed domains/);
   assert.match(markup, /role="tablist"/);
   assert.match(markup, /data-install-method-tab="widget"/);
   assert.match(markup, /data-install-method-tab="page"/);
   assert.match(markup, /data-install-method-tab="qr"/);
-  assert.match(markup, />Website widget</);
+  assert.match(markup, />Website Widget</);
   assert.match(markup, />Front Desk page</);
   assert.match(markup, />QR \/ direct link</);
+  assert.match(markup, /Recommended launch path/);
+  assert.match(markup, /Companion full-page surface/);
   assert.match(markup, /id="install-panel-widget"/);
   assert.match(markup, /id="install-panel-page" role="tabpanel" data-install-method-panel="page"/);
   assert.match(markup, /id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden/);
   assert.match(widgetPanel, /Website Widget embed snippet/);
   assert.match(widgetPanel, /data-action="copy-install"/);
-  assert.match(widgetPanel, /Paste this once into your site header only when you want the Website Widget launcher\./);
+  assert.match(widgetPanel, /Paste this once into your site header to launch the Website Widget on normal site pages\./);
   assert.match(widgetPanel, /Widget install status/);
   assert.match(widgetPanel, /example\.com/);
   assert.match(widgetPanel, /data-action="verify-install"/);
   assert.match(widgetPanel, /Test widget/);
   assert.doesNotMatch(widgetPanel, /full-page-assistant-iframe|Iframe snippet|data-full-page-qr-preview|Target URL/);
-  assert.match(pagePanel, /Choose how customers should open the AI Front Desk page/);
+  assert.match(pagePanel, /Use the full-page AI Front Desk as a companion/);
   assert.match(pagePanel, /Front Desk page link/);
   assert.match(pagePanel, /Use this for QR codes, buttons, menus, emails, and direct links\./);
   assert.match(pagePanel, /Smart embed/);
@@ -4110,8 +4112,8 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(pagePanel, /data-install-platform="shopify"/);
   assert.match(pagePanel, /data-install-platform="webflow"/);
   assert.match(pagePanel, /data-install-platform="squarespace"/);
-  assert.match(pagePanel, /Start with the hosted AI Front Desk page/);
-  assert.match(pagePanel, /Use embeds when you want Front Desk inside a website page/);
+  assert.match(pagePanel, /Start with the Website Widget: website URL\/import -> configure widget -> install snippet or WordPress -> verify -> test/);
+  assert.match(pagePanel, /Widget first \/ companion/);
   assert.match(pagePanel, /WooCommerce product and order data are not connected by this install step/);
   assert.match(pagePanel, /Products, carts, and orders are not connected by this install step/);
   assert.match(pagePanel, /Some Wix areas can restrict custom code/);
@@ -4134,7 +4136,7 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(qrPanel, /Copy Front Desk page link/);
   assert.match(qrPanel, /Front Desk page link/);
   assert.match(qrPanel, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
-  assert.match(qrPanel, /opens the same customer-facing Front Desk page link/);
+  assert.match(qrPanel, /opens the companion Front Desk page link/);
   assert.doesNotMatch(qrPanel, /\d+\s+scans|scan rate|scans today/i);
   assert.doesNotMatch(markup, /You are live/);
   assert.doesNotMatch(markup, /weak answers, leads, and follow-up needs/);
@@ -4212,7 +4214,7 @@ test("install panel shows real status, progress, and resources without unrelated
   );
 
   assert.match(panel, />Install</);
-  assert.match(panel, /Publish your AI Front Desk page through WordPress, smart embed, QR\/direct link, or the optional website widget bubble\./);
+  assert.match(panel, /Launch the Website Widget first, then add the AI Front Desk page through WordPress, smart embed, QR, or direct link as a companion channel\./);
   assert.match(panel, /data-action="verify-install"/);
   assert.match(panel, /data-install-method-jump="widget"/);
   assert.match(panel, /Installation status/);
@@ -4228,7 +4230,7 @@ test("install panel shows real status, progress, and resources without unrelated
   assert.match(panel, /Setup progress/);
   assert.match(panel, /Front Desk created/);
   assert.match(panel, /Training and knowledge ready/);
-  assert.match(panel, /Public Front Desk page enabled/);
+  assert.match(panel, /Companion Front Desk page enabled/);
   assert.match(panel, /Launch path selected/);
   assert.match(panel, /First test conversation/);
   assert.match(panel, /Front Desk customized/);
