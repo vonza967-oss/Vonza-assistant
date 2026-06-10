@@ -565,12 +565,10 @@ test("server verification detects snippet presence and mismatch", async () => {
   const foundSupabase = createInstallState();
   const found = await verifyAgentInstallation(foundSupabase, {
     agentId: "agent-1",
-    fetchImpl: async () => ({
+    htmlFetchImpl: async () => ({
       status: 200,
       url: "https://example.com",
-      async text() {
-        return '<html><head><script async defer src="https://vonza.app/embed.js" data-install-id="11111111-1111-1111-1111-111111111111"></script></head></html>';
-      },
+      html: '<html><head><script async defer src="https://vonza.app/embed.js" data-install-id="11111111-1111-1111-1111-111111111111"></script></head></html>',
     }),
   });
 
@@ -581,18 +579,153 @@ test("server verification detects snippet presence and mismatch", async () => {
   const mismatchSupabase = createInstallState();
   const mismatch = await verifyAgentInstallation(mismatchSupabase, {
     agentId: "agent-1",
-    fetchImpl: async () => ({
+    htmlFetchImpl: async () => ({
       status: 200,
       url: "https://example.com",
-      async text() {
-        return '<html><head><script async defer src="https://vonza.app/embed.js" data-install-id="22222222-2222-2222-2222-222222222222"></script></head></html>';
-      },
+      html: '<html><head><script async defer src="https://vonza.app/embed.js" data-install-id="22222222-2222-2222-2222-222222222222"></script></head></html>',
     }),
   });
 
   assert.equal(mismatch.status, "mismatch");
   assert.equal(mismatch.matchedInstallId, false);
   assert.deepEqual(mismatch.foundInstallIds, ["22222222-2222-2222-2222-222222222222"]);
+});
+
+test("install verification blocks unsafe saved website URLs before fetching", async () => {
+  const supabase = createInstallState();
+  supabase.state.businesses[0].website_url = "http://127.0.0.1/admin";
+  let attemptedFetch = false;
+
+  const result = await verifyAgentInstallation(supabase, {
+    agentId: "agent-1",
+    websiteFetchOptions: {
+      httpClient: {
+        get: async () => {
+          attemptedFetch = true;
+          throw new Error("unsafe URL should not be fetched");
+        },
+      },
+    },
+  });
+
+  assert.equal(attemptedFetch, false);
+  assert.equal(result.ok, false);
+  assert.equal(result.status, "fetch_error");
+  assert.equal(result.error, "Verification failed");
+  assert.equal(supabase.state.widget_configs[0].last_verification_status, "fetch_error");
+  assert.equal(supabase.state.widget_configs[0].last_verification_details.error, "Verification failed");
+});
+
+test("install verification blocks unsafe redirects and excessive redirects", async () => {
+  const lookup = async () => [{ address: "93.184.216.34", family: 4 }];
+  const redirectSupabase = createInstallState();
+  const redirectRequests = [];
+
+  const unsafeRedirect = await verifyAgentInstallation(redirectSupabase, {
+    agentId: "agent-1",
+    websiteFetchOptions: {
+      lookup,
+      httpClient: {
+        get: async (url, requestOptions) => {
+          redirectRequests.push({ url, requestOptions });
+          return {
+            status: 302,
+            headers: { location: "http://169.254.169.254/latest/meta-data" },
+            config: { url },
+            request: { res: { responseUrl: url } },
+            data: "",
+          };
+        },
+      },
+    },
+  });
+
+  assert.equal(unsafeRedirect.status, "fetch_error");
+  assert.equal(unsafeRedirect.error, "Verification failed");
+  assert.equal(redirectRequests.length, 1);
+  assert.equal(redirectRequests[0].url, "https://example.com/");
+  assert.equal(redirectRequests[0].requestOptions.timeout, 15000);
+  assert.equal(redirectRequests[0].requestOptions.maxRedirects, 0);
+  assert.equal(redirectRequests[0].requestOptions.headers["User-Agent"], "VonzaInstallVerifier/1.0");
+  assert.doesNotMatch(JSON.stringify(unsafeRedirect), /169\.254\.169\.254|meta-data|blocked unsafe/i);
+  assert.doesNotMatch(
+    JSON.stringify(redirectSupabase.state.widget_configs[0].last_verification_details),
+    /169\.254\.169\.254|meta-data|blocked unsafe/i
+  );
+
+  const loopingSupabase = createInstallState();
+  let redirectCount = 0;
+  const tooManyRedirects = await verifyAgentInstallation(loopingSupabase, {
+    agentId: "agent-1",
+    websiteFetchOptions: {
+      lookup,
+      maxRedirects: 1,
+      httpClient: {
+        get: async (url) => {
+          redirectCount += 1;
+          return {
+            status: 302,
+            headers: { location: "/next" },
+            config: { url },
+            request: { res: { responseUrl: url } },
+            data: "",
+          };
+        },
+      },
+    },
+  });
+
+  assert.equal(tooManyRedirects.status, "fetch_error");
+  assert.equal(tooManyRedirects.error, "Verification failed");
+  assert.equal(redirectCount, 2);
+});
+
+test("install verification rejects non-HTML and oversized responses", async () => {
+  const lookup = async () => [{ address: "93.184.216.34", family: 4 }];
+  const nonHtmlSupabase = createInstallState();
+
+  const nonHtml = await verifyAgentInstallation(nonHtmlSupabase, {
+    agentId: "agent-1",
+    websiteFetchOptions: {
+      lookup,
+      httpClient: {
+        get: async (url) => ({
+          status: 200,
+          headers: { "content-type": "application/json" },
+          config: { url },
+          request: { res: { responseUrl: url } },
+          data: "{}",
+        }),
+      },
+    },
+  });
+
+  assert.equal(nonHtml.status, "fetch_error");
+  assert.equal(nonHtml.error, "Verification failed");
+
+  const oversizedSupabase = createInstallState();
+  const oversized = await verifyAgentInstallation(oversizedSupabase, {
+    agentId: "agent-1",
+    websiteFetchOptions: {
+      lookup,
+      maxHtmlBytes: 12,
+      httpClient: {
+        get: async (url, requestOptions) => {
+          assert.equal(requestOptions.maxContentLength, 12);
+          return {
+            status: 200,
+            headers: { "content-type": "text/html" },
+            config: { url },
+            request: { res: { responseUrl: url } },
+            data: "<html>too large</html>",
+          };
+        },
+      },
+    },
+  });
+
+  assert.equal(oversized.status, "fetch_error");
+  assert.equal(oversized.error, "Verification failed");
 });
 
 test("install status maps backend verification states", async () => {

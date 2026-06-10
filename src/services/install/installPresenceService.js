@@ -1,5 +1,6 @@
 import { getPublicAppUrl } from "../../config/env.js";
 import { cleanText } from "../../utils/text.js";
+import { fetchWebsiteHtmlResponse } from "../scraping/websiteContentService.js";
 
 const AGENT_INSTALLATIONS_TABLE = "agent_installations";
 const AGENTS_TABLE = "agents";
@@ -17,6 +18,7 @@ const VERIFICATION_STATUS = {
   FETCH_ERROR: "fetch_error",
   NO_WEBSITE: "no_website",
 };
+const INSTALL_VERIFICATION_FAILURE_MESSAGE = "Verification failed";
 
 export function isMissingRelationError(error, relationName) {
   const message = cleanText(error?.message || "").toLowerCase();
@@ -391,6 +393,17 @@ function inspectInstallMarkup(html, installId, publicAppUrl) {
   };
 }
 
+async function fetchInstallVerificationPage(websiteUrl, options = {}) {
+  return fetchWebsiteHtmlResponse(websiteUrl, {
+    ...options,
+    headers: {
+      "User-Agent": "VonzaInstallVerifier/1.0",
+      Accept: "text/html,application/xhtml+xml",
+      ...(options.headers || {}),
+    },
+  });
+}
+
 function logStructured(message, payload, method = "info") {
   const logger = console[method] || console.log;
   logger(`[install] ${message}`, payload);
@@ -734,7 +747,10 @@ export async function recordInstallPresence(supabase, { installId, origin, pageU
   });
 }
 
-export async function verifyAgentInstallation(supabase, { agentId, fetchImpl = fetch } = {}) {
+export async function verifyAgentInstallation(
+  supabase,
+  { agentId, htmlFetchImpl = fetchInstallVerificationPage, websiteFetchOptions = {} } = {}
+) {
   const context = await getWidgetInstallContextByAgentId(supabase, agentId);
 
   if (!context?.agent) {
@@ -775,14 +791,8 @@ export async function verifyAgentInstallation(supabase, { agentId, fetchImpl = f
   const verifiedAt = new Date().toISOString();
 
   try {
-    const response = await fetchImpl(websiteUrl, {
-      redirect: "follow",
-      headers: {
-        "user-agent": "VonzaInstallVerifier/1.0",
-        accept: "text/html,application/xhtml+xml",
-      },
-    });
-    const html = await response.text();
+    const response = await htmlFetchImpl(websiteUrl, websiteFetchOptions);
+    const html = String(response?.html || "");
     const inspected = inspectInstallMarkup(html, installId, getPublicAppUrl());
     const targetUrl = cleanText(response.url || websiteUrl) || websiteUrl;
     const origin = normalizeOriginValue(targetUrl) || null;
@@ -837,7 +847,7 @@ export async function verifyAgentInstallation(supabase, { agentId, fetchImpl = f
       targetUrl: websiteUrl,
       origin: normalizeOriginValue(websiteUrl) || null,
       httpStatus: null,
-      error: error.message || "Verification failed",
+      error: INSTALL_VERIFICATION_FAILURE_MESSAGE,
       hints: buildInstallVerificationHints({ status }),
     };
 
@@ -862,7 +872,8 @@ export async function verifyAgentInstallation(supabase, { agentId, fetchImpl = f
         installId,
         status,
         targetUrl: websiteUrl,
-        error: result.error,
+        errorCode: cleanText(error?.code) || null,
+        error: cleanText(error?.message) || result.error,
       },
       "warn"
     );

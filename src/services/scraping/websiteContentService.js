@@ -889,16 +889,19 @@ function buildFallbackContentRecord(business, pageResults) {
   };
 }
 
-export async function fetchHtml(url, options = {}) {
+export async function fetchWebsiteHtmlResponse(url, options = {}) {
   let currentUrl = await validateWebsiteFetchUrl(url, options);
   const httpClient = options.httpClient || axios;
   const safeFetchAgents = buildSafeFetchAgents(options);
+  const maxRedirects = Number.isFinite(options.maxRedirects) ? options.maxRedirects : MAX_FETCH_REDIRECTS;
+  const maxHtmlBytes = Number.isFinite(options.maxHtmlBytes) ? options.maxHtmlBytes : MAX_HTML_BYTES;
+  const timeout = Number.isFinite(options.timeout) ? options.timeout : 15000;
 
-  for (let redirectCount = 0; redirectCount <= MAX_FETCH_REDIRECTS; redirectCount += 1) {
+  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
     const response = await httpClient.get(currentUrl, {
-      timeout: 15000,
+      timeout,
       maxRedirects: 0,
-      maxContentLength: MAX_HTML_BYTES,
+      maxContentLength: maxHtmlBytes,
       responseType: "text",
       ...safeFetchAgents,
       validateStatus: (status) => (status >= 200 && status < 300) || (status >= 300 && status < 400),
@@ -906,6 +909,7 @@ export async function fetchHtml(url, options = {}) {
         "User-Agent":
           `Mozilla/5.0 (compatible; AIShopAssistant/1.0; +${getPublicAppUrl()})`,
         Accept: "text/html,application/xhtml+xml",
+        ...(options.headers || {}),
       },
     });
     const finalUrl = response.request?.res?.responseUrl || response.config?.url || currentUrl;
@@ -918,7 +922,7 @@ export async function fetchHtml(url, options = {}) {
         throw createBlockedFetchError("redirect response did not include a location");
       }
 
-      if (redirectCount >= MAX_FETCH_REDIRECTS) {
+      if (redirectCount >= maxRedirects) {
         throw createBlockedFetchError("too many redirects");
       }
 
@@ -930,20 +934,30 @@ export async function fetchHtml(url, options = {}) {
       throw createBlockedFetchError("response content type is not HTML");
     }
 
-    if (getContentLength(response.headers) > MAX_HTML_BYTES) {
+    if (getContentLength(response.headers) > maxHtmlBytes) {
       throw createBlockedFetchError("response is too large");
     }
 
     const html = String(response.data || "");
 
-    if (Buffer.byteLength(html, "utf8") > MAX_HTML_BYTES) {
+    if (Buffer.byteLength(html, "utf8") > maxHtmlBytes) {
       throw createBlockedFetchError("response body is too large");
     }
 
-    return html;
+    return {
+      html,
+      status: response.status,
+      url: finalUrl,
+      headers: response.headers || {},
+    };
   }
 
   throw createBlockedFetchError("too many redirects");
+}
+
+export async function fetchHtml(url, options = {}) {
+  const response = await fetchWebsiteHtmlResponse(url, options);
+  return response.html;
 }
 
 export async function storeWebsiteContent(supabase, contentRecord) {
