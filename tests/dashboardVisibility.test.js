@@ -9,6 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const dashboardBundlePath = path.join(repoRoot, "frontend", "dashboard.js");
+const dashboardCssPath = path.join(repoRoot, "frontend", "dashboard.css");
 const dashboardI18nPath = path.join(repoRoot, "frontend", "i18n", "dashboardI18n.js");
 const dashboardHelpersPath = path.join(repoRoot, "frontend", "dashboardHelpers.js");
 const dashboardStatePath = path.join(repoRoot, "frontend", "dashboardState.js");
@@ -823,6 +824,16 @@ test("dashboard preserves cached English when the preference row is missing", as
   assert.equal(harness.getGlobal("getDashboardLanguage")(), "en");
   assert.equal(harness.getGlobal("window").localStorage.getItem("vonza_dashboard_language"), "en");
   assert.match(harness.getRootHtml(), /Your AI customer service snapshot for today/);
+});
+
+test("status banner CSS keeps non-empty dashboard status visible", () => {
+  const css = readFileSync(dashboardCssPath, "utf8");
+  const nonEmptyBlock = css.match(/\.status-banner:not\(:empty\)\s*\{(?<body>[^}]+)\}/);
+
+  assert.match(css, /\.status-banner:empty\s*\{[^}]*display:\s*none\b[^}]*\}/s);
+  assert.ok(nonEmptyBlock?.groups?.body, "Missing .status-banner:not(:empty) CSS block");
+  assert.match(nonEmptyBlock.groups.body, /display:\s*block\b/);
+  assert.doesNotMatch(nonEmptyBlock.groups.body, /display:\s*none\b/);
 });
 
 test("dashboard renders visible shell content when data loads normally", async () => {

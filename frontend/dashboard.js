@@ -450,6 +450,24 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.whatToWatch": "What to watch",
   "analytics.webCallHealth": "Web Call health",
   "analytics.recentWebCalls": "Recent Web Calls",
+  "analytics.aiHandledBriefTitle": "{handled} of {total} conversations handled by AI",
+  "analytics.widgetWaitingForTrafficCopy": "After customers use the Website Widget, conversations and captured leads will appear here.",
+  "analytics.ownerFollowUp": "owner follow-up",
+  "analytics.improvementFocus": "improvement focus",
+  "analytics.repeatedQuestion": "repeated question: {question}",
+  "analytics.sourceBreakdownWidgetCopy": "Website Widget conversations and leads from the existing embedded widget records.",
+  "analytics.sourceBreakdownDefaultCopy": "Hosted Front Desk page remains the primary surface; widget and embeds are secondary distribution.",
+  "analytics.handlingCopy": "Shows work handled by Front Desk versus conversations still needing a person.",
+  "analytics.topQuestionsCopy": "Use repeated questions to decide which answer guidance to improve next.",
+  "analytics.customerQuestionFallback": "Customer question",
+  "analytics.topQuestionsEmpty": "No repeated customer questions yet. As Front Desk handles more live questions, recurring themes will appear here.",
+  "analytics.chartEmpty": "Live conversations will draw this trend after customers start using Front Desk.",
+  "analytics.performanceBySourceWidgetCopy": "Review Website Widget conversations and leads using existing widget source data.",
+  "analytics.performanceBySourceDefaultCopy": "Compare Front Desk page, embed, and optional widget outcomes using real conversation data.",
+  "analytics.metricCompareWidgetSurface": "Embedded widget surface",
+  "analytics.metricCompareVoiceSurface": "Browser voice surface",
+  "analytics.liveWorkspaceData": "Live workspace data",
+  "analytics.newSignal": "New",
   "analytics.productScope": "Product analytics",
   "analytics.productScopeCopy": "Product-specific view using the existing shared analytics data.",
   "analytics.frontDeskAnalytics": "Front Desk analytics",
@@ -482,6 +500,24 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.frontDeskSettings": "Full-page setup",
   "analytics.widgetSettings": "Widget settings",
   "analytics.voiceTest": "Open Web Call test",
+  "websiteWidget.status.importStart": "Starting website import...",
+  "websiteWidget.status.importRetry": "Retrying website import...",
+  "websiteWidget.status.importFallback": "Async import did not start. Running the fallback website import...",
+  "websiteWidget.status.installCopySuccess": "Widget install code copied. You can paste it into your website when you are ready.",
+  "websiteWidget.status.installInstructionsCopySuccess": "Widget install instructions copied with the code.",
+  "websiteWidget.status.installCopyFailure": "We couldn't copy the widget install code.",
+  "websiteWidget.status.settingsSaveProgress": "Saving Website Widget settings...",
+  "websiteWidget.status.settingsSaveSuccess": "Website Widget settings saved.",
+  "websiteWidget.status.settingsSaveFailure": "Website Widget settings could not be saved.",
+  "websiteWidget.status.settingsSaveStateSaving": "Saving changes...",
+  "websiteWidget.status.settingsSaveStateSuccess": "Changes saved.",
+  "websiteWidget.status.settingsSaveStateFailure": "Could not save changes.",
+  "websiteWidget.status.verifyProgress": "Verifying installation...",
+  "websiteWidget.status.verifySuccess": "Install snippet verified.",
+  "websiteWidget.status.verifyMismatch": "A different Vonza install was detected on the website.",
+  "websiteWidget.status.verifyNotFound": "Snippet not found on the website yet.",
+  "websiteWidget.status.verifyCompleted": "Verification completed.",
+  "websiteWidget.status.verifyFailure": "We couldn't verify the installation.",
   "install.title": "Install",
   "install.copyCode": "Copy code",
   "install.publish": "Publish it",
@@ -1802,6 +1838,10 @@ function getDashboardLanguage() {
 
 function isHungarianDashboard() {
   return getDashboardLanguage() === "hu";
+}
+
+function getDashboardLocale() {
+  return isHungarianDashboard() ? "hu-HU" : "en-US";
 }
 
 function localizeDashboardCopy(english = "", hungarian = "") {
@@ -3335,7 +3375,9 @@ function localizeDashboardHtml(html = "") {
   Object.entries(DASHBOARD_HU_PHRASES)
     .sort((left, right) => right[0].length - left[0].length)
     .forEach(([english, hungarian]) => {
-      const pattern = new RegExp(`(^|[^A-Za-z])(${escapeRegExp(english)})(?=$|[^A-Za-z])`, "g");
+      const pattern = english === "Website"
+        ? /(^|[^A-Za-z])(Website)(?! Widget)(?=$|[^A-Za-z])/g
+        : new RegExp(`(^|[^A-Za-z])(${escapeRegExp(english)})(?=$|[^A-Za-z])`, "g");
       output = output.replace(pattern, (_match, prefix) => `${prefix}${hungarian}`);
     });
   DASHBOARD_HU_REGEX_PHRASES.forEach(([pattern, replacement]) => {
@@ -11848,7 +11890,7 @@ function formatAnalyticsShortDate(value) {
     return "";
   }
 
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(getDashboardLocale(), {
     month: "short",
     day: "numeric",
   });
@@ -12366,6 +12408,8 @@ function buildDashboardV2AnalyticsMarkup(report = {}, ownerAnalyticsDashboard = 
       renderButton: buildV2Button,
       activeProduct: activeDashboardProduct,
       hideProductTabs: isDedicatedWebsiteWidgetDashboard(),
+      language: getDashboardLanguage(),
+      locale: getDashboardLocale(),
     });
   }
 
@@ -16248,11 +16292,13 @@ async function importKnowledge(agent, options = {}) {
     }
 
     if (!isAsyncKnowledgeImportStart(importData)) {
+      setStatus(t("websiteWidget.status.importFallback"));
       return importKnowledgeSync(agent, options);
     }
 
     const display = startKnowledgeImportPolling(agent, importData, options);
     if (!display) {
+      setStatus(t("websiteWidget.status.importFallback"));
       return importKnowledgeSync(agent, options);
     }
 
@@ -16283,12 +16329,13 @@ async function importKnowledge(agent, options = {}) {
         importError: error.message || "Import failed",
       },
     });
+    setStatus(t("websiteWidget.status.importFallback"));
     return importKnowledgeSync(agent, options);
   }
 }
 
 async function runKnowledgeImport(agent, options = {}) {
-  setStatus(options.force === true ? "Retrying website import..." : "Starting website import...");
+  setStatus(options.force === true ? t("websiteWidget.status.importRetry") : t("websiteWidget.status.importStart"));
   const nextSetup = await importKnowledge(agent, options);
 
   try {
@@ -16707,6 +16754,7 @@ async function saveAssistant(event, agent) {
   event.preventDefault();
   const form = event.currentTarget;
   const formKind = form.dataset.formKind || "customize";
+  const isWidgetSettingsSave = isDedicatedWebsiteWidgetDashboard() && formKind === "appearance";
   const submitButton = form.querySelector('button[type="submit"]');
   const saveState = form.querySelector("[data-save-state]");
   const formData = new FormData(form);
@@ -16825,12 +16873,14 @@ async function saveAssistant(event, agent) {
       payload.widget_logo_url = widgetLogoUrl;
     }
   } catch (error) {
-    const message = error.message || "That media file could not be uploaded.";
+    const message = isWidgetSettingsSave
+      ? t("websiteWidget.status.settingsSaveFailure")
+      : error.message || "That media file could not be uploaded.";
     setStatus(message);
     if (saveState) {
-      saveState.textContent = "Could not save media.";
+      saveState.textContent = isWidgetSettingsSave ? t("websiteWidget.status.settingsSaveStateFailure") : "Could not save media.";
       saveState.className = "save-state unsaved";
-      saveState.title = message;
+      saveState.title = error.message || message;
     }
     return;
   }
@@ -16845,11 +16895,11 @@ async function saveAssistant(event, agent) {
 
   submitButton.disabled = true;
   if (saveState) {
-    saveState.textContent = "Saving changes...";
+    saveState.textContent = isWidgetSettingsSave ? t("websiteWidget.status.settingsSaveStateSaving") : "Saving changes...";
     saveState.className = "save-state saving";
     saveState.removeAttribute("title");
   }
-  setStatus("Saving your assistant...");
+  setStatus(isWidgetSettingsSave ? t("websiteWidget.status.settingsSaveProgress") : "Saving your assistant...");
 
   try {
     const updateData = await fetchJson("/agents/update", {
@@ -16872,16 +16922,18 @@ async function saveAssistant(event, agent) {
       return;
     }
 
-    setStatus("Your assistant has been updated.");
+    setStatus(isWidgetSettingsSave ? t("websiteWidget.status.settingsSaveSuccess") : "Your assistant has been updated.");
     if (saveState) {
-      saveState.textContent = "Changes saved.";
+      saveState.textContent = isWidgetSettingsSave ? t("websiteWidget.status.settingsSaveStateSuccess") : "Changes saved.";
       saveState.className = "save-state saved";
       saveState.removeAttribute("title");
     }
     await refreshDashboardInBackground({ agentId: agent.id, activeAction: "assistant-save" });
-    setStatus("Your assistant has been updated.");
+    setStatus(isWidgetSettingsSave ? t("websiteWidget.status.settingsSaveSuccess") : "Your assistant has been updated.");
   } catch (error) {
-    const message = error.message || "We couldn't save those changes just yet.";
+    const message = isWidgetSettingsSave
+      ? t("websiteWidget.status.settingsSaveFailure")
+      : error.message || "We couldn't save those changes just yet.";
     console.error("[dashboard customize] Failed to save assistant settings:", {
       agentId: agent.id,
       payload,
@@ -16889,9 +16941,9 @@ async function saveAssistant(event, agent) {
     });
     setStatus(message);
     if (saveState) {
-      saveState.textContent = "Could not save changes.";
+      saveState.textContent = isWidgetSettingsSave ? t("websiteWidget.status.settingsSaveStateFailure") : "Could not save changes.";
       saveState.className = "save-state unsaved";
-      saveState.title = message;
+      saveState.title = error.message || message;
     }
   } finally {
     submitButton.disabled = false;
@@ -16900,23 +16952,27 @@ async function saveAssistant(event, agent) {
 
 async function copyInstallCode(agent) {
   const script = buildScript(agent);
+  let copied = false;
 
   try {
     await navigator.clipboard.writeText(script);
-    saveInstallProgress(agent.id, { codeCopied: true });
-    trackProductEvent("install_code_copied", { agentId: agent.id });
-    setStatus("Install code copied. You can paste it into your website when you are ready.");
+    copied = true;
   } catch (_error) {
     const textarea = document.getElementById("install-script-output");
     if (textarea) {
       textarea.select();
-      document.execCommand("copy");
+      copied = typeof document.execCommand === "function" && document.execCommand("copy") !== false;
     }
-    saveInstallProgress(agent.id, { codeCopied: true });
-    trackProductEvent("install_code_copied", { agentId: agent.id });
-    setStatus("Install code copied. You can paste it into your website when you are ready.");
   }
 
+  if (!copied) {
+    setStatus(t("websiteWidget.status.installCopyFailure"));
+    return;
+  }
+
+  saveInstallProgress(agent.id, { codeCopied: true });
+  trackProductEvent("install_code_copied", { agentId: agent.id });
+  setStatus(t("websiteWidget.status.installCopySuccess"));
   await refreshAgentInstallState(agent.id);
 }
 
@@ -16927,25 +16983,29 @@ async function copyInstallInstructions(agent) {
     "",
     buildScript(agent),
   ].join("\n");
+  let copied = false;
 
   try {
     await navigator.clipboard.writeText(installBlock);
-    saveInstallProgress(agent.id, { codeCopied: true });
-    trackProductEvent("install_instructions_copied", { agentId: agent.id });
-    setStatus("Instructions copied with the install code.");
+    copied = true;
   } catch (_error) {
     const textarea = document.getElementById("install-script-output");
     if (textarea) {
       textarea.value = installBlock;
       textarea.select();
-      document.execCommand("copy");
+      copied = typeof document.execCommand === "function" && document.execCommand("copy") !== false;
       textarea.value = buildScript(agent);
     }
-    saveInstallProgress(agent.id, { codeCopied: true });
-    trackProductEvent("install_instructions_copied", { agentId: agent.id });
-    setStatus("Instructions copied with the install code.");
   }
 
+  if (!copied) {
+    setStatus(t("websiteWidget.status.installCopyFailure"));
+    return;
+  }
+
+  saveInstallProgress(agent.id, { codeCopied: true });
+  trackProductEvent("install_instructions_copied", { agentId: agent.id });
+  setStatus(t("websiteWidget.status.installInstructionsCopySuccess"));
   await refreshAgentInstallState(agent.id);
 }
 
@@ -17510,12 +17570,12 @@ function bindStudioState(form, agent) {
     const currentSnapshot = JSON.stringify(Object.fromEntries(new FormData(form).entries()));
 
     if (currentSnapshot === initialSnapshot) {
-      saveState.textContent = "No changes yet.";
+      saveState.textContent = t("language.noChanges");
       saveState.className = "save-state";
       return;
     }
 
-    saveState.textContent = "Unsaved changes";
+    saveState.textContent = t("language.unsaved");
     saveState.className = "save-state unsaved";
   };
 
@@ -17537,12 +17597,12 @@ function bindSimpleDirtyState(form) {
     const currentSnapshot = JSON.stringify(Array.from(new FormData(form).entries()));
 
     if (currentSnapshot === initialSnapshot) {
-      saveState.textContent = "No changes yet.";
+      saveState.textContent = t("language.noChanges");
       saveState.className = "save-state";
       return;
     }
 
-    saveState.textContent = "Unsaved changes";
+    saveState.textContent = t("language.unsaved");
     saveState.className = "save-state unsaved";
   };
 
@@ -20534,7 +20594,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   verifyInstallButtons.forEach((button) => {
     button.addEventListener("click", async () => {
       button.disabled = true;
-      setStatus("Verifying installation...");
+      setStatus(t("websiteWidget.status.verifyProgress"));
 
       try {
         const result = await fetchJson("/agents/install/verify", {
@@ -20562,15 +20622,15 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         }
         setStatus(
           result.verification?.status === "found"
-            ? "Install snippet verified."
+            ? t("websiteWidget.status.verifySuccess")
             : result.verification?.status === "mismatch"
-              ? "A different Vonza install was detected on the website."
+              ? t("websiteWidget.status.verifyMismatch")
               : result.verification?.status === "not_found"
-                ? "Snippet not found on the website yet."
-                : "Verification completed."
+                ? t("websiteWidget.status.verifyNotFound")
+                : t("websiteWidget.status.verifyCompleted")
         );
       } catch (error) {
-        setStatus(error.message || "We couldn't verify the installation.");
+        setStatus(t("websiteWidget.status.verifyFailure"));
       } finally {
         button.disabled = false;
       }

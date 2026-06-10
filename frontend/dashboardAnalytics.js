@@ -7,6 +7,21 @@
     unknown: "Legacy/unknown",
   });
 
+  const SOURCE_LABELS_HU = Object.freeze({
+    widget: "Website Widget",
+    page: "Front Desk oldal",
+    web_call: "Web Call",
+    embedded: "Beágyazott asszisztens",
+    unknown: "Korábbi/ismeretlen",
+  });
+
+  const ANALYTICS_SNIPPETS_HU = Object.freeze({
+    "building more live conversation volume": "több élő beszélgetés gyűjtése",
+    "capturing more contact details from warm visitors": "több kapcsolatadat rögzítése meleg érdeklődőktől",
+    "turning pricing questions into confident next steps": "az árazási kérdések magabiztos következő lépéssé alakítása",
+    "closing complaint and support conversations faster": "panasz- és támogatási beszélgetések gyorsabb lezárása",
+  });
+
   const SOURCE_DESCRIPTIONS = Object.freeze({
     widget: "Customer conversations started from the optional website widget.",
     page: "Customer conversations started from the full-page AI Front Desk.",
@@ -66,6 +81,24 @@
     "analytics.whatToWatch": "What to watch",
     "analytics.webCallHealth": "Web Call health",
     "analytics.recentWebCalls": "Recent Web Calls",
+    "analytics.aiHandledBriefTitle": "{handled} of {total} conversations handled by AI",
+    "analytics.widgetWaitingForTrafficCopy": "After customers use the Website Widget, conversations and captured leads will appear here.",
+    "analytics.ownerFollowUp": "owner follow-up",
+    "analytics.improvementFocus": "improvement focus",
+    "analytics.repeatedQuestion": "repeated question: {question}",
+    "analytics.sourceBreakdownWidgetCopy": "Website Widget conversations and leads from the existing embedded widget records.",
+    "analytics.sourceBreakdownDefaultCopy": "Hosted Front Desk page remains the primary surface; widget and embeds are secondary distribution.",
+    "analytics.handlingCopy": "Shows work handled by Front Desk versus conversations still needing a person.",
+    "analytics.topQuestionsCopy": "Use repeated questions to decide which answer guidance to improve next.",
+    "analytics.customerQuestionFallback": "Customer question",
+    "analytics.topQuestionsEmpty": "No repeated customer questions yet. As Front Desk handles more live questions, recurring themes will appear here.",
+    "analytics.chartEmpty": "Live conversations will draw this trend after customers start using Front Desk.",
+    "analytics.performanceBySourceWidgetCopy": "Review Website Widget conversations and leads using existing widget source data.",
+    "analytics.performanceBySourceDefaultCopy": "Compare Front Desk page, embed, and optional widget outcomes using real conversation data.",
+    "analytics.metricCompareWidgetSurface": "Embedded widget surface",
+    "analytics.metricCompareVoiceSurface": "Browser voice surface",
+    "analytics.liveWorkspaceData": "Live workspace data",
+    "analytics.newSignal": "New",
     "analytics.productScope": "Product analytics",
     "analytics.productScopeCopy": "Product-specific view using the existing shared analytics data.",
     "analytics.frontDeskAnalytics": "Front Desk analytics",
@@ -158,6 +191,20 @@
     return String(value || "").trim();
   }
 
+  function normalizeRenderLanguage(value = "") {
+    return trimText(value).toLowerCase() === "hu" ? "hu" : "en";
+  }
+
+  function resolveRenderLocale(language = "en", locale = "") {
+    const normalizedLocale = trimText(locale);
+
+    if (normalizedLocale) {
+      return normalizedLocale;
+    }
+
+    return normalizeRenderLanguage(language) === "hu" ? "hu-HU" : "en-US";
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replace(/&/g, "&amp;")
@@ -238,16 +285,17 @@
     return (Array.isArray(sourceRows) ? sourceRows : []).filter((row) => row.key === sourceKey);
   }
 
-  function getAnalyticsSourceLabel(value) {
-    return SOURCE_LABELS[normalizeAnalyticsSource(value)] || SOURCE_LABELS.unknown;
+  function getAnalyticsSourceLabel(value, language = "en") {
+    const labels = normalizeRenderLanguage(language) === "hu" ? SOURCE_LABELS_HU : SOURCE_LABELS;
+    return labels[normalizeAnalyticsSource(value)] || labels.unknown;
   }
 
   function getAnalyticsSourceDescription(value) {
     return SOURCE_DESCRIPTIONS[normalizeAnalyticsSource(value)] || SOURCE_DESCRIPTIONS.unknown;
   }
 
-  function formatMetricValue(value) {
-    return new Intl.NumberFormat("en-US").format(Math.round(Number(value || 0)));
+  function formatMetricValue(value, locale = "en-US") {
+    return new Intl.NumberFormat(resolveRenderLocale("", locale)).format(Math.round(Number(value || 0)));
   }
 
   function formatMetricDelta(value) {
@@ -311,14 +359,14 @@
     return numeric.toFixed(1).replace(/\.0$/, "");
   }
 
-  function formatActivityTime(value) {
+  function formatActivityTime(value, locale = "en-US") {
     const date = new Date(value || "");
 
     if (Number.isNaN(date.getTime())) {
       return "No activity yet";
     }
 
-    return date.toLocaleString("en-US", {
+    return date.toLocaleString(locale || "en-US", {
       month: "short",
       day: "numeric",
       hour: "numeric",
@@ -326,19 +374,37 @@
     });
   }
 
-  function formatConversationCount(value) {
+  function formatConversationCount(value, locale = "en-US", language = "en") {
     const count = Number(value || 0);
-    return `${formatMetricValue(count)} conversation${count === 1 ? "" : "s"}`;
+    const formatted = formatMetricValue(count, locale);
+
+    if (normalizeRenderLanguage(language) === "hu") {
+      return `${formatted} beszélgetés`;
+    }
+
+    return `${formatted} conversation${count === 1 ? "" : "s"}`;
   }
 
-  function formatMessageCount(value) {
+  function formatMessageCount(value, locale = "en-US", language = "en") {
     const count = Number(value || 0);
-    return `${formatMetricValue(count)} message${count === 1 ? "" : "s"}`;
+    const formatted = formatMetricValue(count, locale);
+
+    if (normalizeRenderLanguage(language) === "hu") {
+      return `${formatted} üzenet`;
+    }
+
+    return `${formatted} message${count === 1 ? "" : "s"}`;
   }
 
-  function formatLeadCount(value) {
+  function formatLeadCount(value, locale = "en-US", language = "en") {
     const count = Number(value || 0);
-    return `${formatMetricValue(count)} lead${count === 1 ? "" : "s"}`;
+    const formatted = formatMetricValue(count, locale);
+
+    if (normalizeRenderLanguage(language) === "hu") {
+      return `${formatted} érdeklődő`;
+    }
+
+    return `${formatted} lead${count === 1 ? "" : "s"}`;
   }
 
   function normalizeSourceBucket(bucket = {}, fallback = {}) {
@@ -417,6 +483,23 @@
     return (Array.isArray(sourceRows) ? sourceRows : []).find((row) => row.key === normalized) || {};
   }
 
+  function localizeAssistantSourceRows(sourceRows = [], context = createRenderContext()) {
+    return (Array.isArray(sourceRows) ? sourceRows : []).map((row) => ({
+      ...row,
+      label: getAnalyticsSourceLabel(row.key || row.label, context.language),
+    }));
+  }
+
+  function localizeAnalyticsSnippet(value = "", context = createRenderContext()) {
+    const text = trimText(value);
+
+    if (context.language !== "hu" || !text) {
+      return text;
+    }
+
+    return ANALYTICS_SNIPPETS_HU[text.toLowerCase()] || text;
+  }
+
   function hasAssistantSourceBreakdown(ownerAnalyticsDashboard = null) {
     const source = ownerAnalyticsDashboard?.assistantSource;
     return Boolean(source && typeof source === "object");
@@ -482,10 +565,10 @@
 
     if (key === "website_widget") {
       cards.push(sourceAvailable
-        ? buildAvailableProductMetric({ key: "widget_conversations", label: context.t("analytics.widgetConversations"), value: formatConversationCount(widgetRow.conversationCount || 0), note: sourceNote, icon: "window", tone: "teal" })
+        ? buildAvailableProductMetric({ key: "widget_conversations", label: context.t("analytics.widgetConversations"), value: context.formatConversationCount(widgetRow.conversationCount || 0), note: sourceNote, icon: "window", tone: "teal" })
         : buildUnavailableProductMetric({ key: "widget_conversations", label: context.t("analytics.widgetConversations"), note: context.t("analytics.notAvailableYet"), icon: "window" }));
       cards.push(sourceAvailable
-        ? buildAvailableProductMetric({ key: "widget_leads", label: context.t("analytics.widgetLeads"), value: formatLeadCount(widgetRow.leadsCaptured || 0), note: sourceNote, icon: "users", tone: "green" })
+        ? buildAvailableProductMetric({ key: "widget_leads", label: context.t("analytics.widgetLeads"), value: context.formatLeadCount(widgetRow.leadsCaptured || 0), note: sourceNote, icon: "users", tone: "green" })
         : buildUnavailableProductMetric({ key: "widget_leads", label: context.t("analytics.widgetLeads"), note: context.t("analytics.notAvailableYet"), icon: "users" }));
       cards.push(buildUnavailableProductMetric({ key: "widget_opens", label: context.t("analytics.visits"), note: context.t("analytics.widgetOpensUnavailable"), icon: "install" }));
       cards.push(buildProductSetupAction(config, context));
@@ -494,10 +577,10 @@
 
     if (key === "voice_agent") {
       cards.push(sourceAvailable
-        ? buildAvailableProductMetric({ key: "web_call_sessions", label: context.t("analytics.webCallSessions"), value: formatConversationCount(webCallRow.conversationCount || 0), note: sourceNote, icon: "chat", tone: "blue" })
+        ? buildAvailableProductMetric({ key: "web_call_sessions", label: context.t("analytics.webCallSessions"), value: context.formatConversationCount(webCallRow.conversationCount || 0), note: sourceNote, icon: "chat", tone: "blue" })
         : buildUnavailableProductMetric({ key: "web_call_sessions", label: context.t("analytics.webCallSessions"), note: context.t("analytics.notAvailableYet"), icon: "chat" }));
       cards.push(webCallTelemetryAvailable
-        ? buildAvailableProductMetric({ key: "web_call_starts", label: context.t("analytics.webCallStarts"), value: formatMetricValue(webCallHealth.starts || 0), note: context.t("analytics.derivedFromSafeWebCallTelemetry"), icon: "chat", tone: "teal" })
+        ? buildAvailableProductMetric({ key: "web_call_starts", label: context.t("analytics.webCallStarts"), value: context.formatMetricValue(webCallHealth.starts || 0), note: context.t("analytics.derivedFromSafeWebCallTelemetry"), icon: "chat", tone: "teal" })
         : buildUnavailableProductMetric({ key: "web_call_starts", label: context.t("analytics.webCallStarts"), note: context.t("analytics.notAvailableYet"), icon: "chat" }));
       cards.push(webCallTelemetryAvailable
         ? buildAvailableProductMetric({ key: "web_call_average_duration", label: context.t("analytics.averageCallDuration"), value: formatMetricDuration(webCallHealth.averageDurationSeconds || 0), note: context.t("analytics.derivedFromSafeWebCallTelemetry"), icon: "clock", tone: "blue" })
@@ -507,10 +590,10 @@
     }
 
     cards.push(sourceAvailable
-      ? buildAvailableProductMetric({ key: "front_desk_conversations", label: context.t("analytics.frontDeskConversations"), value: formatConversationCount(pageRow.conversationCount || 0), note: sourceNote, icon: "window", tone: "blue" })
+      ? buildAvailableProductMetric({ key: "front_desk_conversations", label: context.t("analytics.frontDeskConversations"), value: context.formatConversationCount(pageRow.conversationCount || 0), note: sourceNote, icon: "window", tone: "blue" })
       : buildUnavailableProductMetric({ key: "front_desk_conversations", label: context.t("analytics.frontDeskConversations"), note: context.t("analytics.notAvailableYet"), icon: "window" }));
     cards.push(sourceAvailable
-      ? buildAvailableProductMetric({ key: "front_desk_leads", label: context.t("analytics.frontDeskLeads"), value: formatLeadCount(pageRow.leadsCaptured || 0), note: sourceNote, icon: "users", tone: "green" })
+      ? buildAvailableProductMetric({ key: "front_desk_leads", label: context.t("analytics.frontDeskLeads"), value: context.formatLeadCount(pageRow.leadsCaptured || 0), note: sourceNote, icon: "users", tone: "green" })
       : buildUnavailableProductMetric({ key: "front_desk_leads", label: context.t("analytics.frontDeskLeads"), note: context.t("analytics.notAvailableYet"), icon: "users" }));
     cards.push(buildUnavailableProductMetric({ key: "front_desk_visits", label: context.t("analytics.visits"), note: context.t("analytics.frontDeskVisitsUnavailable"), icon: "review" }));
     cards.push(buildProductSetupAction(config, context));
@@ -640,9 +723,14 @@
   }
 
   function createRenderContext(options = {}) {
-    const translate = typeof options.t === "function"
+    const language = normalizeRenderLanguage(options.language || options.dashboardLanguage);
+    const locale = resolveRenderLocale(language, options.locale);
+    const translateBase = typeof options.t === "function"
       ? options.t
       : (key) => TEXT_FALLBACKS[key] || key;
+    const translate = (key, params = {}) => String(translateBase(key, params)).replace(/\{(\w+)\}/g, (_match, name) => (
+      Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : `{${name}}`
+    ));
     const renderIcon = typeof options.renderIcon === "function"
       ? options.renderIcon
       : () => "";
@@ -654,10 +742,16 @@
       : (label) => `<button class="v2-button" type="button">${escapeHtml(label)}</button>`;
 
     return {
+      language,
+      locale,
       t: translate,
       renderIcon,
       renderIconBadge,
       renderButton,
+      formatMetricValue: (value) => formatMetricValue(value, locale),
+      formatConversationCount: (value) => formatConversationCount(value, locale, language),
+      formatMessageCount: (value) => formatMessageCount(value, locale, language),
+      formatLeadCount: (value) => formatLeadCount(value, locale, language),
     };
   }
 
@@ -673,19 +767,19 @@
         ? context.t("analytics.webCallSessions")
         : context.t("analytics.frontDeskPageConversations");
     const primaryMetricCompare = activeKey === "website_widget"
-      ? "Embedded widget surface"
+      ? context.t("analytics.metricCompareWidgetSurface")
       : activeKey === "voice_agent"
-        ? "Browser voice surface"
+        ? context.t("analytics.metricCompareVoiceSurface")
         : context.t("analytics.frontDeskPrimarySurface");
     const satisfactionScore = Number(report.satisfactionScore || 0);
 
     return [
-      { label: primaryMetricLabel, value: formatMetricValue(primarySourceRow.conversationCount || 0), compare: primaryMetricCompare, icon: activeKey === "voice_agent" ? "phone" : "window", tone: activeKey === "front_desk" ? "blue" : "teal", priority: true },
-      { label: context.t("analytics.totalConversations"), value: formatMetricValue(report.conversationCount), compare: context.t("analytics.liveCustomerConversations"), icon: "chat", tone: "blue" },
-      { label: context.t("analytics.aiHandled"), value: formatMetricPercent(report.autonomousHandledRate), compare: `${formatMetricValue(report.autonomousHandledCount)} ${context.t("analytics.handledWithoutTeamReply")}`, icon: "sparkle", tone: "teal" },
-      { label: context.t("analytics.humanFollowUps"), value: formatMetricValue(humanFollowUps), compare: context.t("analytics.needsOwnerAttention"), icon: "user", tone: humanFollowUps > 0 ? "blue" : "green", down: humanFollowUps === 0 },
-      { label: context.t("analytics.leadsCaptured"), value: formatMetricValue(report.contactsCaptured), compare: context.t("analytics.capturedFromRealCustomerSignals"), icon: "users", tone: "green" },
-      { label: context.t("analytics.satisfactionSignal"), value: satisfactionScore > 0 ? `${satisfactionScore.toFixed(1).replace(/\.0$/, "")}/5` : "New", compare: context.t("analytics.basedOnAnswerQuality"), icon: "review", tone: satisfactionScore >= 4 ? "green" : "blue" },
+      { label: primaryMetricLabel, value: context.formatMetricValue(primarySourceRow.conversationCount || 0), compare: primaryMetricCompare, icon: activeKey === "voice_agent" ? "phone" : "window", tone: activeKey === "front_desk" ? "blue" : "teal", priority: true },
+      { label: context.t("analytics.totalConversations"), value: context.formatMetricValue(report.conversationCount), compare: context.t("analytics.liveCustomerConversations"), icon: "chat", tone: "blue" },
+      { label: context.t("analytics.aiHandled"), value: formatMetricPercent(report.autonomousHandledRate), compare: `${context.formatMetricValue(report.autonomousHandledCount)} ${context.t("analytics.handledWithoutTeamReply")}`, icon: "sparkle", tone: "teal" },
+      { label: context.t("analytics.humanFollowUps"), value: context.formatMetricValue(humanFollowUps), compare: context.t("analytics.needsOwnerAttention"), icon: "user", tone: humanFollowUps > 0 ? "blue" : "green", down: humanFollowUps === 0 },
+      { label: context.t("analytics.leadsCaptured"), value: context.formatMetricValue(report.contactsCaptured), compare: context.t("analytics.capturedFromRealCustomerSignals"), icon: "users", tone: "green" },
+      { label: context.t("analytics.satisfactionSignal"), value: satisfactionScore > 0 ? `${satisfactionScore.toFixed(1).replace(/\.0$/, "")}/5` : context.t("analytics.newSignal"), compare: context.t("analytics.basedOnAnswerQuality"), icon: "review", tone: satisfactionScore >= 4 ? "green" : "blue" },
     ];
   }
 
@@ -706,7 +800,7 @@
       <div class="v2-metric-value">${escapeHtml(metric.value || "0")}</div>
       <div class="v2-metric-change">
         ${metric.change ? `<span class="${trendClass}">${context.renderIcon(trendIcon)} ${escapeHtml(metric.change)}</span>` : ""}
-        <span>${escapeHtml(metric.compare || "Live workspace data")}</span>
+        <span>${escapeHtml(metric.compare || context.t("analytics.liveWorkspaceData"))}</span>
       </div>
     </article>
   `;
@@ -748,16 +842,20 @@
     const totalConversations = Number(report.conversationCount || 0);
     const primarySourceKey = getProductPrimarySourceKey(activeKey);
     const primarySourceRow = sourceRows.find((row) => row.key === primarySourceKey) || {};
-    const primarySourceLabel = getProductSourceLabel(activeKey);
+    const primarySourceLabel = getAnalyticsSourceLabel(primarySourceKey, context.language) || getProductSourceLabel(activeKey);
     const watchItem = trimText(report.improvementArea)
-      || (topQuestionItems[0]?.label ? `repeated question: ${topQuestionItems[0].label}` : context.t("analytics.whatToWatch"));
+      ? localizeAnalyticsSnippet(report.improvementArea, context)
+      : (topQuestionItems[0]?.label ? context.t("analytics.repeatedQuestion", { question: topQuestionItems[0].label }) : context.t("analytics.whatToWatch"));
     const title = totalConversations > 0
-      ? `${formatMetricValue(report.autonomousHandledCount)} of ${formatMetricValue(totalConversations)} conversations handled by AI`
+      ? context.t("analytics.aiHandledBriefTitle", {
+        handled: context.formatMetricValue(report.autonomousHandledCount),
+        total: context.formatMetricValue(totalConversations),
+      })
       : context.t("analytics.waitingForTraffic");
     const copy = totalConversations > 0
       ? (report.summarySentence || context.t("analytics.operatorBriefCopy"))
       : activeKey === "website_widget"
-        ? "After customers use the Website Widget, conversations and captured leads will appear here."
+        ? context.t("analytics.widgetWaitingForTrafficCopy")
         : context.t("analytics.waitingForTrafficCopy");
 
     return `
@@ -768,9 +866,9 @@
           <p>${escapeHtml(copy)}</p>
         </div>
         <div class="v2-analytics-brief-status" aria-label="${escapeHtml(context.t("analytics.whatToWatch"))}">
-          <span><strong>${escapeHtml(formatMetricValue(primarySourceRow.conversationCount || 0))}</strong> ${escapeHtml(primarySourceLabel)}</span>
-          <span><strong>${escapeHtml(formatMetricValue(report.attentionNeeded || 0))}</strong> owner follow-up</span>
-          <span><strong>${escapeHtml(watchItem)}</strong> improvement focus</span>
+          <span><strong>${escapeHtml(context.formatMetricValue(primarySourceRow.conversationCount || 0))}</strong> ${escapeHtml(primarySourceLabel)}</span>
+          <span><strong>${escapeHtml(context.formatMetricValue(report.attentionNeeded || 0))}</strong> ${escapeHtml(context.t("analytics.ownerFollowUp"))}</span>
+          <span><strong>${escapeHtml(watchItem)}</strong> ${escapeHtml(context.t("analytics.improvementFocus"))}</span>
         </div>
       </section>
     `;
@@ -782,8 +880,8 @@
     const total = Math.max(Number(totalConversations || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
     const trackedRows = sourceRows.filter((row) => !row.unavailable || Number(row.conversationCount || 0) > 0 || Number(row.messageCount || 0) > 0);
     const subtitle = activeKey === "website_widget"
-      ? "Website Widget conversations and leads from the existing embedded widget records."
-      : "Hosted Front Desk page remains the primary surface; widget and embeds are secondary distribution.";
+      ? context.t("analytics.sourceBreakdownWidgetCopy")
+      : context.t("analytics.sourceBreakdownDefaultCopy");
 
     return `
     <article class="v2-card v2-analytics-source-card">
@@ -803,12 +901,12 @@
                 <span class="v2-legend-color ${escapeHtml(row.color || "gray")}"></span>
                 <span>${escapeHtml(row.label)}</span>
                 <strong>${escapeHtml(`${percent}%`)}</strong>
-                <span class="v2-subtext">${escapeHtml(formatMetricValue(row.conversationCount))}</span>
+                <span class="v2-subtext">${escapeHtml(context.formatMetricValue(row.conversationCount))}</span>
               </div>
             `;
           }).join("")}
           <div class="v2-legend-row v2-legend-total">
-            <span></span><strong>${escapeHtml(context.t("analytics.total"))}</strong><strong></strong><strong>${escapeHtml(formatMetricValue(total))}</strong>
+            <span></span><strong>${escapeHtml(context.t("analytics.total"))}</strong><strong></strong><strong>${escapeHtml(context.formatMetricValue(total))}</strong>
           </div>
         </div>
       </div>
@@ -858,14 +956,14 @@
       <path class="v2-chart-fill" d="${escapeHtml(fillPath)}"></path>
       <path class="v2-chart-line" d="${escapeHtml(linePath)}"></path>
       <text class="v2-axis-label" x="18" y="158">0</text>
-      <text class="v2-axis-label" x="14" y="115">${escapeHtml(formatMetricValue(Math.ceil(maxValue / 2)))}</text>
-      <text class="v2-axis-label" x="8" y="72">${escapeHtml(formatMetricValue(maxValue))}</text>
+      <text class="v2-axis-label" x="14" y="115">${escapeHtml(context.formatMetricValue(Math.ceil(maxValue / 2)))}</text>
+      <text class="v2-axis-label" x="8" y="72">${escapeHtml(context.formatMetricValue(maxValue))}</text>
       ${labelIndexes.map((index) => {
         const x = paddingX + ((width - paddingX - 30) * index) / Math.max(values.length - 1, 1);
         return `<text class="v2-axis-label" x="${escapeHtml(x.toFixed(0))}" y="176">${escapeHtml(labels[index] || "")}</text>`;
       }).join("")}
     </svg>
-    ${hasData ? "" : `<div class="v2-chart-empty">Live conversations will draw this trend after customers start using Front Desk.</div>`}
+    ${hasData ? "" : `<div class="v2-chart-empty">${escapeHtml(context.t("analytics.chartEmpty"))}</div>`}
     </div>
   `;
   }
@@ -879,7 +977,7 @@
       <div class="v2-section-header">
         <div>
           <h2 class="v2-section-title">${escapeHtml(context.t("analytics.topCustomerQuestions"))}</h2>
-          <p class="v2-section-subtitle">Use repeated questions to decide which answer guidance to improve next.</p>
+          <p class="v2-section-subtitle">${escapeHtml(context.t("analytics.topQuestionsCopy"))}</p>
         </div>
         ${context.renderButton(context.t("analytics.viewAll"), "")}
       </div>
@@ -890,14 +988,14 @@
             const width = Math.max(8, Math.round((count / maxCount) * 100));
             return `
               <div class="v2-question-row">
-                <div class="v2-row-title">${escapeHtml(item.label || "Customer question")}</div>
+                <div class="v2-row-title">${escapeHtml(item.label || context.t("analytics.customerQuestionFallback"))}</div>
                 <div class="v2-bar-track"><span class="v2-bar-fill" style="--v2-bar:${escapeHtml(String(width))}%"></span></div>
-                <div class="v2-row-meta">${escapeHtml(formatMetricValue(count))}</div>
+                <div class="v2-row-meta">${escapeHtml(context.formatMetricValue(count))}</div>
               </div>
             `;
           }).join("")}
         </div>
-      ` : renderAnalyticsEmptyState("No repeated customer questions yet. As Front Desk handles more live questions, recurring themes will appear here.")}
+      ` : renderAnalyticsEmptyState(context.t("analytics.topQuestionsEmpty"))}
     </article>
   `;
   }
@@ -977,7 +1075,8 @@
     return "Needs review";
   }
 
-  function renderWebCallTranscript(messages = []) {
+  function renderWebCallTranscript(messages = [], options = {}) {
+    const context = createRenderContext(options);
     const safeMessages = (Array.isArray(messages) ? messages : [])
       .filter((message) => trimText(message.content))
       .slice(-8);
@@ -992,7 +1091,7 @@
           <article class="v2-web-call-message ${message.role === "assistant" ? "assistant" : "user"}" data-conversation-message="${escapeHtml(message.id || "")}">
             <div class="v2-web-call-message-meta">
               <strong>${escapeHtml(message.role === "assistant" ? "Front Desk" : "Caller")}</strong>
-              <span>${escapeHtml(formatActivityTime(message.createdAt))}</span>
+              <span>${escapeHtml(formatActivityTime(message.createdAt, context.locale))}</span>
             </div>
             <p>${escapeHtml(message.content)}</p>
           </article>
@@ -1013,7 +1112,7 @@
       { label: "Avg. duration", value: formatMetricDuration(health.averageDurationSeconds || 0) },
       { label: "Avg. turns", value: formatMetricDecimal(health.averageTurns || 0) },
       { label: "Contact fallbacks", value: formatMetricValue(health.contactFallbackSubmissions || 0) },
-      { label: "Latest activity", value: formatActivityTime(health.latestActivityAt) },
+      { label: "Latest activity", value: formatActivityTime(health.latestActivityAt, context.locale) },
     ];
 
     return `
@@ -1091,7 +1190,7 @@
                 <div class="v2-recent-web-call-main">
                   <div>
                     <p class="v2-row-title">Web Call conversation</p>
-                    <p class="analytics-subtle">${escapeHtml(formatActivityTime(call.latestActivityAt || call.startedAt))}</p>
+                    <p class="analytics-subtle">${escapeHtml(formatActivityTime(call.latestActivityAt || call.startedAt, context.locale))}</p>
                   </div>
                   <div class="v2-recent-web-call-metrics">
                     <span><strong>${escapeHtml(call.turnCount === null || call.turnCount === undefined ? "n/a" : formatMetricDecimal(call.turnCount))}</strong> turns</span>
@@ -1110,7 +1209,7 @@
                     <button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(action.messageId)}">${escapeHtml(action.label || "Open related conversation")}</button>
                   ` : ""}
                 </div>
-                ${renderWebCallTranscript(call.messages)}
+                ${renderWebCallTranscript(call.messages, options)}
                 <div class="v2-recent-web-call-actions">
                   <button class="ghost-button" type="button" data-web-call-review-action="reviewed" data-action-key="${escapeHtml(actionKey)}" ${actionKey ? "" : "disabled"}>Mark reviewed</button>
                   <button class="ghost-button" type="button" data-web-call-review-action="follow_up" data-action-key="${escapeHtml(actionKey)}" ${actionKey ? "" : "disabled"}>Needs follow-up</button>
@@ -1128,15 +1227,21 @@
 
   function renderHeatmap(userMessages = [], options = {}) {
     const context = createRenderContext(options);
+    const hourFormatter = new Intl.DateTimeFormat(context.locale, {
+      hour: "numeric",
+    });
+    const weekdayFormatter = new Intl.DateTimeFormat(context.locale, {
+      weekday: "short",
+    });
     const times = [
-      { label: "12am", start: 0, end: 3 },
-      { label: "4am", start: 4, end: 7 },
-      { label: "8am", start: 8, end: 11 },
-      { label: "12pm", start: 12, end: 15 },
-      { label: "4pm", start: 16, end: 19 },
-      { label: "8pm", start: 20, end: 23 },
+      { label: hourFormatter.format(new Date(2026, 0, 5, 0)), start: 0, end: 3 },
+      { label: hourFormatter.format(new Date(2026, 0, 5, 4)), start: 4, end: 7 },
+      { label: hourFormatter.format(new Date(2026, 0, 5, 8)), start: 8, end: 11 },
+      { label: hourFormatter.format(new Date(2026, 0, 5, 12)), start: 12, end: 15 },
+      { label: hourFormatter.format(new Date(2026, 0, 5, 16)), start: 16, end: 19 },
+      { label: hourFormatter.format(new Date(2026, 0, 5, 20)), start: 20, end: 23 },
     ];
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const days = Array.from({ length: 7 }, (_item, index) => weekdayFormatter.format(new Date(2026, 0, 5 + index)));
     const buckets = times.map(() => days.map(() => 0));
 
     userMessages.forEach((message) => {
@@ -1197,7 +1302,7 @@
       <div class="v2-section-header">
         <div>
           <h2 class="v2-section-title">${escapeHtml(context.t("analytics.aiVsHumanHandling"))}</h2>
-          <p class="v2-section-subtitle">Shows work handled by Front Desk versus conversations still needing a person.</p>
+          <p class="v2-section-subtitle">${escapeHtml(context.t("analytics.handlingCopy"))}</p>
         </div>
       </div>
       <div class="v2-gauge">
@@ -1209,8 +1314,8 @@
         </svg>
       </div>
       <div class="v2-donut-legend">
-        <div class="v2-legend-row"><span class="v2-legend-color teal"></span><span>${escapeHtml(context.t("analytics.aiHandled"))}</span><strong></strong><span>${escapeHtml(formatMetricValue(handled))}</span></div>
-        <div class="v2-legend-row"><span class="v2-legend-color soft-blue"></span><span>${escapeHtml(context.t("analytics.humanFollowUps"))}</span><strong></strong><span>${escapeHtml(formatMetricValue(human))}</span></div>
+        <div class="v2-legend-row"><span class="v2-legend-color teal"></span><span>${escapeHtml(context.t("analytics.aiHandled"))}</span><strong></strong><span>${escapeHtml(context.formatMetricValue(handled))}</span></div>
+        <div class="v2-legend-row"><span class="v2-legend-color soft-blue"></span><span>${escapeHtml(context.t("analytics.humanFollowUps"))}</span><strong></strong><span>${escapeHtml(context.formatMetricValue(human))}</span></div>
       </div>
     </article>
   `;
@@ -1277,8 +1382,8 @@
     const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
     const total = Math.max(Number(report.conversationCount || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
     const subtitle = activeKey === "website_widget"
-      ? "Review Website Widget conversations and leads using existing widget source data."
-      : "Compare Front Desk page, embed, and optional widget outcomes using real conversation data.";
+      ? context.t("analytics.performanceBySourceWidgetCopy")
+      : context.t("analytics.performanceBySourceDefaultCopy");
     const rows = sourceRows.map((row) => {
       const conversations = Number(row.conversationCount || 0);
       const percent = total > 0 ? Math.round((conversations / total) * 100) : 0;
@@ -1289,11 +1394,11 @@
       <tr>
         <td><span class="v2-name">${context.renderIcon(row.icon || "window", row.tone || "blue")} ${escapeHtml(row.label)}</span></td>
         <td>${escapeHtml(row.visits || context.t("analytics.notTracked"))}</td>
-        <td>${escapeHtml(row.unavailable ? context.t("analytics.notTracked") : `${formatMetricValue(conversations)} (${percent}%)`)}</td>
-        <td>${escapeHtml(row.unavailable ? context.t("analytics.notTracked") : formatMetricValue(row.leadsCaptured || 0))}</td>
+        <td>${escapeHtml(row.unavailable ? context.t("analytics.notTracked") : `${context.formatMetricValue(conversations)} (${percent}%)`)}</td>
+        <td>${escapeHtml(row.unavailable ? context.t("analytics.notTracked") : context.formatMetricValue(row.leadsCaptured || 0))}</td>
         <td>${escapeHtml(row.unavailable || conversations <= 0 ? "-" : formatMetricDecimalPercent((Number(row.leadsCaptured || 0) / conversations) * 100))}</td>
-        <td>${escapeHtml(row.unavailable ? "-" : formatMetricValue(aiHandled))}</td>
-        <td>${escapeHtml(row.unavailable ? "-" : formatMetricValue(human))}</td>
+        <td>${escapeHtml(row.unavailable ? "-" : context.formatMetricValue(aiHandled))}</td>
+        <td>${escapeHtml(row.unavailable ? "-" : context.formatMetricValue(human))}</td>
         <td>${escapeHtml(context.t("analytics.instant"))}</td>
       </tr>
     `;
@@ -1334,7 +1439,10 @@
     const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
     const activeProductScope = options.sourceScope === "active_product" || options.hideProductTabs === true;
     const allSourceRows = buildAssistantSourceRows(ownerAnalyticsDashboard?.assistantSource);
-    const sourceRows = activeProductScope ? scopeAssistantSourceRowsForProduct(allSourceRows, activeKey) : allSourceRows;
+    const sourceRows = localizeAssistantSourceRows(
+      activeProductScope ? scopeAssistantSourceRowsForProduct(allSourceRows, activeKey) : allSourceRows,
+      context
+    );
     const sourceRowTotal = sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0);
     const sourceTotal = Math.max(
       activeProductScope ? sourceRowTotal : Number(ownerAnalyticsDashboard?.assistantSource?.totalConversations || 0),
@@ -1358,7 +1466,7 @@
             <div class="v2-section-header">
               <div>
                 <h2 class="v2-section-title">${escapeHtml(context.t("analytics.conversationsOverTime"))}</h2>
-                <div class="v2-metric-value v2-chart-total">${escapeHtml(formatMetricValue(report.conversationCount))} <span class="v2-subtext">${escapeHtml(context.t("analytics.totalConversationLabel"))}</span></div>
+                <div class="v2-metric-value v2-chart-total">${escapeHtml(context.formatMetricValue(report.conversationCount))} <span class="v2-subtext">${escapeHtml(context.t("analytics.totalConversationLabel"))}</span></div>
                 <div class="v2-metric-change"><span>${escapeHtml(context.t("analytics.liveCurrentWorkspace"))}</span></div>
               </div>
               <button class="v2-button" type="button">${escapeHtml(context.t("analytics.daily"))} ${context.renderIcon("chevronDown")}</button>

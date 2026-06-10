@@ -1305,6 +1305,153 @@ test("English dashboard still renders the supported dashboard UI in English", ()
   assert.equal(harness.t("settings.title"), "Settings");
 });
 
+function createWidgetAnalyticsFixture(harness) {
+  const agent = {
+    id: "agent-1",
+    name: "Vonza",
+    assistantName: "Vonza",
+    websiteUrl: "https://example.com",
+    publicAgentKey: "agent-key",
+    installId: "install-1",
+    installStatus: {
+      state: "seen_recently",
+      label: "Seen recently",
+    },
+  };
+  const setup = harness.inferSetup({
+    ...agent,
+    knowledge: { state: "ready" },
+  });
+  const actionQueue = {
+    ...harness.createEmptyActionQueue(),
+    summary: {
+      ...harness.createEmptyActionQueue().summary,
+      attentionNeeded: 1,
+    },
+    analyticsSummary: {
+      ...harness.createEmptyActionQueue().analyticsSummary,
+      conversationCount: 4,
+      totalMessages: 8,
+      visitorQuestions: 4,
+      contactsCaptured: 2,
+      attentionNeeded: 1,
+      customerQuestionSummaries: [
+        { summary: "Looking for booking or availability", count: 2 },
+      ],
+    },
+    ownerAnalyticsDashboard: {
+      ok: true,
+      metrics: {
+        totalConversations: 4,
+        leadsCaptured: 2,
+        conversionRate: 50,
+      },
+      assistantSource: {
+        widget: {
+          key: "widget",
+          label: "Website widget",
+          conversationCount: 4,
+          messageCount: 8,
+          visitorQuestionCount: 4,
+          leadsCaptured: 2,
+        },
+        page: {
+          key: "page",
+          label: "Front Desk page",
+          conversationCount: 0,
+          messageCount: 0,
+          visitorQuestionCount: 0,
+          leadsCaptured: 0,
+        },
+        embedded: {
+          key: "embedded",
+          label: "Embedded assistant",
+          conversationCount: 0,
+          messageCount: 0,
+          visitorQuestionCount: 0,
+          leadsCaptured: 0,
+        },
+        totalConversations: 4,
+        totalMessages: 8,
+      },
+      topVisitorQuestions: [
+        { summary: "Looking for booking or availability", count: 2 },
+      ],
+    },
+  };
+  const messages = [
+    { id: "m1", role: "user", content: "Can I book?", createdAt: "2026-06-08T09:00:00.000Z" },
+    { id: "m2", role: "assistant", content: "Yes.", createdAt: "2026-06-08T09:00:05.000Z" },
+    { id: "m3", role: "user", content: "How do I contact you?", createdAt: "2026-06-09T13:00:00.000Z" },
+    { id: "m4", role: "assistant", content: "Here is the best contact path.", createdAt: "2026-06-09T13:00:05.000Z" },
+  ];
+
+  return {
+    agent,
+    setup,
+    actionQueue,
+    messages,
+    workspace: harness.createEmptyOperatorWorkspace(),
+  };
+}
+
+test("Hungarian Website Widget analytics route localizes top-level analytics copy and time labels", () => {
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    hash: "#analytics",
+    initialLocalStorage: {
+      vonza_dashboard_language: "hu",
+    },
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const { agent, setup, actionQueue, messages, workspace } = createWidgetAnalyticsFixture(harness);
+  const analytics = harness.buildAnalyticsPanel(agent, messages, setup, actionQueue, workspace);
+  const hungarianMonday = new Intl.DateTimeFormat("hu-HU", { weekday: "short" }).format(new Date(2026, 0, 5));
+  const hungarianShortDate = harness.formatAnalyticsShortDate("2026-06-10T09:00:00.000Z");
+
+  assert.doesNotMatch(analytics, /handled by AI/);
+  assert.doesNotMatch(analytics, /Weboldal Widget analytics/);
+  assert.doesNotMatch(analytics, /Widget conversations/);
+  assert.doesNotMatch(analytics, /Widget leads/);
+  assert.doesNotMatch(analytics, /Derived from existing conversation source data/);
+  assert.match(analytics, /Website Widget elemzések/);
+  assert.match(analytics, /Widget beszélgetések/);
+  assert.match(analytics, /Widget érdeklődők/);
+  assert.match(analytics, /Meglévő beszélgetésforrás-adatokból/);
+  assert.match(analytics, /beszélgetést az AI kezelt/);
+  assert.match(analytics, new RegExp(`>${escapeRegExp(hungarianMonday)}<`));
+  assert.doesNotMatch(analytics, />Mon</);
+  assert.doesNotMatch(analytics, /\b(?:AM|PM|am|pm)\b/);
+  assert.match(hungarianShortDate, /jún/i);
+  assert.doesNotMatch(hungarianShortDate, /Jun/);
+});
+
+test("cached English Website Widget analytics and status copy remain English", () => {
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    hash: "#analytics",
+    initialLocalStorage: {
+      vonza_dashboard_language: "en",
+    },
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const { agent, setup, actionQueue, messages, workspace } = createWidgetAnalyticsFixture(harness);
+  const analytics = harness.buildAnalyticsPanel(agent, messages, setup, actionQueue, workspace);
+
+  assert.match(analytics, /Website Widget analytics/);
+  assert.match(analytics, /Widget conversations/);
+  assert.match(analytics, /Widget leads/);
+  assert.match(analytics, /Derived from existing conversation source data/);
+  assert.match(analytics, /conversations handled by AI/);
+  assert.equal(harness.t("websiteWidget.status.verifyProgress"), "Verifying installation...");
+  assert.equal(harness.t("websiteWidget.status.settingsSaveSuccess"), "Website Widget settings saved.");
+  assert.match(harness.formatAnalyticsShortDate("2026-06-10T09:00:00.000Z"), /Jun/);
+});
+
 test("Hungarian supported dashboard keys do not fall back to key names or English for core screens", () => {
   const harness = createDashboardHarness();
   harness.cacheDashboardLanguage("hu");
@@ -1320,6 +1467,12 @@ test("Hungarian supported dashboard keys do not fall back to key names or Englis
     ["settings.theme", "Téma"],
     ["install.copyInstallCode", "Telepítőkód másolása"],
     ["customers.needsReply", "Válaszra vár"],
+    ["analytics.productScope", "Termékanalitika"],
+    ["analytics.widgetAnalytics", "Website Widget elemzések"],
+    ["analytics.widgetConversations", "Widget beszélgetések"],
+    ["analytics.widgetLeads", "Widget érdeklődők"],
+    ["analytics.derivedFromConversationSource", "Meglévő beszélgetésforrás-adatokból"],
+    ["websiteWidget.status.verifyProgress", "Telepítés ellenőrzése..."],
   ]);
 
   for (const [key, value] of expected.entries()) {
@@ -1351,6 +1504,40 @@ test("Hungarian core dashboard screens surface missing translation keys through 
     "customers.needsReply",
     "analytics.title",
     "analytics.estimatedSatisfaction",
+    "analytics.productScope",
+    "analytics.widgetAnalytics",
+    "analytics.widgetAnalyticsCopy",
+    "analytics.widgetConversations",
+    "analytics.widgetLeads",
+    "analytics.derivedFromConversationSource",
+    "analytics.notAvailableYet",
+    "analytics.widgetOpensUnavailable",
+    "analytics.setupWidget",
+    "analytics.widgetSettings",
+    "analytics.aiHandledBriefTitle",
+    "analytics.widgetWaitingForTrafficCopy",
+    "analytics.sourceBreakdownWidgetCopy",
+    "analytics.handlingCopy",
+    "analytics.topQuestionsCopy",
+    "analytics.performanceBySourceWidgetCopy",
+    "websiteWidget.status.importStart",
+    "websiteWidget.status.importRetry",
+    "websiteWidget.status.importFallback",
+    "websiteWidget.status.installCopySuccess",
+    "websiteWidget.status.installInstructionsCopySuccess",
+    "websiteWidget.status.installCopyFailure",
+    "websiteWidget.status.settingsSaveProgress",
+    "websiteWidget.status.settingsSaveSuccess",
+    "websiteWidget.status.settingsSaveFailure",
+    "websiteWidget.status.settingsSaveStateSaving",
+    "websiteWidget.status.settingsSaveStateSuccess",
+    "websiteWidget.status.settingsSaveStateFailure",
+    "websiteWidget.status.verifyProgress",
+    "websiteWidget.status.verifySuccess",
+    "websiteWidget.status.verifyMismatch",
+    "websiteWidget.status.verifyNotFound",
+    "websiteWidget.status.verifyCompleted",
+    "websiteWidget.status.verifyFailure",
     "install.title",
     "install.copyInstallCode",
     "install.verifyInstallation",
@@ -1366,6 +1553,46 @@ test("Hungarian core dashboard screens surface missing translation keys through 
       `Missing Hungarian dashboard translation key: ${key}`
     );
   }
+});
+
+test("Widget action status feedback keys are localized and wired to dashboard handlers", () => {
+  const harness = createDashboardHarness();
+  const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+  const requiredStatusKeys = [
+    "websiteWidget.status.importStart",
+    "websiteWidget.status.importRetry",
+    "websiteWidget.status.importFallback",
+    "websiteWidget.status.installCopySuccess",
+    "websiteWidget.status.installInstructionsCopySuccess",
+    "websiteWidget.status.installCopyFailure",
+    "websiteWidget.status.settingsSaveProgress",
+    "websiteWidget.status.settingsSaveSuccess",
+    "websiteWidget.status.settingsSaveFailure",
+    "websiteWidget.status.settingsSaveStateSaving",
+    "websiteWidget.status.settingsSaveStateSuccess",
+    "websiteWidget.status.settingsSaveStateFailure",
+    "websiteWidget.status.verifyProgress",
+    "websiteWidget.status.verifySuccess",
+    "websiteWidget.status.verifyMismatch",
+    "websiteWidget.status.verifyNotFound",
+    "websiteWidget.status.verifyCompleted",
+    "websiteWidget.status.verifyFailure",
+  ];
+
+  harness.cacheDashboardLanguage("hu");
+  assert.equal(harness.t("websiteWidget.status.importStart"), "Weboldal import indítása...");
+  assert.equal(harness.t("websiteWidget.status.installCopySuccess"), "A widget telepítőkód másolva. Beillesztheted a weboldaladra, amikor készen állsz.");
+  assert.equal(harness.t("websiteWidget.status.settingsSaveProgress"), "Website Widget beállítások mentése...");
+  assert.equal(harness.t("websiteWidget.status.verifyNotFound"), "A kódrészlet még nem található a weboldalon.");
+
+  harness.cacheDashboardLanguage("en");
+  assert.equal(harness.t("websiteWidget.status.importStart"), "Starting website import...");
+  assert.equal(harness.t("websiteWidget.status.installCopyFailure"), "We couldn't copy the widget install code.");
+  assert.equal(harness.t("websiteWidget.status.verifyMismatch"), "A different Vonza install was detected on the website.");
+
+  requiredStatusKeys.forEach((key) => {
+    assert.match(dashboardScript, new RegExp(`t\\("${escapeRegExp(key)}"\\)`), `${key} should be used by dashboard.js`);
+  });
 });
 
 test("dashboard language preference requests stay separate from widget reply language", () => {
