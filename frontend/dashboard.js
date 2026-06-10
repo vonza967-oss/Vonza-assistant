@@ -2697,6 +2697,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Threat": "Kockázat",
   "Dashboard sidebar": "Irányítópult oldalsáv",
   "Open navigation": "Navigáció megnyitása",
+  "Close navigation": "Navigáció bezárása",
   "Menu": "Menü",
   "View timeline": "Idővonal megnyitása",
   "Recent": "Nemrég",
@@ -14752,7 +14753,7 @@ function renderAssistantShell(
 
   rootEl.innerHTML = `
     <div class="${shellClassName}" data-app-shell data-dashboard-v2="${DASHBOARD_V2_ENABLED ? "enabled" : "disabled"}" data-dashboard-product="${escapeHtml(activeDashboardProduct.key)}">
-      <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="Close navigation"></button>
+      <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="${escapeHtml(translateDashboardText("Close navigation"))}"></button>
       ${buildSidebarShell(agent, setup, actionQueue, operatorWorkspace, activeSection)}
       <div class="workspace-shell">
         ${buildWorkspaceContextBar(agent, setup, operatorWorkspace)}
@@ -14799,7 +14800,7 @@ function renderDashboardV2Shell(
 
   rootEl.innerHTML = `
     <div class="app-shell dashboard-v2-shell dashboard-v2-production-shell ${isDedicatedWebsiteWidgetDashboard() ? "website-widget-dashboard-shell" : ""}" data-app-shell data-dashboard-v2="enabled" data-dashboard-product="${escapeHtml(activeDashboardProduct.key)}" ${isDedicatedWebsiteWidgetDashboard() ? 'data-website-widget-dashboard="dedicated"' : ""}>
-      <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="Close navigation"></button>
+      <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="${escapeHtml(translateDashboardText("Close navigation"))}"></button>
       ${buildSidebarShell(agent, setup, actionQueue, operatorWorkspace, activeSection)}
       <div class="workspace-shell">
         ${setupHintMarkup}
@@ -20802,18 +20803,22 @@ function renderLocalDashboardV2Fixture() {
   applyDashboardLanguage(getDashboardLanguage());
 
   const now = new Date().toISOString();
+  const fixtureText = (english, hungarian) => localizeDashboardCopy(english, hungarian);
   const agent = {
     id: "local-agent-1",
-    name: "Local fixture workspace",
-    assistantName: "Local front desk",
-    ownerName: "Local Owner",
+    name: fixtureText("Local fixture workspace", "Helyi demó munkaterület"),
+    assistantName: fixtureText("Local front desk", "Helyi weboldali asszisztens"),
+    ownerName: fixtureText("Local Owner", "Helyi tulajdonos"),
     ownerEmail: "local.owner@example.test",
-    businessName: "Local Services",
+    businessName: fixtureText("Local Services", "Helyi Szolgáltatások"),
     websiteUrl: "https://local.example.test",
     publicAgentKey: "local-public-agent",
     installId: "local-install-1",
-    welcomeMessage: "Hi, I can help with services, booking, quotes, and support.",
-    buttonLabel: "Ask a question",
+    welcomeMessage: fixtureText(
+      "Hi, I can help with services, booking, quotes, and support.",
+      "Szia, segítek szolgáltatásokkal, foglalással, ajánlatkéréssel és ügyféltámogatással."
+    ),
+    buttonLabel: fixtureText("Ask a question", "Kérdés feltevése"),
     tone: "professional",
     accessStatus: "active",
     knowledge: {
@@ -20823,7 +20828,7 @@ function renderLocalDashboardV2Fixture() {
     allowedDomains: ["local.example.test"],
     installStatus: {
       state: "seen_recently",
-      label: "Live install detected",
+      label: fixtureText("Live install detected", "Élő telepítés észlelve"),
       host: "local.example.test",
       pageUrl: "https://local.example.test/",
       lastSeenAt: now,
@@ -20842,21 +20847,24 @@ function renderLocalDashboardV2Fixture() {
     {
       id: "fixture-message-1",
       role: "user",
-      content: "Can I book a consultation this week?",
+      content: fixtureText("Can I book a consultation this week?", "Tudok konzultációt foglalni erre a hétre?"),
       createdAt: now,
       source: "widget",
     },
     {
       id: "fixture-message-2",
       role: "assistant",
-      content: "Yes. Share your preferred day and contact details, and the team can confirm the next step.",
+      content: fixtureText(
+        "Yes. Share your preferred day and contact details, and the team can confirm the next step.",
+        "Igen. Add meg a számodra megfelelő napot és az elérhetőségeidet, és a csapat megerősíti a következő lépést."
+      ),
       createdAt: now,
       source: "widget",
     },
     {
       id: "fixture-message-3",
       role: "user",
-      content: "What affects the quote?",
+      content: fixtureText("What affects the quote?", "Mi befolyásolja az ajánlatot?"),
       createdAt: now,
       source: "page",
     },
@@ -20869,8 +20877,14 @@ function renderLocalDashboardV2Fixture() {
         key: "fixture-action-1",
         type: "pricing",
         status: "new",
-        safeSummary: "Customer asked what affects quote timing and price.",
-        recommendedNextAction: "Review pricing guidance and confirm the follow-up path.",
+        safeSummary: fixtureText(
+          "Customer asked what affects quote timing and price.",
+          "Az ügyfél azt kérdezte, mi befolyásolja az ajánlat időzítését és árát."
+        ),
+        recommendedNextAction: fixtureText(
+          "Review pricing guidance and confirm the follow-up path.",
+          "Nézd át az árazási útmutatást, és erősítsd meg az utánkövetési utat."
+        ),
       },
     ],
     summary: {
@@ -20905,12 +20919,20 @@ function renderLocalDashboardV2Fixture() {
       weakAnswerCount: 1,
       attentionNeeded: 1,
       customerQuestionSummaries: [
-        { summary: "Booking availability", count: 1 },
-        { summary: "Quote details", count: 1 },
+        { summary: fixtureText("Booking availability", "Foglalási elérhetőség"), count: 1 },
+        { summary: fixtureText("Quote details", "Ajánlatkérési részletek"), count: 1 },
       ],
-      weakAnswerExamples: ["Quote guidance needs clearer inputs and timing."],
+      weakAnswerExamples: [
+        fixtureText(
+          "Quote guidance needs clearer inputs and timing.",
+          "Az ajánlatkérési útmutatáshoz világosabb bemenetek és időzítés kell."
+        ),
+      ],
       usageTrend: {
-        copy: "Fixture activity uses the same shape as live dashboard data.",
+        copy: fixtureText(
+          "Fixture activity uses the same shape as live dashboard data.",
+          "A demó aktivitás ugyanazt az adatstruktúrát használja, mint az élő irányítópult adatai."
+        ),
       },
       recentActivity: {
         lastActivityAt: now,
@@ -20960,11 +20982,16 @@ function renderLocalDashboardV2Fixture() {
         totalMessages: 3,
       },
       topVisitorQuestions: [
-        { summary: "Booking availability", count: 1 },
-        { summary: "Quote details", count: 1 },
+        { summary: fixtureText("Booking availability", "Foglalási elérhetőség"), count: 1 },
+        { summary: fixtureText("Quote details", "Ajánlatkérési részletek"), count: 1 },
       ],
       missedQuestions: [
-        { question: "Quote guidance needs clearer inputs and timing." },
+        {
+          question: fixtureText(
+            "Quote guidance needs clearer inputs and timing.",
+            "Az ajánlatkérési útmutatáshoz világosabb bemenetek és időzítés kell."
+          ),
+        },
       ],
       customerSatisfaction: {
         totalFeedback: 1,
@@ -20977,18 +21004,27 @@ function renderLocalDashboardV2Fixture() {
         persistenceAvailable: true,
       },
       knowledgeImprovement: {
-        title: "Knowledge Improvement",
-        copy: "One pricing answer could use stronger guidance.",
+        title: fixtureText("Knowledge Improvement", "Tudásjavítás"),
+        copy: fixtureText(
+          "One pricing answer could use stronger guidance.",
+          "Egy árazási válaszhoz erősebb útmutatás kell."
+        ),
         total: 1,
         openCount: 1,
         approvedFixedCount: 0,
         dismissedCount: 0,
-        guardrail: "Approved guidance must stay grounded in verified business facts.",
+        guardrail: fixtureText(
+          "Approved guidance must stay grounded in verified business facts.",
+          "A jóváhagyott útmutatásnak ellenőrzött üzleti tényeken kell alapulnia."
+        ),
         items: [
           {
-            question: "What affects the quote?",
-            safeSummary: "Customer asked about quote factors.",
-            reason: "Pricing detail was thin.",
+            question: fixtureText("What affects the quote?", "Mi befolyásolja az ajánlatot?"),
+            safeSummary: fixtureText(
+              "Customer asked about quote factors.",
+              "Az ügyfél ajánlatkérési tényezőkről kérdezett."
+            ),
+            reason: fixtureText("Pricing detail was thin.", "Az árazási részlet kevés volt."),
             status: "new",
           },
         ],
@@ -21003,7 +21039,7 @@ function renderLocalDashboardV2Fixture() {
         averageTurns: 2,
         contactFallbackSubmissions: 0,
         failureCategories: [
-          { category: "speech_failed", label: "Speech failed", count: 1 },
+          { category: "speech_failed", label: fixtureText("Speech failed", "Beszédfelismerési hiba"), count: 1 },
         ],
         latestActivityAt: now,
       },
@@ -21026,13 +21062,29 @@ function renderLocalDashboardV2Fixture() {
             contactFallbackSubmitted: false,
             hadFailures: true,
             failureCategories: ["speech_failed"],
-            failureCategoryLabels: ["Speech failed"],
+            failureCategoryLabels: [fixtureText("Speech failed", "Beszédfelismerési hiba")],
             messages: [
-              { id: "fixture-web-call-message-1", role: "user", content: "Can you walk me through quote timing?", createdAt: now },
-              { id: "fixture-web-call-message-2", role: "assistant", content: "I can explain the usual inputs and collect details for the team.", createdAt: now },
+              {
+                id: "fixture-web-call-message-1",
+                role: "user",
+                content: fixtureText("Can you walk me through quote timing?", "Végig tudsz vezetni az ajánlat időzítésén?"),
+                createdAt: now,
+              },
+              {
+                id: "fixture-web-call-message-2",
+                role: "assistant",
+                content: fixtureText(
+                  "I can explain the usual inputs and collect details for the team.",
+                  "El tudom magyarázni a szokásos bemeneteket, és összegyűjtöm a részleteket a csapatnak."
+                ),
+                createdAt: now,
+              },
             ],
-            latestQuestion: "Can you walk me through quote timing?",
-            latestAnswer: "I can explain the usual inputs and collect details for the team.",
+            latestQuestion: fixtureText("Can you walk me through quote timing?", "Végig tudsz vezetni az ajánlat időzítésén?"),
+            latestAnswer: fixtureText(
+              "I can explain the usual inputs and collect details for the team.",
+              "El tudom magyarázni a szokásos bemeneteket, és összegyűjtöm a részleteket a csapatnak."
+            ),
             review: {
               status: "new",
               followUpNeeded: false,
@@ -21041,7 +21093,7 @@ function renderLocalDashboardV2Fixture() {
             conversationSource: "web_call",
             action: {
               type: "conversation",
-              label: "Open related conversation",
+              label: fixtureText("Open related conversation", "Kapcsolódó beszélgetés megnyitása"),
               messageId: "fixture-web-call-message-2",
             },
           },
@@ -21067,16 +21119,19 @@ function renderLocalDashboardV2Fixture() {
         {
           id: "fixture-contact-1",
           customerRowKey: "fixture-contact-1",
-          name: "Local Customer",
+          name: fixtureText("Local Customer", "Helyi ügyfél"),
           email: "customer@example.test",
           phone: "+1 555 0100",
           lifecycleState: "needs_review",
           source: "widget",
           latestMessageId: "fixture-message-1",
-          latestSummary: "Asked to book a consultation this week.",
+          latestSummary: fixtureText(
+            "Asked to book a consultation this week.",
+            "Konzultáció foglalását kérte erre a hétre."
+          ),
           lastMessageAt: now,
           nextAction: {
-            label: "Confirm booking path",
+            label: fixtureText("Confirm booking path", "Foglalási út megerősítése"),
           },
           counts: {
             leads: 1,
@@ -21086,48 +21141,89 @@ function renderLocalDashboardV2Fixture() {
             outcomes: 1,
           },
           chatMessages: [
-            { role: "customer", label: "Customer", content: "Can I book a consultation this week?", createdAt: now },
-            { role: "vonza", label: "Vonza", content: "Yes. Share your preferred day and contact details.", createdAt: now },
+            {
+              role: "customer",
+              label: fixtureText("Customer", "Ügyfél"),
+              content: fixtureText("Can I book a consultation this week?", "Tudok konzultációt foglalni erre a hétre?"),
+              createdAt: now,
+            },
+            {
+              role: "vonza",
+              label: "Vonza",
+              content: fixtureText(
+                "Yes. Share your preferred day and contact details.",
+                "Igen. Add meg a számodra megfelelő napot és az elérhetőségeidet."
+              ),
+              createdAt: now,
+            },
           ],
           timeline: [
-            { at: now, label: "Website widget", summary: "Booking question captured by the front desk." },
+            {
+              at: now,
+              label: fixtureText("Website widget", "Website Widget"),
+              summary: fixtureText(
+                "Booking question captured by the front desk.",
+                "A foglalási kérdést rögzítette a weboldali asszisztens."
+              ),
+            },
           ],
         },
         {
           id: "fixture-contact-2",
           customerRowKey: "fixture-contact-2",
-          name: "Quote Request",
+          name: fixtureText("Quote Request", "Ajánlatkérés"),
           email: "quote@example.test",
           lifecycleState: "needs_reply",
           source: "page",
           latestMessageId: "fixture-message-3",
-          latestSummary: "Asked what affects the quote.",
+          latestSummary: fixtureText("Asked what affects the quote.", "Megkérdezte, mi befolyásolja az ajánlatot."),
           lastMessageAt: now,
           nextAction: {
-            title: "Reply to pricing question",
-            description: "Answer the quote question and confirm the best next step.",
+            title: fixtureText("Reply to pricing question", "Válasz az árazási kérdésre"),
+            description: fixtureText(
+              "Answer the quote question and confirm the best next step.",
+              "Válaszolj az ajánlatkérési kérdésre, és erősítsd meg a legjobb következő lépést."
+            ),
           },
           chatMessages: [
-            { role: "customer", label: "Customer", content: "What affects the quote?", createdAt: now },
+            {
+              role: "customer",
+              label: fixtureText("Customer", "Ügyfél"),
+              content: fixtureText("What affects the quote?", "Mi befolyásolja az ajánlatot?"),
+              createdAt: now,
+            },
           ],
           timeline: [
-            { at: now, label: "Front Desk page", summary: "Pricing question needs a clearer follow-up path." },
+            {
+              at: now,
+              label: fixtureText("Front Desk page", "Front Desk oldal"),
+              summary: fixtureText(
+                "Pricing question needs a clearer follow-up path.",
+                "Az árazási kérdéshez világosabb utánkövetési út kell."
+              ),
+            },
           ],
         },
         {
           id: "fixture-contact-3",
           customerRowKey: "fixture-contact-3",
-          name: "Anonymous visitor",
+          name: fixtureText("Anonymous visitor", "Névtelen látogató"),
           partialIdentity: true,
           lifecycleState: "needs_review",
           sources: ["chat"],
-          flags: ["follow up due"],
+          flags: [fixtureText("follow up due", "utánkövetés esedékes")],
           latestMessageId: "fixture-message-3",
-          latestSummary: "Asked for quote details but did not leave contact details.",
+          latestSummary: fixtureText(
+            "Asked for quote details but did not leave contact details.",
+            "Ajánlatkérési részleteket kért, de nem hagyott elérhetőséget."
+          ),
           lastMessageAt: now,
           nextAction: {
-            title: "Review open question",
-            description: "Review the conversation before deciding whether more contact details are needed.",
+            title: fixtureText("Review open question", "Nyitott kérdés áttekintése"),
+            description: fixtureText(
+              "Review the conversation before deciding whether more contact details are needed.",
+              "Nézd át a beszélgetést, mielőtt eldöntöd, szükség van-e további elérhetőségekre."
+            ),
           },
           counts: {
             leads: 0,
@@ -21137,10 +21233,23 @@ function renderLocalDashboardV2Fixture() {
             outcomes: 0,
           },
           chatMessages: [
-            { role: "customer", label: "Customer", content: "Can you send a quote?", createdAt: now },
+            {
+              role: "customer",
+              label: fixtureText("Customer", "Ügyfél"),
+              content: fixtureText("Can you send a quote?", "Tudsz ajánlatot küldeni?"),
+              createdAt: now,
+            },
           ],
           timeline: [
-            { at: now, label: "Visitor message", source: "chat", summary: "Asked for quote details without leaving email or phone." },
+            {
+              at: now,
+              label: fixtureText("Visitor message", "Látogatói üzenet"),
+              source: "chat",
+              summary: fixtureText(
+                "Asked for quote details without leaving email or phone.",
+                "Ajánlatkérési részleteket kért email vagy telefon megadása nélkül."
+              ),
+            },
           ],
         },
       ],
@@ -21164,7 +21273,10 @@ function renderLocalDashboardV2Fixture() {
         completedSections: 4,
         missingCount: 0,
         missingSections: [],
-        summary: "Core local fixture business context is complete.",
+        summary: fixtureText(
+          "Core local fixture business context is complete.",
+          "Az alap helyi demó üzleti kontextusa teljes."
+        ),
       },
     },
   };
@@ -21232,7 +21344,7 @@ function renderLocalDashboardV2Fixture() {
         ],
         status: "active",
         providerAccountId: "123456789012345",
-        providerAccountLabel: "Local WhatsApp Business",
+        providerAccountLabel: fixtureText("Local WhatsApp Business", "Helyi WhatsApp Business"),
         scopesGranted: [],
         webhookStatus: "active",
         hasTokenSecretRef: false,
@@ -21243,7 +21355,7 @@ function renderLocalDashboardV2Fixture() {
           whatsappBusinessAccountId: "123456789012345",
           phoneNumberId: "987654321098765",
           displayPhoneNumber: "redacted",
-          businessDisplayName: "Local Services",
+          businessDisplayName: fixtureText("Local Services", "Helyi Szolgáltatások"),
           webhookVerifyStatus: "verified",
           graphApiVersion: "v23.0",
         },
@@ -21274,7 +21386,7 @@ function renderLocalDashboardV2Fixture() {
         provider: "whatsapp",
         appKey: "whatsapp.business",
         capabilityKey: "whatsapp.business.webhook",
-        externalThreadLabel: "WhatsApp conversation",
+        externalThreadLabel: fixtureText("WhatsApp conversation", "WhatsApp beszélgetés"),
         status: "open",
         lastEventId: "fixture-whatsapp-event",
         lastEventAt: now,
@@ -21383,7 +21495,10 @@ function renderLocalDashboardV2Fixture() {
     lastLoadedAt: now,
   });
 
-  setStatus("Local-only dashboard V2 fixture. Production auth and access gates are not bypassed.");
+  setStatus(fixtureText(
+    "Local-only dashboard V2 fixture. Production auth and access gates are not bypassed.",
+    "Csak helyi dashboard V2 demó. A production auth és hozzáférési kapuk nincsenek megkerülve."
+  ));
   renderReadyState(agent, messages, actionQueue, operatorWorkspace, createEmptyFrontDeskTraining(), connectedApps);
 }
 

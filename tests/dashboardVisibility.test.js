@@ -884,6 +884,24 @@ test("widget dashboard routes render widget-only home and sidebar copy", async (
   }
 });
 
+test("Hungarian Website Widget dashboard renders localized nav and close label", async () => {
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    agents: () => [createActiveAgent()],
+    initialLocalStorage: {
+      vonza_dashboard_language: "hu",
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+  const shellLabels = Array.from(html.matchAll(/<span class="shell-nav-label">([^<]+)<\/span>/g), (match) => match[1]);
+  assert.match(html, /aria-label="Navigáció bezárása"/);
+  ["Áttekintés", "Ügyfelek", "Elemzések", "Telepítés", "Beállítások"].forEach((label) => {
+    assert.ok(shellLabels.includes(label), `Expected Hungarian nav label: ${label}`);
+  });
+});
+
 test("widget dashboard links to existing widget setup hashes without unsupported product claims", async () => {
   const widgetHarness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
@@ -1364,7 +1382,9 @@ test("explicit English preference keeps the Website Widget owner path in English
   assert.match(html, /Widget status/);
   assert.match(html, /Widget configuration/);
   assert.match(html, /Website Widget embed snippet/);
+  assert.match(html, /aria-label="Close navigation"/);
   assert.doesNotMatch(html, /Widget állapota|Widget beállításai|Telepítési kód/);
+  assert.doesNotMatch(html, /aria-label="Navigáció bezárása"/);
 });
 
 test("Hungarian launch path copy localizes release-facing Install Front Desk and Settings strings", async () => {

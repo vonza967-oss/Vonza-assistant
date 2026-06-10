@@ -16833,3 +16833,26 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-select {
     padding: 16px;
   }
 }
+
+@media (max-width: 959px) {
+  .website-widget-dashboard-shell .shell-sidebar-list {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .website-widget-dashboard-shell .shell-nav-button {
+    flex: 0 0 auto;
+    min-width: max-content;
+  }
+
+  .website-widget-dashboard-shell .shell-nav-label-row,
+  .website-widget-dashboard-shell .shell-nav-label {
+    min-width: max-content;
+  }
+
+  .website-widget-dashboard-shell .shell-nav-label {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+}
