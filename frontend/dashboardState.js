@@ -968,7 +968,7 @@
           label: "Test widget action",
           copy: widgetActivity
             ? "Widget-sourced conversation or telemetry activity exists in the current snapshot."
-            : "Use the existing install panel to copy or test the secondary website widget.",
+            : "Use the existing install panel to copy, verify, and test the Website Widget.",
           complete: widgetActivity ? true : null,
           kind: widgetActivity ? "derived" : "action",
           href: "#install/embed",

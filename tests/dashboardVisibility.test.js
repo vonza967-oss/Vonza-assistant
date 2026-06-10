@@ -849,7 +849,7 @@ test("widget dashboard routes render widget-only home and sidebar copy", async (
 
     assert.match(html, /data-website-widget-dashboard="dedicated"/, pathname);
     assert.match(html, /Website Widget workspace/, pathname);
-    assert.match(html, /Website Widget home/, pathname);
+    assert.match(html, /Website Widget overview/, pathname);
     assert.match(html, /Website URL, import, install, analytics, and configuration for the Website Widget/, pathname);
     assert.match(html, /Install Website Widget/, pathname);
     assert.match(html, /Widget configuration/, pathname);
@@ -1080,8 +1080,8 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.match(html, /data-dashboard-product="website_widget"/);
   assert.match(html, /Website Widget workspace/);
   assert.match(html, /Website URL, import, install, analytics, and configuration for the Website Widget/);
-  assert.match(html, /Website Widget home/);
-  assert.match(html, /Paste the website URL, import content, choose template and tone, preview the widget/);
+  assert.match(html, /Website Widget overview/);
+  assert.match(html, /Start with the website URL, import content for grounded widget answers/);
   assert.match(html, /Install Website Widget/);
   assert.match(html, /Website Widget embed snippet/);
   assert.match(html, /Copy widget snippet/);
@@ -1248,10 +1248,112 @@ test("Hungarian Website Widget install route stays Widget-first", async () => {
   const start = html.indexOf(marker);
   const next = html.indexOf('data-shell-section="', start + marker.length);
   const installHtml = html.slice(start, next > start ? next : undefined);
-  assert.match(installHtml, /Website Widget embed snippet|Weboldal Widget beágyazási kódrészlet/);
-  assert.match(installHtml, /Copy widget snippet|Kódrészlet vagy WordPress telepítése|Weboldal Widget telepítés/);
-  assert.match(installHtml, /Copy the existing widget snippet|Ezt egyszer illeszd be az oldal fejlécébe, hogy a Weboldal Widget elinduljon/);
+  assert.match(installHtml, /Website Widget embed snippet|(?:Website|Weboldal) Widget beágyazási kódrészlet/);
+  assert.match(installHtml, /Copy widget snippet|Widget kódrészlet másolása|Kódrészlet vagy WordPress telepítése|Weboldal Widget telepítés/);
+  assert.match(installHtml, /Copy the widget snippet|Másold a widget kódrészletét|Ezt egyszer illeszd be az oldal fejlécébe, hogy a Weboldal Widget elinduljon/);
   assert.doesNotMatch(installHtml, /Először hosztolt oldal|hosztolt AI Front Desk oldallal|opcionális widget|widget opcionális|másodlagos/i);
+});
+
+test("Hungarian dedicated Website Widget owner routes localize the core launch path", async () => {
+  const bannedHungarianLeaks = /Website Widget home|Widget status|Quick actions|Install snippet|Widget configuration|Front Desk knowledge|secondary website widget/i;
+  const routes = [
+    {
+      hash: "",
+      section: "overview",
+      expected: [
+        /(?:Website|Weboldal) Widget áttekintés/,
+        /Widget állapota/,
+        /Widget műveletek/,
+        /(?:Website|Weboldal) Widget készenlét/,
+        /Weboldali tudás/,
+      ],
+    },
+    {
+      hash: "#install",
+      section: "install",
+      expected: [
+        /Website Widget telepítése/,
+        /Telepítési kód/,
+        /Website Widget beágyazási kódrészlet/,
+        /Widget kódrészlet másolása/,
+        /Telepítés ellenőrzése/,
+        /Widget tesztelése/,
+        /Engedélyezett domainek/,
+        /Telepítés állapota/,
+      ],
+    },
+    {
+      hash: "#settings",
+      section: "settings",
+      expected: [
+        /Widget beállításai/,
+        /Hol fut a widget/,
+        /Weboldali tudás/,
+        /Hogyan válaszoljon a widget/,
+        /Haladó útmutatás/,
+        /Widget megjelenés/,
+        /Beállítások mentése/,
+        /Website Widget mentése/,
+        /Élő widget előnézet/,
+        /Teszt widget megnyitása/,
+      ],
+    },
+  ];
+
+  function getShellSectionHtml(html, sectionKey) {
+    const marker = `data-shell-section="${sectionKey}"`;
+    const start = html.indexOf(marker);
+    const next = html.indexOf('data-shell-section="', start + marker.length);
+    return start >= 0 ? html.slice(start, next > start ? next : undefined) : html;
+  }
+
+  for (const route of routes) {
+    const harness = createDashboardHarness({
+      pathname: "/website-widget/dashboard",
+      hash: route.hash,
+      agents: () => [createActiveAgent({
+        installId: "install-1",
+        allowedDomains: ["example.com"],
+        installStatus: {
+          state: "not_detected",
+          label: "Not detected on a live site yet",
+          allowedDomains: ["example.com"],
+        },
+      })],
+      initialLocalStorage: {
+        vonza_dashboard_language: "hu",
+      },
+    });
+    await harness.settle();
+
+    const html = harness.getRootHtml();
+    const sectionHtml = getShellSectionHtml(html, route.section);
+    assert.match(html, /Website Widget munkaterület/);
+    assert.match(html, /Működtetés/);
+    route.expected.forEach((pattern) => {
+      assert.match(sectionHtml, pattern, `${route.hash || "overview"} should render ${pattern}`);
+    });
+    assert.doesNotMatch(html, bannedHungarianLeaks, `${route.hash || "overview"} should not leak old English widget positioning`);
+  }
+});
+
+test("explicit English preference keeps the Website Widget owner path in English", async () => {
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    agents: () => [createActiveAgent()],
+    initialLocalStorage: {
+      vonza_dashboard_language: "en",
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+  assert.equal(harness.getGlobal("getDashboardLanguage")(), "en");
+  assert.match(html, /Website Widget overview/);
+  assert.match(html, /Widget status/);
+  assert.match(html, /Widget configuration/);
+  assert.match(html, /Website Widget embed snippet/);
+  assert.doesNotMatch(html, /Widget állapota|Widget beállításai|Telepítési kód/);
 });
 
 test("Hungarian launch path copy localizes release-facing Install Front Desk and Settings strings", async () => {

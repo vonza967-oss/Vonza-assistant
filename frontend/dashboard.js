@@ -1918,6 +1918,118 @@ function t(key, params = {}) {
   ));
 }
 
+function websiteWidgetText(key, params = {}) {
+  return t(`websiteWidget.${key}`, params);
+}
+
+function formatWebsiteWidgetPageCount(pageCount = 0) {
+  const count = Number(pageCount || 0);
+  if (isHungarianDashboard()) {
+    return `${count} oldal`;
+  }
+
+  return `${count} page${count === 1 ? "" : "s"}`;
+}
+
+function getWebsiteWidgetDomainCountLabel(count = 0) {
+  const numericCount = Number(count || 0);
+  return websiteWidgetText("config.domainCount", {
+    count: numericCount,
+    suffix: numericCount === 1 ? "" : "s",
+  });
+}
+
+function getWebsiteWidgetHomeContext(context = {}) {
+  return {
+    ...context,
+    homeTitle: websiteWidgetText("home.title"),
+    homeSubtitle: websiteWidgetText("home.subtitle"),
+    sidebarNote: websiteWidgetText("sidebar.operateNote"),
+    statusKicker: websiteWidgetText("overview.statusKicker"),
+    statusLiveTitle: websiteWidgetText("overview.statusLiveTitle"),
+    statusReadyTitle: websiteWidgetText("overview.statusReadyTitle"),
+    statusSetupTitle: websiteWidgetText("overview.statusSetupTitle"),
+    statusLiveCopy: websiteWidgetText("overview.statusLiveCopy"),
+    statusReadyCopy: websiteWidgetText("overview.statusReadyCopy"),
+    statusSetupCopy: websiteWidgetText("overview.statusSetupCopy"),
+    contextTitle: websiteWidgetText("home.contextTitle"),
+    contextCopy: websiteWidgetText("home.contextCopy"),
+    metricLabels: {
+      ...(context.metricLabels || {}),
+      conversations: websiteWidgetText("overview.metricConversations"),
+      leads: websiteWidgetText("overview.metricLeads"),
+      handled: websiteWidgetText("overview.metricHandled"),
+      empty: websiteWidgetText("overview.metricEmpty"),
+    },
+    previewActionLabel: websiteWidgetText("overview.previewAction"),
+    analyticsLinkLabel: websiteWidgetText("overview.analyticsLink"),
+    quickActions: [
+      { label: websiteWidgetText("quickAction.install"), icon: "install", shellTarget: "install", installMethod: "widget" },
+      { label: websiteWidgetText("quickAction.appearance"), icon: "settings", shellTarget: "settings", settingsTarget: "website_widget" },
+      { label: websiteWidgetText("quickAction.test"), icon: "sparkle", shellTarget: "install", installMethod: "widget" },
+      { label: websiteWidgetText("quickAction.analytics"), icon: "outcomes", target: "analytics" },
+    ],
+  };
+}
+
+function getWebsiteWidgetReadinessRoutingCount(copy = "") {
+  const match = String(copy || "").match(/^\s*(\d+)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function getWebsiteWidgetReadinessDisplay(item = {}) {
+  switch (item.key) {
+    case "widget_appearance":
+      return {
+        label: websiteWidgetText("readiness.appearanceLabel"),
+        copy: item.complete
+          ? websiteWidgetText("readiness.appearanceReady")
+          : websiteWidgetText("readiness.appearanceSetup"),
+      };
+    case "widget_embed_method":
+      return {
+        label: websiteWidgetText("readiness.embedLabel"),
+        copy: websiteWidgetText("readiness.embedCopy"),
+      };
+    case "widget_domain_status":
+      return {
+        label: websiteWidgetText("readiness.domainLabel"),
+        copy: item.complete
+          ? websiteWidgetText("readiness.domainReady")
+          : websiteWidgetText("readiness.domainSetup"),
+      };
+    case "widget_routing": {
+      const count = getWebsiteWidgetReadinessRoutingCount(item.copy);
+      return {
+        label: websiteWidgetText("readiness.routingLabel"),
+        copy: item.complete
+          ? websiteWidgetText("readiness.routingReady", {
+            count,
+            suffix: count === 1 ? "" : "s",
+          })
+          : websiteWidgetText("readiness.routingSetup"),
+      };
+    }
+    case "widget_test":
+      return {
+        label: websiteWidgetText("readiness.testLabel"),
+        copy: item.complete
+          ? websiteWidgetText("readiness.testReady")
+          : websiteWidgetText("readiness.testSetup"),
+      };
+    case "widget_analytics":
+      return {
+        label: websiteWidgetText("readiness.analyticsLabel"),
+        copy: websiteWidgetText("readiness.analyticsCopy"),
+      };
+    default:
+      return {
+        label: translateDashboardText(item.label || ""),
+        copy: translateDashboardText(item.copy || ""),
+      };
+  }
+}
+
 const DASHBOARD_HU_PHRASES = Object.freeze({
   "Business profile, front desk, connected tools, and workspace.": "Vállalkozási profil, Front Desk, kapcsolt eszközök és munkaterület.",
   "Your clearest next steps, recent wins, and what needs attention.": "A legfontosabb következő lépések, friss sikerek és figyelmet igénylő ügyek.",
@@ -1939,6 +2051,15 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Pending": "Függőben",
   "Limited": "Korlátozott",
   "Ready": "Kész",
+  "Setup": "Beállítás",
+  "Set up": "Beállítás",
+  "Open": "Megnyitás",
+  "Action": "Művelet",
+  "Info": "Információ",
+  "Growing": "Bővül",
+  "Unknown": "Ismeretlen",
+  "All systems healthy": "Minden rendszer rendben",
+  "Setup needs attention": "A beállítás figyelmet igényel",
   "Mixed": "Vegyes",
   "Mostly healthy": "Többnyire rendben",
   "Healthy": "Rendben",
@@ -4826,32 +4947,53 @@ function getKnowledgeImportStatusUrl(agentId, jobId, clientId, statusUrl = "") {
 
 function buildKnowledgeImportMessage(state, status = {}) {
   const pageCount = Number(status.pageCount || status.knowledge?.pageCount || 0);
+  const widgetImportCopy = isDedicatedWebsiteWidgetDashboard();
 
   if (state === "queued") {
+    if (widgetImportCopy) {
+      return websiteWidgetText("importStatus.queued");
+    }
     return "Website import is queued. You can keep working while Vonza prepares Front Desk knowledge.";
   }
   if (state === "indexing") {
+    if (widgetImportCopy) {
+      return websiteWidgetText("importStatus.indexing");
+    }
     return "Website content was imported. Vonza is preparing semantic search for more precise Front Desk answers.";
   }
   if (state === "running" || state === "crawling") {
+    if (widgetImportCopy) {
+      return websiteWidgetText("importStatus.running");
+    }
     return "Vonza is reading the website for Front Desk answers. This can take a few minutes on larger sites.";
   }
   if (state === "success") {
+    if (widgetImportCopy) {
+      return pageCount
+        ? websiteWidgetText("importStatus.successPages", { pages: formatWebsiteWidgetPageCount(pageCount) })
+        : websiteWidgetText("importStatus.success");
+    }
     return pageCount
       ? `${pageCount} page${pageCount === 1 ? "" : "s"} imported. Website knowledge is ready for Front Desk answers.`
       : "Website knowledge is ready for Front Desk answers.";
   }
   if (state === "limited") {
+    if (widgetImportCopy) {
+      return websiteWidgetText("importStatus.limited");
+    }
     return "Website content is available for the Front Desk, but semantic indexing did not fully finish. Retry import to refresh indexing.";
   }
   if (state === "stalled") {
+    if (widgetImportCopy) {
+      return websiteWidgetText("importStatus.stalled");
+    }
     return "Website import is taking longer than expected. Retry import if this status does not move soon.";
   }
   if (state === "failed") {
     return getOwnerSafeImportErrorMessage();
   }
 
-  return "Website import status will appear here.";
+  return widgetImportCopy ? websiteWidgetText("importStatus.default") : "Website import status will appear here.";
 }
 
 function normalizeKnowledgeImportState(value = "") {
@@ -4914,7 +5056,9 @@ function buildKnowledgeImportDisplayState(input = {}) {
     contentLength,
     indexingStatus: trimText(indexing.status || ""),
     indexingMessage: state === "limited"
-      ? "Website content may be ready now. Semantic search needs a retry before answers are fully optimized."
+      ? (isDedicatedWebsiteWidgetDashboard()
+        ? websiteWidgetText("importStatus.indexingLimited")
+        : "Website content may be ready now. Semantic search needs a retry before answers are fully optimized.")
       : "",
     terminal: KNOWLEDGE_IMPORT_TERMINAL_STATES.has(state),
     retryable: state === "limited" || state === "failed" || state === "stalled",
@@ -6472,20 +6616,20 @@ function buildSidebarShell(
     ? [
       {
         key: "overview",
-        label: "Overview",
-        note: "Widget status and next actions",
+        label: websiteWidgetText("sidebar.overview"),
+        note: websiteWidgetText("sidebar.overviewNote"),
       },
       {
         key: "contacts",
         label: t("nav.customers"),
-        note: "Existing customers and follow-ups",
+        note: websiteWidgetText("sidebar.customersNote"),
         badge: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? String(Math.max(contactsAttention, humanFollowUpOpen)) : "",
         badgeTone: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? "Needs attention" : "Pending",
       },
       {
         key: "analytics",
         label: t("nav.analytics"),
-        note: "Existing widget analytics",
+        note: websiteWidgetText("sidebar.analyticsNote"),
         badge: notificationUnread > 0 ? String(notificationUnread) : "",
         badgeTone: notificationUnread > 0 ? "Needs attention" : "Pending",
       },
@@ -6529,12 +6673,12 @@ function buildSidebarShell(
       {
         key: "install",
         label: t("nav.install"),
-        note: "Widget snippet and verification",
+        note: websiteWidgetText("sidebar.installNote"),
       },
       {
         key: "settings",
-        label: "Configuration",
-        note: "Widget settings",
+        label: websiteWidgetText("sidebar.configuration"),
+        note: websiteWidgetText("sidebar.configurationNote"),
         settingsTarget: "website_widget",
       },
     ].filter((item) => availableSections.includes(item.key))
@@ -6553,10 +6697,10 @@ function buildSidebarShell(
 
   const sidebarTitle = dedicatedWebsiteWidget ? "Website Widget" : "Vonza";
   const sidebarEyebrow = dedicatedWebsiteWidget
-    ? "Website Widget workspace"
+    ? websiteWidgetText("sidebar.workspace")
     : (activeDashboardProduct.dashboardLabel || "AI Front Desk workspace");
   const sidebarCopy = dedicatedWebsiteWidget
-    ? (agent.websiteUrl || agent.assistantName || agent.name || "Embedded on-site assistant")
+    ? (agent.websiteUrl || agent.assistantName || agent.name || websiteWidgetText("sidebar.fallbackCopy"))
     : (agent.assistantName || agent.name || agent.websiteUrl || translateDashboardText("Add your website to personalize the Front Desk"));
 
   return `
@@ -6570,9 +6714,9 @@ function buildSidebarShell(
         </div>
       </div>
       ${dedicatedWebsiteWidget ? "" : buildDashboardProductSwitcher(activeDashboardProduct)}
-      ${buildSidebarGroup(translateDashboardText("Operate"), coreItems, activeSection, {
+      ${buildSidebarGroup(dedicatedWebsiteWidget ? websiteWidgetText("sidebar.operateGroup") : translateDashboardText("Operate"), coreItems, activeSection, {
         note: dedicatedWebsiteWidget
-          ? "Website URL, import, install, analytics, and configuration for the Website Widget."
+          ? websiteWidgetText("sidebar.operateNote")
           : (productHomeContext?.sidebarNote || "Website Widget is the recommended launch surface; Front Desk remains available for companion pages."),
       })}
       <div class="sidebar-footer">
@@ -6587,10 +6731,10 @@ function buildSidebarShell(
           </div>
           <div class="sidebar-status-item">
             <span class="sidebar-status-label">${escapeHtml(translateDashboardText("Install"))}</span>
-            <strong>${escapeHtml(translateDashboardText(installStatus.label || t("common.notInstalled")))}</strong>
+            <strong>${escapeHtml(dedicatedWebsiteWidget ? getWebsiteWidgetStatusLabel(installStatus, Boolean(trimText(agent.installId))) : translateDashboardText(installStatus.label || t("common.notInstalled")))}</strong>
           </div>
         </div>
-        ${buildSidebarGroup(translateDashboardText("Setup"), utilityItems, activeSection)}
+        ${buildSidebarGroup(dedicatedWebsiteWidget ? websiteWidgetText("sidebar.setupGroup") : translateDashboardText("Setup"), utilityItems, activeSection)}
         <div class="sidebar-user-card">
           <span class="sidebar-user-avatar" aria-hidden="true">${escapeHtml(accountInitials)}</span>
           <span class="sidebar-user-copy">
@@ -7807,7 +7951,7 @@ function buildProductReadinessAction(item = {}) {
     attributes.push(`data-frontdesk-open="${escapeHtml(item.frontDeskOpen)}"`);
   }
 
-  return `<a ${attributes.join(" ")}>${escapeHtml(item.complete === false ? "Set up" : "Open")}</a>`;
+  return `<a ${attributes.join(" ")}>${escapeHtml(translateDashboardText(item.complete === false ? "Set up" : "Open"))}</a>`;
 }
 
 function buildProductReadinessCard(product = activeDashboardProduct, snapshot = {}) {
@@ -7824,19 +7968,29 @@ function buildProductReadinessCard(product = activeDashboardProduct, snapshot = 
   const readyCount = statefulItems.filter((item) => item.complete === true).length;
   const statefulReadinessCount = Math.max(statefulItems.length, 1);
   const productLabel = product?.label || "Front Desk";
+  const isWebsiteWidgetProduct = (product?.key || "") === "website_widget";
+  const useWebsiteWidgetTranslations = isWebsiteWidgetProduct && isHungarianDashboard();
 
   return `
     <section class="product-readiness-card" data-product-readiness-card="${escapeHtml(product?.key || "front_desk")}">
       <div class="product-readiness-header">
         <div>
-          <p class="product-context-eyebrow">${escapeHtml(productLabel)} readiness</p>
-          <h3>${escapeHtml(`${readyCount} of ${statefulReadinessCount} saved-state checks ready`)}</h3>
-          <p>${escapeHtml("Progress uses existing workspace state. Action-only rows are neutral setup links.")}</p>
+          <p class="product-context-eyebrow">${escapeHtml(useWebsiteWidgetTranslations ? websiteWidgetText("readiness.eyebrow") : `${productLabel} readiness`)}</p>
+          <h3>${escapeHtml(useWebsiteWidgetTranslations
+            ? websiteWidgetText("readiness.summary", { ready: readyCount, total: statefulReadinessCount })
+            : `${readyCount} of ${statefulReadinessCount} saved-state checks ready`)}</h3>
+          <p>${escapeHtml(useWebsiteWidgetTranslations ? websiteWidgetText("readiness.copy") : "Progress uses existing workspace state. Action-only rows are neutral setup links.")}</p>
         </div>
       </div>
       <div class="product-readiness-list">
         ${checklist.map((item) => {
           const stateLabel = getProductReadinessStateLabel(item);
+          const readinessDisplay = useWebsiteWidgetTranslations
+            ? getWebsiteWidgetReadinessDisplay(item)
+            : {
+              label: translateDashboardText(item.label),
+              copy: translateDashboardText(item.copy),
+            };
           const stateClass = item.complete === true
             ? "is-ready"
             : item.complete === false
@@ -7853,11 +8007,11 @@ function buildProductReadinessCard(product = activeDashboardProduct, snapshot = 
             >
               <span class="product-readiness-icon" aria-hidden="true">${buildV2Icon(item.complete === true ? "check" : item.icon || "review")}</span>
               <span class="product-readiness-copy">
-                <strong>${escapeHtml(item.label)}</strong>
-                <small>${escapeHtml(item.copy)}</small>
+                <strong>${escapeHtml(readinessDisplay.label)}</strong>
+                <small>${escapeHtml(readinessDisplay.copy)}</small>
               </span>
               <span class="product-readiness-meta">
-                <span class="${getBadgeClass(item.complete === true ? "Ready" : item.complete === false ? "Limited" : "Pending")}">${escapeHtml(stateLabel)}</span>
+                <span class="${getBadgeClass(item.complete === true ? "Ready" : item.complete === false ? "Limited" : "Pending")}">${escapeHtml(translateDashboardText(stateLabel))}</span>
                 ${buildProductReadinessAction(item)}
               </span>
             </article>
@@ -7876,19 +8030,20 @@ function getProductLandingContext(product = activeDashboardProduct) {
   const setupContext = typeof dashboardState.getDashboardProductSetupContext === "function"
     ? dashboardState.getDashboardProductSetupContext(product?.key || "front_desk")
     : null;
-  const label = product?.label || homeContext?.homeTitle || "Front Desk";
+  const localizedWidgetContext = dedicatedWebsiteWidget ? getWebsiteWidgetHomeContext(homeContext || {}) : homeContext;
+  const label = product?.label || localizedWidgetContext?.homeTitle || "Front Desk";
 
   return {
     eyebrow: label,
-    title: homeContext?.contextTitle || "Launch the full-page AI Front Desk",
-    copy: homeContext?.contextCopy || "Website Widget is the recommended customer-facing launch surface. Use Front Desk practice and the full-page setup for companion pages, QR, and later expansion.",
+    title: localizedWidgetContext?.contextTitle || "Launch the full-page AI Front Desk",
+    copy: localizedWidgetContext?.contextCopy || "Website Widget is the recommended customer-facing launch surface. Use Front Desk practice and the full-page setup for companion pages, QR, and later expansion.",
     setupLink: dedicatedWebsiteWidget
-      ? { label: "Embed/install snippet", note: "Open the existing widget install surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }
+      ? { label: websiteWidgetText("quickAction.install"), note: websiteWidgetText("link.installNote"), href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }
       : { label: setupContext?.eyebrow || "Open setup", note: "Open the product-specific setup checklist", href: "#setup", shellTarget: "setup", icon: "review", primary: true },
     links: dedicatedWebsiteWidget ? [
-      { label: "Customers", note: "Open existing widget contacts and leads", href: "#customers", shellTarget: "contacts", icon: "users" },
-      { label: "Analytics", note: "Review existing widget analytics", href: "#analytics", shellTarget: "analytics", icon: "outcomes" },
-      { label: "Configuration", note: "Edit existing widget settings", href: "#settings/website-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" },
+      { label: websiteWidgetText("link.customers"), note: websiteWidgetText("link.customersNote"), href: "#customers", shellTarget: "contacts", icon: "users" },
+      { label: websiteWidgetText("link.analytics"), note: websiteWidgetText("link.analyticsNote"), href: "#analytics", shellTarget: "analytics", icon: "outcomes" },
+      { label: websiteWidgetText("link.configuration"), note: websiteWidgetText("link.configurationNote"), href: "#settings/website-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" },
     ] : Array.isArray(homeContext?.shortcuts) ? homeContext.shortcuts : [
       { label: "Practice", note: "Test the current customer experience", href: "#front-desk/practice", shellTarget: "customize", icon: "frontdesk", primary: true },
       { label: "Full-page setup", note: "Open existing Front Desk page settings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" },
@@ -8474,9 +8629,13 @@ function buildStaffRequestQueueCard(staffRequests = createEmptyActionQueue().sta
 
 function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining = createEmptyFrontDeskTraining()) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
-  const productHomeContext = typeof dashboardState.getDashboardProductHomeContext === "function"
+  const isWebsiteWidgetProduct = (activeDashboardProduct?.key || "") === "website_widget";
+  const useFocusedWidgetCopy = isWebsiteWidgetProduct && (isHungarianDashboard() || isDedicatedWebsiteWidgetDashboard());
+  const useHungarianWidgetCopy = isWebsiteWidgetProduct && isHungarianDashboard();
+  const baseProductHomeContext = typeof dashboardState.getDashboardProductHomeContext === "function"
     ? dashboardState.getDashboardProductHomeContext(activeDashboardProduct.key)
     : {};
+  const productHomeContext = useFocusedWidgetCopy ? getWebsiteWidgetHomeContext(baseProductHomeContext || {}) : baseProductHomeContext;
   const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
   const contactSummary = operatorWorkspace.contacts?.summary || createEmptyOperatorWorkspace().contacts.summary;
   const dedupedQueueItems = (Array.isArray(actionQueue.items) ? actionQueue.items : []).filter((item, index, items) => {
@@ -8843,7 +9002,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     .filter((item, index, items) => items.findIndex((candidate) => candidate.key === item.key) === index)
     .sort((left, right) => left.priority - right.priority)
     .slice(0, 6);
-  const isWebsiteWidgetProduct = (activeDashboardProduct?.key || "") === "website_widget";
   const setupNeedsAttention = !setup.isReady || !setup.knowledgeReady || setup.knowledgeLimited || !isInstallSeen(overview.installStatus);
   const widgetReadinessItems = isWebsiteWidgetProduct && typeof dashboardState.getProductReadinessChecklist === "function"
     ? dashboardState.getProductReadinessChecklist("website_widget", {
@@ -8857,25 +9015,31 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       widgetMetrics: agent.widgetMetrics || agent.widget_metrics || {},
       webCallHealth: actionQueue.ownerAnalyticsDashboard?.webCallHealth || null,
       recentWebCalls: actionQueue.ownerAnalyticsDashboard?.webCallRecentCalls || null,
-    }).map((item) => ({
-      title: item.label,
-      copy: item.copy,
-      done: item.complete === true,
-    }))
+    }).map((item) => {
+	      const readinessDisplay = useHungarianWidgetCopy
+	        ? getWebsiteWidgetReadinessDisplay(item)
+	        : { label: item.label, copy: item.copy };
+	      return {
+	        title: readinessDisplay.label,
+	        copy: readinessDisplay.copy,
+	        done: item.complete === true,
+	      };
+	    })
     : [];
-  const setupStatusItems = isWebsiteWidgetProduct
-    ? [
-      ...widgetReadinessItems,
-      {
-        title: "Website knowledge",
-        copy: setup.knowledgeReady
-          ? "Vonza has usable business knowledge for widget answers."
-          : setup.knowledgeLimited
-            ? "Knowledge is usable, but another pass would improve widget answers."
-            : "Import website knowledge so widget answers are grounded.",
-        done: setup.knowledgeReady && !setup.knowledgeLimited,
-      },
-    ]
+	  const setupStatusItems = isWebsiteWidgetProduct
+	    ? [
+	      ...widgetReadinessItems.slice(0, 1),
+	      {
+	        title: useHungarianWidgetCopy ? websiteWidgetText("readiness.knowledgeLabel") : "Website knowledge",
+	        copy: setup.knowledgeReady
+	          ? (useHungarianWidgetCopy ? websiteWidgetText("readiness.knowledgeReady") : "Vonza has usable business knowledge for widget answers.")
+	          : setup.knowledgeLimited
+	            ? (useHungarianWidgetCopy ? websiteWidgetText("readiness.knowledgeLimited") : "Knowledge is usable, but another pass would improve widget answers.")
+	            : (useHungarianWidgetCopy ? websiteWidgetText("readiness.knowledgeMissing") : "Import website knowledge so widget answers are grounded."),
+	        done: setup.knowledgeReady && !setup.knowledgeLimited,
+	      },
+	      ...widgetReadinessItems.slice(1),
+	    ]
     : [
       ...overview.progressItems,
       {
@@ -9099,15 +9263,22 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       <button type="button" data-overview-target="contacts" data-contact-filter="needs_review">Review open needs</button>
       <button type="button" data-overview-target="analytics">View analytics</button>
     </div>
-  `;
+	  `;
+  const overviewIntroCopy = `${productHomeContext.homeSubtitle || t("home.copy")} ${priorityRows.length
+    ? (isWebsiteWidgetProduct ? websiteWidgetText("home.startWithActions") : "Start with the customer moments that need a clear next step.")
+    : (isWebsiteWidgetProduct ? websiteWidgetText("home.setupReady") : "Setup health and next steps stay available here.")}`;
+  const setupProgressTitle = useHungarianWidgetCopy ? websiteWidgetText("overview.setupProgressTitle") : "Setup progress";
+  const setupProgressCopy = useHungarianWidgetCopy
+    ? websiteWidgetText("overview.setupProgressCopy", { ready: readinessReadyCount, total: readinessTotalCount })
+    : `${readinessReadyCount} of ${readinessTotalCount} readiness checks complete.`;
 
-  return localizeDashboardHtml(`
-    <section class="workspace-page workspace-page-overview glass-dashboard-home" data-shell-section="overview" data-mobile-safe="true">
-      <header class="page-header">
-        <div class="page-header-copy">
-          <h1>${escapeHtml(productHomeContext.homeTitle || `Welcome back, ${workspaceName}`)}</h1>
-          <p>${escapeHtml(`${productHomeContext.homeSubtitle || t("home.copy")} ${priorityRows.length ? "Start with the customer moments that need a clear next step." : "Setup health and next steps stay available here."}`)}</p>
-        </div>
+	  return localizeDashboardHtml(`
+	    <section class="workspace-page workspace-page-overview glass-dashboard-home" data-shell-section="overview" data-mobile-safe="true">
+	      <header class="page-header">
+	        <div class="page-header-copy">
+	          <h1>${escapeHtml(productHomeContext.homeTitle || `Welcome back, ${workspaceName}`)}</h1>
+	          <p>${escapeHtml(overviewIntroCopy)}</p>
+	        </div>
         <div class="page-header-actions">
           ${buildStatusPill({ label: systemHealthy ? "All systems healthy" : "Setup needs attention", tone: systemHealthy ? "online" : "attention" })}
           <button class="glass-icon-button" type="button" data-overview-target="contacts" data-contact-filter="needs_review" aria-label="${escapeHtml(translateDashboardText("Review replies"))}">
@@ -9145,17 +9316,17 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
             </div>
           </section>
 
-          <section class="glass-home-middle v2-home-two-col">
-            <article class="glass-card setup-progress-card">
-              <div class="glass-card-header">
-                <div>
-                  <h2 class="glass-card-title">Setup progress</h2>
-                  <p class="glass-card-copy">${escapeHtml(`${readinessReadyCount} of ${readinessTotalCount} readiness checks complete.`)}</p>
-                </div>
-              </div>
-              <div class="setup-progress-body">
-                ${buildProgressRing({ percent: setupProgressPercent, label: "Setup progress" })}
-                <div class="setup-checklist">
+	          <section class="glass-home-middle v2-home-two-col">
+	            <article class="glass-card setup-progress-card">
+	              <div class="glass-card-header">
+	                <div>
+	                  <h2 class="glass-card-title">${escapeHtml(setupProgressTitle)}</h2>
+	                  <p class="glass-card-copy">${escapeHtml(setupProgressCopy)}</p>
+	                </div>
+	              </div>
+	              <div class="setup-progress-body">
+	                ${buildProgressRing({ percent: setupProgressPercent, label: setupProgressTitle })}
+	                <div class="setup-checklist">
                   ${visibleReadinessRows.map((item) => `
                     <div class="setup-checklist-item ${item.done ? "is-complete" : "is-pending"}">
                       <span aria-hidden="true">${buildV2Icon(item.done ? "check" : "clock")}</span>
@@ -9169,24 +9340,24 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               </div>
             </article>
 
-            <article class="glass-card quick-actions-card">
-              <div class="glass-card-header">
-                <div>
-                  <h2 class="glass-card-title">Quick actions</h2>
-                  <p class="glass-card-copy">Useful next moves for this product surface.</p>
-                </div>
-              </div>
+	            <article class="glass-card quick-actions-card">
+	              <div class="glass-card-header">
+	                <div>
+	                  <h2 class="glass-card-title">${escapeHtml(useHungarianWidgetCopy ? websiteWidgetText("overview.quickActionsTitle") : "Quick actions")}</h2>
+	                  <p class="glass-card-copy">${escapeHtml(useHungarianWidgetCopy ? websiteWidgetText("overview.quickActionsCopy") : "Useful next moves for this product surface.")}</p>
+	                </div>
+	              </div>
               <div class="quick-action-grid">
                 ${quickActions.map((action) => buildQuickActionTile(action)).join("")}
               </div>
             </article>
 
-            <article class="glass-card insights-card">
-              <div class="glass-card-header">
-                <div>
-                  <h2 class="glass-card-title">Insights</h2>
-                  <p class="glass-card-copy">Operational signals from available dashboard data.</p>
-                </div>
+	            <article class="glass-card insights-card">
+	              <div class="glass-card-header">
+	                <div>
+	                  <h2 class="glass-card-title">${escapeHtml(useHungarianWidgetCopy ? websiteWidgetText("overview.insightsTitle") : "Insights")}</h2>
+	                  <p class="glass-card-copy">${escapeHtml(useHungarianWidgetCopy ? websiteWidgetText("overview.insightsCopy") : "Operational signals from available dashboard data.")}</p>
+	                </div>
                 <button class="glass-mini-button" type="button" data-overview-target="analytics">${escapeHtml(productHomeContext.analyticsLinkLabel || "View analytics")}</button>
               </div>
               <div class="insight-list">
@@ -9204,12 +9375,12 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
           </section>
 
           <section class="glass-home-bottom v2-home-two-col">
-            <article class="glass-card recent-activity-card">
-              <div class="glass-card-header">
-                <div>
-                  <h2 class="glass-card-title">Recent activity</h2>
-                  <p class="glass-card-copy">Latest saved conversation events.</p>
-                </div>
+	            <article class="glass-card recent-activity-card">
+	              <div class="glass-card-header">
+	                <div>
+	                  <h2 class="glass-card-title">${escapeHtml(useHungarianWidgetCopy ? websiteWidgetText("overview.recentActivityTitle") : "Recent activity")}</h2>
+	                  <p class="glass-card-copy">${escapeHtml(useHungarianWidgetCopy ? websiteWidgetText("overview.recentActivityCopy") : "Latest saved conversation events.")}</p>
+	                </div>
                 <button class="glass-mini-button" type="button" data-overview-target="analytics">${escapeHtml(productHomeContext.analyticsLinkLabel || "View all")}</button>
               </div>
               <div class="activity-list">
@@ -9225,16 +9396,18 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
             ${buildAssistantPreviewCard({
               assistantName,
               greeting: agent.welcomeMessage,
-              prompts: fullPagePrompts,
-              statusLabel: frontDeskLive ? "Live / ready" : (productHomeContext.previewActionLabel || "Ready to test"),
-              live: frontDeskLive,
-              copy: isWebsiteWidgetProduct
-                ? "Current Website Widget greeting and starter prompts."
-                : "Current Front Desk greeting and starter prompts.",
-              defaultName: isWebsiteWidgetProduct ? "Website Widget" : "Vonza Front Desk",
-              defaultGreeting: isWebsiteWidgetProduct
-                ? "Your Website Widget is ready to greet visitors with a clear, helpful first message."
-                : "Your front desk is ready to greet visitors with a clear, helpful first message.",
+	              prompts: fullPagePrompts,
+	              statusLabel: frontDeskLive
+	                ? (isWebsiteWidgetProduct ? websiteWidgetText("overview.liveReady") : "Live / ready")
+	                : (productHomeContext.previewActionLabel || (isWebsiteWidgetProduct ? websiteWidgetText("overview.readyToTest") : "Ready to test")),
+	              live: frontDeskLive,
+	              copy: isWebsiteWidgetProduct
+	                ? websiteWidgetText("overview.previewCopy")
+	                : "Current Front Desk greeting and starter prompts.",
+	              defaultName: isWebsiteWidgetProduct ? "Website Widget" : "Vonza Front Desk",
+	              defaultGreeting: isWebsiteWidgetProduct
+	                ? websiteWidgetText("overview.defaultGreeting")
+	                : "Your front desk is ready to greet visitors with a clear, helpful first message.",
             })}
           </section>
           ${buildStaffRequestQueueCard(actionQueue.staffRequests)}
@@ -9652,39 +9825,44 @@ function buildInstallPanel(agent, setup, _operatorWorkspace = createEmptyOperato
 }
 
 function getWebsiteWidgetInstallStatusCopy(installStatus = {}) {
+  const host = installStatus.host || (isHungarianDashboard() ? "a weboldalad" : "your website");
+  const lastSeen = installStatus.lastSeenAt
+    ? (isHungarianDashboard() ? `, utoljára ${formatSeenAt(installStatus.lastSeenAt)}` : `, last seen ${formatSeenAt(installStatus.lastSeenAt)}`)
+    : "";
+
   if (installStatus.state === "seen_recently") {
-    return `Live install detected on ${installStatus.host || "your website"}${installStatus.lastSeenAt ? `, last seen ${formatSeenAt(installStatus.lastSeenAt)}` : ""}.`;
+    return websiteWidgetText("install.copySeenRecently", { host, lastSeen });
   }
   if (installStatus.state === "seen_stale") {
-    return `The widget was seen on ${installStatus.host || "your website"}${installStatus.lastSeenAt ? ` ${formatSeenAt(installStatus.lastSeenAt)}` : ""}, but no recent live ping has arrived.`;
+    return websiteWidgetText("install.copySeenStale", { host, lastSeen });
   }
   if (installStatus.state === "installed_unseen") {
-    return "The snippet was found on the site, but no live visitor ping has arrived yet.";
+    return websiteWidgetText("install.copyInstalledUnseen");
   }
   if (installStatus.state === "domain_mismatch") {
-    return "Vonza found widget markup, but it points at a different install or blocked domain.";
+    return websiteWidgetText("install.copyDomainMismatch");
   }
   if (installStatus.state === "verify_failed") {
-    return "Verification needs attention. Vonza could not confirm the expected widget snippet yet.";
+    return websiteWidgetText("install.copyVerifyFailed");
   }
 
-  return "No Website Widget install detected yet. Paste the website URL, import content, choose a template and tone, preview the widget, then install with WordPress or one embed snippet.";
+  return websiteWidgetText("install.copyNotDetected");
 }
 
 function getWebsiteWidgetStatusLabel(installStatus = {}, hasInstall = false) {
   if (isInstallSeen(installStatus)) {
-    return "Installed";
+    return websiteWidgetText("install.statusInstalled");
   }
   if (installStatus.state === "installed_unseen") {
-    return "Snippet found";
+    return websiteWidgetText("install.statusSnippetFound");
   }
   if (installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed") {
-    return "Needs review";
+    return websiteWidgetText("install.statusNeedsReview");
   }
   if (hasInstall) {
-    return "Snippet ready";
+    return websiteWidgetText("install.statusSnippetReady");
   }
-  return "Not installed";
+  return websiteWidgetText("install.statusNotInstalled");
 }
 
 function getWebsiteWidgetStatusTone(installStatus = {}, hasInstall = false) {
@@ -9731,48 +9909,51 @@ function buildWebsiteWidgetInstallSnippet(agent, { compact = false } = {}) {
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
   const hasInstall = Boolean(trimText(agent.installId));
   const script = hasInstall ? buildScript(agent) : "";
-  const statusTone = getWebsiteWidgetStatusTone(installStatus, hasInstall);
-  const previewHref = hasInstall && trimText(agent.publicAgentKey) ? buildWidgetUrl(agent.publicAgentKey) : "";
+	  const statusTone = getWebsiteWidgetStatusTone(installStatus, hasInstall);
+	  const previewHref = hasInstall && trimText(agent.publicAgentKey) ? buildWidgetUrl(agent.publicAgentKey) : "";
+  const visibleInstallStatusLabel = isHungarianDashboard()
+    ? getWebsiteWidgetStatusLabel(installStatus, hasInstall)
+    : (installStatus.label || getWebsiteWidgetStatusLabel(installStatus, hasInstall));
 
-  return `
-    <section class="website-widget-panel website-widget-install-panel" data-website-widget-install>
-      <div class="website-widget-panel-header">
-        <div>
-          <p class="website-widget-kicker">Install snippet</p>
-          <h2>Website Widget embed snippet</h2>
-          <p>Copy this snippet into the pages where the widget launcher should appear.</p>
-        </div>
-        <span class="${getBadgeClass(statusTone)}">${escapeHtml(getWebsiteWidgetStatusLabel(installStatus, hasInstall))}</span>
-      </div>
-      <div class="install-cta-row">
-        <button class="primary-button" type="button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>Copy widget snippet</button>
-        <button class="ghost-button" type="button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>Verify installation</button>
-        <a class="test-link ${previewHref ? "" : "disabled"}" href="${previewHref ? escapeHtml(previewHref) : "#"}" target="_blank" rel="noreferrer">Test widget</a>
-      </div>
-      ${compact ? "" : buildInstallCopyBlock({
-        id: "install-script-output",
-        label: "Website Widget embed snippet",
-        value: script,
-        rows: 5,
-        buttonAction: "copy-install",
-        buttonLabel: "Copy widget snippet",
-        disabled: !hasInstall,
-        className: "install-code-block",
-      })}
-      <div class="website-widget-status-grid">
-        <article class="website-widget-status-item">
-          <span>Allowed domains</span>
-          ${buildInstallDomainChips(allowedDomains)}
-        </article>
-        <article class="website-widget-status-item">
-          <span>Install status</span>
-          <strong>${escapeHtml(installStatus.label || getWebsiteWidgetStatusLabel(installStatus, hasInstall))}</strong>
-          <p>${escapeHtml(getWebsiteWidgetInstallStatusCopy(installStatus))}</p>
-          ${installStatus.lastSeenUrl ? `<p>Last seen page: ${escapeHtml(installStatus.lastSeenUrl)}</p>` : ""}
-          ${installStatus.lastVerifiedAt ? `<p>Last verified ${escapeHtml(formatSeenAt(installStatus.lastVerifiedAt))}</p>` : ""}
-        </article>
-      </div>
-    </section>
+	  return `
+	    <section class="website-widget-panel website-widget-install-panel" data-website-widget-install>
+	      <div class="website-widget-panel-header">
+	        <div>
+	          <p class="website-widget-kicker">${escapeHtml(websiteWidgetText("install.snippetKicker"))}</p>
+	          <h2>${escapeHtml(websiteWidgetText("install.snippetTitle"))}</h2>
+	          <p>${escapeHtml(websiteWidgetText("install.snippetCopy"))}</p>
+	        </div>
+	        <span class="${getBadgeClass(statusTone)}">${escapeHtml(getWebsiteWidgetStatusLabel(installStatus, hasInstall))}</span>
+	      </div>
+	      <div class="install-cta-row">
+	        <button class="primary-button" type="button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(websiteWidgetText("install.copySnippet"))}</button>
+	        <button class="ghost-button" type="button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(websiteWidgetText("install.verify"))}</button>
+	        <a class="test-link ${previewHref ? "" : "disabled"}" href="${previewHref ? escapeHtml(previewHref) : "#"}" target="_blank" rel="noreferrer">${escapeHtml(websiteWidgetText("install.test"))}</a>
+	      </div>
+	      ${compact ? "" : buildInstallCopyBlock({
+	        id: "install-script-output",
+	        label: websiteWidgetText("install.snippetTitle"),
+	        value: script,
+	        rows: 5,
+	        buttonAction: "copy-install",
+	        buttonLabel: websiteWidgetText("install.copySnippet"),
+	        disabled: !hasInstall,
+	        className: "install-code-block",
+	      })}
+	      <div class="website-widget-status-grid">
+	        <article class="website-widget-status-item">
+	          <span>${escapeHtml(websiteWidgetText("install.allowedDomains"))}</span>
+	          ${buildInstallDomainChips(allowedDomains)}
+	        </article>
+	        <article class="website-widget-status-item">
+	          <span>${escapeHtml(websiteWidgetText("install.status"))}</span>
+	          <strong>${escapeHtml(visibleInstallStatusLabel)}</strong>
+	          <p>${escapeHtml(getWebsiteWidgetInstallStatusCopy(installStatus))}</p>
+	          ${installStatus.lastSeenUrl ? `<p>${escapeHtml(websiteWidgetText("install.lastSeenPage", { url: installStatus.lastSeenUrl }))}</p>` : ""}
+	          ${installStatus.lastVerifiedAt ? `<p>${escapeHtml(websiteWidgetText("install.lastVerified", { time: formatSeenAt(installStatus.lastVerifiedAt) }))}</p>` : ""}
+	        </article>
+	      </div>
+	    </section>
   `;
 }
 
@@ -9781,8 +9962,8 @@ function buildWebsiteWidgetInstallPanel(agent) {
     <section class="workspace-page website-widget-page" data-shell-section="install" hidden>
       ${buildPageHeader({
         eyebrow: "Website Widget",
-        title: "Install Website Widget",
-        copy: "Copy the existing widget snippet, verify the site, and open a visitor test.",
+        title: websiteWidgetText("install.title"),
+        copy: websiteWidgetText("install.copy"),
       })}
       <div class="workspace-page-body website-widget-body">
         ${buildWebsiteWidgetInstallSnippet(agent)}
@@ -9800,202 +9981,217 @@ function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
       : "";
   const purpose = getWidgetPurposeOption(agent.purpose || agent.widgetPurpose || agent.widget_purpose);
   const selectedTone = trimText(agent.tone || "friendly").toLowerCase() || "friendly";
-  const primaryColor = trimText(agent.primaryColor || agent.primary_color) || "#14b8a6";
-  const secondaryColor = trimText(agent.secondaryColor || agent.secondary_color) || "#0f766e";
-  const assistantName = trimText(agent.assistantName || agent.name) || "Website assistant";
-  const welcomeMessage = trimText(agent.welcomeMessage) || "Welcome. Ask a question and we will help with the next step.";
-  const knowledgeActionLabel = setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge";
-  const knowledgeStateLabel = formatKnowledgeState(setup.knowledgeState || agent.knowledge?.state || "missing");
-  const knowledgeDescription = trimText(setup.knowledgeDescription || agent.knowledge?.description)
-    || "Import website knowledge so the widget can answer from the latest saved business context.";
-  const allowedDomainCount = allowedDomains
-    .split(/\r?\n/)
-    .map(trimText)
-    .filter(Boolean)
-    .length;
-  const toneOptions = [
-    {
-      value: "friendly",
-      label: "Friendly",
-      description: "Warm and approachable while staying clear.",
-    },
-    {
-      value: "professional",
-      label: "Professional",
-      description: "Polished, concise, and business-ready.",
-    },
-    {
-      value: "sales",
-      label: "Sales-focused",
-      description: "More direct about services, value, and next steps.",
-    },
-    {
-      value: "support",
-      label: "Support-focused",
-      description: "Calm, practical, and problem-solving.",
-    },
-  ];
+	  const primaryColor = trimText(agent.primaryColor || agent.primary_color) || "#14b8a6";
+	  const secondaryColor = trimText(agent.secondaryColor || agent.secondary_color) || "#0f766e";
+	  const assistantName = trimText(agent.assistantName || agent.name) || "Website assistant";
+	  const welcomeMessage = trimText(agent.welcomeMessage) || "Welcome. Ask a question and we will help with the next step.";
+	  const knowledgeActionLabel = setup.knowledgeState === "limited"
+	    ? websiteWidgetText("config.retryImport")
+	    : websiteWidgetText("config.importKnowledge");
+	  const knowledgeStateLabel = translateDashboardText(formatKnowledgeState(setup.knowledgeState || agent.knowledge?.state || "missing"));
+	  const rawKnowledgeDescription = trimText(setup.knowledgeDescription || agent.knowledge?.description);
+	  const knowledgeDescription = isHungarianDashboard()
+	    ? (setup.knowledgeReady
+	      ? websiteWidgetText("readiness.knowledgeReady")
+	      : setup.knowledgeLimited
+	        ? websiteWidgetText("readiness.knowledgeLimited")
+	        : websiteWidgetText("config.knowledgeDefault"))
+	    : (rawKnowledgeDescription || websiteWidgetText("config.knowledgeDefault"));
+	  const allowedDomainCount = allowedDomains
+	    .split(/\r?\n/)
+	    .map(trimText)
+	    .filter(Boolean)
+	    .length;
+  const visibleInstallStatusLabel = isHungarianDashboard()
+    ? getWebsiteWidgetStatusLabel(installStatus, Boolean(trimText(agent.installId)))
+    : (installStatus.label || getWebsiteWidgetStatusLabel(installStatus, Boolean(trimText(agent.installId))));
+  const visiblePurpose = {
+    label: translateDashboardText(purpose.label),
+    description: translateDashboardText(purpose.description),
+  };
+	  const toneOptions = [
+	    {
+	      value: "friendly",
+	      label: websiteWidgetText("tone.friendly"),
+	      description: websiteWidgetText("tone.friendlyDescription"),
+	    },
+	    {
+	      value: "professional",
+	      label: websiteWidgetText("tone.professional"),
+	      description: websiteWidgetText("tone.professionalDescription"),
+	    },
+	    {
+	      value: "sales",
+	      label: websiteWidgetText("tone.sales"),
+	      description: websiteWidgetText("tone.salesDescription"),
+	    },
+	    {
+	      value: "support",
+	      label: websiteWidgetText("tone.support"),
+	      description: websiteWidgetText("tone.supportDescription"),
+	    },
+	  ];
 
-  return `
-    <section class="workspace-page website-widget-page" data-shell-section="settings" hidden>
-      ${buildPageHeader({
-        eyebrow: "Website Widget",
-        title: "Widget configuration",
-        copy: "Edit how the embedded Website Widget appears, where it can run, and how the AI answers customers.",
-      })}
-      <div class="workspace-page-body website-widget-config-layout">
-        <section class="settings-operational-summary website-widget-config-summary" aria-label="Website Widget settings summary">
-          <article class="settings-operational-card">
-            <div class="settings-operational-card-head">
-              <span>Embed/install status</span>
-              <span class="${getBadgeClass(installStatus.state === "seen_recently" ? "Ready" : "Pending")}">${escapeHtml(installStatus.label || "Not installed yet")}</span>
-            </div>
-            <p>Uses the existing Website Widget snippet and install verification flow.</p>
-          </article>
-          <article class="settings-operational-card">
-            <div class="settings-operational-card-head">
-              <span>Allowed domains</span>
-              <span class="${getBadgeClass(allowedDomainCount ? "Ready" : "Limited")}">${escapeHtml(allowedDomainCount ? `${allowedDomainCount} domain${allowedDomainCount === 1 ? "" : "s"}` : "Not limited")}</span>
-            </div>
-            <p>Controls the real website hosts where this widget is allowed to appear.</p>
-          </article>
-          <article class="settings-operational-card">
-            <div class="settings-operational-card-head">
-              <span>AI answer mode</span>
-              <span class="${getBadgeClass("Ready")}">${escapeHtml(purpose.label)}</span>
-            </div>
-            <p>${escapeHtml(purpose.description)}</p>
-          </article>
-        </section>
-        <form data-settings-form data-form-kind="appearance" class="website-widget-config-form">
-          <section class="website-widget-panel">
-            <div class="website-widget-panel-header">
-              <div>
-                <p class="website-widget-kicker">Website</p>
-                <h2>Where the widget runs</h2>
-                <p>Keep this tied to the real public website and the domains where the snippet should be allowed.</p>
-              </div>
-            </div>
-            <div class="form-grid two-col">
-              <div class="field">
-                <label for="website-widget-url">Website URL</label>
-                <input id="website-widget-url" name="website_url" type="url" value="${escapeHtml(agent.websiteUrl || "")}" placeholder="https://example.com">
-              </div>
-              <div class="field">
-                <label for="website-widget-contact-email">Lead email</label>
-                <input id="website-widget-contact-email" name="contact_email" type="email" value="${escapeHtml(agent.contactEmail || "")}" placeholder="owner@example.com">
-              </div>
-            </div>
-            <div class="field">
-              <label for="website-widget-domains">Allowed domains</label>
-              <textarea id="website-widget-domains" name="allowed_domains" rows="3">${escapeHtml(allowedDomains)}</textarea>
-              <p class="field-help">One domain per line. This prevents the widget from running on unapproved websites.</p>
-            </div>
-            <div class="website-widget-knowledge-row">
-              <div>
-                <span>Website knowledge</span>
-                <strong>${escapeHtml(knowledgeStateLabel)}</strong>
-                <p>${escapeHtml(knowledgeDescription)}</p>
-              </div>
-              <button class="ghost-button" type="button" data-action="import-knowledge" ${setup.knowledgeState === "limited" ? 'data-import-force="true"' : ""}>${escapeHtml(knowledgeActionLabel)}</button>
-            </div>
+	  return `
+	    <section class="workspace-page website-widget-page" data-shell-section="settings" hidden>
+	      ${buildPageHeader({
+	        eyebrow: "Website Widget",
+	        title: websiteWidgetText("config.title"),
+	        copy: websiteWidgetText("config.copy"),
+	      })}
+	      <div class="workspace-page-body website-widget-config-layout">
+	        <section class="settings-operational-summary website-widget-config-summary" aria-label="${escapeHtml(websiteWidgetText("config.summaryAria"))}">
+	          <article class="settings-operational-card">
+	            <div class="settings-operational-card-head">
+	              <span>${escapeHtml(websiteWidgetText("config.embedStatus"))}</span>
+	              <span class="${getBadgeClass(installStatus.state === "seen_recently" ? "Ready" : "Pending")}">${escapeHtml(visibleInstallStatusLabel)}</span>
+	            </div>
+	            <p>${escapeHtml(websiteWidgetText("config.embedStatusCopy"))}</p>
+	          </article>
+	          <article class="settings-operational-card">
+	            <div class="settings-operational-card-head">
+	              <span>${escapeHtml(websiteWidgetText("config.allowedDomains"))}</span>
+	              <span class="${getBadgeClass(allowedDomainCount ? "Ready" : "Limited")}">${escapeHtml(allowedDomainCount ? getWebsiteWidgetDomainCountLabel(allowedDomainCount) : websiteWidgetText("config.notLimited"))}</span>
+	            </div>
+	            <p>${escapeHtml(websiteWidgetText("config.allowedDomainsCopy"))}</p>
+	          </article>
+	          <article class="settings-operational-card">
+	            <div class="settings-operational-card-head">
+	              <span>${escapeHtml(websiteWidgetText("config.answerMode"))}</span>
+	              <span class="${getBadgeClass("Ready")}">${escapeHtml(visiblePurpose.label)}</span>
+	            </div>
+	            <p>${escapeHtml(visiblePurpose.description)}</p>
+	          </article>
+	        </section>
+	        <form data-settings-form data-form-kind="appearance" class="website-widget-config-form">
+	          <section class="website-widget-panel">
+	            <div class="website-widget-panel-header">
+	              <div>
+	                <p class="website-widget-kicker">${escapeHtml(websiteWidgetText("config.websiteKicker"))}</p>
+	                <h2>${escapeHtml(websiteWidgetText("config.websiteTitle"))}</h2>
+	                <p>${escapeHtml(websiteWidgetText("config.websiteCopy"))}</p>
+	              </div>
+	            </div>
+	            <div class="form-grid two-col">
+	              <div class="field">
+	                <label for="website-widget-url">${escapeHtml(websiteWidgetText("config.websiteUrl"))}</label>
+	                <input id="website-widget-url" name="website_url" type="url" value="${escapeHtml(agent.websiteUrl || "")}" placeholder="https://example.com">
+	              </div>
+	              <div class="field">
+	                <label for="website-widget-contact-email">${escapeHtml(websiteWidgetText("config.leadEmail"))}</label>
+	                <input id="website-widget-contact-email" name="contact_email" type="email" value="${escapeHtml(agent.contactEmail || "")}" placeholder="owner@example.com">
+	              </div>
+	            </div>
+	            <div class="field">
+	              <label for="website-widget-domains">${escapeHtml(websiteWidgetText("config.allowedDomains"))}</label>
+	              <textarea id="website-widget-domains" name="allowed_domains" rows="3">${escapeHtml(allowedDomains)}</textarea>
+	              <p class="field-help">${escapeHtml(websiteWidgetText("config.allowedDomainsHelp"))}</p>
+	            </div>
+	            <div class="website-widget-knowledge-row">
+	              <div>
+	                <span>${escapeHtml(websiteWidgetText("config.knowledgeLabel"))}</span>
+	                <strong>${escapeHtml(knowledgeStateLabel)}</strong>
+	                <p>${escapeHtml(translateDashboardText(knowledgeDescription))}</p>
+	              </div>
+	              <button class="ghost-button" type="button" data-action="import-knowledge" ${setup.knowledgeState === "limited" ? 'data-import-force="true"' : ""}>${escapeHtml(knowledgeActionLabel)}</button>
+	            </div>
           </section>
 
-          <section class="website-widget-panel">
-            <div class="website-widget-panel-header">
-              <div>
-                <p class="website-widget-kicker">AI behavior</p>
-                <h2>How the widget answers</h2>
-                <p>Choose the existing response mode and tone that best match the customer interaction you want.</p>
-              </div>
-            </div>
-            <div class="website-widget-choice-grid website-widget-choice-grid--purpose" aria-label="Widget purpose">
-              ${WIDGET_PURPOSE_OPTIONS.map((option) => `
-                <label class="website-widget-choice-card ${purpose.value === option.value ? "active" : ""}" data-purpose-card="${escapeHtml(option.value)}">
-                  <input type="radio" name="widget_purpose" value="${escapeHtml(option.value)}" ${purpose.value === option.value ? "checked" : ""}>
+	          <section class="website-widget-panel">
+	            <div class="website-widget-panel-header">
+	              <div>
+	                <p class="website-widget-kicker">${escapeHtml(websiteWidgetText("config.behaviorKicker"))}</p>
+	                <h2>${escapeHtml(websiteWidgetText("config.behaviorTitle"))}</h2>
+	                <p>${escapeHtml(websiteWidgetText("config.behaviorCopy"))}</p>
+	              </div>
+	            </div>
+	            <div class="website-widget-choice-grid website-widget-choice-grid--purpose" aria-label="${escapeHtml(websiteWidgetText("config.purposeAria"))}">
+	              ${WIDGET_PURPOSE_OPTIONS.map((option) => `
+	                <label class="website-widget-choice-card ${purpose.value === option.value ? "active" : ""}" data-purpose-card="${escapeHtml(option.value)}">
+	                  <input type="radio" name="widget_purpose" value="${escapeHtml(option.value)}" ${purpose.value === option.value ? "checked" : ""}>
+	                  <span>${escapeHtml(translateDashboardText(option.label))}</span>
+	                  <em>${escapeHtml(translateDashboardText(option.description))}</em>
+	                </label>
+	              `).join("")}
+	            </div>
+	            <div class="website-widget-choice-grid" aria-label="${escapeHtml(websiteWidgetText("config.toneAria"))}">
+	              ${toneOptions.map((option) => `
+	                <label class="website-widget-choice-card ${selectedTone === option.value ? "active" : ""}" data-tone-card="${escapeHtml(option.value)}">
+	                  <input type="radio" name="tone" value="${escapeHtml(option.value)}" ${selectedTone === option.value ? "checked" : ""}>
                   <span>${escapeHtml(option.label)}</span>
                   <em>${escapeHtml(option.description)}</em>
                 </label>
               `).join("")}
-            </div>
-            <div class="website-widget-choice-grid" aria-label="Conversation tone">
-              ${toneOptions.map((option) => `
-                <label class="website-widget-choice-card ${selectedTone === option.value ? "active" : ""}" data-tone-card="${escapeHtml(option.value)}">
-                  <input type="radio" name="tone" value="${escapeHtml(option.value)}" ${selectedTone === option.value ? "checked" : ""}>
-                  <span>${escapeHtml(option.label)}</span>
-                  <em>${escapeHtml(option.description)}</em>
-                </label>
-              `).join("")}
-            </div>
-            <div class="field">
-              <label for="website-widget-guidance">Advanced guidance</label>
-              <textarea id="website-widget-guidance" name="system_prompt" rows="4" placeholder="Example: keep answers concise, guide pricing questions toward a quote, and avoid sounding pushy.">${escapeHtml(agent.systemPrompt || "")}</textarea>
-              <p class="field-help">Optional guidance for emphasis, tone, and edge cases. This uses the existing assistant guidance field.</p>
-            </div>
-          </section>
+	            </div>
+	            <div class="field">
+	              <label for="website-widget-guidance">${escapeHtml(websiteWidgetText("config.guidance"))}</label>
+	              <textarea id="website-widget-guidance" name="system_prompt" rows="4" placeholder="${escapeHtml(websiteWidgetText("config.guidancePlaceholder"))}">${escapeHtml(agent.systemPrompt || "")}</textarea>
+	              <p class="field-help">${escapeHtml(websiteWidgetText("config.guidanceHelp"))}</p>
+	            </div>
+	          </section>
 
           <section class="website-widget-panel">
-            <div class="website-widget-panel-header">
-              <div>
-                <p class="website-widget-kicker">Launcher</p>
-                <h2>Widget appearance</h2>
-                <p>Set the visible name, first message, colors, and optional logo used by the embedded widget.</p>
-              </div>
-            </div>
-            <div class="form-grid two-col">
-              <div class="field">
-                <label for="website-widget-assistant-name">Assistant name</label>
-                <input id="website-widget-assistant-name" name="assistant_name" type="text" value="${escapeHtml(assistantName)}">
-              </div>
-              <div class="field">
-                <label for="website-widget-button-label">Launcher text</label>
-                <input id="website-widget-button-label" name="button_label" type="text" value="${escapeHtml(agent.buttonLabel || "Chat")}">
-              </div>
-              <div class="field">
-                <label for="website-widget-primary-color">Accent color</label>
-                <input id="website-widget-primary-color" name="primary_color" type="color" value="${escapeHtml(primaryColor)}">
-              </div>
-              <div class="field">
-                <label for="website-widget-secondary-color">Secondary color</label>
-                <input id="website-widget-secondary-color" name="secondary_color" type="color" value="${escapeHtml(secondaryColor)}">
-              </div>
-            </div>
-            <div class="field">
-              <label for="website-widget-welcome">Welcome message</label>
-              <textarea id="website-widget-welcome" name="welcome_message" rows="4">${escapeHtml(welcomeMessage)}</textarea>
-            </div>
-            <div class="field">
-              <label for="website-widget-logo">Widget logo</label>
-              <label class="website-widget-file-control" for="website-widget-logo">
-                <span>Upload logo</span>
-                <em>PNG, JPG, WebP, or GIF</em>
-                <input id="website-widget-logo" name="widget_logo_file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
-              </label>
-              <p class="field-help">Optional small square logo.</p>
-            </div>
-          </section>
+	            <div class="website-widget-panel-header">
+	              <div>
+	                <p class="website-widget-kicker">${escapeHtml(websiteWidgetText("config.launcherKicker"))}</p>
+	                <h2>${escapeHtml(websiteWidgetText("config.appearanceTitle"))}</h2>
+	                <p>${escapeHtml(websiteWidgetText("config.appearanceCopy"))}</p>
+	              </div>
+	            </div>
+	            <div class="form-grid two-col">
+	              <div class="field">
+	                <label for="website-widget-assistant-name">${escapeHtml(websiteWidgetText("config.assistantName"))}</label>
+	                <input id="website-widget-assistant-name" name="assistant_name" type="text" value="${escapeHtml(assistantName)}">
+	              </div>
+	              <div class="field">
+	                <label for="website-widget-button-label">${escapeHtml(websiteWidgetText("config.launcherText"))}</label>
+	                <input id="website-widget-button-label" name="button_label" type="text" value="${escapeHtml(agent.buttonLabel || "Chat")}">
+	              </div>
+	              <div class="field">
+	                <label for="website-widget-primary-color">${escapeHtml(websiteWidgetText("config.accentColor"))}</label>
+	                <input id="website-widget-primary-color" name="primary_color" type="color" value="${escapeHtml(primaryColor)}">
+	              </div>
+	              <div class="field">
+	                <label for="website-widget-secondary-color">${escapeHtml(websiteWidgetText("config.secondaryColor"))}</label>
+	                <input id="website-widget-secondary-color" name="secondary_color" type="color" value="${escapeHtml(secondaryColor)}">
+	              </div>
+	            </div>
+	            <div class="field">
+	              <label for="website-widget-welcome">${escapeHtml(websiteWidgetText("config.welcomeMessage"))}</label>
+	              <textarea id="website-widget-welcome" name="welcome_message" rows="4">${escapeHtml(welcomeMessage)}</textarea>
+	            </div>
+	            <div class="field">
+	              <label for="website-widget-logo">${escapeHtml(websiteWidgetText("config.logo"))}</label>
+	              <label class="website-widget-file-control" for="website-widget-logo">
+	                <span>${escapeHtml(websiteWidgetText("config.uploadLogo"))}</span>
+	                <em>${escapeHtml(websiteWidgetText("config.logoTypes"))}</em>
+	                <input id="website-widget-logo" name="widget_logo_file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+	              </label>
+	              <p class="field-help">${escapeHtml(websiteWidgetText("config.logoHelp"))}</p>
+	            </div>
+	          </section>
 
-          <section class="website-widget-panel website-widget-save-panel">
-            <div>
-              <h2>Save configuration</h2>
-              <p>Changes apply to the embedded Website Widget after saving.</p>
-            </div>
-            <div class="studio-save-row">
-              <button class="primary-button" type="submit">Save Website Widget</button>
-              <span data-save-state class="save-state">No changes yet.</span>
-            </div>
-          </section>
-        </form>
+	          <section class="website-widget-panel website-widget-save-panel">
+	            <div>
+	              <h2>${escapeHtml(websiteWidgetText("config.saveTitle"))}</h2>
+	              <p>${escapeHtml(websiteWidgetText("config.saveCopy"))}</p>
+	            </div>
+	            <div class="studio-save-row">
+	              <button class="primary-button" type="submit">${escapeHtml(websiteWidgetText("config.saveButton"))}</button>
+	              <span data-save-state class="save-state">${escapeHtml(websiteWidgetText("config.noChanges"))}</span>
+	            </div>
+	          </section>
+	        </form>
 
-        <aside class="website-widget-preview-panel" aria-label="Website Widget preview">
-          <section class="website-widget-panel">
-            <div class="website-widget-panel-header">
-              <div>
-                <p class="website-widget-kicker">Preview</p>
-                <h2>Live widget preview</h2>
-                <p>This reflects the current name, message, launcher text, and colors before you save.</p>
-              </div>
-            </div>
+	        <aside class="website-widget-preview-panel" aria-label="${escapeHtml(websiteWidgetText("config.previewAria"))}">
+	          <section class="website-widget-panel">
+	            <div class="website-widget-panel-header">
+	              <div>
+	                <p class="website-widget-kicker">${escapeHtml(websiteWidgetText("config.previewKicker"))}</p>
+	                <h2>${escapeHtml(websiteWidgetText("config.previewTitle"))}</h2>
+	                <p>${escapeHtml(websiteWidgetText("config.previewCopy"))}</p>
+	              </div>
+	            </div>
             <div class="website-widget-preview-stage">
               <div class="brand-widget website-widget-preview" id="brand-widget-preview">
                 <div class="brand-widget-header">
@@ -10004,22 +10200,22 @@ function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
                     <p id="brand-widget-title" class="brand-widget-title">${escapeHtml(assistantName)}</p>
                     <p class="brand-widget-subtitle">Website Widget</p>
                   </div>
-                </div>
-                <div id="brand-widget-message" class="brand-message">${escapeHtml(welcomeMessage)}</div>
-                <div class="brand-cta-row">
-                  <span class="brand-cta-note">Purpose: <strong id="studio-summary-purpose">${escapeHtml(purpose.label)}</strong></span>
-                  <div id="brand-launcher" class="brand-launcher" style="--brand-primary:${escapeHtml(primaryColor)};--brand-secondary:${escapeHtml(secondaryColor)}">
+	                </div>
+	                <div id="brand-widget-message" class="brand-message">${escapeHtml(welcomeMessage)}</div>
+	                <div class="brand-cta-row">
+	                  <span class="brand-cta-note">${escapeHtml(websiteWidgetText("config.purposeSummary"))} <strong id="studio-summary-purpose">${escapeHtml(visiblePurpose.label)}</strong></span>
+	                  <div id="brand-launcher" class="brand-launcher" style="--brand-primary:${escapeHtml(primaryColor)};--brand-secondary:${escapeHtml(secondaryColor)}">
                     <span class="brand-launcher-dot"></span>
                     <span id="brand-launcher-label">${escapeHtml(agent.buttonLabel || "Chat")}</span>
                   </div>
                 </div>
               </div>
-            </div>
-            <div class="website-widget-preview-meta">
-              <span>Tone <strong id="studio-summary-tone">${escapeHtml(selectedTone)}</strong></span>
-              <span>Allowed hosts <strong>${escapeHtml(allowedDomainCount ? String(allowedDomainCount) : "Any saved host")}</strong></span>
-            </div>
-            <a class="test-link ${trimText(agent.publicAgentKey) ? "" : "disabled"}" href="${trimText(agent.publicAgentKey) ? escapeHtml(buildWidgetUrl(agent.publicAgentKey)) : "#"}" target="_blank" rel="noreferrer">Open test widget</a>
+	            </div>
+	            <div class="website-widget-preview-meta">
+	              <span>${escapeHtml(websiteWidgetText("config.toneSummary"))} <strong id="studio-summary-tone">${escapeHtml(translateDashboardText(selectedTone))}</strong></span>
+	              <span>${escapeHtml(websiteWidgetText("config.allowedHosts"))} <strong>${escapeHtml(allowedDomainCount ? String(allowedDomainCount) : websiteWidgetText("config.anySavedHost"))}</strong></span>
+	            </div>
+	            <a class="test-link ${trimText(agent.publicAgentKey) ? "" : "disabled"}" href="${trimText(agent.publicAgentKey) ? escapeHtml(buildWidgetUrl(agent.publicAgentKey)) : "#"}" target="_blank" rel="noreferrer">${escapeHtml(websiteWidgetText("config.openTest"))}</a>
           </section>
         </aside>
       </div>
