@@ -108,10 +108,10 @@ export function getPublicLaunchProfile({ operatorWorkspaceEnabled = false } = {}
   return {
     mode: "public_cohort_v1",
     product: {
-      name: "Vonza AI Front Desk",
-      headline: "Hungarian-first AI Front Desk for SME customer questions, quotes, and follow-up.",
+      name: "Vonza Website Widget",
+      headline: "Five-minute Hungarian website agent/widget for SME customer questions and lead capture.",
       purchaseSummary:
-        "The first public offer is the full-page AI Front Desk plus website import, lead capture, AI disclosure, email handoff, install options, analytics, and the shared owner dashboard. Website Widget remains the fastest embedded install/channel option for existing websites. Google-connected Inbox, Calendar, Automations, WhatsApp, and Voice stay out of the launch UI until they are intentionally enabled for a private workspace.",
+        "The first public offer is the Website Widget: a Hungarian website AI agent/widget that installs on an existing site in about 5 minutes, with website import, Hungarian-first answers, lead capture, AI disclosure, email handoff, install verification, allowed domains, analytics, and the shared owner dashboard. The AI Front Desk remains the broader system behind the widget, and the full-page Front Desk is a companion/expansion channel for QR links, direct links, WordPress pages, smart embeds, and dedicated customer-facing flows. Google-connected Inbox, Calendar, Automations, WhatsApp, and Voice stay out of the launch UI until they are intentionally enabled for a private workspace.",
     },
     icp: {
       key: "service_businesses_with_inbound_leads",
@@ -119,7 +119,7 @@ export function getPublicLaunchProfile({ operatorWorkspaceEnabled = false } = {}
       shortLabel: "Hungarian SMEs",
       examples: ["home services", "clinics", "studios", "agencies", "consultants"],
       positioning:
-        "Best for Hungarian SMEs that already get visitors asking for quotes, bookings, callbacks, or availability and need a reliable full-page AI Front Desk before a bigger back-office system. Use Website Widget as the fastest embedded channel when an existing site needs a compact launcher.",
+        "Best for Hungarian SMEs that already get website visitors asking for quotes, bookings, callbacks, availability, pricing, or service details and need a fast Hungarian-first Website Widget before a bigger back-office system. Use the full-page Front Desk as a companion or expansion channel when the business needs QR links, direct links, WordPress pages, smart embeds, or dedicated customer-facing flows.",
     },
     matrix,
     ...buildStateLists(matrix),

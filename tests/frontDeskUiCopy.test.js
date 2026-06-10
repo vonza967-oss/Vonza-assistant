@@ -70,12 +70,12 @@ test("primary launch path exposes status and form accessibility semantics", () =
   assert.match(launchSurface, /<label class="settings-shell-choice-row" for="full-page-public-enabled">/);
 });
 
-test("README leads with Hungarian AI Front Desk while preserving Website Widget channel", () => {
-  assert.match(readme, /Hungarian-first AI Front Desk SaaS for SMEs/i);
-  assert.match(readme, /primary customer-facing product is the full-page AI Front Desk/i);
-  assert.match(readme, /Website Widget is secondary/i);
-  assert.match(readme, /fastest embedded install\/channel option/i);
-  assert.match(readme, /QR, direct link, WordPress page, smart embed, and iframe install paths/i);
+test("README leads with Hungarian Website Widget while preserving Front Desk expansion channel", () => {
+  assert.match(readme, /Hungarian-first Website Widget SaaS for SMEs/i);
+  assert.match(readme, /website AI agent\/widget that can be installed in about 5 minutes/i);
+  assert.match(readme, /AI Front Desk is the broader system behind the widget/i);
+  assert.match(readme, /full-page Front Desk remains a companion and expansion channel/i);
+  assert.match(readme, /Install verification and allowed-domain checks/i);
 });
 
 test("conversation detail exposes owner-friendly training actions", () => {

@@ -6,17 +6,19 @@ export const BILLING_INTERVAL_MONTH = "month";
 export const DEFAULT_BILLING_PLAN_KEY = "growth";
 export const BILLING_USAGE_COPY = Object.freeze({
   sectionEyebrow: "Simple HUF monthly plans",
-  sectionHeadline: "Choose the monthly plan for your AI Front Desk.",
+  sectionHeadline: "Choose the monthly plan for your Website Widget.",
   sectionNote:
-    "All plans include the full-page AI Front Desk, website import, lead capture, AI disclosure, owner dashboard, email handoff, and Website Widget as the fastest embedded channel. Growth and Pro add capacity and launch help.",
+    "All plans include the Website Widget launch path, website import, Hungarian-first answers, lead capture, AI disclosure, owner dashboard, email handoff, install verification, allowed domains, and the full-page Front Desk as a companion channel. Growth and Pro add capacity and launch help.",
   sharedFeatures: Object.freeze([
-    "Full-page AI Front Desk with Website Widget channel",
-    "Website import for grounded answers",
+    "Website Widget for existing websites",
+    "Website import for grounded Hungarian answers",
     "Lead capture and email handoff",
+    "Install verification and allowed domains",
     "AI disclosure copy",
     "Owner dashboard",
     "Conversations and summaries",
     "Approved answers and improvements",
+    "Companion full-page Front Desk",
     "Monthly AI usage included",
     "Upgrade anytime",
   ]),
@@ -35,8 +37,8 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     stripePriceEnvKey: "STRIPE_PRICE_ID_STARTER_MONTHLY",
     marketing: Object.freeze({
       audience: "For one Hungarian SME",
-      summary: "A simple way to launch a hosted AI Front Desk",
-      detail: "Includes one Front Desk workspace, Website Widget embedded channel, website import, lead capture, AI disclosure, dashboard, and email handoff",
+      summary: "A simple way to launch a Hungarian Website Widget",
+      detail: "Includes one Website Widget workspace, website import, Hungarian-first answers, lead capture, AI disclosure, dashboard, email handoff, and companion full-page Front Desk",
       capacityLabel: "Lighter monthly AI capacity",
     }),
   }),
@@ -54,7 +56,7 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     marketing: Object.freeze({
       audience: "For regular customer questions",
       summary: "Best for most growing Hungarian SMEs",
-      detail: "Adds higher usage, richer analytics, team handoff, multiple Front Desk templates, and booking links",
+      detail: "Adds higher widget usage, richer analytics, team handoff, companion full-page Front Desk templates, and booking links",
       capacityLabel: "Regular monthly AI capacity",
     }),
   }),
@@ -69,9 +71,9 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     checkoutLabel: "Start with Pro",
     stripePriceEnvKey: "STRIPE_PRICE_ID_PRO_MONTHLY",
     marketing: Object.freeze({
-      audience: "For busier Front Desk workspaces",
+      audience: "For busier Website Widget workspaces",
       summary: "More room for higher monthly customer volume",
-      detail: "Adds multiple users, multi-location logic, API or webhook options, priority support, and white-glove tuning",
+      detail: "Adds multiple users, multi-location logic, API or webhook options, priority support, white-glove widget tuning, and full-page expansion support",
       capacityLabel: "Higher monthly AI capacity",
     }),
   }),

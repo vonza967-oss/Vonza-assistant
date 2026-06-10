@@ -1,23 +1,23 @@
 # Vonza
 
-Vonza is a Hungarian-first AI Front Desk SaaS for SMEs. The primary customer-facing product is the full-page AI Front Desk: a hosted page businesses can share, embed, connect to WordPress, or open from QR/direct links so customers can ask questions, request quotes, leave contact details, and get grounded next steps.
+Vonza is a Hungarian-first Website Widget SaaS for SMEs. The public launch promise is a website AI agent/widget that can be installed in about 5 minutes, with no technical skill required, so customers can ask questions, request quotes, leave contact details, and get grounded next steps directly on the business website.
 
-The Website Widget is secondary. It remains the fastest embedded install/channel option for existing websites that need a compact launcher or one-line assistant snippet, and it uses the same dashboard, knowledge, billing, and safety model as the full-page Front Desk.
+The AI Front Desk is the broader system behind the widget: shared website knowledge, Hungarian-first answers, lead capture, owner controls, analytics, billing, and safety guardrails. The full-page Front Desk remains a companion and expansion channel for QR codes, direct links, WordPress pages, smart embeds, and dedicated customer-facing flows.
 
 ## Main Features
 
-- Full-page AI Front Desk for customer questions, quote intent, booking intent, contact capture, and follow-up handoff
-- Hungarian-first owner and customer positioning with HUF monthly billing plans
-- QR, direct link, WordPress page, smart embed, and iframe install paths for the hosted Front Desk
-- Website Widget for the fastest embedded existing-site install, with install verification and allowed-domain checks
+- Website Widget launch path for customer questions, quote intent, booking intent, contact capture, and follow-up handoff on existing SME websites
 - Website import that turns public site content into answer grounding
-- Configurable system prompt, tone, widget purpose, business context, and industry vertical
+- Hungarian-first customer answers and owner positioning with HUF monthly billing plans
 - Lead capture for warm visitors, quote requests, booking intent, and contact handoff
+- Safe handoff and direct conversion routing for booking, quote, checkout, contact, and capture actions
+- Install verification and allowed-domain checks for trusted widget deployment
 - Owner dashboard for conversations, customers, setup, analytics, install, and settings
+- HUF Stripe checkout, subscriptions, plan capacity, webhook sync, and AI usage ledger
 - Analytics for conversations, lead capture, conversion outcomes, weak answers, top questions, and AI usage
-- Stripe checkout, subscriptions, plan capacity, webhook sync, and AI usage ledger
+- Conservative answer guardrails grounded in imported website knowledge and approved business context
+- Full-page Front Desk companion channel for QR, direct link, WordPress page, smart embed, iframe, and expansion workflows
 - Optional Google-connected operator workflows for email, calendar, automations, and follow-up drafts
-- Direct conversion routing for booking, quote, checkout, contact, and capture actions
 
 ## Architecture
 
@@ -25,7 +25,8 @@ Vonza is a Node.js and Express application backed by Supabase. The frontend is m
 
 ```text
 Customer
-  -> Full-page Vonza AI Front Desk, QR/direct link, WordPress page, smart embed, or optional Website Widget
+  -> Website Widget / embedded assistant on the business website
+  -> Shared AI Front Desk system and optional full-page Front Desk companion channel
   -> Express routes (/chat, /widget/bootstrap, /install/events, full-page assistant routes)
   -> Services (chat, prompting, scraping, leads, analytics, billing)
   -> Supabase tables (businesses, agents, widget_configs, messages, leads, outcomes, usage)
@@ -71,7 +72,7 @@ Start the app:
 npm start
 ```
 
-Open the dashboard at `http://localhost:3000/dashboard`. The dashboard is the primary owner workspace for the full-page AI Front Desk, including Home, Customers, Front Desk, Analytics, Install, and Settings. `/website-widget/dashboard` remains a supported runtime path for the Website Widget setup surface; legacy dashboard paths may redirect there for compatibility. Analytics renders inside the dashboard shell and reads JSON from `/dashboard/analytics/summary`; `/dashboard/analytics` is a JSON-only compatibility alias. The widget preview is served at `/widget`; the embeddable scripts are `/embed.js` and `/embed-lite.js`.
+Open the dashboard at `http://localhost:3000/dashboard`. The dashboard is the primary owner workspace for the Website Widget launch path and shared AI Front Desk system, including Home, Customers, Front Desk, Analytics, Install, and Settings. `/website-widget/dashboard` remains a supported runtime path for the Website Widget setup surface; legacy dashboard paths may redirect there for compatibility. Analytics renders inside the dashboard shell and reads JSON from `/dashboard/analytics/summary`; `/dashboard/analytics` is a JSON-only compatibility alias. The widget preview is served at `/widget`; the embeddable scripts are `/embed.js` and `/embed-lite.js`.
 
 ## Calendly Webhook Provisioning
 

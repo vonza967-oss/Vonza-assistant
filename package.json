@@ -1,7 +1,7 @@
 {
   "name": "vonza-ai-front-desk",
   "version": "1.0.0",
-  "description": "Hungarian-first AI Front Desk SaaS for SMEs.",
+  "description": "Hungarian-first Website Widget SaaS for SME customer questions and lead capture.",
   "main": "index.js",
   "type": "module",
   "scripts": {
