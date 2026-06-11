@@ -61,8 +61,8 @@ let transientVisitorSessionKey = "";
 const DEFAULT_ASSISTANT_LANGUAGE = "hu";
 const DEFAULT_WIDGET_WELCOME_MESSAGE_EN = "Hi! How can we help today?";
 const DEFAULT_WIDGET_WELCOME_MESSAGE_HU = "Szia! Miben segíthetünk ma?";
-const DEFAULT_WIDGET_LAUNCHER_TEXT_EN = "Business front desk";
-const DEFAULT_WIDGET_LAUNCHER_TEXT_HU = "Üzleti front desk";
+const DEFAULT_WIDGET_LAUNCHER_TEXT_EN = "Website assistant";
+const DEFAULT_WIDGET_LAUNCHER_TEXT_HU = "Weboldali asszisztens";
 const DEFAULT_FULL_PAGE_SUBTITLE_EN = "Ask about services, pricing, quotes, or contact details.";
 const DEFAULT_FULL_PAGE_SUBTITLE_HU = "Kérdezz szolgáltatásokról, árakról, ajánlatról vagy elérhetőségről.";
 
@@ -75,9 +75,9 @@ const LEGACY_WIDGET_DEFAULTS = {
 };
 
 const DEFAULT_WIDGET_CONFIG = {
-  assistantName: "Front Desk",
+  assistantName: "Vonza AI",
   welcomeMessage: DEFAULT_WIDGET_WELCOME_MESSAGE_EN,
-  buttonLabel: "Open Front Desk",
+  buttonLabel: "Open widget",
   launcherText: DEFAULT_WIDGET_LAUNCHER_TEXT_EN,
   widgetLogoUrl: "",
   primaryColor: "#5b61ff",
@@ -289,7 +289,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.defaultName": "Assistant",
     "assistant.defaultFullPageHeadline": "Front Desk",
     "assistant.defaultFullPageSubtitle": "Ask about services, pricing, quotes, or contact details.",
-    "assistant.defaultLauncher": "Business front desk",
+    "assistant.defaultLauncher": "Website assistant",
     "assistant.defaultWelcome": "Hi! How can we help today?",
     "assistant.onlineNow": "Online now",
     "assistant.logoLabel": "{name} logo",
@@ -479,7 +479,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.defaultName": "Asszisztens",
     "assistant.defaultFullPageHeadline": "Front Desk",
     "assistant.defaultFullPageSubtitle": "Kérdezz szolgáltatásokról, árakról, ajánlatról vagy elérhetőségről.",
-    "assistant.defaultLauncher": "Üzleti front desk",
+    "assistant.defaultLauncher": "Weboldali asszisztens",
     "assistant.defaultWelcome": "Szia! Miben segíthetünk ma?",
     "assistant.onlineNow": "Elérhető",
     "assistant.logoLabel": "{name} logó",

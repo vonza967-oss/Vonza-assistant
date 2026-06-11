@@ -644,8 +644,15 @@ function primeDedicatedWebsiteWidgetDashboardState() {
     return;
   }
 
-  setDashboardUiStateValue("installMethod", "widget", { persist: false });
-  setDashboardUiStateValue("settingsMainTab", "website_widget", { persist: false });
+  const storedSection = trimText(window.localStorage.getItem(DASHBOARD_SECTION_KEY)).toLowerCase();
+  if (storedSection && !WEBSITE_WIDGET_DASHBOARD_SECTIONS.includes(storedSection)) {
+    window.localStorage.setItem(DASHBOARD_SECTION_KEY, "overview");
+  }
+
+  window.localStorage.removeItem(DASHBOARD_FRONTDESK_SECTION_KEY);
+  setDashboardUiStateValue("installMethod", "widget");
+  setDashboardUiStateValue("settingsMainTab", "website_widget");
+  setDashboardUiStateValue("settingsFrontDeskTab", "optional-widget");
 }
 
 function hasAuthConfig() {
@@ -4083,7 +4090,56 @@ function getLegacyFrontDeskSettingsRedirectHash(hash = window.location.hash) {
   return `#front-desk/customization/${tabSegment}`;
 }
 
+function getDedicatedWebsiteWidgetRedirectHash(hash = window.location.hash) {
+  if (!isDedicatedWebsiteWidgetDashboard()) {
+    return "";
+  }
+
+  const parts = dashboardState.getDashboardHashPathParts(hash);
+  const root = parts[0] || "";
+
+  if (root === "install" && parts[1] && normalizeInstallMethod(parts[1]) !== "widget") {
+    return "#install/embed";
+  }
+
+  if (root === "settings") {
+    const target = dashboardState.normalizeSettingsMainTab(parts[1] || "widget");
+    const subtab = dashboardState.getSettingsFrontDeskTabHashSegment(parts[2] || "optional-widget");
+
+    if (target !== "website_widget" || !["optional-widget", "routing", "identity-welcome"].includes(subtab)) {
+      return "#settings/widget/optional-widget";
+    }
+  }
+
+  if (["front-desk", "frontdesk", "customize"].includes(root)) {
+    return "#settings/widget/optional-widget";
+  }
+
+  return "";
+}
+
+function redirectDedicatedWebsiteWidgetHash() {
+  const redirectHash = getDedicatedWebsiteWidgetRedirectHash();
+
+  if (!redirectHash || !window.history?.replaceState) {
+    return false;
+  }
+
+  const nextUrl = new URL(window.location.href);
+  if (nextUrl.hash === redirectHash) {
+    return false;
+  }
+
+  nextUrl.hash = redirectHash;
+  window.history.replaceState({}, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+  return true;
+}
+
 function redirectLegacyFrontDeskSettingsHash() {
+  if (isDedicatedWebsiteWidgetDashboard()) {
+    return false;
+  }
+
   const redirectHash = getLegacyFrontDeskSettingsRedirectHash();
 
   if (!redirectHash || !window.history?.replaceState) {
@@ -4101,6 +4157,7 @@ function redirectLegacyFrontDeskSettingsHash() {
 }
 
 function getShellSectionFromHash(availableSections = FULL_SHELL_SECTIONS) {
+  redirectDedicatedWebsiteWidgetHash();
   redirectLegacyFrontDeskSettingsHash();
   return dashboardState.getShellSectionFromHash(window.location.hash, availableSections);
 }
@@ -4153,14 +4210,14 @@ function loadDashboardUiState() {
   try {
     const rawState = window.sessionStorage?.getItem(DASHBOARD_UI_STATE_STORAGE_KEY);
     const storedState = rawState ? JSON.parse(rawState) : {};
-    return {
+    return sanitizeDedicatedWebsiteWidgetUiState({
       ...DASHBOARD_UI_STATE_DEFAULTS,
       ...storedState,
-    };
+    });
   } catch (_error) {
-    return {
+    return sanitizeDedicatedWebsiteWidgetUiState({
       ...DASHBOARD_UI_STATE_DEFAULTS,
-    };
+    });
   }
 }
 
@@ -4186,7 +4243,7 @@ function setDashboardUiStateValue(key, value, options = {}) {
     return dashboardUiState[key];
   }
 
-  const normalizedValue = normalizeDashboardUiStateValue(key, value);
+  const normalizedValue = normalizeDedicatedWebsiteWidgetUiStateValue(key, normalizeDashboardUiStateValue(key, value));
   dashboardUiState[key] = normalizedValue;
 
   if (options.persist !== false && DASHBOARD_UI_STATE_PERSISTED_KEYS.includes(key)) {
@@ -4200,14 +4257,52 @@ function getDashboardUiStateValue(key) {
   const hashUpdates = getDashboardUiStateHashUpdates();
 
   if (Object.hasOwn(hashUpdates, key)) {
-    return normalizeDashboardUiStateValue(key, hashUpdates[key]);
+    return normalizeDedicatedWebsiteWidgetUiStateValue(key, normalizeDashboardUiStateValue(key, hashUpdates[key]));
   }
 
-  return normalizeDashboardUiStateValue(key, dashboardUiState[key]);
+  return normalizeDedicatedWebsiteWidgetUiStateValue(key, normalizeDashboardUiStateValue(key, dashboardUiState[key]));
 }
 
 function normalizeDashboardUiStateValue(key, value) {
   return dashboardState.normalizeDashboardUiStateValue(key, value);
+}
+
+function normalizeDedicatedWebsiteWidgetUiStateValue(key, value) {
+  if (!isDedicatedWebsiteWidgetDashboard()) {
+    return value;
+  }
+
+  if (key === "installMethod") {
+    return "widget";
+  }
+
+  if (key === "settingsMainTab") {
+    return "widget";
+  }
+
+  if (key === "settingsFrontDeskTab") {
+    return "optional-widget";
+  }
+
+  if (key === "frontDeskTab") {
+    return "practice";
+  }
+
+  return value;
+}
+
+function sanitizeDedicatedWebsiteWidgetUiState(state = {}) {
+  if (!isDedicatedWebsiteWidgetDashboard()) {
+    return state;
+  }
+
+  return {
+    ...state,
+    installMethod: "widget",
+    settingsMainTab: "widget",
+    settingsFrontDeskTab: "optional-widget",
+    frontDeskTab: "practice",
+  };
 }
 
 function normalizeCustomerFilterKey(value = "") {
@@ -19038,7 +19133,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       await frontDeskController.sendPracticeMessage(prompt);
     },
   }) || null;
-  frontDeskController = typeof dashboardFrontDeskHelpers.bindFrontDeskEvents === "function"
+  frontDeskController = !isDedicatedWebsiteWidgetDashboard() && typeof dashboardFrontDeskHelpers.bindFrontDeskEvents === "function"
     ? dashboardFrontDeskHelpers.bindFrontDeskEvents({
       agent,
       boot,
@@ -20727,7 +20822,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   showShellSection(initialSection, {
     settingsSection: settingsShellController?.getActiveSettingsSection?.(),
   });
-  frontDeskController?.showSection?.(getActiveFrontDeskSection());
+  if (!isDedicatedWebsiteWidgetDashboard()) {
+    frontDeskController?.showSection?.(getActiveFrontDeskSection());
+  }
 
   if (contactFilterButtons.length || contactSearchInput) {
     applyContactFilter(activeContactFilter);

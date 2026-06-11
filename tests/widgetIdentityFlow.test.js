@@ -122,6 +122,127 @@ function createFakeElement(id = "") {
   };
 }
 
+function createLiteEmbedHarness({
+  scriptSrc = "https://app.vonza.test/embed-lite.js",
+  scriptDataset = {},
+  widgetConfig = {},
+  pageHref = "https://merchant.example/shop?sku=123",
+} = {}) {
+  const script = readFileSync(path.join(repoRoot, "embed-lite.js"), "utf8");
+  const fetchCalls = [];
+  const makeNode = () => {
+    const listeners = new Map();
+    return {
+      dataset: {},
+      style: {
+        overflow: "",
+        setProperty() {},
+      },
+      textContent: "",
+      innerHTML: "",
+      src: "",
+      parentNode: null,
+      addEventListener(type, handler) {
+        listeners.set(type, handler);
+      },
+      dispatch(type, event = {}) {
+        listeners.get(type)?.({ target: this, stopPropagation() {}, ...event });
+      },
+      setAttribute(name, value) {
+        this[name] = value;
+      },
+      querySelector() {
+        return null;
+      },
+    };
+  };
+  const nodes = {
+    root: makeNode(),
+    button: makeNode(),
+    label: makeNode(),
+    modal: makeNode(),
+    panel: makeNode(),
+    close: makeNode(),
+    frame: makeNode(),
+  };
+  nodes.root.querySelector = (selector) => ({
+    ".vonza-lite-button": nodes.button,
+    ".vonza-lite-label": nodes.label,
+    ".vonza-lite-modal": nodes.modal,
+    ".vonza-lite-panel": nodes.panel,
+    ".vonza-lite-close": nodes.close,
+    ".vonza-lite-frame": nodes.frame,
+  })[selector] || null;
+  const currentScript = {
+    src: scriptSrc,
+    dataset: scriptDataset,
+  };
+  const location = new URL(pageHref);
+  const document = {
+    currentScript,
+    body: {
+      style: {},
+      appendChild(child) {
+        child.parentNode = this;
+        this.child = child;
+        return child;
+      },
+    },
+    documentElement: {
+      style: {},
+    },
+    getElementById() {
+      return null;
+    },
+    getElementsByTagName() {
+      return [currentScript];
+    },
+    createElement() {
+      return nodes.root;
+    },
+    addEventListener() {},
+  };
+  const context = {
+    window: {
+      location,
+      VonzaWidgetConfig: widgetConfig,
+    },
+    document,
+    URL,
+    fetch(url) {
+      fetchCalls.push(url);
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          widgetConfig: {
+            assistantName: "Saved widget",
+            buttonLabel: "Saved launcher",
+            primaryColor: "#111111",
+            secondaryColor: "#222222",
+          },
+        }),
+      });
+    },
+    console: {
+      log() {},
+      warn() {},
+    },
+  };
+  context.window.document = document;
+  context.window.fetch = context.fetch;
+  context.window.console = context.console;
+
+  vm.runInNewContext(script, context, { filename: "embed-lite.js" });
+
+  return {
+    fetchCalls,
+    nodes,
+    clickLauncher() {
+      nodes.button.dispatch("click");
+    },
+  };
+}
+
 function createWidgetHarness({
   customFetch = null,
   widgetRuntimeConfig = {},
@@ -2121,7 +2242,7 @@ test("explicit widget mode keeps the widget shell as the default display", () =>
   assert.equal(harness.elements.get("assistant-unavailable-state").hidden, true);
   assert.equal(harness.elements.get("entry-state").hidden, false);
   assert.equal(harness.elements.get("welcome-title").textContent, "Hi! How can we help today?");
-  assert.equal(harness.elements.get("launcher-text").textContent, "Business front desk");
+  assert.equal(harness.elements.get("launcher-text").textContent, "Website assistant");
 });
 
 test("normal widget quick replies ignore full-page suggested questions", () => {
@@ -4174,7 +4295,7 @@ test("widget modernizes legacy welcome defaults without auto-selecting a visitor
     secondaryColor: "#0c7f75",
   });
 
-  assert.equal(harness.elements.get("launcher-text").textContent, "Business front desk");
+  assert.equal(harness.elements.get("launcher-text").textContent, "Website assistant");
   assert.equal(harness.elements.get("welcome-message").textContent, "Hi! How can we help today?");
   assert.equal(harness.elements.get("welcome-assistant-name").textContent, "Vonza Assistant");
   assert.equal(harness.hooks.hasChosenVisitorIdentity(), false);
@@ -4412,6 +4533,42 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.match(embed, /launcher\.addEventListener\("click", openModal\)/);
   assert.match(embed, /closeButton\.addEventListener\("click", closeModal\)/);
   assert.match(embed, /event\.key === "Escape"/);
+});
+
+test("embed-lite carries bootstrap and iframe page context without breaking legacy agent keys", () => {
+  const configuredHarness = createLiteEmbedHarness({
+    scriptDataset: {
+      baseUrl: "https://app.vonza.test",
+      installId: "install-123",
+      agentKey: "legacy-agent-key",
+    },
+  });
+  const bootstrapUrl = new URL(configuredHarness.fetchCalls[0]);
+  configuredHarness.clickLauncher();
+  const widgetUrl = new URL(configuredHarness.nodes.frame.src);
+
+  for (const url of [bootstrapUrl, widgetUrl]) {
+    assert.equal(url.origin, "https://app.vonza.test");
+    assert.equal(url.searchParams.get("origin"), "https://merchant.example");
+    assert.equal(url.searchParams.get("page_url"), "https://merchant.example/shop?sku=123");
+    assert.equal(url.searchParams.get("install_id"), "install-123");
+    assert.equal(url.searchParams.get("agent_key"), "legacy-agent-key");
+  }
+  assert.equal(widgetUrl.searchParams.get("embedded"), "1");
+
+  const legacyHarness = createLiteEmbedHarness({
+    scriptSrc: "https://app.vonza.test/embed-lite.js?agent_key=query-agent-key",
+  });
+  const legacyBootstrapUrl = new URL(legacyHarness.fetchCalls[0]);
+  legacyHarness.clickLauncher();
+  const legacyWidgetUrl = new URL(legacyHarness.nodes.frame.src);
+
+  for (const url of [legacyBootstrapUrl, legacyWidgetUrl]) {
+    assert.equal(url.searchParams.get("agent_key"), "query-agent-key");
+    assert.equal(url.searchParams.get("origin"), "https://merchant.example");
+    assert.equal(url.searchParams.get("page_url"), "https://merchant.example/shop?sku=123");
+    assert.equal(url.searchParams.has("install_id"), false);
+  }
 });
 
 test("production page mode keeps preview mock data isolated", () => {

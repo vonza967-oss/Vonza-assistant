@@ -93,7 +93,7 @@ function renderAccountBillingSettings({
 test("dashboard product context resolves exact dashboard entry paths", () => {
   const { state } = loadDashboardState();
 
-  for (const pathname of ["/dashboard", "/dashboard/widget", "/website-widget/dashboard", "/widget/dashboard"]) {
+  for (const pathname of ["/dashboard/widget", "/website-widget/dashboard", "/widget/dashboard"]) {
     const context = state.getDashboardProductContext(pathname);
     assert.equal(context.key, "website_widget", pathname);
     assert.equal(context.canonicalPath, "/website-widget/dashboard", pathname);
@@ -102,6 +102,7 @@ test("dashboard product context resolves exact dashboard entry paths", () => {
   }
 
   assert.equal(state.getDashboardProductContext("/dashboard").isDefaultDashboardPath, true);
+  assert.equal(state.getDashboardProductContext("/dashboard").isDedicatedProductDashboard, false);
   assert.equal(state.getDashboardProductContext("/dashboard/front-desk").key, "website_widget");
   assert.equal(state.getDashboardProductContext("/dashboard/front-desk").isKnownProductPath, false);
   assert.equal(state.getDashboardProductContext("/dashboard/voice").key, "website_widget");
@@ -499,7 +500,7 @@ test("product readiness keeps default widget appearance from completing setup", 
   const { state } = loadDashboardState();
   const widgetChecklist = state.getProductReadinessChecklist("website_widget", {
     agent: {
-      buttonLabel: "Open Front Desk",
+      buttonLabel: "Open widget",
       welcomeMessage: "Hi! How can we help today?",
       primaryColor: "#5b61ff",
       secondaryColor: "#7c4dff",

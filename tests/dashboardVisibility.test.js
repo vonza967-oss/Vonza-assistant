@@ -55,6 +55,7 @@ function createDashboardHarness({
   initialLocalStorage = {
     vonza_dashboard_language: "en",
   },
+  initialSessionStorage = {},
 } = {}) {
   const settingsShellScript = readFileSync(settingsShellBundlePath, "utf8");
   const dashboardI18nScript = readFileSync(dashboardI18nPath, "utf8");
@@ -313,6 +314,9 @@ function createDashboardHarness({
     storage.setItem(key, value);
   });
   const sessionStorage = createStorageMock();
+  Object.entries(initialSessionStorage).forEach(([key, value]) => {
+    sessionStorage.setItem(key, value);
+  });
   const window = {
     document,
     location,
@@ -850,7 +854,7 @@ test("dashboard renders visible shell content when data loads normally", async (
 });
 
 test("widget dashboard routes render widget-only home and sidebar copy", async () => {
-  for (const pathname of ["/dashboard", "/dashboard/widget", "/website-widget/dashboard", "/widget/dashboard"]) {
+  for (const pathname of ["/dashboard/widget", "/website-widget/dashboard", "/widget/dashboard"]) {
     const harness = createDashboardHarness({
       pathname,
       agents: () => [createActiveAgent()],
@@ -921,7 +925,7 @@ test("widget dashboard links to existing widget setup hashes without unsupported
 });
 
 test("widget dashboard routes render widget analytics links and customer empty states", async () => {
-  for (const pathname of ["/dashboard", "/dashboard/widget", "/website-widget/dashboard", "/widget/dashboard"]) {
+  for (const pathname of ["/dashboard/widget", "/website-widget/dashboard", "/widget/dashboard"]) {
     const analyticsHarness = createDashboardHarness({
       pathname,
       hash: "#analytics",
@@ -952,6 +956,62 @@ test("widget dashboard routes render widget analytics links and customer empty s
     assert.doesNotMatch(customerHtml, />\s*(Front Desk|Voice Agent|Web Call|Enterprise Request Desk|Hotel Concierge)\s*</i);
     assert.doesNotMatch(customerHtml, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"|telephony/i);
   }
+});
+
+test("dedicated Website Widget dashboard remaps stale Front Desk state to widget surfaces", async () => {
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    hash: "#settings/front-desk/full-page-assistant",
+    agents: () => [createActiveAgent()],
+    initialLocalStorage: {
+      vonza_dashboard_language: "en",
+      vonza_dashboard_section: "customize",
+      vonza_dashboard_frontdesk_section: "customization",
+      vonza_dashboard_settings_section: "voice_agent",
+    },
+    initialSessionStorage: {
+      vonza_dashboard_ui_state: JSON.stringify({
+        installMethod: "full-page",
+        settingsMainTab: "voice_agent",
+        settingsFrontDeskTab: "voice",
+        frontDeskTab: "customization",
+      }),
+    },
+  });
+  await harness.settle();
+  const html = harness.getRootHtml();
+
+  assert.equal(harness.getLocation().hash, "#settings/widget/optional-widget");
+  assert.match(html, /data-shell-target="settings"[\s\S]{0,260}aria-current="page"/);
+  assert.match(html, /Widget configuration/);
+  assert.match(html, /website-widget-config-form/);
+  assert.doesNotMatch(html, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
+  assert.doesNotMatch(html, /data-frontdesk-section=|data-frontdesk-settings-tab="voice"|Enable browser voice for Front Desk|Front Desk page customization/i);
+
+  const state = JSON.parse(harness.getGlobal("window").sessionStorage.getItem("vonza_dashboard_ui_state"));
+  assert.equal(state.installMethod, "widget");
+  assert.equal(state.settingsMainTab, "widget");
+  assert.equal(state.settingsFrontDeskTab, "optional-widget");
+  assert.notEqual(harness.getGlobal("window").localStorage.getItem("vonza_dashboard_frontdesk_section"), "customization");
+});
+
+test("dedicated Website Widget analytics and customers default to widget context when product context is absent", () => {
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    agents: () => [createActiveAgent()],
+  });
+  const customers = harness.getGlobal("window").VonzaDashboardCustomers;
+  const analytics = harness.getGlobal("window").VonzaDashboardAnalytics;
+  const customerHtml = customers.renderCustomerEmptyState();
+  const analyticsHtml = analytics.renderProductAnalyticsSection([], null, { hideProductTabs: true });
+
+  assert.match(customerHtml, /No Website Widget customer conversations yet\./);
+  assert.match(customerHtml, /href="#install\/embed"/);
+  assert.doesNotMatch(customerHtml, /Front Desk|Web Call|Voice Agent/);
+  assert.match(analyticsHtml, /data-product-analytics-view="website_widget"/);
+  assert.match(analyticsHtml, /No Website Widget analytics yet\./);
+  assert.match(analyticsHtml, /href="#settings\/widget\/optional-widget"/);
+  assert.doesNotMatch(analyticsHtml, /No Front Desk analytics|Open full-page publish|Web Call|Voice Agent/);
 });
 
 test("dashboard hash routes open the matching interior section", async () => {
@@ -2182,7 +2242,7 @@ test("dedicated Website Widget dashboard uses the same signed-out auth gate as d
 
   assert.match(dashboardHarness.getRootHtml(), /Create your Vonza account|Sign in to continue into Vonza/);
   assert.match(widgetHarness.getRootHtml(), /Create your Vonza account|Sign in to continue into Vonza/);
-  assert.equal(dashboardHarness.getGlobal("document").title, "Vonza | Website Widget");
+  assert.equal(dashboardHarness.getGlobal("document").title, "Vonza | Home");
   assert.equal(widgetHarness.getGlobal("document").title, "Vonza | Website Widget");
   assert.equal(
     widgetHarness.fetchCalls.some((call) => call.pathname === "/agents/list"),

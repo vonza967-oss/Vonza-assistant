@@ -160,7 +160,6 @@
     "website-widget": "website_widget",
   });
   const WEBSITE_WIDGET_DASHBOARD_PATHS = Object.freeze([
-    "/dashboard",
     "/dashboard/widget",
     "/website-widget/dashboard",
     "/widget/dashboard",
@@ -431,10 +430,15 @@
       routeSegment,
       currentPath: normalizedPath === "/" ? "/dashboard" : normalizedPath,
       canonicalPath: "/website-widget/dashboard",
-      isDefaultDashboardPath: false,
+      isDefaultDashboardPath: normalizedPath === "/dashboard",
       isKnownProductPath: normalizedPath === "/dashboard" || DASHBOARD_PRODUCT_ROUTE_SEGMENTS[routeSegment] === product.key,
       isDedicatedProductDashboard: false,
     });
+  }
+
+  function isDedicatedWebsiteWidgetDashboardPath(pathname = global.location?.pathname || "") {
+    const normalizedPath = `/${trimText(pathname).split(/[?#]/)[0].replace(/^\/+|\/+$/g, "")}`;
+    return WEBSITE_WIDGET_DASHBOARD_PATHS.includes(normalizedPath);
   }
 
   function getDashboardProductRoutePath(key = "website_widget") {
@@ -695,7 +699,7 @@
   }
 
   const READINESS_DEFAULT_WIDGET_VALUES = Object.freeze({
-    buttonLabels: Object.freeze(["chat with vonza", "open front desk", "chat"]),
+    buttonLabels: Object.freeze(["chat with vonza", "open front desk", "open widget", "chat"]),
     welcomeMessages: Object.freeze([
       "how may i be of your service today?",
       "hi! how can we help today?",
@@ -1265,6 +1269,7 @@
     normalizeDashboardProductKey,
     getDashboardProduct,
     getDashboardProductContext,
+    isDedicatedWebsiteWidgetDashboardPath,
     getDashboardProductRoutePath,
     getDashboardProductPackaging,
     listDashboardProductPackaging,

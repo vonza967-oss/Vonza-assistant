@@ -15,7 +15,7 @@ import {
   uploadFrontDeskBackground,
   validateFrontDeskBackgroundUpload,
 } from "../src/services/agents/frontDeskBackgroundService.js";
-import { FULL_PAGE_BACKGROUND_PRESETS } from "../src/services/agents/agentDefaults.js";
+import { DEFAULT_WIDGET_CONFIG, FULL_PAGE_BACKGROUND_PRESETS } from "../src/services/agents/agentDefaults.js";
 
 function createSupabaseStub(initialState) {
   const state = {
@@ -176,6 +176,12 @@ function createSupabaseStub(initialState) {
     state,
   };
 }
+
+test("default Website Widget identity avoids Front Desk copy", () => {
+  assert.equal(DEFAULT_WIDGET_CONFIG.buttonLabel, "Widget megnyitása");
+  assert.equal(DEFAULT_WIDGET_CONFIG.launcherText, "Weboldali asszisztens");
+  assert.doesNotMatch(JSON.stringify(DEFAULT_WIDGET_CONFIG), /Front Desk|front desk/i);
+});
 
 test("requireAgentAccess exposes default package fields for missing or blank agent row values", async () => {
   const supabase = createSupabaseStub({
@@ -462,6 +468,57 @@ test("updateAgentSettings normalizes website URLs and reuses an existing busines
   assert.equal(state.businesses[0].website_url, "https://old-example.com");
   assert.equal(state.widget_configs[0].assistant_name, "Vonza Pro");
   assert.equal(state.widget_configs[0].button_label, "Ask Vonza");
+});
+
+test("updateAgentSettings preserves explicit saved widget assistant name and launcher label", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Fallback Agent",
+        purpose: "support",
+        system_prompt: "",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Saved Business",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Custom Widget Concierge",
+        welcome_message: "Hello there",
+        button_label: "Ask the team",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Custom launcher",
+        theme_mode: "light",
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    websiteUrl: "https://example.com/",
+    tone: "professional",
+  });
+
+  assert.equal(result.buttonLabel, "Ask the team");
+  assert.equal(state.widget_configs[0].assistant_name, "Custom Widget Concierge");
+  assert.equal(state.widget_configs[0].button_label, "Ask the team");
 });
 
 test("updateAgentSettings persists sanitized full-page assistant config", async () => {

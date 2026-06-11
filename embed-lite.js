@@ -12,15 +12,28 @@
   const script = document.currentScript || [...document.getElementsByTagName("script")].reverse().find((node) => /\/embed-lite\.js(?:\?|$)/.test(node.src));
   const config = window.VonzaWidgetConfig || {};
   const fallbackUrl = script?.src ? new URL(script.src, window.location.href) : new URL(window.location.href);
+  const scriptParams = fallbackUrl.searchParams;
+  const fromConfig = (datasetKey, configKey, ...queryKeys) =>
+    script?.dataset[datasetKey]
+      || config[configKey]
+      || queryKeys.map((key) => config[key]).find(Boolean)
+      || queryKeys.map((key) => scriptParams.get(key)).find(Boolean)
+      || "";
   const baseUrl = (script?.dataset.baseUrl || config.baseUrl || fallbackUrl.origin).replace(/\/$/, "");
-  const agentId = script?.dataset.agentId || config.agentId || "";
-  const agentKey = script?.dataset.agentKey || config.agentKey || "";
-  const businessId = script?.dataset.businessId || config.businessId || "";
-  const websiteUrl = script?.dataset.websiteUrl || config.websiteUrl || (/^https?:$/.test(window.location.protocol) ? window.location.origin : "");
+  const installId = fromConfig("installId", "installId", "install_id", "installId");
+  const agentId = fromConfig("agentId", "agentId", "agent_id", "agentId");
+  const agentKey = fromConfig("agentKey", "agentKey", "agent_key", "agentKey");
+  const businessId = fromConfig("businessId", "businessId", "business_id", "businessId");
+  const websiteUrl = fromConfig("websiteUrl", "websiteUrl", "website_url", "websiteUrl") || (/^https?:$/.test(window.location.protocol) ? window.location.origin : "");
+  const pageOrigin = window.location.origin || "";
+  const pageUrl = window.location.href || "";
   const widgetUrl = new URL("/widget", baseUrl);
   const bootstrapUrl = new URL("/widget/bootstrap", baseUrl);
 
   widgetUrl.searchParams.set("embedded", "1");
+  if (pageOrigin) { widgetUrl.searchParams.set("origin", pageOrigin); bootstrapUrl.searchParams.set("origin", pageOrigin); }
+  if (pageUrl) { widgetUrl.searchParams.set("page_url", pageUrl); bootstrapUrl.searchParams.set("page_url", pageUrl); }
+  if (installId) { widgetUrl.searchParams.set("install_id", installId); bootstrapUrl.searchParams.set("install_id", installId); }
   if (agentId) { widgetUrl.searchParams.set("agent_id", agentId); bootstrapUrl.searchParams.set("agent_id", agentId); }
   if (agentKey) { widgetUrl.searchParams.set("agent_key", agentKey); bootstrapUrl.searchParams.set("agent_key", agentKey); }
   if (businessId) { widgetUrl.searchParams.set("business_id", businessId); bootstrapUrl.searchParams.set("business_id", businessId); }
@@ -80,7 +93,7 @@
     if (label) label.textContent = nextConfig.buttonLabel;
     panel.setAttribute("aria-label", nextConfig.assistantName);
     frame.setAttribute("title", nextConfig.assistantName);
-  }).catch((error) => console.warn("[Vonza lite] bootstrap failed", error));
+  }).catch(() => console.warn("[Vonza lite] bootstrap unavailable"));
 
   function open() {
     modal.dataset.open = "true";
@@ -92,7 +105,7 @@
     if (!loaded) {
       frame.src = widgetUrl.toString();
       loaded = true;
-      console.log("[Vonza lite] iframe:", frame.src);
+      console.log("[Vonza lite] iframe opened");
     }
   }
 

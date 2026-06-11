@@ -2728,7 +2728,7 @@ export async function updateAgentSettings(
     throw error;
   }
 
-  const nextAssistantName = cleanText(assistantName) || cleanText(name) || agent.name || DEFAULT_AGENT_NAME;
+  const providedAssistantName = cleanText(assistantName) || cleanText(name);
   const hasPurposeUpdate =
     (hasField("purpose") && purpose !== undefined)
     || (hasField("widgetPurpose") && widgetPurpose !== undefined);
@@ -2780,6 +2780,7 @@ export async function updateAgentSettings(
   const nextWelcomeMessage = hasField("welcomeMessage")
     ? cleanText(welcomeMessage)
     : persistedWidgetConfig.welcomeMessage;
+  const nextAssistantName = providedAssistantName || persistedWidgetConfig.assistantName || agent.name || DEFAULT_AGENT_NAME;
   const nextButtonLabel = hasField("buttonLabel")
     ? cleanText(buttonLabel)
     : persistedWidgetConfig.buttonLabel;

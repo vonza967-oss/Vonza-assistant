@@ -187,6 +187,22 @@
     }),
   });
 
+  const DEDICATED_WEBSITE_WIDGET_DASHBOARD_PATHS = Object.freeze([
+    "/dashboard/widget",
+    "/website-widget/dashboard",
+    "/widget/dashboard",
+  ]);
+
+  function isDedicatedWebsiteWidgetDashboardPath() {
+    const pathname = trimText(global.location?.pathname).split(/[?#]/)[0];
+    const normalizedPath = `/${pathname.replace(/^\/+|\/+$/g, "")}`;
+    return DEDICATED_WEBSITE_WIDGET_DASHBOARD_PATHS.includes(normalizedPath);
+  }
+
+  function getDefaultProductAnalyticsKey() {
+    return isDedicatedWebsiteWidgetDashboardPath() ? "website_widget" : "front_desk";
+  }
+
   function trimText(value) {
     return String(value || "").trim();
   }
@@ -249,10 +265,10 @@
     };
     const candidate = aliases[normalized] || normalized;
 
-    return PRODUCT_ANALYTICS_CONFIG[candidate] ? candidate : "front_desk";
+    return PRODUCT_ANALYTICS_CONFIG[candidate] ? candidate : getDefaultProductAnalyticsKey();
   }
 
-  function getProductPrimarySourceKey(productKey = "front_desk") {
+  function getProductPrimarySourceKey(productKey = "") {
     const key = normalizeProductAnalyticsKey(productKey);
 
     if (key === "website_widget") {
@@ -266,7 +282,7 @@
     return "page";
   }
 
-  function getProductSourceLabel(productKey = "front_desk") {
+  function getProductSourceLabel(productKey = "") {
     const sourceKey = getProductPrimarySourceKey(productKey);
 
     if (sourceKey === "widget") {
@@ -280,7 +296,7 @@
     return "Front Desk page";
   }
 
-  function scopeAssistantSourceRowsForProduct(sourceRows = [], productKey = "front_desk") {
+  function scopeAssistantSourceRowsForProduct(sourceRows = [], productKey = "") {
     const sourceKey = getProductPrimarySourceKey(productKey);
     return (Array.isArray(sourceRows) ? sourceRows : []).filter((row) => row.key === sourceKey);
   }
@@ -550,7 +566,7 @@
     };
   }
 
-  function buildProductAnalyticsCards(productKey = "front_desk", sourceRows = [], ownerAnalyticsDashboard = null, options = {}) {
+  function buildProductAnalyticsCards(productKey = "", sourceRows = [], ownerAnalyticsDashboard = null, options = {}) {
     const context = createRenderContext(options);
     const key = normalizeProductAnalyticsKey(productKey);
     const config = PRODUCT_ANALYTICS_CONFIG[key];
@@ -601,7 +617,7 @@
     return cards;
   }
 
-  function hasProductAnalyticsActivity(productKey = "front_desk", sourceRows = [], ownerAnalyticsDashboard = null) {
+  function hasProductAnalyticsActivity(productKey = "", sourceRows = [], ownerAnalyticsDashboard = null) {
     const key = normalizeProductAnalyticsKey(productKey);
     const pageRow = findSourceRow(sourceRows, "page");
     const widgetRow = findSourceRow(sourceRows, "widget");
@@ -694,7 +710,7 @@
 
   function renderProductAnalyticsSection(sourceRows = [], ownerAnalyticsDashboard = null, options = {}) {
     const context = createRenderContext(options);
-    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "");
     const config = PRODUCT_ANALYTICS_CONFIG[activeKey];
     const hideProductTabs = options.hideProductTabs === true;
     const cards = buildProductAnalyticsCards(activeKey, sourceRows, ownerAnalyticsDashboard, context);
@@ -758,7 +774,7 @@
   function buildMetricCards(report = {}, sourceRows = [], options = {}) {
     const context = createRenderContext(options);
     const humanFollowUps = Math.max(0, Number(report.conversationCount || 0) - Number(report.autonomousHandledCount || 0));
-    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "");
     const primarySourceKey = getProductPrimarySourceKey(activeKey);
     const primarySourceRow = sourceRows.find((row) => row.key === primarySourceKey) || {};
     const primaryMetricLabel = activeKey === "website_widget"
@@ -838,7 +854,7 @@
 
   function renderAnalyticsCommandBrief(report = {}, sourceRows = [], topQuestionItems = [], options = {}) {
     const context = createRenderContext(options);
-    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "");
     const totalConversations = Number(report.conversationCount || 0);
     const primarySourceKey = getProductPrimarySourceKey(activeKey);
     const primarySourceRow = sourceRows.find((row) => row.key === primarySourceKey) || {};
@@ -876,7 +892,7 @@
 
   function renderAssistantSourceCard(sourceRows = [], totalConversations = 0, options = {}) {
     const context = createRenderContext(options);
-    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "");
     const total = Math.max(Number(totalConversations || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
     const trackedRows = sourceRows.filter((row) => !row.unavailable || Number(row.conversationCount || 0) > 0 || Number(row.messageCount || 0) > 0);
     const subtitle = activeKey === "website_widget"
@@ -1379,7 +1395,7 @@
 
   function renderPerformanceBySource(sourceRows = [], report = {}, options = {}) {
     const context = createRenderContext(options);
-    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "");
     const total = Math.max(Number(report.conversationCount || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
     const subtitle = activeKey === "website_widget"
       ? context.t("analytics.performanceBySourceWidgetCopy")
@@ -1436,7 +1452,7 @@
   function renderAnalyticsPageFragment(report = {}, ownerAnalyticsDashboard = null, topQuestionItems = [], userMessages = [], options = {}) {
     const context = createRenderContext(options);
     const renderOptions = { ...options, ...context };
-    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "");
     const activeProductScope = options.sourceScope === "active_product" || options.hideProductTabs === true;
     const allSourceRows = buildAssistantSourceRows(ownerAnalyticsDashboard?.assistantSource);
     const sourceRows = localizeAssistantSourceRows(

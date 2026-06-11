@@ -59,6 +59,22 @@
     }),
   });
 
+  const DEDICATED_WEBSITE_WIDGET_DASHBOARD_PATHS = Object.freeze([
+    "/dashboard/widget",
+    "/website-widget/dashboard",
+    "/widget/dashboard",
+  ]);
+
+  function isDedicatedWebsiteWidgetDashboardPath() {
+    const pathname = fallbackTrimText(global.location?.pathname).split(/[?#]/)[0];
+    const normalizedPath = `/${pathname.replace(/^\/+|\/+$/g, "")}`;
+    return DEDICATED_WEBSITE_WIDGET_DASHBOARD_PATHS.includes(normalizedPath);
+  }
+
+  function getDefaultCustomerProductKey() {
+    return isDedicatedWebsiteWidgetDashboardPath() ? "website_widget" : "front_desk";
+  }
+
   function normalizeCustomerProductKey(value = "") {
     const rawValue = typeof value === "object" && value ? value.key : value;
     const normalized = fallbackTrimText(rawValue).toLowerCase().replace(/-/g, "_");
@@ -73,7 +89,7 @@
     };
     const candidate = aliases[normalized] || normalized;
 
-    return CUSTOMER_EMPTY_STATE_BY_PRODUCT[candidate] ? candidate : "front_desk";
+    return CUSTOMER_EMPTY_STATE_BY_PRODUCT[candidate] ? candidate : getDefaultCustomerProductKey();
   }
 
   function createCustomerHelpers(dependencies = {}) {
@@ -1378,7 +1394,7 @@
       `;
     }
 
-    function getCustomerEmptyStateContext(productKey = "front_desk") {
+    function getCustomerEmptyStateContext(productKey = "") {
       const normalizedProductKey = normalizeCustomerProductKey(productKey);
       return CUSTOMER_EMPTY_STATE_BY_PRODUCT[normalizedProductKey] || CUSTOMER_EMPTY_STATE_BY_PRODUCT.front_desk;
     }
@@ -1395,7 +1411,7 @@
       return `<a ${attributes.join(" ")}>${escapeHtml(action.label || "Open setup")}</a>`;
     }
 
-    function buildCustomerProductEmptyState(productKey = "front_desk") {
+    function buildCustomerProductEmptyState(productKey = "") {
       const context = getCustomerEmptyStateContext(productKey);
 
       return buildOperatorEmptyState({
@@ -1408,7 +1424,7 @@
     function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorWorkspace(), options = {}) {
       const contacts = operatorWorkspace.contacts?.list || [];
       const contactsHealth = operatorWorkspace.contacts?.health || createEmptyOperatorWorkspace().contacts.health;
-      const activeProductKey = normalizeCustomerProductKey(options.activeProduct || options.productKey || options.product);
+      const activeProductKey = normalizeCustomerProductKey(options.activeProduct || options.productKey || options.product || "");
       const customerFilters = buildCustomerFilterDefinitions(contacts);
       const filtersMarkup = `
         <div class="customer-filter-strip" data-customer-filter-strip>
@@ -1529,7 +1545,7 @@
     return '<div class="customer-chat-message customer-chat-message--' + roleClass + '"><div class="customer-chat-message-meta"><strong>' + label + '</strong>' + created + '</div><p>' + sanitizeHtml(sanitizeText(message.content) || t("common.noMessageText")) + '</p>' + training + '</div>';
   }
 
-  function renderCustomerEmptyState(productKey = "front_desk") {
+  function renderCustomerEmptyState(productKey = "") {
     return buildCustomerProductEmptyState(productKey);
   }
 
