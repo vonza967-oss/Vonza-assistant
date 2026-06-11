@@ -135,6 +135,9 @@
     analytics: "analytics",
     install: "install",
     settings: "settings",
+    preferences: "preferences",
+    "workspace-settings": "preferences",
+    "dashboard-settings": "preferences",
     privacy: "settings",
   });
   const DASHBOARD_SECTION_HASHES = Object.freeze({
@@ -145,6 +148,7 @@
     analytics: "analytics",
     install: "install",
     settings: "settings",
+    preferences: "preferences",
   });
   const DASHBOARD_PRODUCT_REGISTRY = Object.freeze({
     website_widget: Object.freeze({

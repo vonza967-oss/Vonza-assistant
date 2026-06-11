@@ -204,6 +204,7 @@ const DASHBOARD_HELP_SECTION_LABELS = {
   analytics: "Analytics",
   install: "Install",
   settings: "Settings",
+  preferences: "Settings",
   inbox: "Email",
   calendar: "Calendar",
   automations: "Automations",
@@ -222,7 +223,7 @@ const dashboardUiState = loadDashboardUiState();
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
-const WEBSITE_WIDGET_DASHBOARD_SECTIONS = ["overview", "contacts", "analytics", "install", "settings"];
+const WEBSITE_WIDGET_DASHBOARD_SECTIONS = ["overview", "contacts", "analytics", "install", "settings", "preferences"];
 const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
 const WIDGET_PURPOSE_OPTIONS = [
   {
@@ -528,6 +529,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "install.testFrontDesk": "Test front desk",
   "settings.title": "Settings",
   "settings.copy": "Control assistant branding, business context, billing, privacy, and workspace access.",
+  "settings.preferencesCopy": "Choose dashboard language, appearance, and device-level workspace preferences.",
   "settings.theme": "Theme",
   "settings.themeCopy": "Choose how the dashboard looks in this browser. Bright Glass is the default.",
   "settings.brightGlass": "Bright Glass",
@@ -6655,6 +6657,7 @@ function getShellNavIconMarkup(sectionKey = "") {
     automations: "automations",
     install: "install",
     settings: "settings",
+    preferences: "settings",
   };
 
   return getUiIconMarkup(iconMap[sectionKey] || "review");
@@ -6824,6 +6827,11 @@ function buildSidebarShell(
         label: websiteWidgetText("sidebar.configuration"),
         note: websiteWidgetText("sidebar.configurationNote"),
         settingsTarget: "website_widget",
+      },
+      {
+        key: "preferences",
+        label: t("nav.settings"),
+        note: websiteWidgetText("sidebar.preferencesNote"),
       },
     ].filter((item) => availableSections.includes(item.key))
     : [
@@ -9837,6 +9845,55 @@ function buildSettingsPanel(
   }
 
   return settingsShell.buildSettingsPanel(getSettingsShellOptions(agent, setup, operatorWorkspace, actionQueue, connectedApps));
+}
+
+function buildWebsiteWidgetPreferencesPanel(
+  agent,
+  setup,
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+  actionQueue = createEmptyActionQueue(),
+  connectedApps = workspaceState?.connectedApps || createEmptyConnectedAppsState()
+) {
+  const settingsShell = window.VonzaSettingsShell;
+  const options = getSettingsShellOptions(agent, setup, operatorWorkspace, actionQueue, connectedApps);
+
+  if (settingsShell && typeof settingsShell.buildWorkspacePreferencesPanel === "function") {
+    return settingsShell.buildWorkspacePreferencesPanel({
+      ...options,
+      shellSectionKey: "preferences",
+    });
+  }
+
+  const dashboardLanguage = getDashboardLanguage();
+  const supportedDashboardLanguages = options.getSupportedDashboardLanguages();
+
+  return localizeDashboardHtml(`
+    <section class="workspace-page settings-shell-root settings-shell-root--preferences" data-shell-section="preferences" hidden>
+      ${buildPageHeader({
+        eyebrow: t("nav.utilities"),
+        title: t("settings.title"),
+        copy: t("settings.preferencesCopy"),
+      })}
+      <div class="workspace-page-body settings-shell-layout">
+        <article class="settings-overview-card settings-overview-card--wide">
+          <form data-dashboard-language-form>
+            <div class="field">
+              <label for="dashboard-language-select">${escapeHtml(t("language.settingsTitle"))}</label>
+              <select id="dashboard-language-select" name="dashboard_language">
+                ${supportedDashboardLanguages.map((language) => `
+                  <option value="${escapeHtml(language.code)}" ${dashboardLanguage === language.code ? "selected" : ""}>${escapeHtml(language.nativeLabel || language.label)}</option>
+                `).join("")}
+              </select>
+            </div>
+            <div class="settings-card-actions">
+              <span data-save-state class="save-state">${escapeHtml(t("language.noChanges"))}</span>
+              <button class="ghost-button" type="submit">${escapeHtml(t("language.save"))}</button>
+            </div>
+          </form>
+        </article>
+      </div>
+    </section>
+  `);
 }
 
 function buildFrontDeskCustomizationPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), actionQueue = createEmptyActionQueue(), activeFrontDeskSection = "practice") {
@@ -14870,6 +14927,7 @@ function renderAssistantShell(
           ${isDedicatedWebsiteWidgetDashboard() ? "" : (isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : "")}
           ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetInstallPanel(agent) : buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
           ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetExistingConfigurationPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps)}
+          ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetPreferencesPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : ""}
         </div>
       </div>
     </div>
@@ -14916,6 +14974,7 @@ function renderDashboardV2Shell(
           ${isDedicatedWebsiteWidgetDashboard() ? "" : (isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : "")}
           ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetInstallPanel(agent) : buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
           ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetExistingConfigurationPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps)}
+          ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetPreferencesPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : ""}
         </div>
       </div>
     </div>

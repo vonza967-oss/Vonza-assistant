@@ -1473,6 +1473,8 @@ test("Hungarian supported dashboard keys do not fall back to key names or Englis
     ["analytics.widgetLeads", "Widget érdeklődők"],
     ["analytics.derivedFromConversationSource", "Meglévő beszélgetésforrás-adatokból"],
     ["websiteWidget.status.verifyProgress", "Telepítés ellenőrzése..."],
+    ["websiteWidget.sidebar.preferencesNote", "Nyelv és irányítópult beállítások"],
+    ["settings.preferencesCopy", "Válaszd ki az irányítópult nyelvét, megjelenését és eszközszintű munkaterület-beállításait."],
   ]);
 
   for (const [key, value] of expected.entries()) {
@@ -1520,6 +1522,7 @@ test("Hungarian core dashboard screens surface missing translation keys through 
     "analytics.handlingCopy",
     "analytics.topQuestionsCopy",
     "analytics.performanceBySourceWidgetCopy",
+    "websiteWidget.sidebar.preferencesNote",
     "websiteWidget.status.importStart",
     "websiteWidget.status.importRetry",
     "websiteWidget.status.importFallback",
@@ -1542,6 +1545,7 @@ test("Hungarian core dashboard screens surface missing translation keys through 
     "install.copyInstallCode",
     "install.verifyInstallation",
     "settings.title",
+    "settings.preferencesCopy",
     "settings.theme",
     "language.settingsTitle",
   ];

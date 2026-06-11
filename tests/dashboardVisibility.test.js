@@ -880,6 +880,8 @@ test("widget dashboard routes render widget-only home and sidebar copy", async (
     assert.match(html, /<span class="shell-nav-label">Install<\/span>/, pathname);
     assert.match(html, /data-shell-target="settings"/, pathname);
     assert.match(html, /<span class="shell-nav-label">Configuration<\/span>/, pathname);
+    assert.match(html, /data-shell-target="preferences"/, pathname);
+    assert.match(html, /<span class="shell-nav-label">Settings<\/span>/, pathname);
     assert.doesNotMatch(html, /data-dashboard-product-nav|data-shell-target="customize"/, pathname);
     assert.doesNotMatch(html, />\s*(Front Desk|Voice Agent|QDH|ESG|Enterprise Request Desk|Web Call|Hotel Concierge)\s*</i, pathname);
     assert.doesNotMatch(html, /Front Desk created|Public Front Desk page|Front Desk customized|Distribution channel selected|Front Desk improvements|Current Front Desk greeting/i, pathname);
@@ -901,7 +903,7 @@ test("Hungarian Website Widget dashboard renders localized nav and close label",
   const html = harness.getRootHtml();
   const shellLabels = Array.from(html.matchAll(/<span class="shell-nav-label">([^<]+)<\/span>/g), (match) => match[1]);
   assert.match(html, /aria-label="Navigáció bezárása"/);
-  ["Áttekintés", "Ügyfelek", "Elemzések", "Telepítés", "Beállítások"].forEach((label) => {
+  ["Áttekintés", "Ügyfelek", "Elemzések", "Telepítés", "Widget konfiguráció", "Beállítások"].forEach((label) => {
     assert.ok(shellLabels.includes(label), `Expected Hungarian nav label: ${label}`);
   });
 });
@@ -993,6 +995,28 @@ test("dedicated Website Widget dashboard remaps stale Front Desk state to widget
   assert.equal(state.settingsMainTab, "widget");
   assert.equal(state.settingsFrontDeskTab, "optional-widget");
   assert.notEqual(harness.getGlobal("window").localStorage.getItem("vonza_dashboard_frontdesk_section"), "customization");
+});
+
+test("dedicated Website Widget dashboard has a separate Settings preferences page", async () => {
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    hash: "#preferences",
+    agents: () => [createActiveAgent()],
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+  const preferencesStart = html.indexOf('data-shell-section="preferences"');
+  const nextShell = html.indexOf('data-shell-section="', preferencesStart + 1);
+  const preferencesHtml = preferencesStart >= 0 ? html.slice(preferencesStart, nextShell > preferencesStart ? nextShell : undefined) : "";
+
+  assert.match(html, /data-shell-target="preferences"[\s\S]{0,260}aria-current="page"/);
+  assert.match(preferencesHtml, /Settings/);
+  assert.match(preferencesHtml, /Dashboard language/);
+  assert.match(preferencesHtml, /data-dashboard-language-form/);
+  assert.match(preferencesHtml, /name="dashboard_language"/);
+  assert.match(preferencesHtml, /data-dashboard-theme-choice/);
+  assert.doesNotMatch(preferencesHtml, /Widget configuration|How the widget answers|website-widget-config-form/);
 });
 
 test("dedicated Website Widget analytics and customers default to widget context when product context is absent", () => {
@@ -1190,6 +1214,7 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.match(html, /data-shell-target="contacts"/);
   assert.match(html, /data-shell-target="analytics"/);
   assert.match(html, /data-shell-target="settings"[\s\S]{0,260}data-settings-target="website_widget"/);
+  assert.match(html, /data-shell-target="preferences"/);
   assert.match(html, /Customers/);
   assert.match(html, /Website Widget analytics/);
   assert.match(html, /data-product-analytics-view="website_widget"/);
@@ -1202,7 +1227,7 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.doesNotMatch(html, /Widget Conversations|Widget source leads|Widget Analytics/);
   assert.doesNotMatch(html, /Page-only question/);
   const shellLabels = Array.from(html.matchAll(/<span class="shell-nav-label">([^<]+)<\/span>/g), (match) => match[1]);
-  assert.deepEqual(Array.from(new Set(shellLabels)), ["Overview", "Customers", "Analytics", "Install", "Configuration"]);
+  assert.deepEqual(Array.from(new Set(shellLabels)), ["Overview", "Customers", "Analytics", "Install", "Configuration", "Settings"]);
   assert.doesNotMatch(shellLabels.join(" "), /Front Desk|Voice Agent|QDH|ESG|Enterprise Request Desk|Web Call|Hotel Concierge|Connected Tools/i);
   assert.doesNotMatch(html, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"|generic engine/i);
   assert.doesNotMatch(html, /data-dashboard-product-nav/);

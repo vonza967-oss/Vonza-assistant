@@ -626,6 +626,11 @@ test("Website Widget launch dashboard routes render Widget-first surfaces", asyn
       visibleSelector: '[data-shell-section="settings"]:not([hidden])',
       expectedText: "Widget configuration",
     },
+    {
+      path: "/website-widget/dashboard#preferences",
+      visibleSelector: '[data-shell-section="preferences"]:not([hidden])',
+      expectedText: "Dashboard language",
+    },
   ]) {
     const page = await newPage({ dashboardLanguage: "en" });
     const runtimeErrors = [];

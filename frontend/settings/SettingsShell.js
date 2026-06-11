@@ -203,6 +203,7 @@
     "nav.utilities": "Utilities",
     "settings.title": "Settings",
     "settings.copy": "Manage product settings plus shared business, account, and privacy settings.",
+    "settings.preferencesCopy": "Choose dashboard language, appearance, and device-level workspace preferences.",
     "settings.theme": "Theme",
     "settings.themeCopy": "Choose how the dashboard looks in this browser. Bright Glass is the default.",
     "settings.background": "Dashboard background",
@@ -5101,6 +5102,25 @@
     return helpers.localizeDashboardHtml(html);
   }
 
+  function buildWorkspacePreferencesPanel(options = {}) {
+    const helpers = getHelpers(options);
+    const shellSectionKey = defaultTrimText(options.shellSectionKey || "preferences").replace(/[^a-z0-9_-]/gi, "") || "preferences";
+    const html = `
+      <section class="workspace-page settings-shell-root settings-shell-root--preferences" data-shell-section="${helpers.escapeHtml(shellSectionKey)}" hidden>
+        ${helpers.buildPageHeader({
+          eyebrow: helpers.t("nav.utilities"),
+          title: helpers.t("settings.title"),
+          copy: helpers.t("settings.preferencesCopy"),
+        })}
+        <div class="workspace-page-body settings-shell-layout">
+          ${buildWorkspacePreferencesCard(helpers)}
+        </div>
+      </section>
+    `;
+
+    return helpers.localizeDashboardHtml(html);
+  }
+
   function bindSettingsShellEvents(options = {}) {
     const root = options.root || global.document;
     const onSubmitForm = typeof options.onSubmitForm === "function" ? options.onSubmitForm : null;
@@ -5866,6 +5886,7 @@
 
   global.VonzaSettingsShell = {
     buildSettingsPanel,
+    buildWorkspacePreferencesPanel,
     buildFrontDeskSettingsForm: function buildFrontDeskSettingsFormForDashboard(options = {}) {
       const helpers = getHelpers(options);
       const productSettings = options.sectionKey || options.settingsSection
