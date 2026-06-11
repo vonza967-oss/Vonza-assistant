@@ -168,7 +168,7 @@ test("/widget and embed runtimes are still served", async () => {
   });
 });
 
-test("production widget pilot disables non-widget product routes while keeping widget routes active", { concurrency: false }, async () => {
+test("production widget pilot keeps widget routes active and pruned products unavailable", { concurrency: false }, async () => {
   await withEnv({
     NODE_ENV: "production",
     VONZA_DEPLOY_ENV: "production",
@@ -195,7 +195,17 @@ test("production widget pilot disables non-widget product routes while keeping w
         assert.equal(response.headers.get("location"), location, pathname);
       }
 
-      const disabledPages = [
+      for (const pathname of [
+        "/front-desk",
+        "/voice-agent",
+        "/how-it-works",
+      ]) {
+        const response = await getManualRedirect(baseUrl, pathname);
+        assert.equal(response.status, 302, pathname);
+        assert.equal(response.headers.get("location"), "/website-widget", pathname);
+      }
+
+      for (const pathname of [
         "/qdh",
         "/quote-desk-hu",
         "/qdh/setup",
@@ -214,18 +224,6 @@ test("production widget pilot disables non-widget product routes while keeping w
         "/esg-request-desk/demo",
         "/enterprise-request-desk/dashboard",
         "/esg-request-desk/dashboard",
-        "/front-desk",
-        "/voice-agent",
-        "/how-it-works",
-      ];
-
-      for (const pathname of disabledPages) {
-        const response = await getManualRedirect(baseUrl, pathname);
-        assert.equal(response.status, 302, pathname);
-        assert.equal(response.headers.get("location"), "/website-widget", pathname);
-      }
-
-      for (const pathname of [
         "/qdh/intake-fixture",
         "/quote-desk-hu/dashboard-fixture",
         "/enterprise-request-desk/intake-fixture",

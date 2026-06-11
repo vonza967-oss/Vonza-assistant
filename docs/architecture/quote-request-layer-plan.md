@@ -2,7 +2,7 @@
 
 Plan date: 2026-06-04
 
-This document defines the request-only foundation for the Hungarian Quote Desk. It prepares Vonza to collect and review quote requests without turning chat into a pricing engine. The Phase 1 QDH product shell is documented separately in `docs/architecture/qdh-product-plan.md`.
+This document defines the generic request-only quote foundation used by Vonza. It prepares the Website Widget and shared assistant flows to collect and review quote requests without turning chat into a pricing engine.
 
 ## Contract Terms
 
@@ -91,19 +91,12 @@ Authenticated owner routes:
 
 - `GET /agents/quote-requests`
 - `POST /agents/quote-requests/status`
-- `GET /quote-desk-hu/requests`
-- `POST /quote-desk-hu/requests/status`
 
 The list route supports optional `agentId`/`agent_id`, `status`, and `limit`. Agent filters are owner-access checked before listing.
 
 The status route delegates transitions and proof requirements to the service. It is review-only.
 
-There is no authenticated owner create route. Public creation is limited to intentionally scoped producers:
-
-- the feature-flagged generic public chat producer described below;
-- the Quote Desk HU customer intake producer at `POST /quote-desk-hu/intake-requests`.
-
-The QDH public create route is not a broad anonymous write endpoint. It requires `agent_key`, resolves an active owner-scoped public agent, verifies the owner has a saved `qdh_owner_setups` record, validates request-only fields, rejects unsupported/secret-looking public body fields, and delegates persistence to `createAgentQuoteRequest`.
+There is no authenticated owner create route. Public creation is limited to intentionally scoped producers, currently the feature-flagged generic public chat producer described below.
 
 The generic Vonza dashboard renders a compact "Quote requests" review card near operational request queues. It uses request/review wording and exposes only safe review statuses:
 
@@ -114,32 +107,6 @@ The generic Vonza dashboard renders a compact "Quote requests" review card near 
 - `archived`
 
 It does not expose casual "quote sent" or "accepted" buttons.
-
-Quote Desk HU adds separate QDH product routes at `/qdh`, `/quote-desk-hu`, `/qdh/setup`, `/quote-desk-hu/setup`, `/qdh/intake`, `/quote-desk-hu/intake`, `/qdh/dashboard`, and `/quote-desk-hu/dashboard`. It reuses the same quote request service, but it is a distinct product experience with Hungarian-first copy, QDH navigation, a customer-facing business-branded AI receptionist intake surface, a pipeline workspace, request detail panel, setup/readiness state, and QDH-specific API wrappers. It is not a generic `/dashboard` card and it is not presented as AI Front Desk.
-
-The QDH customer intake link pattern is:
-
-- `/qdh/intake?agent_key=<public_agent_key>`
-- `/quote-desk-hu/intake?agent_key=<public_agent_key>`
-
-The setup/dashboard surfaces show this link only after setup exists and an active public agent key can be found for the owner. The public intake surface presents the business first and helps the visitor describe the request conversationally, while still collecting service, project details, location, urgency, optional budget, customer name, email or phone, and acknowledgement that the request is not a final quote. It stores `source_channel = 'qdh_public_intake'`, status `request_received`, and request-only proof/metadata. Public responses return safe status/source acknowledgement only, with no owner IDs, agent IDs, business IDs, evidence, metadata, package keys, policy metadata, or secret values.
-
-The QDH wrapper displays newly received requests plus current request-review statuses:
-
-- `request_received`
-- `needs_info`
-- `needs_staff_review`
-- `declined`
-- `archived`
-
-It allows staff status actions only for current request-review statuses:
-
-- `needs_info`
-- `needs_staff_review`
-- `declined`
-- `archived`
-
-It does not expose `quoted_externally` or `accepted_externally` as Phase 1 dashboard actions.
 
 ## Feature Flag
 
@@ -183,14 +150,6 @@ Required migration for this layer:
 
 - `supabase/migrations/20260604120000_agent_quote_requests.sql`
 
-QDH self-serve setup also requires:
-
-- `supabase/migrations/20260604143000_qdh_owner_setups.sql`
-
-The setup table stores owner-scoped setup-readiness only. It does not create final quotes, send customer messages, call external providers, or activate a generic Vonza dashboard flow.
-
-QDH Phase 3 customer intake adds no new migration, but production use requires both migrations above plus an active owner-scoped agent with a public `public_agent_key`. The public route remains server-mediated; do not grant anonymous insert/update access on `public.agent_quote_requests`.
-
 Current adjacent engine migrations that must already be deployed before relying on their surfaces:
 
 - Action requests: `supabase/migrations/20260601185631_agent_action_requests.sql`
@@ -205,9 +164,9 @@ After applying feature-gated migrations, reload the PostgREST schema cache befor
 
 `db/schema.sql`, `docs/sql/prod_recovery_full_current_main.sql`, `src/services/schema/supabaseMigrationCatalog.js`, and schema-gate tests must stay aligned with the migration.
 
-## Hungarian Quote Eval Coverage
+## Quote Eval Coverage
 
-Deterministic eval coverage lives in the Quote Desk HU eval runner and service/chat tests. Required scenarios:
+Deterministic eval coverage should remain in shared service/chat tests. Required scenarios:
 
 - "Kérek árajánlatot tetőjavításra Budapesten."
 - "Mennyibe kerül egy weboldal?"

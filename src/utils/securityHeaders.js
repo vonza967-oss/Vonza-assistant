@@ -50,13 +50,6 @@ function isDashboardPrivateAssetPath(pathname) {
   ].includes(pathname);
 }
 
-function isEnterpriseRequestDeskDemoPath(pathname) {
-  return pathname === "/enterprise-request-desk/demo"
-    || pathname === "/esg-request-desk/demo"
-    || pathname === "/enterprise-request-desk-demo.css"
-    || pathname === "/enterprise-request-desk-demo.js";
-}
-
 function isHostedFrontDeskPath(pathname) {
   return pathname.startsWith("/a/") || pathname.startsWith("/assistant/");
 }
@@ -190,7 +183,6 @@ export function applySecurityHeaders(req, res, next) {
   if (
     isDashboardTopLevelPath(pathname)
     || isDashboardPrivateAssetPath(pathname)
-    || isEnterpriseRequestDeskDemoPath(pathname)
   ) {
     res.setHeader("Content-Security-Policy", buildDashboardCsp());
     res.setHeader("X-Frame-Options", "DENY");

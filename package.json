@@ -26,10 +26,6 @@
     "eval:web-call": "node scripts/run-web-call-evals.js",
     "eval:front-desk": "node scripts/run-front-desk-evals.js",
     "eval:front-desk:json": "node scripts/run-front-desk-evals.js --json",
-    "eval:quote-desk-hu": "node scripts/run-quote-desk-hu-evals.js",
-    "eval:quote-desk-hu:json": "node scripts/run-quote-desk-hu-evals.js --json",
-    "eval:enterprise-request-desk": "node scripts/run-enterprise-request-desk-evals.js",
-    "eval:enterprise-request-desk:json": "node scripts/run-enterprise-request-desk-evals.js --json",
     "eval:hotel-concierge": "node scripts/run-hotel-concierge-evals.js",
     "eval:hotel-concierge:json": "node scripts/run-hotel-concierge-evals.js --json"
   },

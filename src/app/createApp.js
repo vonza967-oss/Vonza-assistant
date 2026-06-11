@@ -5,12 +5,11 @@ import { createAgentRouter } from "../routes/agentRoutes.js";
 import { createBookingRouter } from "../routes/bookingRoutes.js";
 import { createBusinessRouter } from "../routes/businessRoutes.js";
 import { createChatRouter } from "../routes/chatRoutes.js";
-import { createEnterpriseRequestDeskRouter } from "../routes/enterpriseRequestDeskRoutes.js";
 import { createIntegrationRouter } from "../routes/integrationRoutes.js";
 import { createPhoneRouter } from "../routes/phoneRoutes.js";
 import { createPublicRouter } from "../routes/publicRoutes.js";
-import { createQuoteDeskHuRouter } from "../routes/quoteDeskHuRoutes.js";
 import { createVoiceRouter } from "../routes/voiceRoutes.js";
+import { isProductionRuntime } from "../config/env.js";
 import { applyRouteCors } from "../utils/corsPolicy.js";
 import { applySecurityHeaders } from "../utils/securityHeaders.js";
 import { installSafeConsole } from "../utils/safeLogger.js";
@@ -20,9 +19,27 @@ import {
   sendJsonError,
 } from "../utils/httpErrors.js";
 
+const DISABLED_PRODUCTION_FRONTEND_ASSETS = Object.freeze(new Set([
+  "/full-page-assistant-v2-preview.html",
+  "/full-page-assistant-v2-preview.css",
+  "/full-page-assistant-v2-preview.js",
+]));
+
+function blockDisabledProductionFrontendAssets(req, res, next) {
+  const requestPath = String(req.path || "").trim().toLowerCase();
+
+  if (DISABLED_PRODUCTION_FRONTEND_ASSETS.has(requestPath)) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  next();
+}
+
 export function createApp({ rootDir }) {
   installSafeConsole();
   const app = express();
+  const productionRuntime = isProductionRuntime();
 
   app.use(applySecurityHeaders);
   app.use(applyRouteCors);
@@ -30,6 +47,9 @@ export function createApp({ rootDir }) {
   app.use("/bookings/webhooks/calendly", express.raw({ type: "application/json", limit: "128kb" }));
   app.use("/integrations/whatsapp/webhook", express.raw({ type: "application/json", limit: "96kb" }));
   app.use(express.json({ limit: "96kb" }));
+  if (productionRuntime) {
+    app.use(blockDisabledProductionFrontendAssets);
+  }
   app.use(express.static(path.join(rootDir, "frontend"), {
     index: false,
     setHeaders(res, filePath) {
@@ -51,18 +71,6 @@ export function createApp({ rootDir }) {
         || normalizedPath.endsWith("/frontend/dashboardAnalytics.js")
         || normalizedPath.endsWith("/frontend/dashboardToday.js")
         || normalizedPath.endsWith("/frontend/i18n/dashboardI18n.js")
-        || normalizedPath.endsWith("/frontend/qdh-product.css")
-        || normalizedPath.endsWith("/frontend/qdh-dashboard.css")
-        || normalizedPath.endsWith("/frontend/qdh-dashboard.js")
-        || normalizedPath.endsWith("/frontend/qdh-intake.js")
-        || normalizedPath.endsWith("/frontend/qdh-setup.js")
-        || normalizedPath.endsWith("/frontend/enterprise-request-desk-demo.css")
-        || normalizedPath.endsWith("/frontend/enterprise-request-desk-demo.js")
-        || normalizedPath.endsWith("/frontend/enterprise-request-desk.css")
-        || normalizedPath.endsWith("/frontend/enterprise-request-desk-profile.js")
-        || normalizedPath.endsWith("/frontend/enterprise-request-desk-intake.js")
-        || normalizedPath.endsWith("/frontend/enterprise-request-desk-dashboard.js")
-        || normalizedPath.endsWith("/frontend/enterprise-request-desk-setup.js")
         || normalizedPath.endsWith("/frontend/settings/SettingsShell.js")
         || normalizedPath.endsWith("/frontend/settings/settings.css")
       ) {
@@ -75,8 +83,6 @@ export function createApp({ rootDir }) {
   app.use(createPublicRouter({ rootDir }));
   app.use(createBookingRouter());
   app.use(createIntegrationRouter());
-  app.use(createEnterpriseRequestDeskRouter());
-  app.use(createQuoteDeskHuRouter());
   app.use(createAgentRouter());
   app.use(createChatRouter());
   app.use(createPhoneRouter());

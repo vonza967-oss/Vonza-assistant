@@ -94,7 +94,7 @@
     });
 
     if (primaryCta) {
-      primaryCta.textContent = isSignedIn ? "My Account" : "Create Front Desk";
+      primaryCta.textContent = isSignedIn ? "My Account" : "Set up Widget";
       primaryCta.setAttribute("href", getAppHref(isSignedIn));
     }
 
