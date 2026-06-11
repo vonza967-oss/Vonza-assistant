@@ -629,7 +629,7 @@ test("Website Widget launch dashboard routes render Widget-first surfaces", asyn
     {
       path: "/website-widget/dashboard#settings/widget/identity-welcome",
       visibleSelector: '[data-shell-section="settings"]:not([hidden])',
-      expectedText: "Saved changes shape future widget replies",
+      expectedText: "These instructions shape future widget replies",
     },
     {
       path: "/website-widget/dashboard#preferences",

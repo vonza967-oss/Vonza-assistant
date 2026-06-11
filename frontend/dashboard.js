@@ -271,6 +271,67 @@ const WIDGET_PURPOSE_OPTIONS = [
     description: "Help visitors book, request a quote, or move forward.",
   },
 ];
+const WIDGET_PURPOSE_INSTRUCTION_TEXT = Object.freeze({
+  en: Object.freeze({
+    guidance: {
+      label: "Guidance",
+      instruction: "Help visitors find the right information quickly, explain the clearest path, and keep the next step easy to understand.",
+    },
+    support: {
+      label: "Support",
+      instruction: "Focus on answering customer questions, resolving common confusion, and giving calm support before suggesting a next step.",
+    },
+    make_decision: {
+      label: "Make a decision",
+      instruction: "Help visitors compare options, understand tradeoffs in plain language, and choose the right service, product, or next step.",
+    },
+    lead_capture: {
+      label: "Lead capture / contact",
+      instruction: "When visitors show interest, make the contact or quote path clear and naturally guide them toward sharing details for follow-up.",
+    },
+    booking_next_step: {
+      label: "Booking / next step guidance",
+      instruction: "Keep answers oriented around the best practical next step, especially booking, quote, contact, or other configured routes.",
+    },
+  }),
+  hu: Object.freeze({
+    guidance: {
+      label: "Útmutatás",
+      instruction: "Segítsen a látogatóknak gyorsan megtalálni a megfelelő információt, magyarázza el a legvilágosabb utat, és tegye könnyen érthetővé a következő lépést.",
+    },
+    support: {
+      label: "Támogatás",
+      instruction: "Válaszoljon ügyfélkérdésekre, oldja a gyakori bizonytalanságot, és nyugodt támogatást adjon, mielőtt következő lépést javasol.",
+    },
+    make_decision: {
+      label: "Döntés támogatása",
+      instruction: "Segítsen a látogatóknak összehasonlítani az opciókat, érthetően látni a különbségeket, és kiválasztani a megfelelő szolgáltatást, terméket vagy következő lépést.",
+    },
+    lead_capture: {
+      label: "Érdeklődő rögzítése / kapcsolat",
+      instruction: "Érdeklődés esetén tegye egyértelművé a kapcsolatfelvételi vagy ajánlatkérési utat, és természetesen vezesse a látogatót az utánkövetési adatok megadásához.",
+    },
+    booking_next_step: {
+      label: "Foglalás / következő lépés",
+      instruction: "Tartsa a válaszokat a legjobb gyakorlati következő lépésre fókuszálva, különösen foglalás, ajánlatkérés, kapcsolatfelvétel vagy más beállított útvonal esetén.",
+    },
+  }),
+});
+const WIDGET_TONE_INSTRUCTION_LABELS = Object.freeze({
+  en: Object.freeze({
+    friendly: "Friendly",
+    professional: "Professional",
+    sales: "Sales-focused",
+    support: "Support-focused",
+  }),
+  hu: Object.freeze({
+    friendly: "Barátságos",
+    professional: "Professzionális",
+    sales: "Értékesítés-központú",
+    support: "Támogatás-központú",
+  }),
+});
+const WEBSITE_WIDGET_GENERATED_INSTRUCTIONS_LIMIT = 2200;
 const BUSINESS_VERTICAL_OPTIONS = [
   {
     value: "",
@@ -532,6 +593,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "websiteWidget.status.settingsSaveStateSaving": "Saving changes...",
   "websiteWidget.status.settingsSaveStateSuccess": "Changes saved.",
   "websiteWidget.status.settingsSaveStateFailure": "Could not save changes.",
+  "websiteWidget.status.instructionsGenerated": "Agent instructions draft generated. Review and edit before saving.",
   "websiteWidget.status.verifyProgress": "Verifying installation...",
   "websiteWidget.status.verifySuccess": "Install snippet verified.",
   "websiteWidget.status.verifyMismatch": "A different Vonza install was detected on the website.",
@@ -4854,6 +4916,241 @@ function getWidgetPurposeOption(value) {
   return WIDGET_PURPOSE_OPTIONS.find((option) => option.value === normalizedPurpose) || WIDGET_PURPOSE_OPTIONS[1];
 }
 
+function normalizeWidgetInstructionLanguage(value = "") {
+  const normalized = trimText(value).toLowerCase();
+  return ["hu", "hungarian", "magyar"].includes(normalized) ? "hu" : "en";
+}
+
+function normalizeWidgetInstructionTone(value = "") {
+  const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, "_");
+  return Object.prototype.hasOwnProperty.call(WIDGET_TONE_INSTRUCTION_LABELS.en, normalized)
+    ? normalized
+    : "friendly";
+}
+
+function cleanWidgetInstructionLine(value = "") {
+  return Array.from(trimText(value))
+    .filter((character) => {
+      const code = character.charCodeAt(0);
+      return code >= 32 && code !== 127;
+    })
+    .join("")
+    .replace(/[<>]/g, "")
+    .slice(0, 260);
+}
+
+function uniqueWidgetInstructionList(items = []) {
+  const seen = new Set();
+  const results = [];
+
+  items.forEach((item) => {
+    const value = cleanWidgetInstructionLine(item);
+    const key = value.toLowerCase();
+    if (!value || seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    results.push(value);
+  });
+
+  return results;
+}
+
+function hasWidgetInstructionValue(value) {
+  if (Array.isArray(value)) {
+    return value.some(hasWidgetInstructionValue);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value).some(hasWidgetInstructionValue);
+  }
+
+  return Boolean(trimText(value));
+}
+
+function normalizeWidgetInstructionQuickPrompts(quickPrompts = []) {
+  if (!Array.isArray(quickPrompts)) {
+    return [];
+  }
+
+  return uniqueWidgetInstructionList(
+    quickPrompts.map((item) => (
+      item && typeof item === "object"
+        ? trimText(item.label || item.prompt || item.text || item.value)
+        : item
+    ))
+  ).slice(0, WEBSITE_WIDGET_QUICK_PROMPT_LIMIT);
+}
+
+function normalizeWidgetInstructionContactRoutes(contactSettings = {}) {
+  const routes = [];
+  const email = cleanWidgetInstructionLine(contactSettings.contactEmail || contactSettings.email);
+  const phone = cleanWidgetInstructionLine(contactSettings.contactPhone || contactSettings.phone);
+  const bookingUrl = cleanWidgetInstructionLine(contactSettings.bookingUrl || contactSettings.booking_url);
+  const quoteUrl = cleanWidgetInstructionLine(contactSettings.quoteUrl || contactSettings.quote_url);
+  const checkoutUrl = cleanWidgetInstructionLine(contactSettings.checkoutUrl || contactSettings.checkout_url);
+
+  if (email) {
+    routes.push(`email: ${email}`);
+  }
+  if (phone) {
+    routes.push(`phone: ${phone}`);
+  }
+  if (bookingUrl) {
+    routes.push(`booking link: ${bookingUrl}`);
+  }
+  if (quoteUrl) {
+    routes.push(`quote link: ${quoteUrl}`);
+  }
+  if (checkoutUrl) {
+    routes.push(`checkout link: ${checkoutUrl}`);
+  }
+
+  return uniqueWidgetInstructionList(routes);
+}
+
+function normalizeWidgetInstructionBusinessFacts(businessFacts = {}) {
+  if (!businessFacts || typeof businessFacts !== "object") {
+    return [];
+  }
+
+  return [
+    ["business summary", businessFacts.businessSummary || businessFacts.business_summary],
+    ["services", businessFacts.services],
+    ["pricing", businessFacts.pricing],
+    ["policies", businessFacts.policies],
+    ["service areas", businessFacts.serviceAreas || businessFacts.service_areas],
+    ["operating hours", businessFacts.operatingHours || businessFacts.operating_hours],
+  ]
+    .filter(([, value]) => hasWidgetInstructionValue(value))
+    .map(([label]) => label);
+}
+
+function normalizeWidgetInstructionKnowledgeStatus(context = {}) {
+  const state = trimText(context.knowledgeState || context.websiteKnowledgeState || context.importState).toLowerCase();
+  const hasWebsiteUrl = Boolean(trimText(context.websiteUrl || context.website_url));
+  const rawPageCount = Number(context.knowledgePageCount || context.pageCount || 0);
+  const pageCount = Number.isFinite(rawPageCount) ? Math.max(0, rawPageCount) : 0;
+  const ready = context.knowledgeReady === true || ["ready", "success", "indexed"].includes(state) || pageCount > 0;
+  const limited = context.knowledgeLimited === true || ["limited", "indexing", "running", "queued", "stalled"].includes(state);
+
+  return { hasWebsiteUrl, ready, limited, pageCount };
+}
+
+function buildEnglishWebsiteWidgetInstructions(payload) {
+  const lines = [
+    "You are the client's Website Widget assistant. Help website visitors get clear answers and choose the safest next step.",
+    `Widget purpose: ${payload.purposeLabel}. ${payload.purposeInstruction}`,
+    `Tone: ${payload.toneLabel}. Keep replies concise, practical, and business-ready.`,
+    "Use imported website and approved business knowledge before general guidance. These instructions shape behavior; they do not replace factual sources.",
+    "When information is missing, say that politely and ask one useful follow-up question or guide the visitor to a safe next step.",
+    "For Hungarian replies, always use formal Hungarian magázódás. Never use informal tegeződés.",
+    "Never invent prices, services, guarantees, availability, legal claims, policies, opening hours, booking times, contact details, or routes.",
+  ];
+
+  if (payload.websiteKnowledge.ready) {
+    lines.push(payload.websiteKnowledge.pageCount
+      ? `Website knowledge is available from ${payload.websiteKnowledge.pageCount} imported page${payload.websiteKnowledge.pageCount === 1 ? "" : "s"}; use it first for factual answers.`
+      : "Website knowledge is imported; use it first for factual answers.");
+  } else if (payload.websiteKnowledge.hasWebsiteUrl || payload.websiteKnowledge.limited) {
+    lines.push("Website URL/import is configured but knowledge may be incomplete; be transparent about missing details and avoid guessing.");
+  }
+
+  if (payload.hasKnowledgeFiles) {
+    lines.push("Use owner-uploaded knowledge files only when they are available in the approved business context.");
+  }
+
+  if (payload.businessFactLabels.length) {
+    lines.push(`Manual business facts are available for: ${payload.businessFactLabels.join(", ")}. Treat them as approved owner context when relevant.`);
+  }
+
+  if (payload.quickPrompts.length) {
+    lines.push(`Treat configured quick prompts as likely visitor intents: ${payload.quickPrompts.join("; ")}.`);
+  }
+
+  if (payload.contactRoutes.length) {
+    lines.push(`Use configured next-step routes only when relevant and available: ${payload.contactRoutes.join(", ")}.`);
+  }
+
+  if (payload.hasWelcomeMessage) {
+    lines.push("Keep the welcome-message promise in mind, but answer the visitor's actual question first.");
+  }
+
+  lines.push("If source knowledge is incomplete, say so briefly and guide the visitor toward contact, quote, booking, or another configured safe next step.");
+
+  return lines.map((line) => `- ${line}`).join("\n");
+}
+
+function buildHungarianWebsiteWidgetInstructions(payload) {
+  const lines = [
+    "Ön az ügyfél Website Widget asszisztense. Segítsen a weboldal látogatóinak világos választ kapni és biztonságos következő lépést választani.",
+    `Widget célja: ${payload.purposeLabel}. ${payload.purposeInstruction}`,
+    `Hangnem: ${payload.toneLabel}. A válasz legyen tömör, gyakorlati és üzletileg hiteles.`,
+    "Először az importált weboldali és jóváhagyott üzleti tudást használja. Ezek az utasítások a viselkedést formálják, nem helyettesítik a tényforrásokat.",
+    "Hiányzó információnál mondja ezt udvariasan, majd tegyen fel egy hasznos pontosító kérdést, vagy vezesse a látogatót biztonságos következő lépéshez.",
+    "Magyar válaszokban mindig formális magázódást használjon. Soha ne használjon tegeződést.",
+    "Soha ne találjon ki árakat, szolgáltatásokat, garanciát, elérhetőséget, jogi állítást, szabályzatot, nyitvatartást, foglalási időpontot, kapcsolatot vagy útvonalat.",
+  ];
+
+  if (payload.websiteKnowledge.ready) {
+    lines.push(payload.websiteKnowledge.pageCount
+      ? `Weboldali tudás elérhető ${payload.websiteKnowledge.pageCount} importált oldalból; tényszerű válaszoknál ezt használja először.`
+      : "Weboldali tudás importálva van; tényszerű válaszoknál ezt használja először.");
+  } else if (payload.websiteKnowledge.hasWebsiteUrl || payload.websiteKnowledge.limited) {
+    lines.push("A weboldal URL/import be van állítva, de a tudás hiányos lehet; hiányzó részleteknél legyen átlátható és ne találgasson.");
+  }
+
+  if (payload.hasKnowledgeFiles) {
+    lines.push("Tulajdonos által feltöltött tudásfájlokat csak akkor használjon, ha azok megjelennek a jóváhagyott üzleti kontextusban.");
+  }
+
+  if (payload.businessFactLabels.length) {
+    lines.push(`Kézzel megadott üzleti tények érhetők el ezekhez: ${payload.businessFactLabels.join(", ")}. Releváns kérdésnél kezelje őket jóváhagyott tulajdonosi kontextusként.`);
+  }
+
+  if (payload.quickPrompts.length) {
+    lines.push(`A beállított gyors kérdéseket kezelje valószínű látogatói szándékként: ${payload.quickPrompts.join("; ")}.`);
+  }
+
+  if (payload.contactRoutes.length) {
+    lines.push(`Csak akkor használja a beállított következő lépéseket, amikor relevánsak és elérhetők: ${payload.contactRoutes.join(", ")}.`);
+  }
+
+  if (payload.hasWelcomeMessage) {
+    lines.push("Tartsa szem előtt az üdvözlő üzenet ígéretét, de először a látogató tényleges kérdésére válaszoljon.");
+  }
+
+  lines.push("Ha a forrástudás hiányos, jelezze röviden, majd vezesse a látogatót kapcsolatfelvétel, ajánlatkérés, foglalás vagy más beállított biztonságos következő lépés felé.");
+
+  return lines.map((line) => `- ${line}`).join("\n");
+}
+
+function generateWebsiteWidgetAgentInstructions(context = {}) {
+  const language = normalizeWidgetInstructionLanguage(context.language);
+  const purpose = normalizeWidgetPurpose(context.widgetPurpose || context.purpose);
+  const tone = normalizeWidgetInstructionTone(context.tone);
+  const purposeText = WIDGET_PURPOSE_INSTRUCTION_TEXT[language]?.[purpose]
+    || WIDGET_PURPOSE_INSTRUCTION_TEXT.en[purpose]
+    || WIDGET_PURPOSE_INSTRUCTION_TEXT.en.support;
+  const payload = {
+    purposeLabel: purposeText.label,
+    purposeInstruction: purposeText.instruction,
+    toneLabel: WIDGET_TONE_INSTRUCTION_LABELS[language]?.[tone] || WIDGET_TONE_INSTRUCTION_LABELS.en[tone],
+    websiteKnowledge: normalizeWidgetInstructionKnowledgeStatus(context),
+    quickPrompts: normalizeWidgetInstructionQuickPrompts(context.quickPrompts || context.quick_prompts),
+    contactRoutes: normalizeWidgetInstructionContactRoutes(context.contactSettings || context),
+    businessFactLabels: normalizeWidgetInstructionBusinessFacts(context.businessFacts || context.businessProfile || {}),
+    hasKnowledgeFiles: hasWidgetInstructionValue(context.knowledgeFiles || context.uploadedKnowledgeFiles || context.files),
+    hasWelcomeMessage: Boolean(cleanWidgetInstructionLine(context.welcomeMessage || context.welcome_message)),
+  };
+  const draft = language === "hu"
+    ? buildHungarianWebsiteWidgetInstructions(payload)
+    : buildEnglishWebsiteWidgetInstructions(payload);
+
+  return trimText(draft).slice(0, WEBSITE_WIDGET_GENERATED_INSTRUCTIONS_LIMIT).trimEnd();
+}
+
 function normalizeBusinessVertical(value) {
   const normalized = trimText(value)
     .toLowerCase()
@@ -5016,6 +5313,19 @@ function getBusinessProfileViewModel(operatorWorkspace = createEmptyOperatorWork
         ["label", "hours"]
       ),
     },
+  };
+}
+
+function getWebsiteWidgetInstructionBusinessFacts(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const profile = getBusinessProfileViewModel(operatorWorkspace);
+
+  return {
+    businessSummary: profile.fields?.businessSummary || "",
+    services: profile.fields?.services || "",
+    pricing: profile.fields?.pricing || "",
+    policies: profile.fields?.policies || "",
+    serviceAreas: profile.fields?.serviceAreas || "",
+    operatingHours: profile.fields?.operatingHours || "",
   };
 }
 
@@ -10345,8 +10655,11 @@ function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
                 </label>
               `).join("")}
 	            </div>
-	            <div class="field">
-	              <label for="website-widget-guidance">${escapeHtml(websiteWidgetText("config.guidance"))}</label>
+	            <div class="field website-widget-instructions-field">
+	              <div class="website-widget-field-action-row">
+	                <label for="website-widget-guidance">${escapeHtml(websiteWidgetText("config.guidance"))}</label>
+	                <button class="ghost-button" type="button" data-action="generate-agent-instructions">${escapeHtml(websiteWidgetText("config.generateInstructions"))}</button>
+	              </div>
 	              <textarea id="website-widget-guidance" name="system_prompt" rows="4" placeholder="${escapeHtml(websiteWidgetText("config.guidancePlaceholder"))}">${escapeHtml(agent.systemPrompt || "")}</textarea>
 	              <p class="field-help">${escapeHtml(websiteWidgetText("config.guidanceHelp"))}</p>
 	            </div>
@@ -17902,6 +18215,74 @@ function applyConfigurationPreset(form, presetName) {
   form.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+function buildWebsiteWidgetInstructionContextFromForm(
+  form,
+  agent = {},
+  setup = {},
+  operatorWorkspace = createEmptyOperatorWorkspace()
+) {
+  const formData = new FormData(form);
+  const fullPageConfig = agent.fullPageConfig || agent.full_page_config || {};
+  const getFormOrAgentValue = (formName, ...agentNames) => {
+    if (formData.has(formName)) {
+      return trimText(formData.get(formName));
+    }
+
+    for (const name of agentNames) {
+      const value = trimText(agent[name]);
+      if (value) {
+        return value;
+      }
+    }
+
+    return "";
+  };
+
+  return {
+    language: getDashboardLanguage(),
+    widgetPurpose: getFormOrAgentValue("widget_purpose", "purpose", "widgetPurpose", "widget_purpose"),
+    tone: getFormOrAgentValue("tone", "tone"),
+    websiteUrl: getFormOrAgentValue("website_url", "websiteUrl", "website_url"),
+    welcomeMessage: getFormOrAgentValue("welcome_message", "welcomeMessage", "welcome_message"),
+    knowledgeState: trimText(setup.knowledgeState || agent.knowledge?.state),
+    knowledgeReady: setup.knowledgeReady === true || trimText(agent.knowledge?.state) === "ready",
+    knowledgeLimited: setup.knowledgeLimited === true || trimText(agent.knowledge?.state) === "limited",
+    knowledgePageCount: Number(setup.knowledgePageCount || agent.knowledge?.pageCount || 0),
+    quickPrompts: hasWebsiteWidgetQuickPromptFields(formData)
+      ? parseWebsiteWidgetQuickPromptsPayload(formData)
+      : getWebsiteWidgetQuickPromptsFromConfig(fullPageConfig),
+    contactSettings: {
+      contactEmail: getFormOrAgentValue("contact_email", "contactEmail", "contact_email"),
+      contactPhone: getFormOrAgentValue("contact_phone", "contactPhone", "contact_phone"),
+      bookingUrl: getFormOrAgentValue("booking_url", "bookingUrl", "booking_url", "bookingStartUrl", "booking_start_url"),
+      quoteUrl: getFormOrAgentValue("quote_url", "quoteUrl", "quote_url", "quoteStartUrl", "quote_start_url"),
+      checkoutUrl: getFormOrAgentValue("checkout_url", "checkoutUrl", "checkout_url"),
+    },
+    businessFacts: getWebsiteWidgetInstructionBusinessFacts(operatorWorkspace),
+  };
+}
+
+function bindWebsiteWidgetInstructionGenerator(form, agent, setup, operatorWorkspace) {
+  const generateButton = form?.querySelector('[data-action="generate-agent-instructions"]');
+  const instructionsInput = form?.querySelector('[name="system_prompt"]');
+
+  if (!form || !generateButton || !instructionsInput) {
+    return;
+  }
+
+  generateButton.addEventListener("click", () => {
+    const draft = generateWebsiteWidgetAgentInstructions(
+      buildWebsiteWidgetInstructionContextFromForm(form, agent, setup, operatorWorkspace)
+    );
+
+    instructionsInput.value = draft;
+    instructionsInput.focus();
+    instructionsInput.dispatchEvent(new Event("input", { bubbles: true }));
+    instructionsInput.dispatchEvent(new Event("change", { bubbles: true }));
+    setStatus(websiteWidgetText("status.instructionsGenerated"));
+  });
+}
+
 function bindStudioState(form, agent) {
   const saveState = form?.querySelector("[data-save-state]");
 
@@ -17986,6 +18367,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const todayReviewCloseButtons = document.querySelectorAll("[data-today-review-close]");
   const appointmentReviewActionButtons = document.querySelectorAll("[data-appointment-review-action]");
   const todayQueueStatusActionButtons = document.querySelectorAll("[data-today-queue-status-action]");
+  const websiteWidgetInstructionForms = document.querySelectorAll('form.website-widget-config-form');
   const importButtons = document.querySelectorAll('[data-action="import-knowledge"]');
   const copyButtons = document.querySelectorAll('[data-action="copy-install"]');
   const copyInstructionsButtons = document.querySelectorAll('[data-action="copy-install-instructions"]');
@@ -19393,6 +19775,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       await frontDeskController.sendPracticeMessage(prompt);
     },
   }) || null;
+  websiteWidgetInstructionForms.forEach((form) => {
+    bindWebsiteWidgetInstructionGenerator(form, agent, setup, operatorWorkspace);
+  });
   frontDeskController = !isDedicatedWebsiteWidgetDashboard() && typeof dashboardFrontDeskHelpers.bindFrontDeskEvents === "function"
     ? dashboardFrontDeskHelpers.bindFrontDeskEvents({
       agent,

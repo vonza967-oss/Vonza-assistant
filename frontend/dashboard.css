@@ -529,6 +529,25 @@ html[data-dashboard-theme="dark"] .website-widget-record {
   min-height: 120px;
 }
 
+.website-widget-field-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.website-widget-field-action-row label {
+  margin-bottom: 0;
+}
+
+.website-widget-field-action-row .ghost-button {
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
 .website-widget-quick-prompts {
   display: grid;
   gap: 12px;

@@ -869,7 +869,7 @@ test("widget dashboard routes render widget-only home and sidebar copy", async (
     assert.match(html, /Install Website Widget/, pathname);
     assert.match(html, /Widget configuration/, pathname);
     assert.match(html, /How the widget answers/, pathname);
-    assert.match(html, /Advanced guidance/, pathname);
+    assert.match(html, /Agent instructions/, pathname);
     assert.match(html, /data-shell-target="overview"/, pathname);
     assert.match(html, /<span class="shell-nav-label">Overview<\/span>/, pathname);
     assert.match(html, /data-shell-target="contacts"/, pathname);
@@ -1205,7 +1205,8 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.match(html, /How the widget answers/);
   assert.match(html, /data-purpose-card="support"/);
   assert.match(html, /data-tone-card="professional"/);
-  assert.match(html, /Advanced guidance/);
+  assert.match(html, /Agent instructions/);
+  assert.match(html, /Generate instructions/);
   assert.match(html, /Import website knowledge|Retry website import/);
   assert.match(html, /Live widget preview/);
   assert.match(html, /Save Website Widget/);
@@ -1254,15 +1255,18 @@ test("Website Widget AI Behavior copy is Hungarian-first and English-aware", asy
   const huHtml = huHarness.getRootHtml();
 
   assert.match(huHtml, /Hogyan válaszoljon a widget/);
-  assert.match(huHtml, /A mentett módosítások a jövőbeli widgetválaszokat alakítják/);
+  assert.match(huHtml, /AI utasítások/);
+  assert.match(huHtml, /Utasítások generálása/);
+  assert.match(huHtml, /Ezek az utasítások a jövőbeli widgetválaszokat formálják/);
   assert.match(huHtml, /Nem tanítják újra a modellt/);
-  assert.match(huHtml, /nem módosítják az importált weboldali tudást/);
-  assert.match(huHtml, /Opcionális útmutatás az élő agentnek/);
+  assert.match(huHtml, /nem írják felül a jóváhagyott üzleti tényeket/);
+  assert.match(huHtml, /name="system_prompt"/);
   assert.match(huHtml, /Gyors kérdések/);
   assert.match(huHtml, /Rövid kérdések, amelyekre a látogatók a beágyazott widgetben kattinthatnak/);
   assert.match(huHtml, /Chip felirata/);
   assert.match(huHtml, /Elküldött kérdés/);
   assert.match(huHtml, /Milyen árakkal vagy díjakkal számolhatok\?/);
+  assert.doesNotMatch(huHtml, /Agent instructions/);
   assert.doesNotMatch(huHtml, /Saved changes shape future widget replies/);
   assert.doesNotMatch(huHtml, /Quick questions/);
 
@@ -1276,14 +1280,17 @@ test("Website Widget AI Behavior copy is Hungarian-first and English-aware", asy
   const enHtml = enHarness.getRootHtml();
 
   assert.match(enHtml, /How the widget answers/);
-  assert.match(enHtml, /Saved changes shape future widget replies/);
-  assert.match(enHtml, /They do not retrain the model or change imported website knowledge/);
-  assert.match(enHtml, /Optional live-agent guidance/);
+  assert.match(enHtml, /Agent instructions/);
+  assert.match(enHtml, /Generate instructions/);
+  assert.match(enHtml, /These instructions shape future widget replies/);
+  assert.match(enHtml, /They do not retrain the model or override approved business facts/);
+  assert.match(enHtml, /name="system_prompt"/);
   assert.match(enHtml, /Quick questions/);
   assert.match(enHtml, /Short questions visitors can click inside the embedded widget/);
   assert.match(enHtml, /Chip label/);
   assert.match(enHtml, /Sent question/);
   assert.match(enHtml, /What services do you offer\?/);
+  assert.doesNotMatch(enHtml, /AI utasítások/);
   assert.doesNotMatch(enHtml, /A mentett módosítások a jövőbeli widgetválaszokat alakítják/);
   assert.doesNotMatch(enHtml, /Gyors kérdések/);
 });
@@ -1458,7 +1465,8 @@ test("Hungarian dedicated Website Widget owner routes localize the core launch p
         /Hol fut a widget/,
         /Weboldali tudás/,
         /Hogyan válaszoljon a widget/,
-        /Haladó útmutatás/,
+        /AI utasítások/,
+        /Utasítások generálása/,
         /Widget megjelenés/,
         /Beállítások mentése/,
         /Website Widget mentése/,

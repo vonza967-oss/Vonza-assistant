@@ -17,6 +17,7 @@ import {
   validateFrontDeskBackgroundUpload,
 } from "../src/services/agents/frontDeskBackgroundService.js";
 import { DEFAULT_WIDGET_CONFIG, FULL_PAGE_BACKGROUND_PRESETS } from "../src/services/agents/agentDefaults.js";
+import { generateWebsiteWidgetAgentInstructions } from "../src/services/agents/agentInstructionGenerator.js";
 
 function createSupabaseStub(initialState) {
   const state = {
@@ -907,6 +908,70 @@ test("updateAgentSettings persists widget AI behavior and defaults legacy purpos
   assert.equal(state.agents[0].purpose, "make_decision");
   assert.equal(state.agents[0].tone, "sales");
   assert.equal(state.agents[0].system_prompt, "Ask about project timing before suggesting a next step.");
+});
+
+test("updateAgentSettings persists generated Website Widget instructions through system_prompt", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "",
+        tone: "friendly",
+        language: "Hungarian",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Vonza",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Üdvözöljük! Miben segíthetünk?",
+        button_label: "Chat",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat",
+        theme_mode: "light",
+      },
+    ],
+  });
+  const generatedInstructions = generateWebsiteWidgetAgentInstructions({
+    language: "hu",
+    widgetPurpose: "lead_capture",
+    tone: "professional",
+    websiteUrl: "https://example.com",
+    knowledgeReady: true,
+    knowledgePageCount: 2,
+    quickPrompts: [{ label: "Ajánlatkérés", prompt: "Szeretnék ajánlatot kérni." }],
+  });
+  const editedInstructions = `${generatedInstructions}\n- Az ajánlatkérésnél kérjen rövid projektleírást.`;
+  const persistedInstructions = editedInstructions.replace(/\s+/g, " ").trim();
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    widgetPurpose: "lead_capture",
+    tone: "professional",
+    systemPrompt: editedInstructions,
+  });
+
+  assert.equal(result.systemPrompt, persistedInstructions);
+  assert.equal(state.agents[0].system_prompt, persistedInstructions);
+  assert.match(result.systemPrompt, /AI utasítások|Website Widget asszisztense/);
+  assert.match(result.systemPrompt, /projektleírást/);
 });
 
 test("updateAgentSettings persists and reloads Front Desk voice settings with safe defaults", async () => {

@@ -127,6 +127,9 @@ test("saved Website Widget AI Behavior settings appear in prompt compilation", (
   assert.match(prompt, /purpose-specific behavior: Help visitors compare options/);
   assert.match(prompt, /- preferred tone: sales/);
   assert.match(prompt, /Additional agent instructions:\nAsk one practical follow-up before suggesting contact\./);
+  assert.match(prompt, /Do not invent facts, services, prices, or guarantees/);
+  assert.match(prompt, /For contact questions, only answer with contact details that are explicitly configured, owner-approved, or clearly present/);
+  assert.match(prompt, /If a price, service, policy, availability, legal claim, guarantee, discount, booking time, or contact route is not in the approved answers or business context/);
 });
 
 test("buildChatSystemPrompt remains backward-compatible for existing callers", () => {
