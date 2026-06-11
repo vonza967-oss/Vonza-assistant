@@ -1234,6 +1234,48 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.doesNotMatch(html, /data-shell-target="customize"|data-shell-target="inbox"|data-shell-target="calendar"|data-shell-target="automations"/);
 });
 
+test("Website Widget AI Behavior copy is Hungarian-first and English-aware", async () => {
+  const agent = createActiveAgent({
+    purpose: "support",
+    tone: "professional",
+    systemPrompt: "Ask one practical follow-up before suggesting contact.",
+  });
+  const sharedOptions = {
+    pathname: "/website-widget/dashboard",
+    hash: "#settings/widget/identity-welcome",
+    agents: () => [agent],
+  };
+
+  const huHarness = createDashboardHarness({
+    ...sharedOptions,
+    initialLocalStorage: {},
+  });
+  await huHarness.settle();
+  const huHtml = huHarness.getRootHtml();
+
+  assert.match(huHtml, /Hogyan válaszoljon a widget/);
+  assert.match(huHtml, /A mentett módosítások a jövőbeli widgetválaszokat alakítják/);
+  assert.match(huHtml, /Nem tanítják újra a modellt/);
+  assert.match(huHtml, /nem módosítják az importált weboldali tudást/);
+  assert.match(huHtml, /Opcionális útmutatás az élő agentnek/);
+  assert.doesNotMatch(huHtml, /Saved changes shape future widget replies/);
+
+  const enHarness = createDashboardHarness({
+    ...sharedOptions,
+    initialLocalStorage: {
+      vonza_dashboard_language: "en",
+    },
+  });
+  await enHarness.settle();
+  const enHtml = enHarness.getRootHtml();
+
+  assert.match(enHtml, /How the widget answers/);
+  assert.match(enHtml, /Saved changes shape future widget replies/);
+  assert.match(enHtml, /They do not retrain the model or change imported website knowledge/);
+  assert.match(enHtml, /Optional live-agent guidance/);
+  assert.doesNotMatch(enHtml, /A mentett módosítások a jövőbeli widgetválaszokat alakítják/);
+});
+
 test("Hungarian dashboard shipped hash routes render localized primary labels", async () => {
   const hashRoutes = [
     ["#today", "overview", [/Kezdőlap/, /Mai AI ügyfélszolgálati áttekintés/]],

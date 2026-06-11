@@ -627,6 +627,11 @@ test("Website Widget launch dashboard routes render Widget-first surfaces", asyn
       expectedText: "Widget configuration",
     },
     {
+      path: "/website-widget/dashboard#settings/widget/identity-welcome",
+      visibleSelector: '[data-shell-section="settings"]:not([hidden])',
+      expectedText: "Saved changes shape future widget replies",
+    },
+    {
       path: "/website-widget/dashboard#preferences",
       visibleSelector: '[data-shell-section="preferences"]:not([hidden])',
       expectedText: "Dashboard language",

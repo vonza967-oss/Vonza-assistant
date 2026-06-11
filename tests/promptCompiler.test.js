@@ -111,6 +111,24 @@ test("custom agent instructions and tone still appear", () => {
   assert.match(prompt, /Additional agent instructions:\nOnly mention warranties when they are documented\./);
 });
 
+test("saved Website Widget AI Behavior settings appear in prompt compilation", () => {
+  const prompt = compileAgentSystemPrompt({
+    language: "English",
+    agent: {
+      name: "Acme Widget",
+      purpose: "make_decision",
+      tone: "sales",
+      systemPrompt: "Ask one practical follow-up before suggesting contact.",
+    },
+  });
+
+  assert.match(prompt, /represent the assistant identity as Acme Widget/);
+  assert.match(prompt, /widget purpose: Make a decision/);
+  assert.match(prompt, /purpose-specific behavior: Help visitors compare options/);
+  assert.match(prompt, /- preferred tone: sales/);
+  assert.match(prompt, /Additional agent instructions:\nAsk one practical follow-up before suggesting contact\./);
+});
+
 test("buildChatSystemPrompt remains backward-compatible for existing callers", () => {
   const prompt = buildChatSystemPrompt("Hungarian", {
     name: "Studio Desk",

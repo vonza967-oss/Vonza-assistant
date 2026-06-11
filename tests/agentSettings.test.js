@@ -753,7 +753,7 @@ test("updateAgentSettings persists a website-only change without disturbing othe
   assert.equal(state.businesses[0].website_url, "https://new-example.com/");
 });
 
-test("updateAgentSettings persists widget purpose and defaults legacy purpose to support", async () => {
+test("updateAgentSettings persists widget AI behavior and defaults legacy purpose to support", async () => {
   const { state, ...supabase } = createSupabaseStub({
     agents: [
       {
@@ -805,10 +805,16 @@ test("updateAgentSettings persists widget purpose and defaults legacy purpose to
     agentId: "agent-1",
     assistantName: "Vonza",
     widgetPurpose: "make_decision",
+    tone: "sales",
+    systemPrompt: "Ask about project timing before suggesting a next step.",
   });
 
   assert.equal(result.purpose, "make_decision");
+  assert.equal(result.tone, "sales");
+  assert.equal(result.systemPrompt, "Ask about project timing before suggesting a next step.");
   assert.equal(state.agents[0].purpose, "make_decision");
+  assert.equal(state.agents[0].tone, "sales");
+  assert.equal(state.agents[0].system_prompt, "Ask about project timing before suggesting a next step.");
 });
 
 test("updateAgentSettings persists and reloads Front Desk voice settings with safe defaults", async () => {

@@ -811,6 +811,41 @@ test("agents update route preserves explicit blanks and omits untouched fields",
   }
 });
 
+test("agents update route maps Website Widget AI Behavior fields", async () => {
+  let capturedPayload = null;
+  const server = await startServer(createApp(buildRouteDeps({
+    updateAgentSettings: async (_supabase, payload) => {
+      capturedPayload = payload;
+      return {
+        id: payload.agentId,
+        purpose: payload.widgetPurpose,
+        tone: payload.tone,
+        systemPrompt: payload.systemPrompt,
+      };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/update", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: "agent-1",
+        widget_purpose: "make_decision",
+        tone: "support",
+        system_prompt: "Ask one practical follow-up before suggesting contact.",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(capturedPayload.agentId, "agent-1");
+    assert.equal(capturedPayload.widgetPurpose, "make_decision");
+    assert.equal(capturedPayload.tone, "support");
+    assert.equal(capturedPayload.systemPrompt, "Ask one practical follow-up before suggesting contact.");
+  } finally {
+    await server.close();
+  }
+});
+
 test("front desk background upload route requires owner auth and accepts image/video uploads", async () => {
   const server = await startServer(createApp(buildRouteDeps()));
 
