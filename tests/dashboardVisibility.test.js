@@ -1258,7 +1258,13 @@ test("Website Widget AI Behavior copy is Hungarian-first and English-aware", asy
   assert.match(huHtml, /Nem tanítják újra a modellt/);
   assert.match(huHtml, /nem módosítják az importált weboldali tudást/);
   assert.match(huHtml, /Opcionális útmutatás az élő agentnek/);
+  assert.match(huHtml, /Gyors kérdések/);
+  assert.match(huHtml, /Rövid kérdések, amelyekre a látogatók a beágyazott widgetben kattinthatnak/);
+  assert.match(huHtml, /Chip felirata/);
+  assert.match(huHtml, /Elküldött kérdés/);
+  assert.match(huHtml, /Milyen árakkal vagy díjakkal számolhatok\?/);
   assert.doesNotMatch(huHtml, /Saved changes shape future widget replies/);
+  assert.doesNotMatch(huHtml, /Quick questions/);
 
   const enHarness = createDashboardHarness({
     ...sharedOptions,
@@ -1273,7 +1279,13 @@ test("Website Widget AI Behavior copy is Hungarian-first and English-aware", asy
   assert.match(enHtml, /Saved changes shape future widget replies/);
   assert.match(enHtml, /They do not retrain the model or change imported website knowledge/);
   assert.match(enHtml, /Optional live-agent guidance/);
+  assert.match(enHtml, /Quick questions/);
+  assert.match(enHtml, /Short questions visitors can click inside the embedded widget/);
+  assert.match(enHtml, /Chip label/);
+  assert.match(enHtml, /Sent question/);
+  assert.match(enHtml, /What services do you offer\?/);
   assert.doesNotMatch(enHtml, /A mentett módosítások a jövőbeli widgetválaszokat alakítják/);
+  assert.doesNotMatch(enHtml, /Gyors kérdések/);
 });
 
 test("Hungarian dashboard shipped hash routes render localized primary labels", async () => {

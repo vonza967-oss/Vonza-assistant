@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   getAgentWorkspaceSnapshot,
   getFullPageDesignPresetDefaults,
+  getWidgetBootstrap,
   normalizeVoiceConfig,
   normalizeFullPageDesignConfig,
   normalizeFullPageConfig,
@@ -636,6 +637,95 @@ test("updateAgentSettings persists sanitized full-page assistant config", async 
   assert.equal(state.widget_configs[0].full_page_config.show_booking, false);
   assert.equal(state.widget_configs[0].full_page_config.design.background_video_url, "https://cdn.example.com/frontdesk.webm");
   assert.equal(state.widget_configs[0].full_page_config.design.background_scope, "iframe");
+});
+
+test("updateAgentSettings persists Website Widget quick prompts and bootstrap returns them", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "",
+        tone: "friendly",
+        language: "Hungarian",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Acme",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Welcome",
+        button_label: "Chat",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat",
+        theme_mode: "light",
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    fullPageConfig: {
+      public_page_enabled: true,
+      public_page_key: "page-key",
+      suggested_questions: ["Full-page only question"],
+      quick_prompts: [
+        { label: "<img src=x onerror=alert(1)>", prompt: "Do not persist this row." },
+        { label: "A".repeat(60), prompt: "P".repeat(240) },
+        { label: "Árak", prompt: "Milyen árakkal vagy díjakkal számolhatok?" },
+        { label: "Árak", prompt: "Duplicate label should be ignored." },
+        { label: "Ajánlat", prompt: "Szeretnék ajánlatot kérni." },
+        { label: "Kapcsolat", prompt: "Hogyan tudom felvenni a kapcsolatot?" },
+        { label: "Foglalás", prompt: "Szeretnék időpontot foglalni." },
+        { label: "Extra", prompt: "This sixth valid prompt should be trimmed." },
+      ],
+    },
+  });
+
+  assert.equal(result.fullPageConfig.suggestedQuestions[0], "Full-page only question");
+  assert.equal(result.fullPageConfig.quickPrompts.length, 5);
+  assert.equal(result.fullPageConfig.quickPrompts[0].label.length, 40);
+  assert.equal(result.fullPageConfig.quickPrompts[0].prompt.length, 200);
+  assert.equal(result.fullPageConfig.quickPrompts[1].label, "Árak");
+  assert.equal(result.fullPageConfig.quickPrompts[1].prompt, "Milyen árakkal vagy díjakkal számolhatok?");
+  assert.equal(result.fullPageConfig.quickPrompts.some((item) => item.label.includes("<")), false);
+  assert.equal(result.fullPageConfig.quickPrompts.some((item) => item.label === "Extra"), false);
+  assert.deepEqual(
+    state.widget_configs[0].full_page_config.quick_prompts,
+    result.fullPageConfig.quickPrompts
+  );
+
+  const bootstrap = await getWidgetBootstrap(supabase, {
+    agentId: "agent-1",
+    origin: "https://example.com",
+    pageUrl: "https://example.com/contact",
+    displayMode: "widget",
+  });
+
+  assert.deepEqual(
+    bootstrap.widgetConfig.fullPageConfig.quickPrompts,
+    result.fullPageConfig.quickPrompts
+  );
+  assert.deepEqual(
+    bootstrap.widgetConfig.full_page_config.quick_prompts,
+    result.fullPageConfig.quickPrompts
+  );
 });
 
 test("full-page design defaults and presets resolve safely", () => {

@@ -529,6 +529,94 @@ html[data-dashboard-theme="dark"] .website-widget-record {
   min-height: 120px;
 }
 
+.website-widget-quick-prompts {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.website-widget-quick-prompts-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.website-widget-quick-prompts-head h3 {
+  margin: 0 0 4px;
+  color: var(--dashboard-heading, #0f172a);
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.website-widget-quick-prompts-head p {
+  margin: 0;
+  color: var(--dashboard-muted, #64748b);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.website-widget-quick-prompts-head span {
+  flex: 0 0 auto;
+  color: var(--dashboard-muted, #64748b);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.website-widget-quick-prompt-list {
+  display: grid;
+  gap: 10px;
+}
+
+.website-widget-quick-prompt-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.55fr) minmax(180px, 1fr);
+  gap: 10px;
+}
+
+.website-widget-quick-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.website-widget-quick-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid rgba(20, 184, 166, 0.26);
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.08);
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+html[data-dashboard-theme="dark"] .website-widget-quick-prompts {
+  border-top-color: rgba(148, 163, 184, 0.2);
+}
+
+html[data-dashboard-theme="dark"] .website-widget-quick-prompts-head h3 {
+  color: var(--dashboard-heading, #e5edf8);
+}
+
+html[data-dashboard-theme="dark"] .website-widget-quick-prompts-head p,
+html[data-dashboard-theme="dark"] .website-widget-quick-prompts-head span {
+  color: var(--dashboard-muted, #9fb0c7);
+}
+
+html[data-dashboard-theme="dark"] .website-widget-quick-chip {
+  border-color: rgba(45, 212, 191, 0.28);
+  background: rgba(20, 184, 166, 0.14);
+  color: #99f6e4;
+}
+
 @media (max-width: 1180px) {
   .website-widget-status-band,
   .website-widget-config-layout {
@@ -563,6 +651,10 @@ html[data-dashboard-theme="dark"] .website-widget-record {
 
   .website-widget-choice-grid,
   .website-widget-choice-grid--purpose {
+    grid-template-columns: 1fr;
+  }
+
+  .website-widget-quick-prompt-row {
     grid-template-columns: 1fr;
   }
 

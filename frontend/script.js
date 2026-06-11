@@ -231,11 +231,15 @@ const EMBEDDED_QUICK_REPLY_LABELS = Object.freeze({
   contact: "Contact details",
   booking: "Booking",
 });
+const WIDGET_QUICK_PROMPT_LIMIT = 5;
+const WIDGET_QUICK_PROMPT_LABEL_LIMIT = 40;
+const WIDGET_QUICK_PROMPT_TEXT_LIMIT = 200;
 const EMBEDDED_DEFAULT_QUICK_REPLIES = Object.freeze([
   { label: "Services", prompt: "What services do you offer?", type: "services" },
   { label: "Pricing", prompt: "How much does it cost?", type: "pricing" },
   { label: "Request a quote", prompt: "I'd like to request a quote.", type: "quote" },
   { label: "Contact details", prompt: "How can I contact you?", type: "contact" },
+  { label: "Booking", prompt: "I'd like to book a time.", type: "booking" },
 ]);
 const PAGE_ACTION_CARDS = Object.freeze([
   {
@@ -638,7 +642,7 @@ const ASSISTANT_I18N = Object.freeze({
     "quick.contact": "Elérhetőségek",
     "quick.booking": "Foglalás",
     "prompt.services": "Milyen szolgáltatásokat kínálnak?",
-    "prompt.pricing": "Mennyibe kerül?",
+    "prompt.pricing": "Milyen árakkal vagy díjakkal számolhatok?",
     "prompt.quote": "Szeretnék ajánlatot kérni.",
     "prompt.contact": "Hogyan tudom felvenni a kapcsolatot?",
     "prompt.booking": "Szeretnék időpontot foglalni.",
@@ -1611,6 +1615,67 @@ function normalizeLimitedText(value, maxLength) {
   return trimText(value).slice(0, maxLength);
 }
 
+function normalizeQuickPromptText(value, maxLength) {
+  return trimText(String(value || "").replace(/<[^>]*>/g, " ")).slice(0, maxLength);
+}
+
+function normalizeQuickPromptItem(item = {}) {
+  const prompt = normalizeQuickPromptText(
+    item?.prompt ?? item?.text ?? item?.value ?? item?.label,
+    WIDGET_QUICK_PROMPT_TEXT_LIMIT
+  );
+  const label = normalizeQuickPromptText(
+    item?.label ?? prompt,
+    WIDGET_QUICK_PROMPT_LABEL_LIMIT
+  );
+
+  if (!label || !prompt) {
+    return null;
+  }
+
+  return {
+    label,
+    prompt,
+    type: normalizeLimitedText(item?.type || "", 24),
+  };
+}
+
+function normalizeQuickPromptItems(value = [], limit = WIDGET_QUICK_PROMPT_LIMIT) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : typeof value === "string" && trimText(value)
+      ? value.split(/\n|,/).map((entry) => ({ label: entry, prompt: entry }))
+      : [];
+  const seenLabels = new Set();
+  const seenPrompts = new Set();
+  const results = [];
+
+  rawItems.forEach((item) => {
+    const normalized = normalizeQuickPromptItem(
+      item && typeof item === "object" && !Array.isArray(item)
+        ? item
+        : { label: item, prompt: item }
+    );
+
+    if (!normalized) {
+      return;
+    }
+
+    const labelKey = normalized.label.toLowerCase();
+    const promptKey = normalized.prompt.toLowerCase();
+
+    if (seenLabels.has(labelKey) || seenPrompts.has(promptKey)) {
+      return;
+    }
+
+    seenLabels.add(labelKey);
+    seenPrompts.add(promptKey);
+    results.push(normalized);
+  });
+
+  return results.slice(0, limit);
+}
+
 function compactEmbeddedPromptLabel(value = "", fallbackType = "") {
   const normalizedType = trimText(fallbackType).toLowerCase();
   if (EMBEDDED_QUICK_REPLY_LABELS[normalizedType]) {
@@ -1691,6 +1756,14 @@ function getFullPageConfig(config = widgetConfig) {
       ? rawConfig.suggested_questions
       : []
   ).map((question) => normalizeLimitedText(question, 120)).filter(Boolean).slice(0, 5);
+  const quickPrompts = normalizeQuickPromptItems(
+    Array.isArray(rawConfig.quickPrompts)
+      ? rawConfig.quickPrompts
+      : Array.isArray(rawConfig.quick_prompts)
+        ? rawConfig.quick_prompts
+        : [],
+    WIDGET_QUICK_PROMPT_LIMIT
+  );
   const trustItems = (Array.isArray(rawConfig.trustItems)
     ? rawConfig.trustItems
     : Array.isArray(rawConfig.trust_items)
@@ -1720,6 +1793,7 @@ function getFullPageConfig(config = widgetConfig) {
       .map((card, index) => normalizePageActionCard(card, defaults[index] || {}))
       .filter(Boolean),
     suggestedQuestions,
+    quickPrompts,
     accentColor: normalizeFullPageAccentColor(rawConfig.accentColor || rawConfig.accent_color, config.primaryColor),
     logoUrl: trimText(rawConfig.logoUrl || rawConfig.logo_url || config.widgetLogoUrl),
     showBooking: bookingSupported && normalizeBoolean(rawConfig.showBooking ?? rawConfig.show_booking, bookingSupported),
@@ -1776,6 +1850,39 @@ function getConfiguredQuickReplies(config = widgetConfig) {
   }
 
   return [];
+}
+
+function getConfiguredWidgetQuickPromptItems(config = widgetConfig, limit = WIDGET_QUICK_PROMPT_LIMIT) {
+  const fullPageConfig = getFullPageConfig(config);
+  const rawFullPageConfig = getRawFullPageConfig(config);
+  const candidates = [
+    fullPageConfig.quickPrompts,
+    rawFullPageConfig.quickPrompts,
+    rawFullPageConfig.quick_prompts,
+    config.quickPrompts,
+    config.quick_prompts,
+    config.quickReplies,
+    config.quick_replies,
+    config.suggestedQuestions,
+    config.suggested_questions,
+  ];
+
+  for (const candidate of candidates) {
+    const items = normalizeQuickPromptItems(candidate, limit);
+    if (items.length) {
+      return items;
+    }
+  }
+
+  return [];
+}
+
+function getDefaultWidgetQuickPromptItems(config = widgetConfig, limit = WIDGET_QUICK_PROMPT_LIMIT) {
+  return EMBEDDED_DEFAULT_QUICK_REPLIES.map((item) => ({
+    ...item,
+    label: assistantT(`quick.${item.type}`, {}, config),
+    prompt: assistantT(`prompt.${item.type}`, {}, config),
+  })).slice(0, limit);
 }
 
 function dedupeQuickReplyItems(items = [], limit = 4) {
@@ -1855,6 +1962,13 @@ function getEmbeddedQuickReplyItems(config = widgetConfig) {
 function getQuickReplyItems(config = widgetConfig) {
   if (isPageMode() && EMBEDDED_MODE) {
     return getEmbeddedQuickReplyItems(config);
+  }
+
+  if (!isPageMode()) {
+    const configuredItems = getConfiguredWidgetQuickPromptItems(config);
+    return configuredItems.length
+      ? configuredItems
+      : getDefaultWidgetQuickPromptItems(config);
   }
 
   return getQuickReplyTopics(config).map((topic) => ({

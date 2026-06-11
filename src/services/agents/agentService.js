@@ -62,6 +62,9 @@ const DEFAULT_AGENT_PACKAGE_VERSION = getAgentPackage(DEFAULT_AGENT_PACKAGE_KEY)
 const DEFAULT_PRECLAIM_TOKEN_TTL_HOURS = 24;
 const CTA_MODES = ["booking", "quote", "checkout", "contact", "capture", "chat"];
 const BOOKING_PROVIDERS = ["manual", "calendly"];
+const WIDGET_QUICK_PROMPT_LIMIT = 5;
+const WIDGET_QUICK_PROMPT_LABEL_LIMIT = 40;
+const WIDGET_QUICK_PROMPT_TEXT_LIMIT = 200;
 const ROUTING_WIDGET_CONFIG_COLUMNS = [
   "booking_url",
   "quote_url",
@@ -492,6 +495,63 @@ function normalizeLimitedText(value, maxLength) {
   return cleanText(value).slice(0, maxLength);
 }
 
+function normalizeQuickPromptText(value, maxLength) {
+  return cleanText(String(value || "").replace(/<[^>]*>/g, " ")).slice(0, maxLength);
+}
+
+function normalizeWidgetQuickPrompt(item = {}) {
+  const prompt = normalizeQuickPromptText(
+    readConfigField(item, "prompt") ?? readConfigField(item, "text") ?? readConfigField(item, "value") ?? readConfigField(item, "label"),
+    WIDGET_QUICK_PROMPT_TEXT_LIMIT
+  );
+  const label = normalizeQuickPromptText(
+    readConfigField(item, "label") ?? prompt,
+    WIDGET_QUICK_PROMPT_LABEL_LIMIT
+  );
+
+  if (!label || !prompt) {
+    return null;
+  }
+
+  return { label, prompt };
+}
+
+function normalizeWidgetQuickPrompts(value = []) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : typeof value === "string" && cleanText(value)
+      ? String(value).split(/\n|,/).map((entry) => ({ label: entry, prompt: entry }))
+      : [];
+  const seenLabels = new Set();
+  const seenPrompts = new Set();
+  const results = [];
+
+  rawItems.forEach((item) => {
+    const normalized = normalizeWidgetQuickPrompt(
+      item && typeof item === "object" && !Array.isArray(item)
+        ? item
+        : { label: item, prompt: item }
+    );
+
+    if (!normalized) {
+      return;
+    }
+
+    const labelKey = normalized.label.toLowerCase();
+    const promptKey = normalized.prompt.toLowerCase();
+
+    if (seenLabels.has(labelKey) || seenPrompts.has(promptKey)) {
+      return;
+    }
+
+    seenLabels.add(labelKey);
+    seenPrompts.add(promptKey);
+    results.push(normalized);
+  });
+
+  return results.slice(0, WIDGET_QUICK_PROMPT_LIMIT);
+}
+
 function normalizeFullPageConfigInput(value) {
   if (!value) {
     return {};
@@ -912,6 +972,9 @@ export function normalizeFullPageConfig(input = {}, options = {}) {
     .map((item) => normalizeLimitedText(item, 60))
     .filter(Boolean)
     .slice(0, 3);
+  const quickPrompts = normalizeWidgetQuickPrompts(
+    readConfigField(config, "quickPrompts", "quick_prompts") || []
+  );
   const logoUrl = normalizeOptionalImageSource(
     readConfigField(config, "logoUrl", "logo_url")
   ) || null;
@@ -939,6 +1002,7 @@ export function normalizeFullPageConfig(input = {}, options = {}) {
     subtitle: normalizeLimitedText(readConfigField(config, "subtitle"), 180) || null,
     actionCards: actionCards.length ? actionCards : defaultCards,
     suggestedQuestions,
+    quickPrompts,
     accentColor: normalizeAccentColor(readConfigField(config, "accentColor", "accent_color")),
     logoUrl,
     showBooking,
@@ -1038,6 +1102,7 @@ function serializeFullPageConfig(config = {}) {
     subtitle: normalized.subtitle,
     action_cards: normalized.actionCards.map((card) => ({ ...card })),
     suggested_questions: normalized.suggestedQuestions,
+    quick_prompts: normalized.quickPrompts.map((item) => ({ ...item })),
     accent_color: normalized.accentColor,
     logo_url: normalized.logoUrl,
     show_booking: normalized.showBooking,

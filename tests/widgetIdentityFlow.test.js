@@ -2266,6 +2266,138 @@ test("normal widget quick replies ignore full-page suggested questions", () => {
   assert.doesNotMatch(quickRepliesHtml, /Another hosted page prompt/);
 });
 
+test("normal widget quick replies render localized defaults with separate prompt text", () => {
+  const huHarness = createWidgetHarness({
+    location: {
+      search: "?language=hu",
+      pathname: "/widget",
+      href: "https://example.com/widget?language=hu",
+    },
+  });
+  huHarness.hooks.continueIntoChat({ mode: "guest" });
+
+  const huQuickRepliesHtml = huHarness.elements.get("quick-replies").innerHTML;
+  assert.equal((huQuickRepliesHtml.match(/quick-reply-chip/g) || []).length, 5);
+  assert.match(huQuickRepliesHtml, />Szolgáltatások</);
+  assert.match(huQuickRepliesHtml, />Árak</);
+  assert.match(huQuickRepliesHtml, />Ajánlatkérés</);
+  assert.match(huQuickRepliesHtml, />Elérhetőségek</);
+  assert.match(huQuickRepliesHtml, />Foglalás</);
+  assert.match(huQuickRepliesHtml, /data-quick-reply="Milyen árakkal vagy díjakkal számolhatok\?"/);
+
+  const enHarness = createWidgetHarness({
+    location: {
+      search: "?language=en",
+      pathname: "/widget",
+      href: "https://example.com/widget?language=en",
+    },
+  });
+  enHarness.hooks.continueIntoChat({ mode: "guest" });
+
+  const enQuickRepliesHtml = enHarness.elements.get("quick-replies").innerHTML;
+  assert.equal((enQuickRepliesHtml.match(/quick-reply-chip/g) || []).length, 5);
+  assert.match(enQuickRepliesHtml, />Services</);
+  assert.match(enQuickRepliesHtml, /data-quick-reply="What services do you offer\?"/);
+});
+
+test("normal widget quick replies render saved labels and click-send saved prompt", async () => {
+  let chatPayload = null;
+  const widgetConfig = {
+    assistantName: "Acme Assistant",
+    fullPageConfig: {
+      suggestedQuestions: [
+        "Full-page only prompt",
+      ],
+      quickPrompts: [
+        {
+          label: "Konzultáció",
+          prompt: "Szeretnék konzultációt kérni.",
+        },
+        {
+          label: "<img src=x onerror=alert(1)>",
+          prompt: "This row should be ignored.",
+        },
+      ],
+    },
+  };
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1",
+    },
+    customFetch: async (input, options = {}) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+                publicAgentKey: "agent-key",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme",
+              },
+              widgetConfig,
+            };
+          },
+        };
+      }
+
+      if (String(input).endsWith("/chat")) {
+        chatPayload = JSON.parse(options.body);
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "We can help with a consultation.",
+              visitorIdentity: { mode: "guest", email: "", name: "" },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: false,
+        async json() {
+          return { error: "not configured" };
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  harness.hooks.continueIntoChat({ mode: "guest" });
+
+  const quickRepliesHtml = harness.elements.get("quick-replies").innerHTML;
+  assert.match(quickRepliesHtml, />Konzultáció</);
+  assert.match(quickRepliesHtml, /data-quick-reply="Szeretnék konzultációt kérni\."/);
+  assert.doesNotMatch(quickRepliesHtml, /Full-page only prompt/);
+  assert.doesNotMatch(quickRepliesHtml, /<img|&lt;img/);
+
+  harness.elements.get("quick-replies").dispatch("click", {
+    target: {
+      closest(selector) {
+        assert.equal(selector, "[data-quick-reply]");
+        return {
+          dataset: {
+            quickReply: "Szeretnék konzultációt kérni.",
+            quickReplyLabel: "Konzultáció",
+          },
+          textContent: "Konzultáció",
+        };
+      },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(chatPayload.message, "Szeretnék konzultációt kérni.");
+});
+
 test("page mode waits for a real assistant before showing the chat shell", async () => {
   const harness = createWidgetHarness({
     location: {

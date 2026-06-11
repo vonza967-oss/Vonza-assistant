@@ -75,7 +75,7 @@ export const DEFAULT_FULL_PAGE_ACTION_CARDS = Object.freeze([
   Object.freeze({
     label: "Árak",
     description: "Érdeklődhet az árakról, a terjedelemről és a következő lépésről.",
-    prompt: "Mennyibe kerül?",
+    prompt: "Milyen árakkal vagy díjakkal számolhatok?",
     type: "pricing",
     enabled: true,
   }),

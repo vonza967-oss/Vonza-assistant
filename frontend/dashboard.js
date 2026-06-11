@@ -225,6 +225,25 @@ const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
 const WEBSITE_WIDGET_DASHBOARD_SECTIONS = ["overview", "contacts", "analytics", "install", "settings", "preferences"];
 const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
+const WEBSITE_WIDGET_QUICK_PROMPT_LIMIT = 5;
+const WEBSITE_WIDGET_QUICK_PROMPT_LABEL_LIMIT = 40;
+const WEBSITE_WIDGET_QUICK_PROMPT_TEXT_LIMIT = 200;
+const DEFAULT_WEBSITE_WIDGET_QUICK_PROMPTS = Object.freeze({
+  en: Object.freeze([
+    Object.freeze({ label: "Services", prompt: "What services do you offer?" }),
+    Object.freeze({ label: "Pricing", prompt: "How much does it cost?" }),
+    Object.freeze({ label: "Request a quote", prompt: "I'd like to request a quote." }),
+    Object.freeze({ label: "Contact details", prompt: "How can I contact you?" }),
+    Object.freeze({ label: "Booking", prompt: "I'd like to book a time." }),
+  ]),
+  hu: Object.freeze([
+    Object.freeze({ label: "Szolgáltatások", prompt: "Milyen szolgáltatásokat kínálnak?" }),
+    Object.freeze({ label: "Árak", prompt: "Milyen árakkal vagy díjakkal számolhatok?" }),
+    Object.freeze({ label: "Ajánlatkérés", prompt: "Szeretnék ajánlatot kérni." }),
+    Object.freeze({ label: "Elérhetőségek", prompt: "Hogyan tudom felvenni a kapcsolatot?" }),
+    Object.freeze({ label: "Foglalás", prompt: "Szeretnék időpontot foglalni." }),
+  ]),
+});
 const WIDGET_PURPOSE_OPTIONS = [
   {
     value: "guidance",
@@ -10186,6 +10205,8 @@ function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
 	  const secondaryColor = trimText(agent.secondaryColor || agent.secondary_color) || "#0f766e";
 	  const assistantName = trimText(agent.assistantName || agent.name) || "Website assistant";
 	  const welcomeMessage = trimText(agent.welcomeMessage) || "Welcome. Ask a question and we will help with the next step.";
+	  const fullPageConfig = agent.fullPageConfig || agent.full_page_config || {};
+	  const quickPrompts = getWebsiteWidgetQuickPromptsFromConfig(fullPageConfig);
 	  const knowledgeActionLabel = setup.knowledgeState === "limited"
 	    ? websiteWidgetText("config.retryImport")
 	    : websiteWidgetText("config.importKnowledge");
@@ -10361,6 +10382,7 @@ function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
 	              <label for="website-widget-welcome">${escapeHtml(websiteWidgetText("config.welcomeMessage"))}</label>
 	              <textarea id="website-widget-welcome" name="welcome_message" rows="4">${escapeHtml(welcomeMessage)}</textarea>
 	            </div>
+	            ${renderWebsiteWidgetQuickPromptEditor(quickPrompts)}
 	            <div class="field">
 	              <label for="website-widget-logo">${escapeHtml(websiteWidgetText("config.logo"))}</label>
 	              <label class="website-widget-file-control" for="website-widget-logo">
@@ -16684,6 +16706,159 @@ function normalizeFullPageFormText(value, maxLength) {
   return trimText(value).slice(0, maxLength);
 }
 
+function normalizeWebsiteWidgetQuickPromptText(value, maxLength) {
+  return normalizeFullPageFormText(String(value || "").replace(/<[^>]*>/g, " "), maxLength);
+}
+
+function getDefaultWebsiteWidgetQuickPrompts() {
+  const language = getDashboardLanguage() === "hu" ? "hu" : "en";
+  return DEFAULT_WEBSITE_WIDGET_QUICK_PROMPTS[language].map((item) => ({ ...item }));
+}
+
+function normalizeWebsiteWidgetQuickPromptItem(item = {}) {
+  const prompt = normalizeWebsiteWidgetQuickPromptText(
+    item?.prompt ?? item?.text ?? item?.value ?? item?.label,
+    WEBSITE_WIDGET_QUICK_PROMPT_TEXT_LIMIT
+  );
+  const label = normalizeWebsiteWidgetQuickPromptText(
+    item?.label ?? prompt,
+    WEBSITE_WIDGET_QUICK_PROMPT_LABEL_LIMIT
+  );
+
+  if (!label || !prompt) {
+    return null;
+  }
+
+  return { label, prompt };
+}
+
+function normalizeWebsiteWidgetQuickPrompts(value = [], { useDefaults = false } = {}) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : typeof value === "string" && trimText(value)
+      ? value.split(/\n|,/).map((entry) => ({ label: entry, prompt: entry }))
+      : [];
+  const seenLabels = new Set();
+  const seenPrompts = new Set();
+  const results = [];
+
+  rawItems.forEach((item) => {
+    const normalized = normalizeWebsiteWidgetQuickPromptItem(
+      item && typeof item === "object" && !Array.isArray(item)
+        ? item
+        : { label: item, prompt: item }
+    );
+
+    if (!normalized) {
+      return;
+    }
+
+    const labelKey = normalized.label.toLowerCase();
+    const promptKey = normalized.prompt.toLowerCase();
+
+    if (seenLabels.has(labelKey) || seenPrompts.has(promptKey)) {
+      return;
+    }
+
+    seenLabels.add(labelKey);
+    seenPrompts.add(promptKey);
+    results.push(normalized);
+  });
+
+  const limited = results.slice(0, WEBSITE_WIDGET_QUICK_PROMPT_LIMIT);
+  return limited.length || !useDefaults ? limited : getDefaultWebsiteWidgetQuickPrompts();
+}
+
+function getWebsiteWidgetQuickPromptsFromConfig(config = {}) {
+  const rawPrompts = Array.isArray(config.quickPrompts)
+    ? config.quickPrompts
+    : Array.isArray(config.quick_prompts)
+      ? config.quick_prompts
+      : [];
+
+  return normalizeWebsiteWidgetQuickPrompts(rawPrompts, { useDefaults: true });
+}
+
+function hasWebsiteWidgetQuickPromptFields(formData) {
+  for (let index = 0; index < WEBSITE_WIDGET_QUICK_PROMPT_LIMIT; index += 1) {
+    if (
+      formData.has(`widget_quick_prompt_${index}_label`)
+      || formData.has(`widget_quick_prompt_${index}_prompt`)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function parseWebsiteWidgetQuickPromptsPayload(formData) {
+  const items = [];
+
+  for (let index = 0; index < WEBSITE_WIDGET_QUICK_PROMPT_LIMIT; index += 1) {
+    const labelKey = `widget_quick_prompt_${index}_label`;
+    const promptKey = `widget_quick_prompt_${index}_prompt`;
+
+    if (!formData.has(labelKey) && !formData.has(promptKey)) {
+      continue;
+    }
+
+    const item = normalizeWebsiteWidgetQuickPromptItem({
+      label: formData.get(labelKey),
+      prompt: formData.get(promptKey),
+    });
+
+    if (item) {
+      items.push(item);
+    }
+  }
+
+  return normalizeWebsiteWidgetQuickPrompts(items);
+}
+
+function renderWebsiteWidgetQuickPromptPreview(prompts = []) {
+  const items = prompts.length ? prompts : getDefaultWebsiteWidgetQuickPrompts();
+  return items.slice(0, WEBSITE_WIDGET_QUICK_PROMPT_LIMIT).map((item) => (
+    `<span class="website-widget-quick-chip">${escapeHtml(item.label)}</span>`
+  )).join("");
+}
+
+function renderWebsiteWidgetQuickPromptEditor(prompts = []) {
+  const rows = Array.from({ length: WEBSITE_WIDGET_QUICK_PROMPT_LIMIT }, (_item, index) => (
+    prompts[index] || { label: "", prompt: "" }
+  ));
+
+  return `
+    <div class="website-widget-quick-prompts" data-widget-quick-prompts-editor>
+      <div class="website-widget-quick-prompts-head">
+        <div>
+          <h3>${escapeHtml(websiteWidgetText("config.quickPromptsTitle"))}</h3>
+          <p>${escapeHtml(websiteWidgetText("config.quickPromptsCopy"))}</p>
+        </div>
+        <span>${escapeHtml(websiteWidgetText("config.quickPromptsLimit"))}</span>
+      </div>
+      <div class="website-widget-quick-prompt-list">
+        ${rows.map((item, index) => `
+          <div class="website-widget-quick-prompt-row">
+            <div class="field">
+              <label for="widget-quick-prompt-${index}-label">${escapeHtml(websiteWidgetText("config.quickPromptLabel"))} ${index + 1}</label>
+              <input id="widget-quick-prompt-${index}-label" name="widget_quick_prompt_${index}_label" type="text" maxlength="${WEBSITE_WIDGET_QUICK_PROMPT_LABEL_LIMIT}" value="${escapeHtml(item.label)}" placeholder="${escapeHtml(websiteWidgetText("config.quickPromptLabelPlaceholder"))}">
+            </div>
+            <div class="field">
+              <label for="widget-quick-prompt-${index}-prompt">${escapeHtml(websiteWidgetText("config.quickPromptPrompt"))}</label>
+              <input id="widget-quick-prompt-${index}-prompt" name="widget_quick_prompt_${index}_prompt" type="text" maxlength="${WEBSITE_WIDGET_QUICK_PROMPT_TEXT_LIMIT}" value="${escapeHtml(item.prompt)}" placeholder="${escapeHtml(websiteWidgetText("config.quickPromptPromptPlaceholder"))}">
+            </div>
+          </div>
+        `).join("")}
+      </div>
+      <p class="field-help">${escapeHtml(websiteWidgetText("config.quickPromptsHelp"))}</p>
+      <div class="website-widget-quick-preview" data-widget-quick-preview aria-label="${escapeHtml(websiteWidgetText("config.quickPromptsPreviewAria"))}">
+        ${renderWebsiteWidgetQuickPromptPreview(prompts)}
+      </div>
+    </div>
+  `;
+}
+
 function parseFullPageListField(value, maxItems, maxLength) {
   return String(value || "")
     .split(/\n|,/)
@@ -16877,7 +17052,7 @@ function parseFullPageConfigPayload(formData) {
     });
   }
 
-  return {
+  const payload = {
     public_page_enabled: formData.has("full_page_public_enabled"),
     public_page_key: normalizeFullPageFormText(formData.get("full_page_public_page_key"), 80) || null,
     booking_provider: bookingProvider === "calendly" ? "calendly" : "manual",
@@ -16893,6 +17068,12 @@ function parseFullPageConfigPayload(formData) {
     trust_items: parseFullPageListField(formData.get("full_page_trust_items"), 3, 60),
     design: parseFullPageDesignPayload(formData),
   };
+
+  if (hasWebsiteWidgetQuickPromptFields(formData)) {
+    payload.quick_prompts = parseWebsiteWidgetQuickPromptsPayload(formData);
+  }
+
+  return payload;
 }
 
 function parseVoiceConfigPayload(formData) {
@@ -17048,6 +17229,14 @@ async function saveAssistant(event, agent) {
 
   if (formData.has("full_page_headline")) {
     payload.full_page_config = parseFullPageConfigPayload(formData);
+  }
+
+  if (hasWebsiteWidgetQuickPromptFields(formData)) {
+    payload.full_page_config = {
+      ...(agent.fullPageConfig || agent.full_page_config || {}),
+      ...(payload.full_page_config || {}),
+      quick_prompts: parseWebsiteWidgetQuickPromptsPayload(formData),
+    };
   }
 
   if (formData.has("voice_input_enabled") || formData.has("spoken_replies_enabled") || formData.has("web_call_enabled") || formData.has("voice")) {
@@ -17477,6 +17666,7 @@ function updateStudioSummary(
   const brandLauncherLabel = findScoped("brand-launcher-label");
   const brandWidgetAvatar = findScoped("brand-widget-avatar");
   const brandLauncher = findScoped("brand-launcher");
+  const quickPromptPreview = scope.querySelector?.("[data-widget-quick-preview]") || document.querySelector("[data-widget-quick-preview]");
   const formData = new FormData(form);
   const getSummaryValue = (fieldName, fallbackValue = "") => {
     if (formData.has(fieldName)) {
@@ -17542,6 +17732,11 @@ function updateStudioSummary(
   if (brandLauncher) {
     brandLauncher.style.setProperty("--brand-primary", primaryColor);
     brandLauncher.style.setProperty("--brand-secondary", secondaryColor);
+  }
+
+  if (quickPromptPreview) {
+    const quickPrompts = parseWebsiteWidgetQuickPromptsPayload(formData);
+    quickPromptPreview.innerHTML = renderWebsiteWidgetQuickPromptPreview(quickPrompts);
   }
 }
 
