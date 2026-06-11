@@ -717,7 +717,7 @@ test("public assistant defaults to Hungarian when no language signal exists", ()
   assert.equal(harness.elements.get("welcome-title").textContent, "Üdvözöljük! Miben segíthetünk?");
   assert.equal(harness.elements.get("identity-email-title").textContent, "Folytatás emaillel");
   assert.equal(harness.elements.get("identity-guest-title").textContent, "Folytatás vendégként");
-  assert.equal(harness.elements.get("input").placeholder, "Írja be a kérdését...");
+  assert.equal(harness.elements.get("input").placeholder, "Kérdezzen bármit...");
   assert.equal(harness.elements.get("composer-status").textContent, "Állítsa be a Front Desket a Vonzában, mielőtt teszteli ezt az asszisztensoldalt.");
   assert.doesNotMatch(
     [
@@ -762,7 +762,7 @@ test("Hungarian public assistant initial shell renders localized entry copy", ()
   assert.equal(harness.elements.get("welcome-title").textContent, "Üdvözöljük! Miben segíthetünk?");
   assert.equal(harness.elements.get("identity-email-title").textContent, "Folytatás emaillel");
   assert.equal(harness.elements.get("identity-guest-title").textContent, "Folytatás vendégként");
-  assert.equal(harness.elements.get("input").placeholder, "Írja be a kérdését...");
+  assert.equal(harness.elements.get("input").placeholder, "Kérdezzen bármit...");
   assert.equal(harness.elements.get("composer-status").textContent, "Állítsa be a Front Desket a Vonzában, mielőtt teszteli ezt az asszisztensoldalt.");
   assert.equal(harness.elements.get("assistant-unavailable-copy").textContent, "Ez az asszisztens most nem elérhető. Kérjük, vegye fel közvetlenül a kapcsolatot a vállalkozással.");
   assert.equal(harness.elements.get("powered-by").textContent, "Segítünk | Powered by Vonza");
@@ -776,6 +776,120 @@ test("Hungarian public assistant initial shell renders localized entry copy", ()
     ].join(" "),
     /Continue with email|Continue as guest|Type your question|Please contact the business directly|Ask about services|Szia|Kérlek|Írd be|Kérdezz/
   );
+});
+
+test("Hungarian embedded widget shell uses compact copy and configured assistant label", () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?language=hu&embedded=1",
+      pathname: "/widget",
+      href: "https://example.com/widget?language=hu&embedded=1",
+    },
+  });
+
+  harness.hooks.applyWidgetConfig({
+    assistantName: "Jani",
+    launcherText: "Weboldali asszisztens",
+  });
+  harness.hooks.continueIntoChat({ mode: "guest" });
+
+  assert.equal(harness.elements.get("launcher-text").textContent, "");
+  assert.equal(harness.elements.get("launcher-text").hidden, true);
+  assert.equal(harness.elements.get("status-pill-text").textContent, "AI asszisztens online");
+  assert.equal(harness.elements.get("input").placeholder, "Kérdezzen bármit...");
+  assert.equal(harness.elements.get("identity-reset-button").textContent, "Chat törlése");
+  assert.equal(harness.elements.get("intro-message-label").textContent, "Jani");
+  assert.equal(harness.elements.get("assistant-name").textContent, "Jani");
+  assert.doesNotMatch(
+    [
+      harness.elements.get("launcher-text").textContent,
+      harness.elements.get("status-pill-text").textContent,
+      harness.elements.get("input").placeholder,
+      harness.elements.get("identity-reset-button").textContent,
+      harness.elements.get("intro-message-label").textContent,
+    ].join(" "),
+    /Weboldali asszisztens|Általában azonnal válaszol|Írja be a kérdését|Látogatói azonosítás törlése|\bAsszisztens\b/
+  );
+});
+
+test("Hungarian widget feedback submit hides the thank-you status text", async () => {
+  const feedbackButtons = [];
+  const feedbackLabel = { textContent: "Was this helpful?" };
+  const feedbackContainer = {
+    hidden: false,
+    dataset: {
+      replyFeedback: "uuid-1::0::123",
+      replyQuestion: "Mikor vannak nyitva?",
+      replyAnswer: "Hétköznap 9 és 17 óra között.",
+    },
+    classList: {
+      added: [],
+      add(token) {
+        this.added.push(token);
+      },
+    },
+    querySelector(selector) {
+      return selector === "span" ? feedbackLabel : null;
+    },
+    querySelectorAll(selector) {
+      return selector === "button" ? feedbackButtons : [];
+    },
+  };
+  const helpfulButton = {
+    disabled: false,
+    dataset: {
+      replyFeedbackRating: "helpful",
+    },
+    closest(selector) {
+      if (selector === "[data-reply-feedback]") {
+        return feedbackContainer;
+      }
+
+      return null;
+    },
+  };
+  feedbackButtons.push(helpfulButton);
+
+  const harness = createWidgetHarness({
+    location: {
+      search: "?language=hu",
+      pathname: "/widget",
+      href: "https://example.com/widget?language=hu",
+    },
+    customFetch: async (input) => {
+      if (String(input) === "/chat/feedback") {
+        return {
+          ok: true,
+          async json() {
+            return { saved: true };
+          },
+        };
+      }
+
+      return {
+        ok: false,
+        async json() {
+          return { error: "not configured" };
+        },
+      };
+    },
+  });
+
+  harness.elements.get("chat").dispatch("click", {
+    target: {
+      closest(selector) {
+        return selector === "[data-reply-feedback-rating]" ? helpfulButton : null;
+      },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(feedbackContainer.hidden, true);
+  assert.deepEqual(feedbackContainer.classList.added, ["submitted"]);
+  assert.equal(harness.elements.get("composer-status").hidden, true);
+  assert.notEqual(harness.elements.get("composer-status").textContent, "Köszönjük a visszajelzést.");
+  assert.notEqual(feedbackLabel.textContent, "Köszönjük a visszajelzést.");
 });
 
 test("widget stores visitor session only after explicit identity consent", () => {

@@ -63,7 +63,8 @@ const DEFAULT_WIDGET_WELCOME_MESSAGE_EN = "Hi! How can we help today?";
 const DEFAULT_WIDGET_WELCOME_MESSAGE_HU = "Üdvözöljük! Miben segíthetünk?";
 const LEGACY_WIDGET_WELCOME_MESSAGE_HU = "Szia! Miben segíthetünk ma?";
 const DEFAULT_WIDGET_LAUNCHER_TEXT_EN = "Website assistant";
-const DEFAULT_WIDGET_LAUNCHER_TEXT_HU = "Weboldali asszisztens";
+const DEFAULT_WIDGET_LAUNCHER_TEXT_HU = "";
+const LEGACY_WIDGET_LAUNCHER_TEXT_HU = "Weboldali asszisztens";
 const DEFAULT_FULL_PAGE_SUBTITLE_EN = "Ask about services, pricing, quotes, or contact details.";
 const DEFAULT_FULL_PAGE_SUBTITLE_HU = "Érdeklődhet szolgáltatásokról, árakról, ajánlatról vagy elérhetőségről.";
 
@@ -484,11 +485,11 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.defaultName": "Asszisztens",
     "assistant.defaultFullPageHeadline": "Front Desk",
     "assistant.defaultFullPageSubtitle": "Érdeklődhet szolgáltatásokról, árakról, ajánlatról vagy elérhetőségről.",
-    "assistant.defaultLauncher": "Weboldali asszisztens",
+    "assistant.defaultLauncher": "",
     "assistant.defaultWelcome": "Üdvözöljük! Miben segíthetünk?",
     "assistant.onlineNow": "Elérhető",
     "assistant.logoLabel": "{name} logó",
-    "assistant.status.typical": "Általában azonnal válaszol",
+    "assistant.status.typical": "AI asszisztens online",
     "assistant.status.online": "AI asszisztens online",
     "assistant.status.instant": "Azonnal válaszol",
     "assistant.status.assistant": "AI asszisztens",
@@ -513,7 +514,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.cancel": "Mégse",
     "assistant.privacyTrust": "Tiszteletben tartjuk az adatvédelmét.",
     "assistant.identityLegal": "A folytatással engedélyezi, hogy a Vonza mentse ezt a chatet válaszadás, biztonság és utánkövetés céljából. Átnézheti az adatkezelést, a feltételeket és a cookie tájékoztatót.",
-    "assistant.composerPlaceholder": "Írja be a kérdését...",
+    "assistant.composerPlaceholder": "Kérdezzen bármit...",
     "assistant.canvasPlaceholder": "Tegyen fel kérdést...",
     "assistant.send": "Üzenet küldése",
     "assistant.composerHint": "Enterrel küldheti el. Az asszisztens a vállalkozás legfrissebb adatai alapján válaszol.",
@@ -601,7 +602,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.callLongReplyHint": "Ez a válasz kicsit hosszú felolvasáshoz, ezért érdemes a képernyőn is elolvasni.",
     "assistant.callOneTurn": "1 forduló",
     "assistant.callTurnCount": "{count} forduló",
-    "assistant.resetIdentity": "Látogatói azonosítás törlése",
+    "assistant.resetIdentity": "Chat törlése",
     "assistant.resetStatus": "Folytassa emaillel vagy vendégként az új látogatói azonosításhoz.",
     "assistant.chooseBeforeSend": "Az első üzenet elküldése előtt folytassa vendég módban vagy emaillel.",
     "assistant.chooseThenSend": "Folytassa emaillel vagy vendégként, majd küldje el a kérdést.",
@@ -630,7 +631,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.leadPrompt": "Melyik email címen vagy telefonszámon érhetünk el a legjobban?",
     "assistant.optionReady": "Ez a lehetőség készen áll, ha a leggyorsabb következő lépést szeretné.",
     "assistant.askAnythingElse": "Tegyen fel további kérdést szolgáltatásokról, árakról, foglalásról vagy elérhetőségről.",
-    "assistant.feedbackHelpful": "Köszönjük a visszajelzést.",
+    "assistant.feedbackHelpful": "Visszajelzés mentve.",
     "assistant.feedbackReview": "Köszönjük. A vállalkozás át tudja nézni.",
     "assistant.feedbackFailed": "A visszajelzést most nem sikerült menteni.",
     "assistant.canvasAsk": "Új kérdés",
@@ -952,7 +953,12 @@ function getAssistantLanguage(config = widgetConfig) {
 
 function assistantT(key, params = {}, config = widgetConfig) {
   const language = getAssistantLanguage(config);
-  const template = ASSISTANT_I18N[language]?.[key] || ASSISTANT_I18N.en[key] || key;
+  const localizedMessages = ASSISTANT_I18N[language] || {};
+  const template = Object.prototype.hasOwnProperty.call(localizedMessages, key)
+    ? localizedMessages[key]
+    : Object.prototype.hasOwnProperty.call(ASSISTANT_I18N.en, key)
+      ? ASSISTANT_I18N.en[key]
+      : key;
 
   return String(template).replace(/\{(\w+)\}/g, (_match, name) => (
     Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : `{${name}}`
@@ -964,6 +970,22 @@ function setElementText(id, value) {
   if (element) {
     element.textContent = value;
   }
+}
+
+function setHeaderKickerText(value) {
+  const element = document.getElementById("launcher-text");
+
+  if (!element) {
+    return;
+  }
+
+  const text = trimText(value);
+  element.textContent = text;
+  element.hidden = !text;
+}
+
+function getAssistantMessageLabel(config = widgetConfig) {
+  return trimText(config.assistantName) || assistantT("assistant.label", {}, config);
 }
 
 function setElementHtml(id, value) {
@@ -1004,7 +1026,7 @@ function applyPublicAssistantLanguage(config = widgetConfig) {
   setElementText("identity-email-submit", assistantT("assistant.continueToChat", {}, config));
   setElementText("identity-email-cancel", assistantT("assistant.back", {}, config));
   setElementText("identity-trust", assistantT("assistant.privacyTrust", {}, config));
-  setElementText("intro-message-label", assistantT("assistant.label", {}, config));
+  setElementText("intro-message-label", getAssistantMessageLabel(config));
   setElementText("send-button-sr", assistantT("assistant.send", {}, config));
   setElementText("speak-replies-toggle", assistantT("assistant.voiceSpeakReplies", {}, config));
   const voiceDisclosure = document.getElementById("voice-disclosure");
@@ -1382,7 +1404,8 @@ function isDefaultLauncherText(message) {
   const normalized = trimText(message);
   return !normalized
     || normalized === DEFAULT_WIDGET_CONFIG.launcherText
-    || normalized === DEFAULT_WIDGET_LAUNCHER_TEXT_HU;
+    || normalized === DEFAULT_WIDGET_LAUNCHER_TEXT_HU
+    || normalized === LEGACY_WIDGET_LAUNCHER_TEXT_HU;
 }
 
 function isDefaultFullPageSubtitle(message) {
@@ -2498,7 +2521,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   }
 
   if (launcherTextEl) {
-    launcherTextEl.textContent = assistantT("assistant.onlineNow", {}, config);
+    setHeaderKickerText(assistantT("assistant.onlineNow", {}, config));
   }
 
   if (welcomeAssistantNameEl) {
@@ -3625,7 +3648,9 @@ function setComposerStatus(message) {
   const statusEl = document.getElementById("composer-status");
 
   if (statusEl) {
-    statusEl.textContent = message;
+    const text = String(message || "");
+    statusEl.textContent = text;
+    statusEl.hidden = !trimText(text);
   }
 }
 
@@ -5615,7 +5640,7 @@ function applyWidgetConfig(config = {}) {
   }
   document.getElementById("assistant-name").textContent = widgetConfig.assistantName;
   document.getElementById("welcome-assistant-name").textContent = widgetConfig.assistantName;
-  document.getElementById("launcher-text").textContent = widgetConfig.launcherText;
+  setHeaderKickerText(widgetConfig.launcherText);
   document.getElementById("welcome-message").textContent = widgetConfig.welcomeMessage;
   document.getElementById("intro-avatar").textContent = assistantMark;
   applyBrandMark(
@@ -5928,7 +5953,7 @@ async function submitReplyFeedback(messageKey, rating, options = {}) {
       throw new Error(data.error || "Feedback request failed");
     }
 
-    setComposerStatus(normalizedRating === "helpful" ? assistantT("assistant.feedbackHelpful") : assistantT("assistant.feedbackReview"));
+    setComposerStatus("");
     return data;
   } catch (error) {
     submittedReplyFeedbackKeys.delete(dedupeKey);
@@ -6310,9 +6335,9 @@ document.getElementById("chat")?.addEventListener("click", (event) => {
     }
 
     container?.classList.add("submitted");
-    const label = container?.querySelector("span");
-    if (label) {
-      label.textContent = rating === "helpful" ? assistantT("assistant.feedbackHelpful") : assistantT("assistant.feedbackReview");
+    if (container) {
+      container.hidden = true;
+      queueEmbeddedHeightUpdate();
     }
   });
 });
