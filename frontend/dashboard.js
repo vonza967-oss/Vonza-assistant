@@ -732,7 +732,9 @@ function getBillingPlans() {
       displayName: "Starter",
       monthlyPriceCents: 2000,
       monthlyPriceUsd: 20,
-      monthlyPriceLabel: "$20/month",
+      monthlyPriceHuf: 19900,
+      monthlyPriceLabel: "19,900 HUF/month",
+      billingCurrency: "HUF",
       checkoutLabel: "Start with Starter",
       marketing: {
         audience: "For lighter website traffic",
@@ -744,7 +746,9 @@ function getBillingPlans() {
       displayName: "Growth",
       monthlyPriceCents: 5000,
       monthlyPriceUsd: 50,
-      monthlyPriceLabel: "$50/month",
+      monthlyPriceHuf: 49900,
+      monthlyPriceLabel: "49,900 HUF/month",
+      billingCurrency: "HUF",
       checkoutLabel: "Start with Growth",
       recommended: true,
       marketing: {
@@ -757,7 +761,9 @@ function getBillingPlans() {
       displayName: "Pro",
       monthlyPriceCents: 10000,
       monthlyPriceUsd: 100,
-      monthlyPriceLabel: "$100/month",
+      monthlyPriceHuf: 99900,
+      monthlyPriceLabel: "99,900 HUF/month",
+      billingCurrency: "HUF",
       checkoutLabel: "Start with Pro",
       marketing: {
         audience: "For busier websites",

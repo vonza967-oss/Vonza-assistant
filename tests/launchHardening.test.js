@@ -276,7 +276,6 @@ test("route frame policies are explicit for dashboard, embeds, Front Desk pages,
         "/voice-agent",
         "/pricing",
         "/about",
-        "/download/mac",
         "/aszf",
         "/impresszum",
         "/adatkezelesi-tajekoztato",
@@ -289,6 +288,10 @@ test("route frame policies are explicit for dashboard, embeds, Front Desk pages,
         assertMicrophonePolicy(response, "");
       }
 
+      const macDownload = await fetch(`${baseUrl}/download/mac`);
+      assert.equal(macDownload.status, 404);
+      assertFramePolicy(macDownload, { frameAncestors: "'none'", xFrameOptions: "DENY" });
+
       for (const publicRedirectPath of ["/desktop", "/how-it-works", "/contact", "/terms", "/privacy", "/cookies", "/imprint"]) {
         const response = await fetch(`${baseUrl}${publicRedirectPath}`, { redirect: "manual" });
         assert.equal(response.status, 302, publicRedirectPath);
@@ -296,6 +299,9 @@ test("route frame policies are explicit for dashboard, embeds, Front Desk pages,
         assert.doesNotMatch(getCsp(response), /frame-ancestors \*/);
         assertMicrophonePolicy(response, "");
       }
+
+      const desktopRedirect = await fetch(`${baseUrl}/desktop`, { redirect: "manual" });
+      assert.equal(desktopRedirect.headers.get("location"), "/website-widget");
     });
   });
 });

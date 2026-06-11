@@ -78,7 +78,7 @@
       buttonLabel:
         currentScript?.dataset.buttonLabel ||
         scriptConfig.buttonLabel ||
-        "Chat with Vonza",
+        "",
       primaryColor:
         currentScript?.dataset.primaryColor ||
         scriptConfig.primaryColor ||
@@ -102,7 +102,12 @@
   }
 
   function normalizeHexColor(value) {
-    return cleanText(value).toLowerCase();
+    const normalized = cleanText(value).toLowerCase();
+    return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/.test(normalized) ? normalized : "";
+  }
+
+  function normalizeDisplayText(value, fallback) {
+    return cleanText(value) || fallback;
   }
 
   function normalizeVisualConfig(input = {}) {
@@ -120,14 +125,11 @@
       next.primaryColor = DEFAULT_WIDGET_CONFIG.primaryColor;
       next.secondaryColor = DEFAULT_WIDGET_CONFIG.secondaryColor;
     } else {
-      if (!primaryColor) {
-        next.primaryColor = DEFAULT_WIDGET_CONFIG.primaryColor;
-      }
-
-      if (!secondaryColor) {
-        next.secondaryColor = DEFAULT_WIDGET_CONFIG.secondaryColor;
-      }
+      next.primaryColor = primaryColor || DEFAULT_WIDGET_CONFIG.primaryColor;
+      next.secondaryColor = secondaryColor || DEFAULT_WIDGET_CONFIG.secondaryColor;
     }
+    next.assistantName = normalizeDisplayText(next.assistantName, DEFAULT_WIDGET_CONFIG.assistantName);
+    next.buttonLabel = normalizeDisplayText(next.buttonLabel, DEFAULT_WIDGET_CONFIG.buttonLabel);
 
     return next;
   }
@@ -248,7 +250,7 @@
     return data;
   }
 
-  function createTemplate(visualConfig = DEFAULT_WIDGET_CONFIG) {
+  function createTemplate() {
     return `
       <style>
         :host {
@@ -280,7 +282,7 @@
           color: #4350dc;
           background:
             radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.24), transparent 32%),
-            linear-gradient(135deg, var(--widget-primary, ${visualConfig.primaryColor}) 0%, var(--widget-secondary, ${visualConfig.secondaryColor}) 100%);
+            linear-gradient(135deg, var(--widget-primary, #5b61ff) 0%, var(--widget-secondary, #7c4dff) 100%);
           box-shadow:
             0 18px 36px rgba(67, 71, 178, 0.24),
             0 10px 18px rgba(58, 69, 136, 0.16),
@@ -295,7 +297,7 @@
           position: absolute;
           inset: -10px;
           border-radius: 28px;
-          background: radial-gradient(circle, color-mix(in srgb, var(--widget-primary, ${visualConfig.primaryColor}) 22%, transparent), transparent 72%);
+          background: radial-gradient(circle, color-mix(in srgb, var(--widget-primary, #5b61ff) 22%, transparent), transparent 72%);
           opacity: 0.75;
           transform: scale(0.92);
           animation: ring 2.8s infinite ease-out;
@@ -483,7 +485,7 @@
           height: 34px;
           border-radius: 999px;
           border: 3px solid rgba(91, 97, 255, 0.14);
-          border-top-color: var(--widget-primary, ${visualConfig.primaryColor});
+          border-top-color: var(--widget-primary, #5b61ff);
           animation: spin 850ms linear infinite;
         }
 
@@ -510,7 +512,7 @@
           border: none;
           border-radius: 16px;
           padding: 10px 14px;
-          background: linear-gradient(135deg, var(--widget-primary, ${visualConfig.primaryColor}), var(--widget-secondary, ${visualConfig.secondaryColor}));
+          background: linear-gradient(135deg, var(--widget-primary, #5b61ff), var(--widget-secondary, #7c4dff));
           color: #ffffff;
           font: inherit;
           font-size: 13px;
@@ -641,13 +643,13 @@
         }
       </style>
       <div class="widget-shell">
-        <button class="launcher" type="button" aria-label="${visualConfig.buttonLabel}" title="${visualConfig.buttonLabel}">
+        <button class="launcher" type="button" aria-label="Chat with Vonza" title="Chat with Vonza">
           <span class="launcher-badge">
             <span class="launcher-face"></span>
           </span>
           <span class="launcher-presence"></span>
         </button>
-        <div class="launcher-label">${visualConfig.buttonLabel}</div>
+        <div class="launcher-label">Chat with Vonza</div>
         <div class="modal" data-open="false" aria-hidden="true">
           <div class="panel" role="dialog" aria-modal="true" aria-label="Vonza assistant">
             <button class="close" type="button" aria-label="Close">&times;</button>
@@ -660,7 +662,7 @@
                 <button class="status-button secondary" type="button" data-action="close">Close</button>
               </div>
             </div>
-            <iframe class="frame" title="${visualConfig.assistantName}" allow="microphone; autoplay" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            <iframe class="frame" title="Vonza AI" allow="microphone; autoplay" referrerpolicy="strict-origin-when-cross-origin"></iframe>
           </div>
         </div>
       </div>
@@ -750,7 +752,7 @@
     window[GLOBAL_FLAG] = true;
 
     const shadowRoot = host.attachShadow({ mode: "open" });
-    shadowRoot.innerHTML = createTemplate(visualConfig);
+    shadowRoot.innerHTML = createTemplate();
     host.style.setProperty("--widget-primary", visualConfig.primaryColor);
     host.style.setProperty("--widget-secondary", visualConfig.secondaryColor);
 

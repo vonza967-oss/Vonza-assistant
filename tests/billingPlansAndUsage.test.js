@@ -137,6 +137,26 @@ test("billing plan config exposes starter, growth, and pro with public-friendly 
   assert.doesNotMatch(JSON.stringify(plans), /token|api[- ]?cost|api[- ]?spend|model cost/i);
 });
 
+test("owner billing snapshots and upgrade options expose HUF labels", async () => {
+  const snapshot = await getSnapshotForUsage({
+    planKey: "starter",
+  });
+  const serialized = JSON.stringify(snapshot);
+
+  assert.equal(snapshot.monthlyPriceLabel, "19,900 HUF/month");
+  assert.equal(snapshot.monthlyPriceHuf, 19900);
+  assert.equal(snapshot.billingCurrency, "HUF");
+  assert.deepEqual(
+    snapshot.upgradeOptions.map((plan) => plan.monthlyPriceLabel),
+    ["49,900 HUF/month", "99,900 HUF/month"]
+  );
+  assert.deepEqual(
+    snapshot.upgradeOptions.map((plan) => plan.billingCurrency),
+    ["HUF", "HUF"]
+  );
+  assert.doesNotMatch(serialized, /\$(?:20|50|100)\/month|\b(?:20|50|100)\/month/);
+});
+
 test("hosted checkout maps each plan to its configured Stripe monthly price", async () => {
   const capturedPayloads = [];
   const fakeStripe = {

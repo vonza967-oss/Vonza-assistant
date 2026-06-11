@@ -6,6 +6,7 @@ import {
   buildCampaignSequence,
   buildReplyDraft,
   classifyInboxThread,
+  createEmptyOperatorWorkspaceSnapshot,
   createGoogleConnectionStart,
   sendDueCampaignSteps,
   suggestCalendarSlots,
@@ -42,6 +43,16 @@ test("inbox classifier identifies complaint and billing threads", () => {
     snippet: "Can you check the charge on my card?",
     messages: [],
   }), "billing");
+});
+
+test("empty operator workspace billing fallback uses HUF owner-facing labels", () => {
+  const snapshot = createEmptyOperatorWorkspaceSnapshot();
+  const serialized = JSON.stringify(snapshot.billing);
+
+  assert.equal(snapshot.billing.monthlyPriceLabel, "49,900 HUF/month");
+  assert.equal(snapshot.billing.monthlyPriceHuf, 49900);
+  assert.equal(snapshot.billing.billingCurrency, "HUF");
+  assert.doesNotMatch(serialized, /\$(?:20|50|100)\/month|\b(?:20|50|100)\/month/);
 });
 
 test("inbox classifier distinguishes booking and general threads", () => {

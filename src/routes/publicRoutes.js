@@ -1572,11 +1572,11 @@ export function createPublicRouter({ rootDir }) {
   });
 
   router.get("/desktop", (_req, res) => {
-    res.redirect(302, "/download/mac");
+    res.redirect(302, "/website-widget");
   });
 
   router.get("/download/mac", (_req, res) => {
-    res.type("html").send(renderMarketingPage(rootDir, "mac"));
+    res.status(404).json({ error: "Not found" });
   });
 
   router.get("/widget", (_req, res) => {

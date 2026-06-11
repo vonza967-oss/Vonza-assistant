@@ -1,6 +1,6 @@
 import {
   DEFAULT_BILLING_PLAN_KEY,
-  formatUsdPriceFromCents,
+  formatHufPrice,
   getBillingPlan,
   listBillingUpgradePlans,
   normalizeBillingPlanKey,
@@ -132,7 +132,9 @@ function mapUpgradeOption(plan) {
     displayName: plan.displayName,
     monthlyPriceCents: plan.monthlyPriceCents,
     monthlyPriceUsd: plan.monthlyPriceUsd,
-    monthlyPriceLabel: `${formatUsdPriceFromCents(plan.monthlyPriceCents)}/month`,
+    monthlyPriceHuf: plan.monthlyPriceHuf,
+    monthlyPriceLabel: `${formatHufPrice(plan.monthlyPriceHuf)}/month`,
+    billingCurrency: "HUF",
     checkoutLabel: plan.checkoutLabel,
   };
 }
@@ -508,7 +510,9 @@ export async function getOwnerBillingSnapshot(supabase, options = {}) {
     displayName: resolvedPlan.displayName,
     monthlyPriceCents: resolvedPlan.monthlyPriceCents,
     monthlyPriceUsd: resolvedPlan.monthlyPriceUsd,
-    monthlyPriceLabel: `${formatUsdPriceFromCents(resolvedPlan.monthlyPriceCents)}/month`,
+    monthlyPriceHuf: resolvedPlan.monthlyPriceHuf,
+    monthlyPriceLabel: `${formatHufPrice(resolvedPlan.monthlyPriceHuf)}/month`,
+    billingCurrency: "HUF",
     billingInterval: resolvedPlan.billingInterval,
     includedAiBudgetCents: resolvedPlan.includedAiBudgetCents,
     checkoutLabel: resolvedPlan.checkoutLabel,

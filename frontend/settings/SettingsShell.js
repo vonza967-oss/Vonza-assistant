@@ -954,7 +954,9 @@
       displayName: "",
       monthlyPriceCents: 0,
       monthlyPriceUsd: 0,
+      monthlyPriceHuf: 0,
       monthlyPriceLabel: "",
+      billingCurrency: "",
       billingInterval: "",
       includedAiBudgetCents: 0,
       currentPeriodStart: null,
@@ -3309,7 +3311,7 @@
                       data-billing-plan-key="${escapeHtml(plan.planKey)}"
                     >
                       <strong>${escapeHtml(plan.displayName)}</strong>
-                      <span>${escapeHtml(plan.monthlyPriceLabel || `${plan.monthlyPriceUsd}/month`)}</span>
+                      <span>${escapeHtml(plan.monthlyPriceLabel || "")}</span>
                       <small>${escapeHtml(plan.checkoutLabel || `Move to ${plan.displayName}`)}</small>
                     </button>
                   `).join("")}

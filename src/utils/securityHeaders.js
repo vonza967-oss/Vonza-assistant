@@ -87,7 +87,6 @@ function isBaselineMarketingOrLegalPath(pathname) {
     "/about",
     "/contact",
     "/desktop",
-    "/download/mac",
     "/aszf",
     "/impresszum",
     "/adatkezelesi-tajekoztato",
@@ -101,6 +100,10 @@ function isBaselineMarketingOrLegalPath(pathname) {
 
 function isAssistantEmbedPreviewPath(pathname) {
   return pathname === "/assistant-embed-matrix";
+}
+
+function isDisabledPublicLaunchPath(pathname) {
+  return pathname === "/download/mac";
 }
 
 function isAssistantMicrophonePath(pathname, requestUrl) {
@@ -172,6 +175,21 @@ function buildBaselinePublicCsp() {
   ].join("; ");
 }
 
+function buildDisabledPublicCsp() {
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    "style-src 'self'",
+    "script-src 'self'",
+    "connect-src 'self'",
+  ].join("; ");
+}
+
 export function applySecurityHeaders(req, res, next) {
   const pathname = normalizePath(req);
   const requestUrl = getRequestUrl(req);
@@ -191,6 +209,9 @@ export function applySecurityHeaders(req, res, next) {
     res.removeHeader("X-Frame-Options");
   } else if (isTopLevelWidgetPath(pathname) || isHostedFrontDeskPath(pathname)) {
     res.setHeader("Content-Security-Policy", buildAssistantCsp({ frameAncestors: "'none'" }));
+    res.setHeader("X-Frame-Options", "DENY");
+  } else if (isDisabledPublicLaunchPath(pathname)) {
+    res.setHeader("Content-Security-Policy", buildDisabledPublicCsp());
     res.setHeader("X-Frame-Options", "DENY");
   } else if (isBaselineMarketingOrLegalPath(pathname)) {
     res.setHeader("Content-Security-Policy", buildBaselinePublicCsp());

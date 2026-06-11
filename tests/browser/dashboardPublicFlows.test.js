@@ -246,6 +246,11 @@ async function stubDashboardWorkspaceApis(page, {
       },
     },
   }));
+  await page.route("**/dashboard/preferences**", (route) => fulfillJson(route, {
+    ok: true,
+    persistenceAvailable: true,
+    dashboardLanguage: "en",
+  }));
   await page.route("**/agents/action-queue**", (route) => fulfillJson(route, {
     items: [],
     people: [],
@@ -257,6 +262,18 @@ async function stubDashboardWorkspaceApis(page, {
     items: [],
     persistenceAvailable: true,
     migrationRequired: false,
+  }));
+  await page.route("**/agents/action-requests**", (route) => fulfillJson(route, {
+    records: [],
+    persistenceAvailable: true,
+  }));
+  await page.route("**/agents/booking-requests**", (route) => fulfillJson(route, {
+    records: [],
+    persistenceAvailable: true,
+  }));
+  await page.route("**/agents/quote-requests**", (route) => fulfillJson(route, {
+    records: [],
+    persistenceAvailable: true,
   }));
   await page.route("**/dashboard/analytics**", (route) => fulfillJson(route, {
     ok: true,
@@ -317,6 +334,98 @@ async function stubDashboardWorkspaceApis(page, {
   await page.route("**/agents/connected-app-inbound-events**", (route) => fulfillJson(route, {
     events: connectedAppEvents,
   }));
+}
+
+async function stubWebsiteWidgetDashboardLaunchApis(page, {
+  agent = buildDashboardFixtureAgent({
+    assistantName: "Launch widget assistant",
+    buttonLabel: "Ask us",
+    welcomeMessage: "Ask about services, pricing, or booking.",
+  }),
+} = {}) {
+  const fulfillJson = async (route, body) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+  };
+
+  await page.route("**/public-config.js**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/javascript",
+      body: `
+window.VONZA_PUBLIC_APP_URL = ${JSON.stringify(baseUrl)};
+window.VONZA_SUPABASE_URL = "https://supabase.example.test";
+window.VONZA_SUPABASE_ANON_KEY = "anon-test-key";
+window.VONZA_DEV_FAKE_BILLING = false;
+window.VONZA_OPERATOR_WORKSPACE_V1_ENABLED = true;
+window.VONZA_OPERATOR_WORKSPACE_V1 = true;
+window.VONZA_TODAY_COPILOT_V1_ENABLED = false;
+window.VONZA_DASHBOARD_V2_ENABLED = true;
+window.VONZA_APP_VERSION = "browser-test";
+window.VONZA_BUILD_SHA = "browser-test";
+window.VONZA_LAUNCH_PROFILE = {};
+window.VONZA_BILLING_PLANS = [
+  { key: "starter", displayName: "Starter", monthlyPriceCents: 2000, monthlyPriceUsd: 20, monthlyPriceHuf: 19900, monthlyPriceLabel: "19,900 HUF/month", billingCurrency: "HUF", checkoutLabel: "Start with Starter", marketing: { audience: "For one Hungarian SME", summary: "A simple way to launch a Hungarian Website Widget" } },
+  { key: "growth", displayName: "Growth", monthlyPriceCents: 5000, monthlyPriceUsd: 50, monthlyPriceHuf: 49900, monthlyPriceLabel: "49,900 HUF/month", billingCurrency: "HUF", checkoutLabel: "Start with Growth", recommended: true, marketing: { audience: "For regular customer questions", summary: "Best for most growing Hungarian SMEs" } },
+  { key: "pro", displayName: "Pro", monthlyPriceCents: 10000, monthlyPriceUsd: 100, monthlyPriceHuf: 99900, monthlyPriceLabel: "99,900 HUF/month", billingCurrency: "HUF", checkoutLabel: "Start with Pro", marketing: { audience: "For busier Website Widget workspaces", summary: "More room for higher monthly customer volume" } }
+];`.trim(),
+    });
+  });
+  await page.route("**/supabase-auth.js**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/javascript",
+      body: `
+window.supabase = {
+  createClient() {
+    const session = {
+      access_token: "browser-launch-token",
+      user: { id: "owner-browser-1", email: "owner@example.test" }
+    };
+    return {
+      auth: {
+        async getSession() {
+          return { data: { session }, error: null };
+        },
+        onAuthStateChange() {
+          return { data: { subscription: { unsubscribe() {} } } };
+        },
+        async signOut() {
+          return { error: null };
+        },
+        async signInWithPassword() {
+          return { data: { session }, error: null };
+        },
+        async signInWithOtp() {
+          return { error: null };
+        }
+      }
+    };
+  }
+};`.trim(),
+    });
+  });
+  await page.route("**/dashboard/preferences**", (route) => fulfillJson(route, {
+    ok: true,
+    persistenceAvailable: true,
+    dashboardLanguage: "en",
+  }));
+  await page.route("**/agents/action-requests**", (route) => fulfillJson(route, {
+    records: [],
+    persistenceAvailable: true,
+  }));
+  await page.route("**/agents/booking-requests**", (route) => fulfillJson(route, {
+    records: [],
+    persistenceAvailable: true,
+  }));
+  await page.route("**/agents/quote-requests**", (route) => fulfillJson(route, {
+    records: [],
+    persistenceAvailable: true,
+  }));
+  await stubDashboardWorkspaceApis(page, { agent });
 }
 
 async function stubAsyncKnowledgeImport(page, {
@@ -422,7 +531,7 @@ test.after(async () => {
 });
 
 test("signed-out dashboard loads a visible auth shell", async () => {
-  const page = await newPage();
+  const page = await newPage({ dashboardLanguage: "en" });
 
   try {
     await page.goto(`${baseUrl}/dashboard`, { waitUntil: "domcontentloaded" });
@@ -435,21 +544,21 @@ test("signed-out dashboard loads a visible auth shell", async () => {
 });
 
 test("signed-in mock dashboard home loads visible shell content", async () => {
-  const page = await newPage();
+  const page = await newPage({ dashboardLanguage: "en" });
 
   try {
     await page.goto(`${baseUrl}/dashboard-v2-fixture`, { waitUntil: "domcontentloaded" });
     await page.locator("[data-app-shell]").waitFor({ state: "visible" });
     await assertVisibleText(page, "Home");
     await assertVisibleText(page, "Your AI customer service snapshot for today");
-    await assertVisibleText(page, "Conversations today");
+    await assertVisibleText(page, "Website Widget");
   } finally {
     await page.close();
   }
 });
 
 test("Settings save flow shows success only after backend confirmation", async () => {
-  const page = await newPage();
+  const page = await newPage({ dashboardLanguage: "en" });
   let releaseSave;
   const saveConfirmed = new Promise((resolve) => {
     releaseSave = resolve;
@@ -500,23 +609,192 @@ test("Settings save flow shows success only after backend confirmation", async (
   }
 });
 
-test("Install page renders copy and verification state", async () => {
+test("Website Widget launch dashboard routes render Widget-first surfaces", async () => {
+  for (const route of [
+    {
+      path: "/website-widget/dashboard",
+      visibleSelector: '[data-app-shell][data-website-widget-dashboard="dedicated"]',
+      expectedText: "Website Widget overview",
+    },
+    {
+      path: "/website-widget/dashboard#install",
+      visibleSelector: '[data-shell-section="install"]:not([hidden])',
+      expectedText: "Install Website Widget",
+    },
+    {
+      path: "/website-widget/dashboard#settings",
+      visibleSelector: '[data-shell-section="settings"]:not([hidden])',
+      expectedText: "Widget configuration",
+    },
+  ]) {
+    const page = await newPage({ dashboardLanguage: "en" });
+    const runtimeErrors = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") {
+        runtimeErrors.push(message.text());
+      }
+    });
+    page.on("pageerror", (error) => {
+      runtimeErrors.push(error.message);
+    });
+    await stubWebsiteWidgetDashboardLaunchApis(page);
+
+    try {
+      await page.goto(`${baseUrl}${route.path}`, { waitUntil: "domcontentloaded" });
+      await page.locator(route.visibleSelector).waitFor({ state: "visible" });
+      await assertVisibleText(page, route.expectedText);
+      assert.equal(
+        await page.locator('[data-app-shell][data-dashboard-product="website_widget"]').count(),
+        1
+      );
+      await assertNoHorizontalOverflow(page);
+
+      const visibleText = await page.locator("body").innerText();
+      assert.equal(visibleText.includes("Publish your AI Front Desk page"), false);
+      assert.deepEqual(runtimeErrors, []);
+    } finally {
+      await page.close();
+    }
+  }
+});
+
+test("public Widget launch routes serve /widget and /embed.js", async () => {
   const page = await newPage();
 
+  await page.route("**/widget/bootstrap**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        agent: {
+          id: "agent-widget-1",
+          publicAgentKey: "widget-key",
+        },
+        business: {
+          id: "business-widget-1",
+          name: "Widget Services",
+          websiteUrl: "https://widget.example.test",
+        },
+        widgetConfig: {
+          assistantName: "Widget Services Assistant",
+          welcomeMessage: "Ask about services or next steps.",
+          launcherText: "Website assistant",
+          primaryColor: "#2563eb",
+          secondaryColor: "#0f766e",
+        },
+      }),
+    });
+  });
+
   try {
-    await page.goto(`${baseUrl}/dashboard-v2-fixture#install`, { waitUntil: "domcontentloaded" });
-    await page.locator('[data-shell-section="install"]').waitFor({ state: "visible" });
-    await assertVisibleText(page, "Publish your AI Front Desk page");
-    await assertVisibleText(page, "Copy Front Desk page link");
-    await assertVisibleText(page, "Verify installation");
-    await assertVisibleText(page, "Live install detected");
+    await page.goto(`${baseUrl}/widget?agent_id=agent-widget-1&embedded=1`, { waitUntil: "domcontentloaded" });
+    await page.locator("#assistant-name").waitFor({ state: "visible" });
+    await assertVisibleText(page, "Widget Services Assistant");
+
+    const embedResponse = await page.goto(`${baseUrl}/embed.js`, { waitUntil: "domcontentloaded" });
+    assert.equal(embedResponse.status(), 200);
+    await assertVisibleText(page, "__VonzaAssistantWidgetLoaded__");
+  } finally {
+    await page.close();
+  }
+});
+
+test("public embed renders malicious owner config as inert text", async () => {
+  const page = await newPage();
+  const maliciousButtonLabel = 'Árvíztűrő kérdés <img src=x onerror="window.__vonzaXss=1">';
+  const maliciousAssistantName = 'Ügyfélszolgálat <svg onload="window.__vonzaXss=2"></svg>';
+  const scriptSchemeUrl = ["java", "script:alert(1)"].join("");
+  const scriptConfig = JSON.stringify({
+    installId: "install-xss-1",
+    buttonLabel: maliciousButtonLabel,
+    primaryColor: `red; background-image:url(${scriptSchemeUrl})`,
+    secondaryColor: "#12zzzz",
+  }).replaceAll("<", "\\u003c");
+
+  await page.route("**/embed-xss-host", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: `<!doctype html>
+<html>
+  <head><meta charset="UTF-8"><title>Embed XSS host</title></head>
+  <body>
+    <h1>Customer site</h1>
+    <script>
+      window.__vonzaXss = 0;
+      window.VonzaWidgetConfig = ${scriptConfig};
+    </script>
+    <script async src="/embed.js"></script>
+  </body>
+</html>`,
+    });
+  });
+  await page.route("**/widget/bootstrap**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        install: {
+          installId: "install-xss-1",
+        },
+        widgetConfig: {
+          assistantName: maliciousAssistantName,
+          buttonLabel: '<button onclick="window.__vonzaXss=3">Bad</button>',
+          primaryColor: "expression(alert(1))",
+          secondaryColor: scriptSchemeUrl,
+          logoUrl: scriptSchemeUrl,
+          widgetLogoUrl: scriptSchemeUrl,
+          avatarUrl: "data:image/svg+xml,<svg onload=alert(1)>",
+        },
+      }),
+    });
+  });
+  for (const installPath of ["/install/ping", "/install/events"]) {
+    await page.route(`**${installPath}`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      });
+    });
+  }
+
+  try {
+    await page.goto(`${baseUrl}/embed-xss-host`, { waitUntil: "domcontentloaded" });
+    await page.locator("#vonza-widget-root").waitFor({ state: "attached" });
+    await page.waitForFunction(() => globalThis.document.getElementById("vonza-widget-root")?.shadowRoot);
+
+    const embedState = await page.evaluate(() => {
+      const host = globalThis.document.getElementById("vonza-widget-root");
+      const shadow = host.shadowRoot;
+      return {
+        xss: globalThis.__vonzaXss,
+        launcherText: shadow.querySelector(".launcher-label")?.textContent || "",
+        launcherAria: shadow.querySelector(".launcher")?.getAttribute("aria-label") || "",
+        statusCopy: shadow.querySelector(".status-copy")?.textContent || "",
+        iframeTitle: shadow.querySelector(".frame")?.getAttribute("title") || "",
+        primaryColor: host.style.getPropertyValue("--widget-primary"),
+        secondaryColor: host.style.getPropertyValue("--widget-secondary"),
+        executableNodeCount: shadow.querySelectorAll("script, img, svg, [onload], [onerror], [onclick]").length,
+      };
+    });
+
+    assert.equal(embedState.xss, 0);
+    assert.equal(embedState.executableNodeCount, 0);
+    assert.equal(embedState.launcherText, maliciousButtonLabel);
+    assert.equal(embedState.launcherAria, maliciousButtonLabel);
+    assert.equal(embedState.iframeTitle, maliciousAssistantName);
+    assert.equal(embedState.statusCopy, `We're getting ${maliciousAssistantName} ready.`);
+    assert.equal(embedState.primaryColor, "#5b61ff");
+    assert.equal(embedState.secondaryColor, "#7c4dff");
   } finally {
     await page.close();
   }
 });
 
 test("Front Desk practice route renders", async () => {
-  const page = await newPage();
+  const page = await newPage({ dashboardLanguage: "en" });
 
   try {
     await page.goto(`${baseUrl}/dashboard-v2-fixture#front-desk/practice`, { waitUntil: "domcontentloaded" });
@@ -533,14 +811,39 @@ test("Connected apps inbox renders disabled manual staff reply composer without 
     { width: 1280, height: 820 },
     { width: 390, height: 844 },
   ]) {
-    const page = await newPage({ viewport });
+    const page = await newPage({ viewport, dashboardLanguage: "en" });
+    await stubDashboardWorkspaceApis(page, {
+      connectedAppThreads: [
+        {
+          id: "whatsapp-thread-1",
+          provider: "whatsapp",
+          appKey: "whatsapp.business",
+          externalThreadLabel: "WhatsApp customer thread",
+          status: "reviewing",
+          unreadCount: 1,
+          lastEventAt: "2026-05-25T12:00:00.000Z",
+          lastEventType: "message_received",
+          lastMessageType: "text",
+        },
+      ],
+      connectedAppEvents: [
+        {
+          id: "whatsapp-event-1",
+          threadId: "whatsapp-thread-1",
+          providerEventType: "message_received",
+          eventStatus: "received",
+          receivedAt: "2026-05-25T12:00:00.000Z",
+          normalized: { messageType: "text" },
+        },
+      ],
+    });
 
     try {
       await page.goto(`${baseUrl}/dashboard-v2-fixture#settings/connected-apps`, { waitUntil: "domcontentloaded" });
       await page.locator('[data-settings-section="connected_apps"]').waitFor({ state: "visible" });
       await page.locator(".settings-connected-app-thread-row").first().waitFor({ state: "visible" });
       await assertVisibleText(page, "Manual staff reply");
-      await assertVisibleText(page, "No AI reply. No automatic WhatsApp messages.");
+      await assertVisibleText(page, "Staff must review before sending. No automatic WhatsApp replies.");
       await assertVisibleText(page, "Sending is disabled by server feature flag.");
       await assertNoHorizontalOverflow(page);
 
@@ -584,7 +887,7 @@ test("Connected apps inbox renders disabled manual staff reply composer without 
 });
 
 test("dashboard website import starts async polling and reaches owner-safe limited status", async () => {
-  const page = await newPage({ importPollIntervalMs: 10 });
+  const page = await newPage({ importPollIntervalMs: 10, dashboardLanguage: "en" });
   await stubDashboardWorkspaceApis(page);
   const importHarness = await stubAsyncKnowledgeImport(page, {
     waitForFirstStatusRelease: true,
@@ -653,7 +956,7 @@ test("dashboard website import starts async polling and reaches owner-safe limit
 });
 
 test("failed dashboard website import shows safe retry guidance and retries with force", async () => {
-  const page = await newPage({ importPollIntervalMs: 10 });
+  const page = await newPage({ importPollIntervalMs: 10, dashboardLanguage: "en" });
   await stubDashboardWorkspaceApis(page);
   const importHarness = await stubAsyncKnowledgeImport(page, {
     waitForFirstStatusRelease: true,
@@ -690,10 +993,11 @@ test("failed dashboard website import shows safe retry guidance and retries with
     assert.equal(visibleText.includes("sk-test-secret"), false);
     assert.equal(visibleText.includes("internalCrawler.js"), false);
 
-    await retryButton.click();
-    await page.waitForFunction(() =>
-      globalThis.VonzaDashboardImportStatus?.getDisplayState("local-agent-1")?.jobId === "browser-import-job-2"
+    const retryImportResponse = page.waitForResponse((response) =>
+      response.url().includes("/knowledge/import") && response.request().method() === "POST"
     );
+    await retryButton.click();
+    await retryImportResponse;
 
     assert.equal(importHarness.importRequests.length, 2);
     assert.equal(importHarness.importRequests[1].method, "POST");
@@ -732,7 +1036,6 @@ test("Hungarian dashboard fixture routes do not show audited operator English", 
     "Copy Front Desk page link",
     "Live install detected",
     "Choose method",
-    "Configure",
     "Installation methods",
     "Website Widget embed",
     "Copy widget snippet",
@@ -774,7 +1077,7 @@ test("Hungarian dashboard fixture routes do not show audited operator English", 
 });
 
 test("hosted full-page Front Desk sends customer question and captures contact details", async () => {
-  const page = await newPage();
+  const page = await newPage({ dashboardLanguage: "en" });
   const consoleErrors = [];
   const bootstrapRequests = [];
   const chatRequests = [];
@@ -1017,7 +1320,7 @@ test("hosted full-page Front Desk sends customer question and captures contact d
 });
 
 test("hosted full-page Front Desk hides call CTA when voice input is disabled", async () => {
-  const page = await newPage();
+  const page = await newPage({ dashboardLanguage: "en" });
 
   await page.route("https://fonts.googleapis.com/**", async (route) => {
     await route.fulfill({
@@ -1081,7 +1384,7 @@ test("hosted full-page Front Desk hides call CTA when voice input is disabled", 
 });
 
 test("hosted full-page Front Desk hides call CTA when web call is disabled", async () => {
-  const page = await newPage();
+  const page = await newPage({ dashboardLanguage: "en" });
   const voiceRequests = [];
 
   await page.route("https://fonts.googleapis.com/**", async (route) => {
@@ -1156,7 +1459,7 @@ test("hosted full-page Front Desk hides call CTA when web call is disabled", asy
 });
 
 test("hosted full-page Front Desk shows call CTA on mobile when web call is enabled", async () => {
-  const page = await newPage({ viewport: { width: 390, height: 844 } });
+  const page = await newPage({ viewport: { width: 390, height: 844 }, dashboardLanguage: "en" });
 
   await page.route("https://fonts.googleapis.com/**", async (route) => {
     await route.fulfill({
@@ -1221,7 +1524,7 @@ test("hosted full-page Front Desk shows call CTA on mobile when web call is enab
 });
 
 test("hosted full-page Web Call turn sends source marker without phone traffic", async () => {
-  const page = await newPage();
+  const page = await newPage({ dashboardLanguage: "en" });
   const chatRequests = [];
   const voiceRequests = [];
   const speechRequests = [];
@@ -1337,6 +1640,16 @@ test("hosted full-page Web Call turn sends source marker without phone traffic",
       }),
     });
   });
+  await page.route(/\/api\/voice\/realtime\/session(?:[?#]|$)/, async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "Realtime Web Call is unavailable in this browser smoke.",
+        code: "openai_realtime_unavailable",
+      }),
+    });
+  });
   await page.route(/\/api\/voice\/transcribe(?:[?#]|$)/, async (route) => {
     voiceRequests.push(route.request().url());
     await route.fulfill({
@@ -1409,6 +1722,13 @@ test("hosted full-page Web Call turn sends source marker without phone traffic",
       body: JSON.stringify({ ok: true }),
     });
   });
+  await page.route(/\/install\/events(?:[?#]|$)/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true }),
+    });
+  });
 
   try {
     const hostedUrl = new URL(`${baseUrl}/assistant/page-key`);
@@ -1453,6 +1773,7 @@ test("hosted full-page Web Call turn sends source marker without phone traffic",
         .getElementById("composer-status")
         ?.textContent.includes("web.caller@example.test")
     );
+    await page.waitForTimeout(100);
 
     assert.equal(captureRequests.length, 1);
     assert.equal(captureRequests[0].display_mode, "page");

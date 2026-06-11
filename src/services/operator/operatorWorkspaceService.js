@@ -4,7 +4,7 @@ import axios from "axios";
 
 import {
   DEFAULT_BILLING_PLAN_KEY,
-  formatUsdPriceFromCents,
+  formatHufPrice,
   getBillingPlan,
 } from "../../config/billingPlans.js";
 import {
@@ -505,7 +505,9 @@ export function createEmptyOperatorWorkspaceSnapshot(overrides = {}) {
       displayName: defaultBillingPlan.displayName,
       monthlyPriceCents: defaultBillingPlan.monthlyPriceCents,
       monthlyPriceUsd: defaultBillingPlan.monthlyPriceUsd,
-      monthlyPriceLabel: `${formatUsdPriceFromCents(defaultBillingPlan.monthlyPriceCents)}/month`,
+      monthlyPriceHuf: defaultBillingPlan.monthlyPriceHuf,
+      monthlyPriceLabel: `${formatHufPrice(defaultBillingPlan.monthlyPriceHuf)}/month`,
+      billingCurrency: "HUF",
       billingInterval: defaultBillingPlan.billingInterval,
       includedAiBudgetCents: defaultBillingPlan.includedAiBudgetCents,
       currentPeriodStart: null,
