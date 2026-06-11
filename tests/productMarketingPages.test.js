@@ -140,6 +140,16 @@ test("homepage and product page expose Website Widget only", async () => {
   });
 });
 
+test("/product presents Website Widget as launch product, not Front Desk as primary", async () => {
+  await withServer(async (baseUrl) => {
+    const html = await getHtml(baseUrl, "/product");
+
+    assert.match(html, /Website Widget is Vonza's launch product\./);
+    assert.doesNotMatch(html, /Front Desk is the recommended primary product/i);
+    assert.doesNotMatch(html, /Front Desk is the recommended Vonza product/i);
+  });
+});
+
 test("global marketing navigation exposes Website Widget only", async () => {
   await withServer(async (baseUrl) => {
     const html = await getHtml(baseUrl, "/");

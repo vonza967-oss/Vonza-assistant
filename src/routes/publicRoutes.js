@@ -215,14 +215,14 @@ function renderProductRouteLinks() {
     <section class="section product-route-section" aria-label="Vonza products">
       <div class="section-heading-row" data-reveal>
         <div>
-          <h2>Vonza is one company with three products.</h2>
-          <p>Front Desk is the recommended primary product. Website Widget and Voice Agent are separate Vonza products that share the same workspace and should be added only where they fit.</p>
+          <h2>Website Widget is the launch product.</h2>
+          <p>The Website Widget is the first public offer. AI Front Desk remains the companion page and shared workspace system behind the widget-first launch.</p>
         </div>
       </div>
       <div class="product-route-grid">
         ${[
-          ["/front-desk", "Front Desk", "Recommended", "A dedicated AI Front Desk page for customer questions, quote intent, bookings, and follow-up details."],
-          ["/website-widget", "Website Widget", "Embedded assistant", "A compact on-site assistant for existing websites that need a small launcher or embedded assistant surface."],
+          ["/website-widget", "Website Widget", "Launch product", "A compact on-site assistant for existing websites that need a small launcher or embedded assistant surface."],
+          ["/front-desk", "Front Desk", "Companion page", "A shared AI Front Desk page for customer questions, quote intent, bookings, and follow-up details."],
           ["/voice-agent", "Voice Agent", "Configured web voice", "A web voice assistant for browser-based voice conversations where voice is enabled in the workspace."],
         ].map(([href, title, label, copy]) => `
           <a class="product-route-card" href="${escapeHtml(href)}" data-reveal>
@@ -641,24 +641,24 @@ function _renderFeaturesPage() {
 
 function _renderProductPage() {
   const steps = [
-    ["Front Desk page", "The recommended Vonza product gives customers a hosted AI Front Desk where they can ask questions, request quotes, leave details, and get grounded first answers.", PRODUCT_IMAGES.frontDeskPage, "Vonza public Front Desk page"],
+    ["Website Widget", "The launch product gives existing websites a compact assistant for grounded first answers, lead capture, and handoff into the dashboard.", PRODUCT_IMAGES.dashboardInstall, "Vonza Install screen with Website Widget setup"],
     ["Dashboard", "Use Home, Customers, Front Desk, Analytics, Install, and Settings to run the assistant from one owner workspace.", PRODUCT_IMAGES.dashboardHome, "Vonza dashboard Home screen"],
     ["Training and feedback loop", "Practice questions, review weak answers, and turn approved corrections into better answers for next time.", PRODUCT_IMAGES.dashboardFrontDesk, "Vonza Front Desk practice and training workspace"],
     ["Customers and conversations", "Review guest or identified customer conversations, follow-up context, and recent customer details without claiming a full contact-management suite.", PRODUCT_IMAGES.dashboardCustomers, "Vonza Customers dashboard with conversation detail"],
     ["Analytics", "Measure conversations, messages, captured leads, source breakdown, and repeated customer questions.", PRODUCT_IMAGES.dashboardAnalytics, "Vonza Analytics dashboard source breakdown"],
-    ["Website Widget", "Use the separate Website Widget product when an existing site needs a compact launcher or embedded assistant surface.", PRODUCT_IMAGES.dashboardInstall, "Vonza Install screen with Front Desk page choices"],
+    ["Companion AI Front Desk", "Use the full-page Front Desk as a companion channel and shared system when the assistant should also have a dedicated page.", PRODUCT_IMAGES.frontDeskPage, "Vonza public Front Desk page"],
     ["Settings and customization", "Adjust Front Desk identity, welcome copy, page content, design, business context, and configured voice options. Voice Agent remains a separate Vonza product for browser-based voice input and spoken replies, not unsupported phone or telephony promises.", PRODUCT_IMAGES.dashboardSettings, "Vonza Settings screen for Front Desk customization"],
   ];
 
   return `
     <section class="page-hero page-hero-split">
       <div data-reveal>
-        <h1>Vonza is a product family for customer conversations.</h1>
-        <p>Front Desk is the recommended primary product. Website Widget and Voice Agent are separate products that use the same owner workspace when they are enabled.</p>
+        <h1>Website Widget is the Vonza launch product.</h1>
+        <p>The Website Widget leads the public launch. AI Front Desk remains the companion page and shared workspace system behind the widget-first workflow.</p>
       </div>
       ${renderAppImage({
-        src: PRODUCT_IMAGES.frontDeskAnswer,
-        alt: "Vonza Front Desk showing a customer answer state",
+        src: PRODUCT_IMAGES.dashboardInstall,
+        alt: "Vonza dashboard showing Website Widget install and embed setup",
         className: "page-hero-frame",
         loading: "eager",
       })}
@@ -896,12 +896,12 @@ function _renderPricingPage() {
   `;
 }
 
-function renderWidgetOnlyMarketingPage() {
+function renderWidgetOnlyMarketingPage({ productPage = false } = {}) {
   return `
     <section class="hero">
       <div class="hero-copy" data-reveal>
         <h1>Website Widget for quick customer answers on your site.</h1>
-        <p class="hero-text">Launch an AI agent on your website in 5 minutes, with no technical skill required. Vonza helps visitors ask questions from the pages they are already reading, keeps answers grounded in business context, and sends conversations into one focused dashboard.</p>
+        <p class="hero-text">${productPage ? "Website Widget is Vonza's launch product. " : ""}Launch an AI agent on your website in 5 minutes, with no technical skill required. Vonza helps visitors ask questions from the pages they are already reading, keeps answers grounded in business context, and sends conversations into one focused dashboard.</p>
         <div class="hero-actions">
           <a class="button button-primary" data-app-link href="/website-widget/dashboard?from=site">Set up Website Widget</a>
           <a class="button button-secondary" href="/website-widget">See how it works</a>
@@ -1136,7 +1136,7 @@ const MARKETING_PAGES = {
   product: {
     title: "Vonza Product | How the Website Widget works",
     description: "See how Vonza connects the Website Widget, dashboard, customer conversations, install, analytics, and configuration.",
-    body: renderWidgetOnlyMarketingPage,
+    body: () => renderWidgetOnlyMarketingPage({ productPage: true }),
   },
   frontDesk: {
     title: "Vonza Front Desk | Dedicated AI Front Desk page",

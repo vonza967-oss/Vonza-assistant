@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 
 import { logSupabaseStartupCheck } from "../../src/clients/supabaseClient.js";
+import { verifyConfiguredStripePlanPrices } from "../../src/services/billing/stripePriceVerificationService.js";
 import {
   DEPLOY_MIGRATION_MANIFEST,
   DEPLOY_READINESS_DOCS,
@@ -273,10 +274,22 @@ export function buildDeployReadinessError(issues = []) {
   );
 }
 
-export async function runDeployReadinessVerification({ env = process.env, logger = console } = {}) {
+export async function runDeployReadinessVerification({
+  env = process.env,
+  logger = console,
+  stripe,
+  createStripeClient,
+  verifyLiveStartupSchemaImpl = verifyLiveStartupSchema,
+} = {}) {
   const issues = [];
   const missingEnvVars = getMissingDeployReadinessEnvVars(env);
   const rateLimitReadiness = getDeployRateLimitReadiness(env);
+  const stripePriceReadiness = await verifyConfiguredStripePlanPrices({
+    env,
+    stripe,
+    createClient: createStripeClient,
+    required: isProductionLikeDeploy(env),
+  });
 
   if (missingEnvVars.length) {
     issues.push(
@@ -291,6 +304,9 @@ export async function runDeployReadinessVerification({ env = process.env, logger
   }
 
   issues.push(...evaluateDeployReadinessManifest());
+  if (!stripePriceReadiness.ok) {
+    issues.push(...stripePriceReadiness.issues);
+  }
 
   if (issues.length) {
     throw buildDeployReadinessError(issues);
@@ -298,8 +314,13 @@ export async function runDeployReadinessVerification({ env = process.env, logger
 
   logger.log("Required deploy env vars: OK");
   logger.log("Deploy readiness manifest: OK");
+  if (stripePriceReadiness.skipped) {
+    logger.log(`Stripe HUF monthly price verification skipped: ${stripePriceReadiness.reason}`);
+  } else {
+    logger.log("Stripe HUF monthly prices: OK");
+  }
 
-  const liveResult = await verifyLiveStartupSchema({ env, logger });
+  const liveResult = await verifyLiveStartupSchemaImpl({ env, logger });
 
   if (liveResult.skipped) {
     logger.log(`Live Supabase startup schema verification skipped: ${liveResult.reason}`);

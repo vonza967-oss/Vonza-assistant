@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 node_modules
+output/
 apps/desktop/src-tauri/target/
 apps/desktop/dist/
 apps/desktop/**/*.app

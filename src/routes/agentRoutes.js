@@ -132,6 +132,10 @@ import {
   sendJsonError,
 } from "../utils/httpErrors.js";
 import {
+  assertPublicRequestOriginConsistency,
+  isPublicRequestOriginConsistencyError,
+} from "../utils/publicRequestOriginConsistency.js";
+import {
   approveCalendarAction,
   approveCampaignDraft,
   completeGoogleConnection,
@@ -629,6 +633,8 @@ export function createAgentRouter(deps = {}) {
   const listLeadCapturesImpl = deps.listLeadCaptures || listLeadCaptures;
   const listWidgetRoutingEventsByAgentIdImpl =
     deps.listWidgetRoutingEventsByAgentId || listWidgetRoutingEventsByAgentId;
+  const recordInstallPingImpl = deps.recordInstallPing || recordInstallPing;
+  const trackWidgetEventImpl = deps.trackWidgetEvent || trackWidgetEvent;
   const listVisitorReplyFeedbackForOwnerImpl =
     deps.listVisitorReplyFeedbackForOwner || listVisitorReplyFeedbackForOwner;
   const recordOwnerAnswerFeedbackImpl =
@@ -967,6 +973,12 @@ export function createAgentRouter(deps = {}) {
 
   router.get("/widget/bootstrap", limitWidgetBootstrap, async (req, res) => {
     try {
+      assertPublicRequestOriginConsistency(req, {
+        origin: req.query.origin,
+        pageUrl: req.query.page_url || req.query.pageUrl,
+        publicAppOrigin: deps.publicAppOrigin || getPublicAppUrl(),
+      });
+
       const result = await getWidgetBootstrapImpl(getSupabase(), {
         installId: req.query.install_id || req.query.installId,
         agentId: req.query.agent_id || req.query.agentId,
@@ -999,13 +1011,20 @@ export function createAgentRouter(deps = {}) {
         error: displayMode === "page" && safePublicStatus
           ? "Assistant unavailable"
           : err.message || "Something went wrong",
+        ...(isPublicRequestOriginConsistencyError(err) ? { code: err.code } : {}),
       });
     }
   });
 
   router.post("/install/ping", limitPublicInstallSignal, async (req, res) => {
     try {
-      const result = await recordInstallPing(getSupabase(), {
+      assertPublicRequestOriginConsistency(req, {
+        origin: req.body.origin,
+        pageUrl: req.body.page_url || req.body.pageUrl,
+        publicAppOrigin: deps.publicAppOrigin || getPublicAppUrl(),
+      });
+
+      const result = await recordInstallPingImpl(getSupabase(), {
         installId: req.body.install_id || req.body.installId,
         origin: req.body.origin,
         pageUrl: req.body.page_url || req.body.pageUrl,
@@ -1026,13 +1045,20 @@ export function createAgentRouter(deps = {}) {
       });
       res.status(err.statusCode || 500).json({
         error: err.message || "Something went wrong",
+        ...(isPublicRequestOriginConsistencyError(err) ? { code: err.code } : {}),
       });
     }
   });
 
   router.post("/install/events", limitPublicInstallSignal, async (req, res) => {
     try {
-      const result = await trackWidgetEvent(getSupabase(), {
+      assertPublicRequestOriginConsistency(req, {
+        origin: req.body.origin,
+        pageUrl: req.body.page_url || req.body.pageUrl,
+        publicAppOrigin: deps.publicAppOrigin || getPublicAppUrl(),
+      });
+
+      const result = await trackWidgetEventImpl(getSupabase(), {
         installId: req.body.install_id || req.body.installId,
         eventName: req.body.event_name || req.body.eventName,
         sessionId: req.body.session_id || req.body.sessionId,
@@ -1057,6 +1083,7 @@ export function createAgentRouter(deps = {}) {
       });
       res.status(err.statusCode || 500).json({
         error: err.message || "Something went wrong",
+        ...(isPublicRequestOriginConsistencyError(err) ? { code: err.code } : {}),
       });
     }
   });

@@ -62,6 +62,10 @@ async function withServer(app, fn) {
   }
 }
 
+function passThroughRateLimit(_req, _res, next) {
+  next();
+}
+
 function getCsp(response) {
   return response.headers.get("content-security-policy") || "";
 }
@@ -357,6 +361,121 @@ test("public chat rate limits, route-specific limits, and abuse guards block uns
         });
         assert.equal(response.status, index < 2 ? 200 : 429);
       }
+    });
+  });
+});
+
+test("public origin consistency rejects /chat before chat side effects", async () => {
+  await withEnv({
+    NODE_ENV: "test",
+    PUBLIC_APP_URL: "https://app.vonza.example",
+    RATE_LIMIT_BACKEND: "memory",
+  }, async () => {
+    let chatCalls = 0;
+
+    await withServer(createChatTestApp({
+      enforcePublicChatRateLimit: passThroughRateLimit,
+      handleChatRequest: async () => {
+        chatCalls += 1;
+        return { reply: "should not run", agentId: "agent-1" };
+      },
+    }), async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://evil.example",
+        },
+        body: JSON.stringify({
+          message: "What services do you offer?",
+          agent_key: "agent-key",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/pricing",
+        }),
+      });
+      const json = await response.json();
+
+      assert.equal(response.status, 403);
+      assert.equal(json.code, "request_origin_mismatch");
+      assert.equal(chatCalls, 0);
+    });
+  });
+});
+
+test("public origin consistency rejects widget bootstrap and install signals before side effects", async () => {
+  await withEnv({
+    NODE_ENV: "test",
+    PUBLIC_APP_URL: "https://app.vonza.example",
+    RATE_LIMIT_BACKEND: "memory",
+  }, async () => {
+    let bootstrapCalls = 0;
+    let pingCalls = 0;
+    let eventCalls = 0;
+
+    await withServer(createBootstrapTestApp({
+      limitWidgetBootstrap: passThroughRateLimit,
+      limitPublicInstallSignal: passThroughRateLimit,
+      getWidgetBootstrap: async () => {
+        bootstrapCalls += 1;
+        return { ok: true };
+      },
+      recordInstallPing: async () => {
+        pingCalls += 1;
+        return { ok: true };
+      },
+      trackWidgetEvent: async () => {
+        eventCalls += 1;
+        return { ok: true };
+      },
+    }), async (baseUrl) => {
+      const bootstrap = await fetch(
+        `${baseUrl}/widget/bootstrap?agent_key=agent-key&origin=${encodeURIComponent("https://allowed.example")}&page_url=${encodeURIComponent("https://allowed.example/pricing")}`,
+        { headers: { Origin: "https://evil.example" } }
+      );
+      const bootstrapJson = await bootstrap.json();
+
+      assert.equal(bootstrap.status, 403);
+      assert.equal(bootstrapJson.code, "request_origin_mismatch");
+      assert.equal(bootstrapCalls, 0);
+
+      const ping = await fetch(`${baseUrl}/install/ping`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://evil.example",
+        },
+        body: JSON.stringify({
+          install_id: "install-1",
+          session_id: "session-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/pricing",
+        }),
+      });
+      const pingJson = await ping.json();
+
+      assert.equal(ping.status, 403);
+      assert.equal(pingJson.code, "request_origin_mismatch");
+      assert.equal(pingCalls, 0);
+
+      const event = await fetch(`${baseUrl}/install/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://evil.example",
+        },
+        body: JSON.stringify({
+          install_id: "install-1",
+          event_name: "widget_opened",
+          session_id: "session-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/pricing",
+        }),
+      });
+      const eventJson = await event.json();
+
+      assert.equal(event.status, 403);
+      assert.equal(eventJson.code, "request_origin_mismatch");
+      assert.equal(eventCalls, 0);
     });
   });
 });

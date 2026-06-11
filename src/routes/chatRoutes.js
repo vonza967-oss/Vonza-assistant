@@ -2,6 +2,7 @@ import express from "express";
 
 import { getOpenAIClient } from "../clients/openaiClient.js";
 import { getSupabaseClient } from "../clients/supabaseClient.js";
+import { getPublicAppUrl } from "../config/env.js";
 import {
   handleChatRequest,
   handleLeadCaptureRequest,
@@ -20,6 +21,7 @@ import {
   logRouteError,
   sendJsonError,
 } from "../utils/httpErrors.js";
+import { assertPublicRequestOriginConsistency } from "../utils/publicRequestOriginConsistency.js";
 import { cleanText } from "../utils/text.js";
 
 function normalizePublicDisplayMode(value) {
@@ -84,6 +86,12 @@ export function createChatRouter(deps = {}) {
 
   router.post("/chat", enforcePublicChatAbuseGuards, enforcePublicChatRateLimit, async (req, res) => {
     try {
+      assertPublicRequestOriginConsistency(req, {
+        origin: req.body.origin,
+        pageUrl: req.body.page_url || req.body.pageUrl,
+        publicAppOrigin: deps.publicAppOrigin || getPublicAppUrl(),
+      });
+
       const displayMode = normalizePublicDisplayMode(
         req.body.display_mode || req.body.displayMode || req.body.mode
       );
