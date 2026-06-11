@@ -372,6 +372,33 @@ test("booking intent triggers a prompt-ready lead capture state", async () => {
   assert.match(result.prompt.body, /follow up and help arrange the next step/i);
 });
 
+test("Hungarian live lead-capture prompt uses formal magázódás", async () => {
+  const supabase = createFakeSupabase({
+    messages: buildConversationRows([
+      { role: "user", content: "Please send pricing details." },
+      { role: "assistant", content: "Ezt az árat nem látom megerősítve." },
+    ], "session-hu-formal"),
+  });
+
+  const result = await processLiveChatLeadCapture(supabase, {
+    agent: buildAgent(),
+    business: buildBusiness(),
+    widgetConfig: buildWidgetConfig(),
+    sessionKey: "session-hu-formal",
+    userMessage: "Please send pricing details.",
+    language: "Hungarian",
+  });
+
+  assert.equal(result.state, "prompt_ready");
+  assert.equal(result.shouldPrompt, true);
+  assert.match(result.prompt.body, /Ha szeretné/i);
+  assert.match(result.prompt.body, /Kérem, adja meg/i);
+  assert.doesNotMatch(
+    result.prompt.body,
+    /\b(?:szia|szeretnéd|megadhatod|add meg|válassz|kérdezz|próbáld|írd be|tudsz|veled)\b/i
+  );
+});
+
 test("explicit callback or quote language triggers the live handoff prompt", async () => {
   const supabase = createFakeSupabase({
     messages: buildConversationRows([

@@ -264,7 +264,7 @@ export function buildConversationGuidance(message, history, options = {}) {
   if (intent === "general") {
     guidance.push(
       hungarianLanguage
-        ? "A látogató rövid áttekintést kér. Mondd el közvetlenül, mivel foglalkozik a vállalkozás a rendelkezésre álló tartalom alapján, ne általános cégbemutatót írj. Utána ajánlj egy-két praktikus irányt, amiben segíthetsz."
+        ? "A látogató rövid áttekintést kér. Mondd el közvetlenül, mivel foglalkozik a vállalkozás a rendelkezésre álló tartalom alapján, ne általános cégbemutatót írj. Utána ajánlj egy-két praktikus irányt, amiben segítséget kaphat."
         : "The user wants a clear overview. Give a direct explanation of what the business does, grounded in the content, without drifting into generic company language. After that, offer one or two practical directions you can help with."
     );
   }
@@ -272,7 +272,7 @@ export function buildConversationGuidance(message, history, options = {}) {
   if (intent === "pricing") {
     guidance.push(
       hungarianLanguage
-        ? "A látogató árazásról kérdez. Ha van megerősített ár a tartalomban, válaszolj közvetlenül. Ha nincs, használj magyar hiányzó ár megfogalmazást, például: „Ezt az árat nem látom megerősítve a rendelkezésre álló információkban.” Ezután kérdezz rá röviden a szolgáltatásra, projektre vagy ajánlatkérési adatokra."
+        ? "A látogató árazásról kérdez. Ha van megerősített ár a tartalomban, válaszolj közvetlenül. Ha nincs, használj magyar hiányzó ár megfogalmazást, például: „Ezt az árat nem látom megerősítve a rendelkezésre álló információkban.” Ezután tegyél fel rövid pontosító kérdést a szolgáltatásról, projektről vagy ajánlatkérési adatokról."
         : "The user is asking about pricing. Use a structured answer. If pricing exists in the content, answer it directly. If not, say fixed pricing is not listed publicly, provide available email or phone details in bullets, list what to include in a quote request, and ask whether they want to leave contact details or prepare a short quote request."
     );
   }
@@ -288,7 +288,7 @@ export function buildConversationGuidance(message, history, options = {}) {
   if (isGreetingMessage(message) && history.length === 0) {
     guidance.push(
       hungarianLanguage
-        ? "A látogató csak köszön. Válaszolj röviden, természetesen, és kérdezd meg, miben segíthetsz dönteni vagy továbblépni."
+        ? "A látogató csak köszön. Válaszolj röviden, természetesen, formális magázódással, és kérdezd meg, miben segíthetünk dönteni vagy továbblépni."
         : "The user is only greeting you. Keep it brief, friendly, and invite them to share what they want help deciding."
     );
   }
@@ -555,7 +555,7 @@ export function buildBusinessReplyRepairPrompt(language) {
     ? "Ha a válasz olyan árat, szolgáltatást, szabályzatot, elérhetőséget, kedvezményt vagy időpontot tartalmaz, amely nincs a jóváhagyott válaszokban vagy üzleti kontextusban, távolítsd el, és használj biztonságos magyar hiányzó-információs megfogalmazást."
     : "If the reply contains a price, service, policy, availability, discount, or booking detail that is not in the approved answers or business context, remove it and say Front Desk does not have that detail";
   const hungarianRepairGuidance = hungarianLanguage
-    ? "\n- Fordíts le vagy cserélj ki minden megmaradt angol fallback, javítási vagy hiányzó-információs megfogalmazást természetes magyarra\n- Ne hagyj angol hiányzó-adat fordulatot a látogatói válaszban; használj biztonságos magyar megfogalmazást, például „nincs megerősített adatom erről” vagy „nem látom megerősítve a rendelkezésre álló információkban”\n- Magyar válaszban maradj természetes tegezésnél"
+    ? "\n- Fordíts le vagy cserélj ki minden megmaradt angol fallback, javítási vagy hiányzó-információs megfogalmazást természetes magyarra\n- Ne hagyj angol hiányzó-adat fordulatot a látogatói válaszban; használj biztonságos magyar megfogalmazást, például „nincs megerősített adatom erről” vagy „nem látom megerősítve a rendelkezésre álló információkban”\n- Magyar válaszban mindig formális magázódást használj, és soha ne használj tegeződést\n- Használj formális fordulatokat, például „Ha szeretné, megadhatja az adatait...”, „Kérem, adja meg...”, „Miben segíthetünk?” vagy „Mit szeretne tudni?”\n- Kerüld az informális fordulatokat, például „Szia”, „szeretnéd”, „megadhatod”, „add meg”, „válassz”, „kérdezz”, „próbáld”, „írd be” vagy „tudsz”"
     : "";
 
   return `Rewrite the reply so it sounds like a smart front-desk assistant.

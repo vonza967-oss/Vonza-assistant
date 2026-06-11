@@ -714,11 +714,11 @@ test("public assistant defaults to Hungarian when no language signal exists", ()
   });
 
   assert.equal(harness.hooks.getAssistantLanguage(), "hu");
-  assert.equal(harness.elements.get("welcome-title").textContent, "Szia! Miben segíthetünk ma?");
+  assert.equal(harness.elements.get("welcome-title").textContent, "Üdvözöljük! Miben segíthetünk?");
   assert.equal(harness.elements.get("identity-email-title").textContent, "Folytatás emaillel");
   assert.equal(harness.elements.get("identity-guest-title").textContent, "Folytatás vendégként");
-  assert.equal(harness.elements.get("input").placeholder, "Írd be a kérdésed...");
-  assert.equal(harness.elements.get("composer-status").textContent, "Állítsd be a Front Desket a Vonzában, mielőtt teszteled ezt az asszisztensoldalt.");
+  assert.equal(harness.elements.get("input").placeholder, "Írja be a kérdését...");
+  assert.equal(harness.elements.get("composer-status").textContent, "Állítsa be a Front Desket a Vonzában, mielőtt teszteli ezt az asszisztensoldalt.");
   assert.doesNotMatch(
     [
       harness.elements.get("welcome-title").textContent,
@@ -726,7 +726,7 @@ test("public assistant defaults to Hungarian when no language signal exists", ()
       harness.elements.get("identity-guest-title").textContent,
       harness.elements.get("composer-status").textContent,
     ].join(" "),
-    /Hi!|Continue with email|Continue as guest|Set up your Front Desk/i
+    /Hi!|Continue with email|Continue as guest|Set up your Front Desk|Szia|Írd be|Kérdezz/i
   );
 });
 
@@ -759,12 +759,12 @@ test("Hungarian public assistant initial shell renders localized entry copy", ()
   });
 
   assert.equal(harness.hooks.getAssistantLanguage(), "hu");
-  assert.equal(harness.elements.get("welcome-title").textContent, "Szia! Miben segíthetünk ma?");
+  assert.equal(harness.elements.get("welcome-title").textContent, "Üdvözöljük! Miben segíthetünk?");
   assert.equal(harness.elements.get("identity-email-title").textContent, "Folytatás emaillel");
   assert.equal(harness.elements.get("identity-guest-title").textContent, "Folytatás vendégként");
-  assert.equal(harness.elements.get("input").placeholder, "Írd be a kérdésed...");
-  assert.equal(harness.elements.get("composer-status").textContent, "Állítsd be a Front Desket a Vonzában, mielőtt teszteled ezt az asszisztensoldalt.");
-  assert.equal(harness.elements.get("assistant-unavailable-copy").textContent, "Ez az asszisztens most nem elérhető. Kérlek, vedd fel közvetlenül a kapcsolatot a vállalkozással.");
+  assert.equal(harness.elements.get("input").placeholder, "Írja be a kérdését...");
+  assert.equal(harness.elements.get("composer-status").textContent, "Állítsa be a Front Desket a Vonzában, mielőtt teszteli ezt az asszisztensoldalt.");
+  assert.equal(harness.elements.get("assistant-unavailable-copy").textContent, "Ez az asszisztens most nem elérhető. Kérjük, vegye fel közvetlenül a kapcsolatot a vállalkozással.");
   assert.equal(harness.elements.get("powered-by").textContent, "Segítünk | Powered by Vonza");
   assert.doesNotMatch(
     [
@@ -774,7 +774,7 @@ test("Hungarian public assistant initial shell renders localized entry copy", ()
       harness.elements.get("composer-status").textContent,
       harness.elements.get("assistant-unavailable-copy").textContent,
     ].join(" "),
-    /Continue with email|Continue as guest|Type your question|Please contact the business directly|Ask about services/
+    /Continue with email|Continue as guest|Type your question|Please contact the business directly|Ask about services|Szia|Kérlek|Írd be|Kérdezz/
   );
 });
 
@@ -1039,11 +1039,11 @@ test("Hungarian voice runtime labels use localized copy", () => {
   assert.equal(harness.elements.get("speak-replies-toggle").textContent, "Válaszok felolvasása kikapcsolva");
   assert.equal(
     harness.elements.get("voice-disclosure").childNodes[0].textContent,
-    "A hangot a kérdésed leírásához dolgozzuk fel. "
+    "A hangot a kérdése leírásához dolgozzuk fel. "
   );
   assert.equal(harness.elements.get("voice-privacy-link").textContent, "Adatvédelem");
   assert.equal(harness.elements.get("voice-ai-note").textContent, "AI által generált hang.");
-  assert.equal(harness.hooks.assistantT("assistant.voiceSpokenCouldNotPlay"), "A felolvasás nem indult el. A választ továbbra is elolvashatod.");
+  assert.equal(harness.hooks.assistantT("assistant.voiceSpokenCouldNotPlay"), "A felolvasás nem indult el. A választ továbbra is elolvashatja.");
 });
 
 test("voice config explicit enabled and disabled states control mic visibility", () => {
@@ -1769,7 +1769,7 @@ test("call Front Desk failure states use safe localized messages", async () => {
   assert.equal(harness.hooks.getCallModeState(), "unavailable");
   assert.equal(
     harness.elements.get("call-front-desk-status").textContent,
-    "A mikrofonhozzáférés tiltva van. Engedélyezd a böngészőben, vagy írd be az üzenetedet."
+    "A mikrofonhozzáférés tiltva van. Engedélyezze a böngészőben, vagy írja be az üzenetét."
   );
   assert.doesNotMatch(
     harness.elements.get("call-front-desk-status").textContent,
@@ -1779,7 +1779,7 @@ test("call Front Desk failure states use safe localized messages", async () => {
   assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Elérhetőség megadása");
   assert.equal(
     harness.elements.get("call-front-desk-summary").textContent,
-    "Írhatsz lent, újrapróbálhatod a böngészős hangot, vagy megadhatod az elérhetőségedet."
+    "Írhat lent, újrapróbálhatja a böngészős hangot, vagy megadhatja az elérhetőségét."
   );
   assert.ok(productEventPayloads.some((payload) =>
     payload.event_name === "web_call_mic_denied"
@@ -1988,7 +1988,7 @@ test("Hungarian call Front Desk recovery copy renders for empty transcripts", as
   assert.equal(harness.hooks.getCallModeState(), "waiting");
   assert.equal(
     harness.elements.get("call-front-desk-status").textContent,
-    "Nem hallottam jól. Kérlek, próbáld újra egy rövid kérdéssel."
+    "Nem hallottam jól. Kérem, próbálja újra egy rövid kérdéssel."
   );
 });
 
@@ -2824,7 +2824,7 @@ test("widget chat renders booking CTA from direct routing response", async () =>
   assert.match(routingHtml, /data-href="https:\/\/example\.com\/book"/);
 });
 
-test("embedded page mode honors Hungarian welcome copy over English fallback", async () => {
+test("embedded page mode normalizes legacy informal Hungarian welcome copy", async () => {
   const harness = createWidgetHarness({
     location: {
       search: "?agent_id=agent-1&mode=page&embedded=1",
@@ -2868,10 +2868,13 @@ test("embedded page mode honors Hungarian welcome copy over English fallback", a
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  assert.equal(harness.elements.get("welcome-message").textContent, "Szia, miben segithetek ma?");
-  assert.equal(harness.elements.get("page-identity-note").textContent, "Vendégként kérdezel");
+  assert.equal(
+    harness.elements.get("welcome-message").textContent,
+    "Üdvözöljük! Segíthetünk Acme Co szolgáltatásaival, áraival, ajánlatkéréssel és elérhetőségeivel kapcsolatban. Mit szeretne tudni?"
+  );
+  assert.equal(harness.elements.get("page-identity-note").textContent, "Vendégként kérdez");
   assert.equal(harness.elements.get("page-identity-email-button").textContent, "Elérhetőség megadása");
-  assert.equal(harness.elements.get("composer-status").textContent, "Vendégként chatelsz. Kérdezz bármit a vállalkozásról.");
+  assert.equal(harness.elements.get("composer-status").textContent, "Vendégként chatel. Tegyen fel kérdést a vállalkozásról.");
 });
 
 test("embedded page mode supports flat surface query class", async () => {

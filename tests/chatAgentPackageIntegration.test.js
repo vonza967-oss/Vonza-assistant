@@ -568,10 +568,11 @@ test("quote request flag on creates a Hungarian staff-review request without Ope
   assert.equal(captured.quoteRequestPayload.metadata.intent_type, "quote_intent");
   assert.match(captured.quoteRequestPayload.idempotencyKey, /^chat-quote:[a-f0-9]{32}$/);
 
-  assert.match(result.reply, /Megkaptuk az ajánlatkérésedet/i);
+  assert.match(result.reply, /Megkaptuk az ajánlatkérését/i);
   assert.match(result.reply, /munkatársaknak átnézésre/i);
   assert.match(result.reply, /pontos árat vagy végleges ajánlatot a vállalkozásnak kell megerősítenie/i);
   assert.match(result.reply, /nincs végleges ajánlat vagy ár megerősítve/i);
+  assert.doesNotMatch(result.reply, /ajánlatkérésedet|szeretnéd|add meg|megadhatod/i);
   assert.doesNotMatch(result.reply, /\b\d+[ .]*(?:Ft|HUF|EUR|USD)\b|\$/i);
   assert.doesNotMatch(result.reply, /garantált|végleges ajánlat elkészült|elfogadva/i);
   assert.deepEqual(result.quoteRequest, {
@@ -644,7 +645,9 @@ test("Hungarian model provider failure returns temporary localized fallback", as
   assert.ok(captured.generatedPayload);
   assert.equal(captured.generatedPayload.conversationGuidance.includes("magyar"), true);
   assert.match(result.reply, /átmenetileg nem tudok biztos választ adni/i);
+  assert.match(result.reply, /Kérem, próbálja újra/i);
   assert.match(result.reply, /vállalkozás folytathassa/i);
+  assert.doesNotMatch(result.reply, /próbáld|hagyd meg|elérhetőségedet/i);
   assert.doesNotMatch(result.reply, /reliable answer|try again|business can follow up/i);
   assert.equal(result.leadCapture, captured.routingPayload.leadCapture);
 });
@@ -744,6 +747,7 @@ test("Hungarian booking or availability question creates a localized request-onl
   assert.match(result.reply, /A vállalkozásnak közvetlenül kell egyeztetnie/i);
   assert.match(result.reply, /nincs időpont véglegesítve/i);
   assert.match(result.reply, /időpontkérés/i);
+  assert.doesNotMatch(result.reply, /kérésedet|szeretnéd|megadhatod|add meg/i);
   assert.doesNotMatch(result.reply, /staff for review|No time is confirmed|available|szabad időpont van|garantált/i);
 });
 

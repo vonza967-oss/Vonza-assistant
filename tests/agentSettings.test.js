@@ -180,6 +180,8 @@ function createSupabaseStub(initialState) {
 test("default Website Widget identity avoids Front Desk copy", () => {
   assert.equal(DEFAULT_WIDGET_CONFIG.buttonLabel, "Widget megnyitása");
   assert.equal(DEFAULT_WIDGET_CONFIG.launcherText, "Weboldali asszisztens");
+  assert.equal(DEFAULT_WIDGET_CONFIG.welcomeMessage, "Üdvözöljük! Miben segíthetünk?");
+  assert.doesNotMatch(DEFAULT_WIDGET_CONFIG.welcomeMessage, /\b(?:Szia|szeretnéd|megadhatod|kérdezz|írd be)\b/i);
   assert.doesNotMatch(JSON.stringify(DEFAULT_WIDGET_CONFIG), /Front Desk|front desk/i);
 });
 

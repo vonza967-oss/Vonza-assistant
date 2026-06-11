@@ -19,6 +19,13 @@ import {
   validateNormalizedChatRequest,
 } from "../src/services/chat/chatService.js";
 
+const COMMON_HUNGARIAN_TEGEZO_REPLY_PATTERN =
+  /\b(?:szia|szeretnéd|megadhatod|válassz|válaszd|kérdezz|próbáld|tudsz|kérésedet|ajánlatkérésedet|elérhetőségedet|adataidat|címedet|telefonszámodat|keresd|írd be|add meg)\b/i;
+
+function assertFormalHungarianReply(reply) {
+  assert.doesNotMatch(reply, COMMON_HUNGARIAN_TEGEZO_REPLY_PATTERN);
+}
+
 test("English latest customer message keeps English despite Hungarian business context", () => {
   const businessContext = buildBusinessContextForChat({
     content: "Webshop készítés, keresőoptimalizálás és karbantartás. Email: hello@pelda.hu. Telefon: +36 30 123 4567.",
@@ -152,6 +159,8 @@ test("Hungarian missing-website-content contact fallback stays Hungarian", () =>
 
   assert.match(reply, /nem látom megerősítve/i);
   assert.match(reply, /vállalkozás utánkövethet/i);
+  assert.match(reply, /Ha szeretné, megadhatja az adatait/i);
+  assertFormalHungarianReply(reply);
   assert.doesNotMatch(reply, /Please contact us|listed contact details|velünk/i);
 });
 
@@ -160,6 +169,8 @@ test("Hungarian missing contact fallback stays Hungarian and business-neutral", 
 
   assert.match(reply, /nincs megerősített elérhetőségem/i);
   assert.match(reply, /vállalkozás utánkövethet/i);
+  assert.match(reply, /Ha szeretné, megadhatja az adatait/i);
+  assertFormalHungarianReply(reply);
   assert.doesNotMatch(reply, /I do not have|You can leave|the business can follow up|Please contact us|velünk/i);
 });
 
@@ -168,6 +179,8 @@ test("Hungarian missing listed service fallback avoids English and categorical d
 
   assert.match(reply, /elektromos roller javítást/i);
   assert.match(reply, /nem látom megerősítve/i);
+  assert.match(reply, /Ha szeretné, megadhatja a részleteket/i);
+  assertFormalHungarianReply(reply);
   assert.doesNotMatch(reply, /Front Desk does not have|You can share|does not provide|nem javít|nem vállal/i);
 });
 
@@ -177,7 +190,9 @@ test("Hungarian limited-knowledge fallback stays Hungarian", () => {
   });
 
   assert.match(reply, /nincs elég biztos információm/i);
+  assert.match(reply, /Melyik rész érdekli/i);
   assert.match(reply, /szolgáltatás, ár, időpont vagy kapcsolat/i);
+  assertFormalHungarianReply(reply);
   assert.doesNotMatch(reply, /I don't have|services, pricing|how to contact/i);
 });
 
@@ -185,7 +200,9 @@ test("Hungarian provider failure fallback stays Hungarian", () => {
   const reply = buildTemporaryAssistantFailureReply("Hungarian");
 
   assert.match(reply, /átmenetileg nem tudok biztos választ adni/i);
+  assert.match(reply, /Kérem, próbálja újra/i);
   assert.match(reply, /vállalkozás folytathassa/i);
+  assertFormalHungarianReply(reply);
   assert.doesNotMatch(reply, /reliable answer|try again|business can follow up/i);
 });
 

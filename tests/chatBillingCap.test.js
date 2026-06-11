@@ -81,6 +81,29 @@ test("capped workspaces switch chat into the safe monthly-capacity fallback", as
   assert.doesNotMatch(result.reply, /token|api/i);
 });
 
+test("Hungarian capped workspace fallback uses formal contact capture copy", async () => {
+  const result = await handleChatRequest(
+    {
+      supabase: {},
+      openai: () => ({}),
+      body: {
+        message: "Mennyibe kerül a szolgáltatás?",
+        install_id: "install-1",
+        visitor_session_key: "session-hu-capacity",
+      },
+    },
+    createCappedChatDeps()
+  );
+
+  assert.match(result.reply, /Ebben a hónapban elértük az AI kapacitást/i);
+  assert.match(result.reply, /Ha szeretné, megadhatja az elérhetőségeit/i);
+  assert.match(result.leadCapture.prompt.body, /Kérem, adja meg a legjobb email címét vagy telefonszámát/i);
+  assert.doesNotMatch(
+    `${result.reply} ${result.leadCapture.prompt.body}`,
+    /\b(?:szeretnéd|megadhatod|add meg|próbáld|írd be|tudsz|elérhetőségedet|címedet|telefonszámodat)\b/i
+  );
+});
+
 test("capped workspaces keep an already-captured visitor from being prompted again", async () => {
   const result = await handleChatRequest(
     {

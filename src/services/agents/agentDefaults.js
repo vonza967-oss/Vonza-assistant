@@ -5,7 +5,7 @@ export const DEFAULT_LANGUAGE = "auto";
 
 export const DEFAULT_WIDGET_CONFIG = {
   assistantName: "Vonza AI",
-  welcomeMessage: "Szia! Miben segíthetünk ma?",
+  welcomeMessage: "Üdvözöljük! Miben segíthetünk?",
   buttonLabel: "Widget megnyitása",
   launcherText: "Weboldali asszisztens",
   widgetLogoUrl: "",
@@ -67,28 +67,28 @@ export const FULL_PAGE_ACTION_CARD_TYPES = Object.freeze([
 export const DEFAULT_FULL_PAGE_ACTION_CARDS = Object.freeze([
   Object.freeze({
     label: "Szolgáltatások",
-    description: "Nézd meg, miben tud segíteni ez a vállalkozás.",
-    prompt: "Milyen szolgáltatásokat kínáltok?",
+    description: "Áttekintés arról, miben tud segíteni ez a vállalkozás.",
+    prompt: "Milyen szolgáltatásokat kínálnak?",
     type: "services",
     enabled: true,
   }),
   Object.freeze({
     label: "Árak",
-    description: "Kérdezz az árakról, a terjedelemről és a következő lépésről.",
+    description: "Érdeklődhet az árakról, a terjedelemről és a következő lépésről.",
     prompt: "Mennyibe kerül?",
     type: "pricing",
     enabled: true,
   }),
   Object.freeze({
     label: "Ajánlatkérés",
-    description: "Írd le, mire van szükséged, hogy a vállalkozás megfelelő részletekkel követhessen.",
+    description: "Írja le, mire van szüksége, hogy a vállalkozás megfelelő részletekkel követhesse.",
     prompt: "Szeretnék ajánlatot kérni.",
     type: "quote",
     enabled: true,
   }),
   Object.freeze({
     label: "Elérhetőségek",
-    description: "Találd meg a legjobb kapcsolatfelvételi módot, vagy hagyd meg az adataidat.",
+    description: "Megtalálhatja a legjobb kapcsolatfelvételi módot, vagy megadhatja az adatait.",
     prompt: "Hogyan tudom felvenni a kapcsolatot?",
     type: "contact",
     enabled: true,
@@ -97,7 +97,7 @@ export const DEFAULT_FULL_PAGE_ACTION_CARDS = Object.freeze([
 
 export const DEFAULT_FULL_PAGE_BOOKING_ACTION_CARD = Object.freeze({
   label: "Időpontfoglalás",
-  description: "Kérdezz időpontról, hívásról, helyszíni látogatásról vagy a legjobb következő lépésről.",
+  description: "Érdeklődhet időpontról, hívásról, helyszíni látogatásról vagy a legjobb következő lépésről.",
   prompt: "Szeretnék időpontot foglalni.",
   type: "booking",
   enabled: true,
@@ -106,7 +106,7 @@ export const DEFAULT_FULL_PAGE_BOOKING_ACTION_CARD = Object.freeze({
 export const DEFAULT_FULL_PAGE_TRUST_ITEMS = Object.freeze([
   "Azonnal válaszol",
   "AI asszisztens",
-  "Szükség esetén megadhatod az adataidat",
+  "Szükség esetén megadhatja az adatait",
 ]);
 
 export const FULL_PAGE_DESIGN_PRESETS = Object.freeze([
@@ -224,13 +224,13 @@ export const DEFAULT_FULL_PAGE_CONFIG = Object.freeze({
   publicPageEnabled: false,
   publicPageKey: "",
   headline: null,
-  subtitle: "Kérdezz szolgáltatásokról, árakról, ajánlatról vagy elérhetőségről.",
+  subtitle: "Érdeklődhet szolgáltatásokról, árakról, ajánlatról vagy elérhetőségről.",
   actionCards: DEFAULT_FULL_PAGE_ACTION_CARDS,
   suggestedQuestions: [
-    "Milyen szolgáltatásokat kínáltok?",
+    "Milyen szolgáltatásokat kínálnak?",
     "Mennyibe kerül?",
     "Szeretnék ajánlatot kérni.",
-    "Hogyan tudlak elérni benneteket?",
+    "Hogyan tudom felvenni a kapcsolatot?",
   ],
   accentColor: null,
   logoUrl: null,

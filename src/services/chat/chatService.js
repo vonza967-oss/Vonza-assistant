@@ -147,10 +147,10 @@ export function buildLimitedKnowledgeReply(language, agentName, websiteContent) 
 
   if (isHungarianLanguage(language)) {
     if (metaDescription) {
-      return `${name} kapcsán ezt látom biztosan: ${metaDescription}\n\nMelyik rész érdekel: szolgáltatás, ár, időpont vagy kapcsolat?`;
+      return `${name} kapcsán ezt látom biztosan: ${metaDescription}\n\nMelyik rész érdekli: szolgáltatás, ár, időpont vagy kapcsolat?`;
     }
 
-    return "Erről nincs elég biztos információm a vállalkozás adatai alapján. Melyik rész érdekel: szolgáltatás, ár, időpont vagy kapcsolat?";
+    return "Erről nincs elég biztos információm a vállalkozás adatai alapján. Melyik rész érdekli: szolgáltatás, ár, időpont vagy kapcsolat?";
   }
 
   const summary = metaDescription
@@ -161,7 +161,7 @@ export function buildLimitedKnowledgeReply(language, agentName, websiteContent) 
 
 export function buildNoWebsiteContentFallbackReply(language) {
   return isHungarianLanguage(language)
-    ? "Ezt az adatot nem látom megerősítve a rendelkezésre álló információkban. Ha szeretnéd, megadhatod az adataidat, és a vállalkozás utánkövethet."
+    ? "Ezt az adatot nem látom megerősítve a rendelkezésre álló információkban. Ha szeretné, megadhatja az adatait, és a vállalkozás utánkövethet."
     : "I don’t have that confirmed in the available information yet. You can leave your details and the business can follow up.";
 }
 
@@ -304,7 +304,7 @@ function replyContainsUntrustedContactDetail(reply = "", evidence = {}) {
 
 export function buildMissingVerifiedContactReply(language) {
   if (isHungarianLanguage(language)) {
-    return "Itt nincs megerősített elérhetőségem ehhez a vállalkozáshoz. Ha szeretnéd, megadhatod az adataidat, és a vállalkozás utánkövethet.";
+    return "Itt nincs megerősített elérhetőségem ehhez a vállalkozáshoz. Ha szeretné, megadhatja az adatait, és a vállalkozás utánkövethet.";
   }
 
   return "I do not have a confirmed contact detail for this business here.\n\nYou can leave your details and the business can follow up.";
@@ -428,7 +428,7 @@ export function buildMissingListedServiceReply(language, userMessage = "") {
 
   if (isHungarianLanguage(language)) {
     const label = serviceLabel || "ezt a szolgáltatást";
-    return `${label} nem látom megerősítve a rendelkezésre álló üzleti adatokban.\n\nHa szeretnéd, megadhatod a részleteket, és a vállalkozás utánkövethet.`;
+    return `${label} nem látom megerősítve a rendelkezésre álló üzleti adatokban.\n\nHa szeretné, megadhatja a részleteket, és a vállalkozás utánkövethet.`;
   }
 
   const englishLabel = serviceLabel || "that service";
@@ -437,7 +437,7 @@ export function buildMissingListedServiceReply(language, userMessage = "") {
 
 export function buildTemporaryAssistantFailureReply(language) {
   if (isHungarianLanguage(language)) {
-    return "Most átmenetileg nem tudok biztos választ adni. Próbáld újra pár perc múlva, vagy hagyd meg az elérhetőségedet, hogy a vállalkozás folytathassa.";
+    return "Most átmenetileg nem tudok biztos választ adni. Kérem, próbálja újra pár perc múlva, vagy adja meg az elérhetőségét, hogy a vállalkozás folytathassa.";
   }
 
   return "I can’t provide a reliable answer right now. Please try again in a few minutes, or leave your contact details so the business can follow up.";
@@ -454,7 +454,7 @@ function isVisitorSafeGenerationFailure(error) {
 
 function buildAiCapacityReachedReply(language) {
   if (language === "Hungarian") {
-    return "Ebben a hónapban elértük az AI kapacitást. Ha szeretnéd, add meg az elérhetőségeidet, és a vállalkozás közvetlenül folytathatja innen.";
+    return "Ebben a hónapban elértük az AI kapacitást. Ha szeretné, megadhatja az elérhetőségeit, és a vállalkozás közvetlenül folytathatja innen.";
   }
 
   return "We've reached this month's AI capacity. If you'd like, please leave your details and the business can continue from here.";
@@ -462,7 +462,7 @@ function buildAiCapacityReachedReply(language) {
 
 function buildAiCapacityCapturePrompt(language) {
   if (language === "Hungarian") {
-    return "Add meg a legjobb email címedet vagy telefonszámodat, és a vállalkozás innen tudja folytatni.";
+    return "Kérem, adja meg a legjobb email címét vagy telefonszámát, és a vállalkozás innen tudja folytatni.";
   }
 
   return "Share your best email address or phone number and the business can continue from here.";
@@ -669,7 +669,7 @@ function buildHotelConciergeActionCreateFailedReply(draft, language) {
   const phrase = hotelActionPhrase(draft.actionKey, language);
 
   if (language === "Hungarian") {
-    return `Nem tudtam elküldeni ezt a hotel személyzetének ebből a chatből (${phrase}). Kérlek, keresd közvetlenül a recepciót vagy a hotel személyzetét.`;
+    return `Nem tudtam elküldeni ezt a hotel személyzetének ebből a chatből (${phrase}). Kérem, keresse közvetlenül a recepciót vagy a hotel személyzetét.`;
   }
 
   return `I couldn’t send this to hotel staff from this chat (${phrase}). Please contact the front desk or hotel staff directly.`;
@@ -704,7 +704,7 @@ function buildBookingRequestCreatedReply(draft, language) {
   const requestedTimePhrase = bookingRequestedTimePhrase(draft, language);
 
   if (language === "Hungarian") {
-    return `Megkaptuk a kérésedet${requestedTimePhrase}, és elküldtük a munkatársaknak átnézésre (${phrase}). A vállalkozásnak közvetlenül kell egyeztetnie a részleteket. Ebben a chatben nincs időpont véglegesítve.`;
+    return `Megkaptuk a kérését${requestedTimePhrase}, és elküldtük a munkatársaknak átnézésre (${phrase}). A vállalkozásnak közvetlenül kell egyeztetnie a részleteket. Ebben a chatben nincs időpont véglegesítve.`;
   }
 
   return `I received your request${requestedTimePhrase} and sent it to staff for review (${phrase}). The business will need to confirm the details directly. No time is confirmed in this chat.`;
@@ -716,8 +716,8 @@ function buildBookingRequestCreateFailedReply(draft, language) {
 
   if (language === "Hungarian") {
     return requestedTimeText
-      ? `Nem tudtam elküldeni ezt a kérést a munkatársaknak ebből a chatből (${phrase}). A kért időpontot (${requestedTimeText}) innen nem tudom megerősíteni; ebben a chatben nincs időpont véglegesítve. Kérlek, keresd közvetlenül a vállalkozást.`
-      : `Nem tudtam elküldeni ezt a kérést a munkatársaknak ebből a chatből (${phrase}). Kérlek, keresd közvetlenül a vállalkozást; ebben a chatben nincs időpont véglegesítve.`;
+      ? `Nem tudtam elküldeni ezt a kérést a munkatársaknak ebből a chatből (${phrase}). A kért időpontot (${requestedTimeText}) innen nem tudom megerősíteni; ebben a chatben nincs időpont véglegesítve. Kérem, keresse közvetlenül a vállalkozást.`
+      : `Nem tudtam elküldeni ezt a kérést a munkatársaknak ebből a chatből (${phrase}). Kérem, keresse közvetlenül a vállalkozást; ebben a chatben nincs időpont véglegesítve.`;
   }
 
   return requestedTimeText
@@ -756,7 +756,7 @@ function quoteRequestMissingDetailsPrompt(draft = {}, language) {
   }
 
   return language === "Hungarian"
-    ? ` Ha szeretnéd, add meg még: ${missing.join(", ")}.`
+    ? ` Ha szeretné, megadhatja még: ${missing.join(", ")}.`
     : ` If you want, share: ${missing.join(", ")}.`;
 }
 
@@ -765,7 +765,7 @@ function buildQuoteRequestCreatedReply(draft, language) {
   const missingDetailsPrompt = quoteRequestMissingDetailsPrompt(draft, language);
 
   if (language === "Hungarian") {
-    return `Megkaptuk az ajánlatkérésedet, és elküldtük a munkatársaknak átnézésre (${phrase}). A pontos árat vagy végleges ajánlatot a vállalkozásnak kell megerősítenie. Ebben a chatben nincs végleges ajánlat vagy ár megerősítve.${missingDetailsPrompt}`;
+    return `Megkaptuk az ajánlatkérését, és elküldtük a munkatársaknak átnézésre (${phrase}). A pontos árat vagy végleges ajánlatot a vállalkozásnak kell megerősítenie. Ebben a chatben nincs végleges ajánlat vagy ár megerősítve.${missingDetailsPrompt}`;
   }
 
   return `I received your quote request and sent it to staff for review (${phrase}). The exact price or final quote must be confirmed by the business. No final quote or price is confirmed in this chat.${missingDetailsPrompt}`;
@@ -775,7 +775,7 @@ function buildQuoteRequestCreateFailedReply(draft, language) {
   const phrase = quoteRequestIntentPhrase(draft.intentType, language);
 
   if (language === "Hungarian") {
-    return `Nem tudtam elküldeni ezt az ajánlatkérést a munkatársaknak ebből a chatből (${phrase}). Kérlek, keresd közvetlenül a vállalkozást. Pontos árat vagy végleges ajánlatot csak a vállalkozás erősíthet meg.`;
+    return `Nem tudtam elküldeni ezt az ajánlatkérést a munkatársaknak ebből a chatből (${phrase}). Kérem, keresse közvetlenül a vállalkozást. Pontos árat vagy végleges ajánlatot csak a vállalkozás erősíthet meg.`;
   }
 
   return `I couldn’t send this quote request to staff from this chat (${phrase}). Please contact the business directly. Only the business can confirm an exact price or final quote.`;

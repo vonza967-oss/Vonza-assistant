@@ -403,13 +403,13 @@ function buildPromptBody(actionType, language, reason, businessName) {
   if (isHungarian(language)) {
     switch (actionType) {
       case "pricing_interest":
-        return `Ha szeretnéd, elküldjük az árazási részleteket ${label} nevében. Mi a legjobb email-cím vagy telefonszám hozzá?`;
+        return `Ha szeretné, ${label} csapata elküldheti az árazási részleteket. Kérem, adja meg a legjobb email-címet vagy telefonszámot hozzá.`;
       case "booking_intent":
-        return `Ha szeretnéd, megszervezzük a következő lépést ${label} csapatával. Mi a legjobb email-cím vagy telefonszám hozzá?`;
+        return `Ha szeretné, megszervezzük a következő lépést ${label} csapatával. Kérem, adja meg a legjobb email-címet vagy telefonszámot hozzá.`;
       default:
         return reason === "repeat_high_intent_visitor"
-          ? `Látszik, hogy komoly érdeklődés van. Ha szeretnéd, ${label} csapata közvetlenül folytathatja veled. Mi a legjobb email-cím vagy telefonszám?`
-          : `Ha szeretnéd, ${label} csapata közvetlenül folytathatja veled. Mi a legjobb email-cím vagy telefonszám?`;
+          ? `Látszik, hogy komoly érdeklődés van. Ha szeretné, ${label} csapata közvetlenül folytathatja Önnel. Kérem, adja meg a legjobb email-címet vagy telefonszámot.`
+          : `Ha szeretné, ${label} csapata közvetlenül folytathatja Önnel. Kérem, adja meg a legjobb email-címet vagy telefonszámot.`;
     }
   }
 

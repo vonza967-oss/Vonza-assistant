@@ -158,8 +158,12 @@ test("Hungarian system prompt uses default-Hungarian policy without English fall
   assert.match(prompt, /Reply in Hungarian/);
   assert.match(prompt, /explicit selected\/requested language wins/);
   assert.match(prompt, /visitor language is ambiguous or missing, default to Hungarian/);
-  assert.match(prompt, /tegezés/);
+  assert.match(prompt, /formal Hungarian magázódás/);
+  assert.match(prompt, /Never use informal tegeződés/);
+  assert.match(prompt, /Ha szeretné, megadhatja az adatait/);
+  assert.match(prompt, /Kérem, adja meg/);
   assert.match(prompt, /Ezt az adatot nem látom megerősítve/);
+  assert.doesNotMatch(prompt, /Hungarian replies should be natural tegezés/i);
   assert.doesNotMatch(prompt, /I do not have a confirmed contact detail/i);
   assert.doesNotMatch(prompt, /You can leave your details/i);
   assert.doesNotMatch(prompt, /Front Desk does not have that detail/i);
@@ -186,15 +190,19 @@ test("Hungarian conversation and repair guidance avoid exact English fallback ph
 
   assert.match(conversationGuidance, /Itt nincs megerősített elérhetőségem/);
   assert.match(repairPrompt, /biztonságos magyar hiányzó-információs/);
+  assert.match(repairPrompt, /formális magázódást/);
+  assert.match(repairPrompt, /Ha szeretné, megadhatja az adatait/);
+  assert.match(repairPrompt, /Kérem, adja meg/);
   assert.doesNotMatch(conversationGuidance, /I do not have a confirmed contact detail/i);
   assert.doesNotMatch(conversationGuidance, /You can leave your details/i);
   assert.doesNotMatch(repairPrompt, /Front Desk does not have that detail/i);
+  assert.doesNotMatch(repairPrompt, /maradj természetes tegezésnél/i);
 });
 
 test("Hungarian factual guardrails catch invented services, prices, hours, policies, availability, and denials", () => {
   const cases = [
     {
-      userMessage: "Milyen szolgáltatásokat kínáltok?",
+      userMessage: "Milyen szolgáltatásokat kínálnak?",
       businessContext: "Most relevant website excerpts:\nKapcsolatfelvétel az űrlapon keresztül.",
       reply: "Vízvezeték-szerelést és klímaszerelést vállalnak. Melyik érdekel?",
       expected: /invents a service/i,
@@ -242,7 +250,7 @@ test("Hungarian factual guardrails catch invented services, prices, hours, polic
   const safeIssues = getFactualReplyGuardrailIssues({
     userMessage: "Van szabad időpont holnap?",
     businessContext: "Most relevant website excerpts:\nIdőpontkérést az űrlapon lehet elküldeni.",
-    reply: "Ezt az időpontot nem látom megerősítve a rendelkezésre álló információkban. Szeretnéd megadni az adataidat utánkövetéshez?",
+    reply: "Ezt az időpontot nem látom megerősítve a rendelkezésre álló információkban. Ha szeretné, megadhatja az adatait utánkövetéshez.",
   });
   assert.deepEqual(safeIssues, []);
 });
