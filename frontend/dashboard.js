@@ -573,9 +573,11 @@ const dashboardRuntimeState = {
 let workspaceRefreshBound = false;
 let workspaceRefreshAgentId = "";
 let workspaceRefreshTimeout = null;
-let dashboardLanguage = window.VonzaDashboardI18n?.getCachedLanguage?.()
-  || window.VonzaDashboardI18n?.DEFAULT_LANGUAGE
-  || "hu";
+const dashboardLanguageState = {
+  language: window.VonzaDashboardI18n?.getCachedLanguage?.()
+    || window.VonzaDashboardI18n?.DEFAULT_LANGUAGE
+    || "hu",
+};
 
 function isDevFakeBillingEnabled() {
   return Boolean(window.VONZA_DEV_FAKE_BILLING);
@@ -1765,7 +1767,7 @@ function normalizeDashboardLanguage(value = "") {
 }
 
 function getDashboardLanguage() {
-  return normalizeDashboardLanguage(dashboardLanguage);
+  return normalizeDashboardLanguage(dashboardLanguageState.language);
 }
 
 function isHungarianDashboard() {
@@ -3325,21 +3327,22 @@ function localizeDashboardHtml(html = "") {
 }
 
 function applyDashboardLanguage(language = getDashboardLanguage()) {
-  dashboardLanguage = normalizeDashboardLanguage(language);
+  const nextLanguage = normalizeDashboardLanguage(language);
+  dashboardLanguageState.language = nextLanguage;
 
   if (document.documentElement) {
-    document.documentElement.lang = dashboardLanguage === "hu" ? "hu" : "en";
+    document.documentElement.lang = nextLanguage === "hu" ? "hu" : "en";
   }
 
   if (document.documentElement?.dataset) {
-    document.documentElement.dataset.dashboardLanguage = dashboardLanguage;
+    document.documentElement.dataset.dashboardLanguage = nextLanguage;
   }
 
   if (document.body?.dataset) {
-    document.body.dataset.dashboardLanguage = dashboardLanguage;
+    document.body.dataset.dashboardLanguage = nextLanguage;
   }
 
-  return dashboardLanguage;
+  return nextLanguage;
 }
 
 function cacheDashboardLanguage(language) {
@@ -13183,6 +13186,10 @@ function renderReadyState(
 
 // Data loading and persistence helpers
 function getDashboardApiErrorMessage(data, fallback = "Something went wrong.") {
+  if (typeof dashboardHelpers.getDashboardApiErrorMessage === "function") {
+    return dashboardHelpers.getDashboardApiErrorMessage(data, fallback);
+  }
+
   const normalizeMessage = (value) => {
     if (typeof value === "string") {
       return trimText(value);
@@ -13219,6 +13226,77 @@ function getDashboardApiErrorMessage(data, fallback = "Something went wrong.") {
   }
 
   return trimText(fallback) || "Something went wrong.";
+}
+
+async function runDashboardMutation(options = {}) {
+  if (typeof dashboardHelpers.runDashboardMutation === "function") {
+    return dashboardHelpers.runDashboardMutation(options);
+  }
+
+  const {
+    button = null,
+    controls = [],
+    loadingText = "",
+    successText = "",
+    errorText = "Something went wrong.",
+    setStatus: setMutationStatus = () => {},
+    mutation,
+    onLoading,
+    onSuccess,
+    onError,
+    onFinally,
+  } = options;
+
+  if (typeof mutation !== "function") {
+    throw new TypeError("runDashboardMutation requires a mutation function.");
+  }
+
+  const disabledControls = [button, ...controls].filter(Boolean);
+  disabledControls.forEach((control) => {
+    control.disabled = true;
+  });
+
+  if (typeof onLoading === "function") {
+    onLoading();
+  }
+
+  if (loadingText) {
+    setMutationStatus(loadingText);
+  }
+
+  try {
+    const data = await mutation();
+
+    if (successText) {
+      setMutationStatus(successText);
+    }
+
+    if (typeof onSuccess === "function") {
+      await onSuccess(data);
+    }
+
+    return { ok: true, data };
+  } catch (error) {
+    const message = getDashboardApiErrorMessage(error, errorText);
+
+    if (message) {
+      setMutationStatus(message);
+    }
+
+    if (typeof onError === "function") {
+      await onError(error, message);
+    }
+
+    return { ok: false, error, message };
+  } finally {
+    disabledControls.forEach((control) => {
+      control.disabled = false;
+    });
+
+    if (typeof onFinally === "function") {
+      await onFinally();
+    }
+  }
 }
 
 async function fetchJson(url, options) {
@@ -16188,6 +16266,75 @@ function bindSimpleDirtyState(form) {
   form.addEventListener("change", syncState);
 }
 
+function bindDashboardLanguagePreferenceForms(forms) {
+  const dependencies = {
+    normalizeDashboardLanguage,
+    translate: t,
+    setStatus,
+    saveDashboardLanguage,
+    renderWorkspaceFromState,
+    runDashboardMutation,
+  };
+
+  if (typeof dashboardHelpers.bindDashboardLanguagePreferenceForms === "function") {
+    dashboardHelpers.bindDashboardLanguagePreferenceForms(forms, dependencies);
+    return;
+  }
+
+  Array.from(forms || []).forEach((form) => {
+    const saveState = form.querySelector("[data-save-state]");
+    const select = form.querySelector('select[name="dashboard_language"]');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const initialLanguage = normalizeDashboardLanguage(select?.value);
+
+    form.addEventListener("change", () => {
+      if (!saveState || !select) {
+        return;
+      }
+
+      const hasChanged = normalizeDashboardLanguage(select.value) !== initialLanguage;
+      saveState.textContent = hasChanged ? t("language.unsaved") : t("language.noChanges");
+      saveState.className = hasChanged ? "save-state unsaved" : "save-state";
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const nextLanguage = normalizeDashboardLanguage(select?.value);
+
+      await runDashboardMutation({
+        button: submitButton,
+        loadingText: t("language.saving"),
+        successText: t("language.settingsSaved"),
+        errorText: t("language.settingsError"),
+        setStatus,
+        mutation: () => saveDashboardLanguage(nextLanguage),
+        onLoading: () => {
+          if (saveState) {
+            saveState.textContent = t("language.saving");
+            saveState.className = "save-state saving";
+            saveState.removeAttribute("title");
+          }
+        },
+        onSuccess: () => {
+          if (saveState) {
+            saveState.textContent = t("language.settingsSaved");
+            saveState.className = "save-state saved";
+            saveState.removeAttribute("title");
+          }
+          renderWorkspaceFromState();
+        },
+        onError: (_error, message) => {
+          if (saveState) {
+            saveState.textContent = t("language.settingsError");
+            saveState.className = "save-state unsaved";
+            saveState.title = message;
+          }
+        },
+      });
+    });
+  });
+}
+
 // Event wiring for the rendered shell
 function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const appShell = document.querySelector("[data-app-shell]");
@@ -16286,7 +16433,6 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const backgroundDimInputs = document.querySelectorAll("[data-dashboard-background-dim-choice]");
   const accentGlowInputs = document.querySelectorAll("[data-dashboard-accent-glow-choice]");
   const dashboardDensityInputs = document.querySelectorAll("[data-dashboard-density-choice]");
-  const dashboardLanguageForms = document.querySelectorAll("[data-dashboard-language-form]");
   const billingChangeButtons = document.querySelectorAll("[data-billing-plan-key]");
   const connectedAppConnectionForms = document.querySelectorAll("[data-connected-app-connection-form]");
   const connectedAppStatusForms = document.querySelectorAll("[data-connected-app-status-form]");
@@ -17594,56 +17740,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   });
 
-  dashboardLanguageForms.forEach((form) => {
-    const saveState = form.querySelector("[data-save-state]");
-    const select = form.querySelector('select[name="dashboard_language"]');
-    const submitButton = form.querySelector('button[type="submit"]');
-    const initialLanguage = normalizeDashboardLanguage(select?.value);
-
-    form.addEventListener("change", () => {
-      if (!saveState || !select) {
-        return;
-      }
-
-      const hasChanged = normalizeDashboardLanguage(select.value) !== initialLanguage;
-      saveState.textContent = hasChanged ? t("language.unsaved") : t("language.noChanges");
-      saveState.className = hasChanged ? "save-state unsaved" : "save-state";
-    });
-
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const nextLanguage = normalizeDashboardLanguage(select?.value);
-
-      submitButton.disabled = true;
-      if (saveState) {
-        saveState.textContent = t("language.saving");
-        saveState.className = "save-state saving";
-        saveState.removeAttribute("title");
-      }
-      setStatus(t("language.saving"));
-
-      try {
-        await saveDashboardLanguage(nextLanguage);
-        setStatus(t("language.settingsSaved"));
-        if (saveState) {
-          saveState.textContent = t("language.settingsSaved");
-          saveState.className = "save-state saved";
-          saveState.removeAttribute("title");
-        }
-        renderWorkspaceFromState();
-      } catch (error) {
-        const message = error.message || t("language.settingsError");
-        setStatus(message);
-        if (saveState) {
-          saveState.textContent = t("language.settingsError");
-          saveState.className = "save-state unsaved";
-          saveState.title = message;
-        }
-      } finally {
-        submitButton.disabled = false;
-      }
-    });
-  });
+  bindDashboardLanguagePreferenceForms(document.querySelectorAll("[data-dashboard-language-form]"));
 
   const setBillingPlanButtonsDisabled = (disabled) => {
     billingChangeButtons.forEach((button) => {
