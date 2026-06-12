@@ -338,6 +338,17 @@ test("Web Call review actions use authenticated owner scope", async () => {
 test("billing sync transitions only the paid owner's workspace access_status", async () => {
   const supabase = createBillingTransitionSupabase();
 
+  const nonPilotFreeSnapshot = await syncOwnerBillingState(supabase, {
+    ownerUserId: "owner-1",
+    planKey: "growth",
+    subscriptionStatus: "free",
+    currentPeriodStart: "2026-05-01T00:00:00.000Z",
+    currentPeriodEnd: "2026-06-01T00:00:00.000Z",
+  });
+
+  assert.equal(nonPilotFreeSnapshot.hasPlanAccess, false);
+  assert.equal(supabase.state.agents.find((row) => row.id === "agent-1").access_status, "pending");
+
   const activeSnapshot = await syncOwnerBillingState(supabase, {
     ownerUserId: "owner-1",
     planKey: "growth",
@@ -361,6 +372,64 @@ test("billing sync transitions only the paid owner's workspace access_status", a
   assert.equal(suspendedSnapshot.hasActiveSubscription, false);
   assert.equal(supabase.state.agents.find((row) => row.id === "agent-1").access_status, "suspended");
   assert.equal(supabase.state.agents.find((row) => row.id === "agent-2").access_status, "active");
+});
+
+test("admin pilot widget plan route activates the internal free widget plan", async () => {
+  let activationPayload = null;
+  const auditEvents = [];
+  const server = await startServer(createApp(createRouteDeps({
+    getAuthenticatedUser: async () => ({
+      id: "admin-1",
+      email: "admin@example.com",
+      app_metadata: {
+        role: "admin",
+      },
+    }),
+    activatePilotWidgetPlan: async (_supabase, payload) => {
+      activationPayload = payload;
+      return {
+        ok: true,
+        ownerUserId: payload.ownerUserId,
+        planKey: "pilot_free_widget",
+        accessStatus: "active",
+        billing: {
+          planKey: "pilot_free_widget",
+          hasPlanAccess: true,
+          hasActiveSubscription: false,
+        },
+        entitlement: {
+          product_key: "website_widget",
+          entitlement_status: "free",
+          source: "manual_free",
+        },
+      };
+    },
+    recordAdminAuditEvent: async (_supabase, event) => {
+      auditEvents.push(event);
+      return { ok: true };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/billing/pilot-widget-plan", {
+      method: "POST",
+      body: JSON.stringify({
+        owner_user_id: "owner-pilot",
+        reason: "manual pilot",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.planKey, "pilot_free_widget");
+    assert.equal(response.json.entitlement.product_key, "website_widget");
+    assert.equal(activationPayload.ownerUserId, "owner-pilot");
+    assert.equal(activationPayload.activatedByUserId, "admin-1");
+    assert.equal(activationPayload.reason, "manual pilot");
+    assert.equal(auditEvents.some((event) => event.action === "billing.pilot_widget_plan.activate"), true);
+    assert.equal(auditEvents.some((event) => event.action === "billing.pilot_widget_plan.activated"), true);
+  } finally {
+    await server.close();
+  }
 });
 
 test("public assistant bootstrap uses page mode and hides unsafe denial detail", async () => {

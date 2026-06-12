@@ -4,6 +4,7 @@ function trimText(value) {
 
 export const BILLING_INTERVAL_MONTH = "month";
 export const DEFAULT_BILLING_PLAN_KEY = "growth";
+export const PILOT_FREE_WIDGET_PLAN_KEY = "pilot_free_widget";
 export const BILLING_USAGE_COPY = Object.freeze({
   sectionEyebrow: "Simple HUF monthly plans",
   sectionHeadline: "Choose the monthly plan for your Website Widget.",
@@ -24,7 +25,7 @@ export const BILLING_USAGE_COPY = Object.freeze({
   ]),
 });
 
-const BILLING_PLAN_DEFINITIONS = Object.freeze([
+const STRIPE_BILLING_PLAN_DEFINITIONS = Object.freeze([
   Object.freeze({
     key: "starter",
     displayName: "Starter",
@@ -79,8 +80,38 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
   }),
 ]);
 
+const INTERNAL_BILLING_PLAN_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    key: PILOT_FREE_WIDGET_PLAN_KEY,
+    displayName: "Pilot Website Widget",
+    monthlyPriceCents: 0,
+    monthlyPriceUsd: 0,
+    monthlyPriceHuf: 0,
+    billingInterval: BILLING_INTERVAL_MONTH,
+    includedAiBudgetCents: 500,
+    checkoutLabel: "Pilot hozzaferes aktiv",
+    stripePriceEnvKey: "",
+    isPublic: false,
+    isStripeBacked: false,
+    marketing: Object.freeze({
+      audience: "Pilot tesztelo KKV-k",
+      summary: "Website Widget proba Stripe checkout nelkul",
+      detail: "Belso pilot csomag Website Widget teszthez, weboldal importtal, magyar valaszokkal, lead capture-rel es install ellenorzessel",
+      capacityLabel: "Pilot havi AI kapacitas",
+    }),
+  }),
+]);
+
+const BILLING_PLAN_DEFINITIONS = Object.freeze([
+  ...STRIPE_BILLING_PLAN_DEFINITIONS,
+  ...INTERNAL_BILLING_PLAN_DEFINITIONS,
+]);
+
 export const BILLING_PLAN_KEYS = Object.freeze(
   BILLING_PLAN_DEFINITIONS.map((plan) => plan.key)
+);
+export const STRIPE_BILLING_PLAN_KEYS = Object.freeze(
+  STRIPE_BILLING_PLAN_DEFINITIONS.map((plan) => plan.key)
 );
 
 function clonePlan(plan) {
@@ -116,6 +147,10 @@ export function getBillingPlan(planKey = DEFAULT_BILLING_PLAN_KEY) {
 }
 
 export function listBillingPlans() {
+  return STRIPE_BILLING_PLAN_KEYS.map((planKey) => getBillingPlan(planKey));
+}
+
+export function listAllBillingPlans() {
   return BILLING_PLAN_KEYS.map((planKey) => getBillingPlan(planKey));
 }
 
@@ -142,6 +177,10 @@ export function getStripePriceEnvKeyForPlan(planKey) {
   return getBillingPlan(planKey).stripePriceEnvKey;
 }
 
+export function isStripeBackedBillingPlan(planKey) {
+  return getBillingPlan(planKey).isStripeBacked !== false;
+}
+
 export function getStripePriceIdForPlan(planKey) {
   const envKey = getStripePriceEnvKeyForPlan(planKey);
   return trimText(process.env[envKey] || "");
@@ -160,9 +199,9 @@ export function findBillingPlanByPriceId(priceId) {
 
 export function listBillingUpgradePlans(currentPlanKey) {
   const normalizedCurrentPlanKey = normalizeBillingPlanKey(currentPlanKey);
-  const currentIndex = BILLING_PLAN_KEYS.indexOf(normalizedCurrentPlanKey);
+  const currentIndex = STRIPE_BILLING_PLAN_KEYS.indexOf(normalizedCurrentPlanKey);
 
-  return BILLING_PLAN_KEYS
+  return STRIPE_BILLING_PLAN_KEYS
     .filter((planKey, index) => index > currentIndex)
     .map((planKey) => getBillingPlan(planKey));
 }

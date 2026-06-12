@@ -350,6 +350,57 @@ test("missing entitlement rows stay read-only and do not block product setup lin
   assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk|checkout_url/);
 });
 
+test("account billing copy reflects the free Website Widget pilot plan", () => {
+  const html = renderAccountBillingSettings({
+    agent: {
+      accessStatus: "active",
+    },
+    operatorWorkspace: {
+      billing: {
+        planKey: "pilot_free_widget",
+        displayName: "Pilot Website Widget",
+        monthlyPriceLabel: "0 HUF/month",
+        subscriptionStatus: "free",
+        hasActiveSubscription: false,
+        hasPlanAccess: true,
+        isPilotFreePlan: true,
+        usage: {
+          percentUsed: 0,
+          tone: "ok",
+          statusLabel: "Within the included monthly capacity",
+          ownerMessage: "Pilot havi AI kapacitas elerheto.",
+          isCapped: false,
+        },
+        upgradeOptions: [
+          {
+            planKey: "starter",
+            displayName: "Starter",
+            monthlyPriceLabel: "19,900 HUF/month",
+            checkoutLabel: "Start with Starter",
+          },
+        ],
+      },
+      product_entitlements: [
+        {
+          product_key: "website_widget",
+          status: "available",
+          entitlement_status: "free",
+          entitlement_source: "manual_free",
+          entitlement_row_exists: true,
+          is_enforced: false,
+        },
+      ],
+    },
+  });
+
+  assert.match(html, /Pilot Website Widget/);
+  assert.match(html, /0 HUF\/month/);
+  assert.match(html, /Pilot Website Widget tesztcsomag aktiv/);
+  assert.match(html, /Stripe checkout nem szukseges/);
+  assert.match(html, /data-product-entitlement-status="free"/);
+  assert.doesNotMatch(html, /Plan details appear after checkout|Billing plan details will appear/);
+});
+
 test("operator workspace account response exposes additive product availability and entitlements", () => {
   const source = readFileSync(path.join(repoRoot, "src", "services", "operator", "operatorWorkspaceService.js"), "utf8");
 

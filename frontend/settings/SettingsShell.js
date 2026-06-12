@@ -840,6 +840,9 @@
       currentPeriodEnd: null,
       subscriptionStatus: "pending",
       hasActiveSubscription: false,
+      hasPlanAccess: false,
+      isPilotFreePlan: false,
+      isStripeBacked: true,
       usage: {
         usedCents: 0,
         includedCents: 0,
@@ -874,6 +877,39 @@
       year: "numeric",
       timeZone: "UTC",
     });
+  }
+
+  function isPilotFreeBillingPlan(billing = {}) {
+    return billing.isPilotFreePlan === true
+      || defaultTrimText(billing.planKey).toLowerCase() === "pilot_free_widget";
+  }
+
+  function hasBillingPlanAccess(billing = {}) {
+    return billing.hasPlanAccess === true
+      || billing.hasActiveSubscription === true
+      || isPilotFreeBillingPlan(billing);
+  }
+
+  function getBillingPlanStateCopy(billing = {}) {
+    if (isPilotFreeBillingPlan(billing)) {
+      return "Pilot Website Widget tesztcsomag aktiv. Stripe checkout nem szukseges; ez a hozzaferes a widget pilot probahoz van beallitva.";
+    }
+
+    return billing.hasActiveSubscription
+      ? "Hosted monthly subscription is active for this workspace."
+      : "Plan details appear after checkout or subscription sync.";
+  }
+
+  function getBillingPlanStatusCopy(billing = {}) {
+    const subscriptionStatus = defaultTrimText(billing.subscriptionStatus);
+
+    if (isPilotFreeBillingPlan(billing)) {
+      return `Pilot status: ${subscriptionStatus || "free"}.`;
+    }
+
+    return subscriptionStatus
+      ? `Subscription status: ${subscriptionStatus}.`
+      : "Subscription status appears after checkout.";
   }
 
   function formatConnectedAppTimestamp(value) {
@@ -2729,7 +2765,7 @@
     const accessStatus = normalizeAccessStatus(agent.accessStatus);
     const billing = operatorWorkspace?.billing || defaultBillingSnapshot();
     const billingUsage = billing.usage || defaultBillingSnapshot().usage;
-    const hasBillingPlanData = billing.hasActiveSubscription === true
+    const hasBillingPlanData = hasBillingPlanAccess(billing)
       || Boolean(defaultTrimText(billing.displayName || billing.monthlyPriceLabel || billing.planKey));
     const currentPlanLabel = hasBillingPlanData
       ? [billing.displayName, billing.monthlyPriceLabel].map(defaultTrimText).filter(Boolean).join(" · ") || "Current plan"
@@ -2802,18 +2838,14 @@
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Current plan</p>
                 <h4 class="settings-shell-status-value">${escapeHtml(currentPlanLabel)}</h4>
-                <p class="settings-shell-status-copy">${escapeHtml(billing.hasActiveSubscription
-                  ? "Hosted monthly subscription with upgrade-anytime capacity."
-                  : "Billing plan details will appear here after checkout or subscription sync.")}</p>
+                <p class="settings-shell-status-copy">${escapeHtml(getBillingPlanStateCopy(billing))}</p>
               </div>
             </div>
             <div class="settings-shell-status-row">
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Current billing period</p>
                 <h4 class="settings-shell-status-value">${escapeHtml(billingPeriodLabel)}</h4>
-                <p class="settings-shell-status-copy">${escapeHtml(defaultTrimText(billing.subscriptionStatus)
-                  ? `Subscription status: ${billing.subscriptionStatus}.`
-                  : "Subscription status will appear here after checkout.")}</p>
+                <p class="settings-shell-status-copy">${escapeHtml(getBillingPlanStatusCopy(billing))}</p>
               </div>
             </div>
             <div class="settings-shell-status-row">
@@ -3138,7 +3170,7 @@
     const { escapeHtml } = helpers;
     const billing = operatorWorkspace?.billing || defaultBillingSnapshot();
     const usage = billing.usage || defaultBillingSnapshot().usage;
-    const hasPlan = billing.hasActiveSubscription === true
+    const hasPlan = hasBillingPlanAccess(billing)
       || Boolean(defaultTrimText(billing.displayName || billing.monthlyPriceLabel || billing.planKey));
     const upgradeOptions = Array.isArray(billing.upgradeOptions) ? billing.upgradeOptions : [];
 
@@ -3162,7 +3194,7 @@
             <p class="settings-card-copy">Billing and monthly usage for the current workspace plan.</p>
             <p class="settings-card-note">Account and billing status follows the existing checkout and activation flow.</p>
           </div>
-          <span class="${billing.hasActiveSubscription ? "badge success" : "badge pending"}">${escapeHtml(billing.subscriptionStatus || "pending")}</span>
+          <span class="${hasBillingPlanAccess(billing) ? "badge success" : "badge pending"}">${escapeHtml(billing.subscriptionStatus || "pending")}</span>
         </div>
         <div class="settings-billing-panel">
           <div class="settings-billing-head">
@@ -3180,7 +3212,7 @@
             <span>Current billing period</span>
             <span>${escapeHtml(billing.currentPeriodStart && billing.currentPeriodEnd ? `${formatBillingDate(billing.currentPeriodStart)} - ${formatBillingDate(billing.currentPeriodEnd)}` : "Current monthly period begins after activation.")}</span>
           </div>
-          <div class="settings-billing-meta"><span>Subscription</span><span>${escapeHtml(defaultTrimText(billing.subscriptionStatus) ? `Subscription status: ${billing.subscriptionStatus}.` : "Subscription status will appear here after checkout.")}</span></div>
+          <div class="settings-billing-meta"><span>Subscription</span><span>${escapeHtml(getBillingPlanStatusCopy(billing))}</span></div>
         </div>
         ${upgradeOptions.length > 1 ? `
           <div class="settings-shell-billing-upgrade-grid">
@@ -3193,7 +3225,7 @@
             `).join("")}
           </div>
         ` : ""}
-        <p class="settings-card-note">${escapeHtml(usage.ownerMessage || (billing.hasActiveSubscription ? "Customer-facing usage is still available." : "Billing details will appear after checkout or subscription sync."))}</p>
+        <p class="settings-card-note">${escapeHtml(usage.ownerMessage || (hasBillingPlanAccess(billing) ? "Customer-facing usage is still available." : "Billing details will appear after checkout or subscription sync."))}</p>
       </article>
     `;
   }
@@ -3224,7 +3256,7 @@
     const accessStatus = normalizeAccessStatus(agent.accessStatus);
     const billing = operatorWorkspace?.billing || defaultBillingSnapshot();
     const usage = billing.usage || defaultBillingSnapshot().usage;
-    const hasBillingPlanData = billing.hasActiveSubscription === true
+    const hasBillingPlanData = hasBillingPlanAccess(billing)
       || Boolean(defaultTrimText(billing.displayName || billing.monthlyPriceLabel || billing.planKey));
     const upgradeOptions = Array.isArray(billing.upgradeOptions) ? billing.upgradeOptions : [];
     const planLabel = hasBillingPlanData
@@ -3243,7 +3275,7 @@
             <div class="settings-shell-page-title-group">
               <p class="studio-kicker">Account & Billing</p>
               <h2 class="settings-shell-page-title">Account & Billing</h2>
-              <p class="settings-shell-page-copy">Review the owner account, access status, Stripe-backed plan state, and monthly AI capacity that affect live Front Desk operations.</p>
+              <p class="settings-shell-page-copy">Review the owner account, access status, plan state, and monthly AI capacity that affect live Website Widget operations.</p>
             </div>
           </header>
 
@@ -3258,7 +3290,7 @@
             <article class="settings-operational-card">
               <div class="settings-operational-card-head">
                 <span>Subscription</span>
-                <span class="${billing.hasActiveSubscription ? "badge success" : "badge pending"}">${escapeHtml(billing.subscriptionStatus || "pending")}</span>
+                <span class="${hasBillingPlanAccess(billing) ? "badge success" : "badge pending"}">${escapeHtml(billing.subscriptionStatus || "pending")}</span>
               </div>
               <p>${escapeHtml(planLabel)}</p>
             </article>
@@ -3302,7 +3334,7 @@
             <div class="settings-shell-section-header">
               <div>
                 <h3 class="settings-shell-section-title">Billing and usage</h3>
-                <p class="settings-shell-section-copy">Only Stripe-backed plan state and recorded monthly AI capacity are shown here.</p>
+                <p class="settings-shell-section-copy">Stripe elofizetes vagy pilot csomag allapota, plusz a rogzitett havi AI kapacitas jelenik meg itt.</p>
               </div>
             </div>
             <div class="settings-shell-status-list">
@@ -3310,18 +3342,14 @@
                 <div class="settings-shell-status-main">
                   <p class="settings-shell-status-label">Current plan</p>
                   <h4 class="settings-shell-status-value">${escapeHtml(planLabel)}</h4>
-                  <p class="settings-shell-status-copy">${escapeHtml(billing.hasActiveSubscription
-                    ? "Hosted monthly subscription is active for this workspace."
-                    : "Plan details appear after checkout or subscription sync.")}</p>
+                  <p class="settings-shell-status-copy">${escapeHtml(getBillingPlanStateCopy(billing))}</p>
                 </div>
               </div>
               <div class="settings-shell-status-row">
                 <div class="settings-shell-status-main">
                   <p class="settings-shell-status-label">Current billing period</p>
                   <h4 class="settings-shell-status-value">${escapeHtml(billingPeriodLabel)}</h4>
-                  <p class="settings-shell-status-copy">${escapeHtml(defaultTrimText(billing.subscriptionStatus)
-                    ? `Subscription status: ${billing.subscriptionStatus}.`
-                    : "Subscription status appears after checkout.")}</p>
+                  <p class="settings-shell-status-copy">${escapeHtml(getBillingPlanStatusCopy(billing))}</p>
                 </div>
               </div>
               <div class="settings-shell-status-row">

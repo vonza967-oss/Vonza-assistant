@@ -25,8 +25,20 @@ function buildMissingStripePriceError(planKey) {
   return error;
 }
 
+function buildNonCheckoutPlanError(planKey) {
+  const plan = getBillingPlan(planKey);
+  const error = new Error(`${plan.displayName} is an internal plan and cannot start Stripe checkout.`);
+  error.statusCode = 400;
+  return error;
+}
+
 function getConfiguredPlanPrice(planKey) {
   const plan = getBillingPlan(planKey);
+
+  if (plan.isStripeBacked === false) {
+    throw buildNonCheckoutPlanError(plan.key);
+  }
+
   const priceId = getStripePriceIdForPlan(plan.key);
 
   if (!priceId) {
@@ -37,6 +49,11 @@ function getConfiguredPlanPrice(planKey) {
     plan,
     priceId,
   };
+}
+
+function getStripeBackedMetadataPlan(planKey) {
+  const plan = getBillingPlan(planKey);
+  return plan.isStripeBacked === false ? getBillingPlan() : plan;
 }
 
 function toIsoStringFromUnixSeconds(value) {
@@ -300,7 +317,7 @@ export async function buildBillingSyncPayloadFromSubscription(subscription, opti
   const primaryItem = subscription?.items?.data?.[0] || null;
   const priceId = cleanText(primaryItem?.price?.id);
   const resolvedPlan = findBillingPlanByPriceId(priceId)
-    || getBillingPlan(subscription?.metadata?.plan_key);
+    || getStripeBackedMetadataPlan(subscription?.metadata?.plan_key);
   const ownerUserId = cleanText(
     options.ownerUserId
     || subscription?.metadata?.owner_user_id

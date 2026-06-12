@@ -111,6 +111,7 @@ import {
   simulateOwnerBillingActivation,
   syncOwnerBillingState,
 } from "../services/billing/billingUsageService.js";
+import { activatePilotWidgetPlan } from "../services/billing/pilotWidgetPlanService.js";
 import { getPublicAppUrl, isLocalDevBillingRequestAllowed } from "../config/env.js";
 import {
   extractBusinessWebsiteContent,
@@ -785,6 +786,7 @@ export function createAgentRouter(deps = {}) {
   const simulateOwnerBillingActivationImpl =
     deps.simulateOwnerBillingActivation || simulateOwnerBillingActivation;
   const syncOwnerBillingStateImpl = deps.syncOwnerBillingState || syncOwnerBillingState;
+  const activatePilotWidgetPlanImpl = deps.activatePilotWidgetPlan || activatePilotWidgetPlan;
   const createHostedCheckoutSessionImpl =
     deps.createHostedCheckoutSession || createHostedCheckoutSession;
   const buildBillingSyncPayloadFromCheckoutSessionImpl =
@@ -5072,6 +5074,43 @@ export function createAgentRouter(deps = {}) {
           ? "Stripe billing is not configured yet. Please check the Stripe environment settings."
           : configurationErrorMessage || err.message || "Something went wrong",
       });
+    }
+  });
+
+  router.post("/billing/pilot-widget-plan", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const ownerUserId = cleanText(req.body.owner_user_id || req.body.ownerUserId);
+      const adminUser = await requireAdminAccess(supabase, req, "billing.pilot_widget_plan.activate", {
+        ownerUserId,
+        planKey: "pilot_free_widget",
+      });
+      const result = await activatePilotWidgetPlanImpl(supabase, {
+        ownerUserId,
+        reason: req.body.reason,
+        featureCaps: req.body.feature_caps || req.body.featureCaps,
+        metadata: req.body.metadata,
+        activatedByUserId: adminUser.id,
+        activatedByEmail: adminUser.email,
+      });
+
+      await recordAdminAuditEventImpl(supabase, {
+        adminUserId: adminUser.id,
+        adminEmail: adminUser.email,
+        action: "billing.pilot_widget_plan.activated",
+        targetType: "owner",
+        targetId: result.ownerUserId,
+        ownerUserId: result.ownerUserId,
+        metadata: {
+          planKey: result.planKey,
+          productKey: result.entitlement?.product_key || "website_widget",
+          entitlementStatus: result.entitlement?.entitlement_status || "free",
+        },
+      }).catch(() => {});
+
+      res.json(result);
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/billing/pilot-widget-plan" });
     }
   });
 

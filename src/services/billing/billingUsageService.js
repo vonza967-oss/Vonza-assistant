@@ -1,5 +1,6 @@
 import {
   DEFAULT_BILLING_PLAN_KEY,
+  PILOT_FREE_WIDGET_PLAN_KEY,
   formatHufPrice,
   getBillingPlan,
   listBillingUpgradePlans,
@@ -13,6 +14,7 @@ import { cleanText } from "../../utils/text.js";
 import { updateOwnedAccessStatus } from "../agents/agentService.js";
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
+const PILOT_ACCESS_SUBSCRIPTION_STATUSES = new Set(["free", "pilot_free"]);
 const SUSPENDED_SUBSCRIPTION_STATUSES = new Set([
   "canceled",
   "incomplete_expired",
@@ -62,10 +64,18 @@ function normalizeSubscriptionStatus(value) {
   return cleanText(value).toLowerCase() || "pending";
 }
 
-function mapSubscriptionStatusToAccessStatus(subscriptionStatus) {
+function mapSubscriptionStatusToAccessStatus(subscriptionStatus, options = {}) {
   const normalizedStatus = normalizeSubscriptionStatus(subscriptionStatus);
+  const normalizedPlanKey = normalizeBillingPlanKey(options.planKey, "");
 
   if (ACTIVE_SUBSCRIPTION_STATUSES.has(normalizedStatus)) {
+    return "active";
+  }
+
+  if (
+    normalizedPlanKey === PILOT_FREE_WIDGET_PLAN_KEY
+    && PILOT_ACCESS_SUBSCRIPTION_STATUSES.has(normalizedStatus)
+  ) {
     return "active";
   }
 
@@ -503,6 +513,11 @@ export async function getOwnerBillingSnapshot(supabase, options = {}) {
   );
   const subscriptionStatus = record?.subscriptionStatus
     || (normalizedAccessStatus === "active" ? "legacy_active" : "pending");
+  const normalizedSubscriptionStatus = normalizeSubscriptionStatus(subscriptionStatus);
+  const isPilotFreePlan = resolvedPlan.key === PILOT_FREE_WIDGET_PLAN_KEY;
+  const hasActiveSubscription = ACTIVE_SUBSCRIPTION_STATUSES.has(normalizedSubscriptionStatus);
+  const hasPlanAccess = hasActiveSubscription
+    || (isPilotFreePlan && PILOT_ACCESS_SUBSCRIPTION_STATUSES.has(normalizedSubscriptionStatus));
 
   return {
     ownerUserId: normalizedOwnerUserId,
@@ -519,9 +534,10 @@ export async function getOwnerBillingSnapshot(supabase, options = {}) {
     subscriptionStatus,
     currentPeriodStart: currentPeriod.currentPeriodStart,
     currentPeriodEnd: currentPeriod.currentPeriodEnd,
-    hasActiveSubscription: ACTIVE_SUBSCRIPTION_STATUSES.has(
-      normalizeSubscriptionStatus(subscriptionStatus)
-    ),
+    hasActiveSubscription,
+    hasPlanAccess,
+    isPilotFreePlan,
+    isStripeBacked: resolvedPlan.isStripeBacked !== false,
     usage,
     upgradeOptions: listBillingUpgradePlans(resolvedPlan.key).map((plan) => mapUpgradeOption(plan)),
   };
@@ -550,17 +566,20 @@ export function buildBillingSyncPayload(options = {}) {
 export async function syncOwnerBillingState(supabase, payload = {}) {
   const normalizedPayload = buildBillingSyncPayload(payload);
   await saveOwnerBillingRecord(supabase, normalizedPayload);
+  const accessStatus = mapSubscriptionStatusToAccessStatus(normalizedPayload.subscriptionStatus, {
+    planKey: normalizedPayload.planKey,
+  });
 
   if (normalizedPayload.ownerUserId) {
     await updateOwnedAccessStatus(supabase, {
       ownerUserId: normalizedPayload.ownerUserId,
-      accessStatus: mapSubscriptionStatusToAccessStatus(normalizedPayload.subscriptionStatus),
+      accessStatus,
     });
   }
 
   return getOwnerBillingSnapshot(supabase, {
     ownerUserId: normalizedPayload.ownerUserId,
-    accessStatus: mapSubscriptionStatusToAccessStatus(normalizedPayload.subscriptionStatus),
+    accessStatus,
     planKey: normalizedPayload.planKey,
   });
 }
