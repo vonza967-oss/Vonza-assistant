@@ -75,6 +75,7 @@
     "analytics.satisfactionSignal": "Satisfaction signal",
     "analytics.basedOnAnswerQuality": "Estimated from weak answers and owner attention",
     "analytics.operatorBrief": "Operator brief",
+    "analytics.widgetSnapshot": "Website Widget snapshot",
     "analytics.waitingForTraffic": "Waiting for live Front Desk traffic",
     "analytics.waitingForTrafficCopy": "After customers use the hosted Front Desk page, QR/direct link, embed, or optional widget, performance signals will appear here.",
     "analytics.operatorBriefCopy": "Customer-service performance from Front Desk conversations, owner follow-ups, leads, answer quality, and improvement signals.",
@@ -82,35 +83,43 @@
     "analytics.webCallHealth": "Web Call health",
     "analytics.recentWebCalls": "Recent Web Calls",
     "analytics.aiHandledBriefTitle": "{handled} of {total} conversations handled by AI",
+    "analytics.widgetBriefTitle": "{total} Website Widget conversations recorded",
+    "analytics.widgetBriefCopy": "Track live widget conversations, captured leads, repeated questions, and answer-quality signals.",
+    "analytics.widgetBriefWaitingTitle": "Waiting for Website Widget traffic",
+    "analytics.widgetLeadStatus": "{count} leads captured",
     "analytics.widgetWaitingForTrafficCopy": "After customers use the Website Widget, conversations and captured leads will appear here.",
     "analytics.ownerFollowUp": "owner follow-up",
     "analytics.improvementFocus": "improvement focus",
     "analytics.repeatedQuestion": "repeated question: {question}",
-    "analytics.sourceBreakdownWidgetCopy": "Website Widget conversations and leads from the existing embedded widget records.",
+    "analytics.sourceBreakdownWidgetCopy": "Website Widget conversations and leads from recorded widget activity.",
     "analytics.sourceBreakdownDefaultCopy": "Hosted Front Desk page remains the primary surface; widget and embeds are secondary distribution.",
     "analytics.handlingCopy": "Shows work handled by Front Desk versus conversations still needing a person.",
     "analytics.topQuestionsCopy": "Use repeated questions to decide which answer guidance to improve next.",
     "analytics.customerQuestionFallback": "Customer question",
     "analytics.topQuestionsEmpty": "No repeated customer questions yet. As Front Desk handles more live questions, recurring themes will appear here.",
+    "analytics.widgetTopQuestionsEmpty": "No repeated widget questions yet. As more Website Widget conversations arrive, recurring themes will appear here.",
     "analytics.chartEmpty": "Live conversations will draw this trend after customers start using Front Desk.",
-    "analytics.performanceBySourceWidgetCopy": "Review Website Widget conversations and leads using existing widget source data.",
+    "analytics.widgetChartEmpty": "Live conversations will draw this trend after customers start using the Website Widget.",
+    "analytics.performanceBySourceWidgetCopy": "Review Website Widget conversations and leads from recorded widget activity.",
     "analytics.performanceBySourceDefaultCopy": "Compare Front Desk page, embed, and optional widget outcomes using real conversation data.",
-    "analytics.metricCompareWidgetSurface": "Embedded widget surface",
+    "analytics.metricCompareWidgetSurface": "Live website widget",
     "analytics.metricCompareVoiceSurface": "Browser voice surface",
     "analytics.liveWorkspaceData": "Live workspace data",
     "analytics.newSignal": "New",
     "analytics.productScope": "Product analytics",
     "analytics.productScopeCopy": "Product-specific view using the existing shared analytics data.",
+    "analytics.widgetPageTitle": "Website Widget analytics",
+    "analytics.widgetPageCopy": "Performance insights for the Website Widget.",
     "analytics.frontDeskAnalytics": "Front Desk analytics",
     "analytics.frontDeskAnalyticsCopy": "Full-page and hosted Front Desk outcomes from existing conversation source data.",
     "analytics.widgetAnalytics": "Website Widget analytics",
-    "analytics.widgetAnalyticsCopy": "Optional widget outcomes from existing conversation source data.",
+    "analytics.widgetAnalyticsCopy": "Website Widget outcomes from conversations, captured leads, and question patterns.",
     "analytics.voiceAnalytics": "Voice Agent analytics",
     "analytics.voiceAnalyticsCopy": "Browser Web Call outcomes from existing conversation and safe call-health data.",
     "analytics.frontDeskEmptyTitle": "No Front Desk analytics yet.",
     "analytics.frontDeskEmptyCopy": "Publish or open the full-page Front Desk, then ask one realistic test question. Page visitors, leads, and repeated questions will appear here after conversations are recorded.",
     "analytics.widgetEmptyTitle": "No Website Widget analytics yet.",
-    "analytics.widgetEmptyCopy": "Install the embed, confirm allowed domains, then test the widget on a site page. Website visitor conversations and embedded assistant leads will appear here after use.",
+    "analytics.widgetEmptyCopy": "Install the embed, confirm allowed domains, then test the widget on a site page. Website visitor conversations and leads will appear here after use.",
     "analytics.voiceEmptyTitle": "No Voice Agent analytics yet.",
     "analytics.voiceEmptyCopy": "Set up browser voice and Web Call, run a Web Call test, then review transcripts, handoff context, and analytics after conversations are recorded.",
     "analytics.frontDeskConversations": "Front Desk conversations",
@@ -124,7 +133,10 @@
     "analytics.averageCallDuration": "Average call duration",
     "analytics.notAvailableYet": "Not available yet",
     "analytics.derivedFromConversationSource": "Derived from existing conversation source data",
+    "analytics.derivedFromWidgetConversations": "From Website Widget conversations",
     "analytics.derivedFromSafeWebCallTelemetry": "Derived from safe Web Call telemetry",
+    "analytics.widgetQualitySignal": "Answer quality signal",
+    "analytics.basedOnWidgetAnswerQuality": "Estimated from weak answers and visitor feedback",
     "analytics.setupFrontDesk": "Open full-page publish",
     "analytics.setupWidget": "Open embed install",
     "analytics.setupVoice": "Open voice setup",
@@ -577,14 +589,15 @@
     const webCallRow = findSourceRow(sourceRows, "web_call");
     const webCallHealth = ownerAnalyticsDashboard?.webCallHealth || {};
     const sourceNote = context.t("analytics.derivedFromConversationSource");
+    const widgetNote = context.t("analytics.derivedFromWidgetConversations");
     const cards = [];
 
     if (key === "website_widget") {
       cards.push(sourceAvailable
-        ? buildAvailableProductMetric({ key: "widget_conversations", label: context.t("analytics.widgetConversations"), value: context.formatConversationCount(widgetRow.conversationCount || 0), note: sourceNote, icon: "window", tone: "teal" })
+        ? buildAvailableProductMetric({ key: "widget_conversations", label: context.t("analytics.widgetConversations"), value: context.formatConversationCount(widgetRow.conversationCount || 0), note: widgetNote, icon: "window", tone: "teal" })
         : buildUnavailableProductMetric({ key: "widget_conversations", label: context.t("analytics.widgetConversations"), note: context.t("analytics.notAvailableYet"), icon: "window" }));
       cards.push(sourceAvailable
-        ? buildAvailableProductMetric({ key: "widget_leads", label: context.t("analytics.widgetLeads"), value: context.formatLeadCount(widgetRow.leadsCaptured || 0), note: sourceNote, icon: "users", tone: "green" })
+        ? buildAvailableProductMetric({ key: "widget_leads", label: context.t("analytics.widgetLeads"), value: context.formatLeadCount(widgetRow.leadsCaptured || 0), note: widgetNote, icon: "users", tone: "green" })
         : buildUnavailableProductMetric({ key: "widget_leads", label: context.t("analytics.widgetLeads"), note: context.t("analytics.notAvailableYet"), icon: "users" }));
       cards.push(buildUnavailableProductMetric({ key: "widget_opens", label: context.t("analytics.visits"), note: context.t("analytics.widgetOpensUnavailable"), icon: "install" }));
       cards.push(buildProductSetupAction(config, context));
@@ -713,16 +726,19 @@
     const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "");
     const config = PRODUCT_ANALYTICS_CONFIG[activeKey];
     const hideProductTabs = options.hideProductTabs === true;
+    const sectionLabel = activeKey === "website_widget" && hideProductTabs
+      ? config.label
+      : context.t("analytics.productScope");
     const cards = buildProductAnalyticsCards(activeKey, sourceRows, ownerAnalyticsDashboard, context);
     const emptyStateMarkup = hasProductAnalyticsActivity(activeKey, sourceRows, ownerAnalyticsDashboard)
       ? ""
       : renderProductAnalyticsEmptyState(config, context);
 
     return `
-      <section class="v2-card product-analytics-section" data-product-analytics-view="${escapeHtml(activeKey)}" aria-label="${escapeHtml(context.t("analytics.productScope"))}">
+      <section class="v2-card product-analytics-section" data-product-analytics-view="${escapeHtml(activeKey)}" aria-label="${escapeHtml(sectionLabel)}">
         <div class="product-analytics-header">
           <div>
-            <p class="v2-row-meta">${escapeHtml(context.t("analytics.productScope"))}</p>
+            <p class="v2-row-meta">${escapeHtml(sectionLabel)}</p>
             <h2 class="v2-section-title">${escapeHtml(context.t(config.titleKey))}</h2>
             <p class="v2-section-subtitle">${escapeHtml(context.t(config.copyKey))}</p>
           </div>
@@ -788,6 +804,15 @@
         ? context.t("analytics.metricCompareVoiceSurface")
         : context.t("analytics.frontDeskPrimarySurface");
     const satisfactionScore = Number(report.satisfactionScore || 0);
+
+    if (activeKey === "website_widget") {
+      return [
+        { label: primaryMetricLabel, value: context.formatMetricValue(primarySourceRow.conversationCount || report.conversationCount || 0), compare: primaryMetricCompare, icon: "window", tone: "teal", priority: true },
+        { label: context.t("analytics.totalConversations"), value: context.formatMetricValue(report.conversationCount), compare: context.t("analytics.liveCustomerConversations"), icon: "chat", tone: "blue" },
+        { label: context.t("analytics.leadsCaptured"), value: context.formatMetricValue(report.contactsCaptured), compare: context.t("analytics.capturedFromRealCustomerSignals"), icon: "users", tone: "green" },
+        { label: context.t("analytics.satisfactionSignal"), value: satisfactionScore > 0 ? `${satisfactionScore.toFixed(1).replace(/\.0$/, "")}/5` : context.t("analytics.newSignal"), compare: context.t("analytics.basedOnWidgetAnswerQuality"), icon: "review", tone: satisfactionScore >= 4 ? "green" : "blue" },
+      ];
+    }
 
     return [
       { label: primaryMetricLabel, value: context.formatMetricValue(primarySourceRow.conversationCount || 0), compare: primaryMetricCompare, icon: activeKey === "voice_agent" ? "phone" : "window", tone: activeKey === "front_desk" ? "blue" : "teal", priority: true },
@@ -862,29 +887,45 @@
     const watchItem = trimText(report.improvementArea)
       ? localizeAnalyticsSnippet(report.improvementArea, context)
       : (topQuestionItems[0]?.label ? context.t("analytics.repeatedQuestion", { question: topQuestionItems[0].label }) : context.t("analytics.whatToWatch"));
+    const isWidgetView = activeKey === "website_widget";
     const title = totalConversations > 0
-      ? context.t("analytics.aiHandledBriefTitle", {
-        handled: context.formatMetricValue(report.autonomousHandledCount),
-        total: context.formatMetricValue(totalConversations),
-      })
-      : context.t("analytics.waitingForTraffic");
+      ? isWidgetView
+        ? context.t("analytics.widgetBriefTitle", { total: context.formatMetricValue(totalConversations) })
+        : context.t("analytics.aiHandledBriefTitle", {
+          handled: context.formatMetricValue(report.autonomousHandledCount),
+          total: context.formatMetricValue(totalConversations),
+        })
+      : isWidgetView
+        ? context.t("analytics.widgetBriefWaitingTitle")
+        : context.t("analytics.waitingForTraffic");
     const copy = totalConversations > 0
-      ? (report.summarySentence || context.t("analytics.operatorBriefCopy"))
+      ? isWidgetView
+        ? context.t("analytics.widgetBriefCopy")
+        : (report.summarySentence || context.t("analytics.operatorBriefCopy"))
       : activeKey === "website_widget"
         ? context.t("analytics.widgetWaitingForTrafficCopy")
         : context.t("analytics.waitingForTrafficCopy");
+    const statusRows = isWidgetView
+      ? [
+        `<span><strong>${escapeHtml(context.formatMetricValue(primarySourceRow.conversationCount || totalConversations))}</strong> ${escapeHtml(context.t("analytics.widgetConversations"))}</span>`,
+        `<span><strong>${escapeHtml(context.formatMetricValue(report.contactsCaptured || primarySourceRow.leadsCaptured || 0))}</strong> ${escapeHtml(context.t("analytics.leadsCaptured"))}</span>`,
+        `<span><strong>${escapeHtml(watchItem)}</strong> ${escapeHtml(context.t("analytics.improvementFocus"))}</span>`,
+      ]
+      : [
+        `<span><strong>${escapeHtml(context.formatMetricValue(primarySourceRow.conversationCount || 0))}</strong> ${escapeHtml(primarySourceLabel)}</span>`,
+        `<span><strong>${escapeHtml(context.formatMetricValue(report.attentionNeeded || 0))}</strong> ${escapeHtml(context.t("analytics.ownerFollowUp"))}</span>`,
+        `<span><strong>${escapeHtml(watchItem)}</strong> ${escapeHtml(context.t("analytics.improvementFocus"))}</span>`,
+      ];
 
     return `
       <section class="v2-card v2-analytics-brief">
         <div class="v2-analytics-brief-copy">
-          <p class="v2-row-meta">${escapeHtml(context.t("analytics.operatorBrief"))}</p>
+          <p class="v2-row-meta">${escapeHtml(context.t(isWidgetView ? "analytics.widgetSnapshot" : "analytics.operatorBrief"))}</p>
           <h2>${escapeHtml(title)}</h2>
           <p>${escapeHtml(copy)}</p>
         </div>
         <div class="v2-analytics-brief-status" aria-label="${escapeHtml(context.t("analytics.whatToWatch"))}">
-          <span><strong>${escapeHtml(context.formatMetricValue(primarySourceRow.conversationCount || 0))}</strong> ${escapeHtml(primarySourceLabel)}</span>
-          <span><strong>${escapeHtml(context.formatMetricValue(report.attentionNeeded || 0))}</strong> ${escapeHtml(context.t("analytics.ownerFollowUp"))}</span>
-          <span><strong>${escapeHtml(watchItem)}</strong> ${escapeHtml(context.t("analytics.improvementFocus"))}</span>
+          ${statusRows.join("")}
         </div>
       </section>
     `;
@@ -979,13 +1020,18 @@
         return `<text class="v2-axis-label" x="${escapeHtml(x.toFixed(0))}" y="176">${escapeHtml(labels[index] || "")}</text>`;
       }).join("")}
     </svg>
-    ${hasData ? "" : `<div class="v2-chart-empty">${escapeHtml(context.t("analytics.chartEmpty"))}</div>`}
+    ${hasData ? "" : `<div class="v2-chart-empty">${escapeHtml(context.t(
+      normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "") === "website_widget"
+        ? "analytics.widgetChartEmpty"
+        : "analytics.chartEmpty"
+    ))}</div>`}
     </div>
   `;
   }
 
   function renderTopQuestionsList(topQuestionItems = [], options = {}) {
     const context = createRenderContext(options);
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "");
     const maxCount = Math.max(...topQuestionItems.map((item) => Number(item.count || 0)), 1);
 
     return `
@@ -1011,7 +1057,7 @@
             `;
           }).join("")}
         </div>
-      ` : renderAnalyticsEmptyState(context.t("analytics.topQuestionsEmpty"))}
+      ` : renderAnalyticsEmptyState(context.t(activeKey === "website_widget" ? "analytics.widgetTopQuestionsEmpty" : "analytics.topQuestionsEmpty"))}
     </article>
   `;
   }
@@ -1339,6 +1385,16 @@
 
   function renderConversionCard(report = {}, options = {}) {
     const context = createRenderContext(options);
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "");
+    const isWidgetView = activeKey === "website_widget";
+    const satisfactionScore = Number(report.satisfactionScore || 0);
+    const secondaryLabel = isWidgetView ? context.t("analytics.widgetQualitySignal") : context.t("analytics.estimatedTimeSaved");
+    const secondaryValue = isWidgetView
+      ? (satisfactionScore > 0 ? `${satisfactionScore.toFixed(1).replace(/\.0$/, "")}/5` : context.t("analytics.newSignal"))
+      : `${formatMetricHours(report.estimatedHoursSaved)}h`;
+    const secondaryCopy = isWidgetView
+      ? context.t("analytics.basedOnWidgetAnswerQuality")
+      : context.t("analytics.estimatedFromAiHandled");
 
     return `
     <article class="v2-card v2-analytics-conversion-card">
@@ -1352,11 +1408,11 @@
           </div>
         </div>
         <div class="v2-split-stat-item">
-          ${context.renderIconBadge("clock", "blue")}
+          ${context.renderIconBadge(isWidgetView ? "review" : "clock", "blue")}
           <div>
-            <div class="v2-row-title">${escapeHtml(context.t("analytics.estimatedTimeSaved"))}</div>
-            <div class="v2-split-stat-value">${escapeHtml(formatMetricHours(report.estimatedHoursSaved))}h</div>
-            <div class="v2-metric-change"><span>${escapeHtml(context.t("analytics.estimatedFromAiHandled"))}</span></div>
+            <div class="v2-row-title">${escapeHtml(secondaryLabel)}</div>
+            <div class="v2-split-stat-value">${escapeHtml(secondaryValue)}</div>
+            <div class="v2-metric-change"><span>${escapeHtml(secondaryCopy)}</span></div>
           </div>
         </div>
       </div>
@@ -1453,25 +1509,40 @@
     const context = createRenderContext(options);
     const renderOptions = { ...options, ...context };
     const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "");
-    const activeProductScope = options.sourceScope === "active_product" || options.hideProductTabs === true;
+    const isWidgetView = activeKey === "website_widget";
+    const activeProductScope = isWidgetView || options.sourceScope === "active_product" || options.hideProductTabs === true;
     const allSourceRows = buildAssistantSourceRows(ownerAnalyticsDashboard?.assistantSource);
     const sourceRows = localizeAssistantSourceRows(
       activeProductScope ? scopeAssistantSourceRowsForProduct(allSourceRows, activeKey) : allSourceRows,
       context
     );
+    const primarySourceKey = getProductPrimarySourceKey(activeKey);
+    const primarySourceRow = sourceRows.find((row) => row.key === primarySourceKey) || {};
+    const scopedConversationCount = Number(primarySourceRow.conversationCount || 0);
+    const scopedLeadCount = Number(primarySourceRow.leadsCaptured || 0);
+    const displayReport = isWidgetView
+      ? {
+        ...report,
+        conversationCount: scopedConversationCount || Number(report.conversationCount || 0),
+        contactsCaptured: scopedLeadCount || Number(report.contactsCaptured || 0),
+        conversionRate: scopedConversationCount > 0
+          ? (scopedLeadCount / scopedConversationCount) * 100
+          : Number(report.conversionRate || 0),
+      }
+      : report;
     const sourceRowTotal = sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0);
     const sourceTotal = Math.max(
       activeProductScope ? sourceRowTotal : Number(ownerAnalyticsDashboard?.assistantSource?.totalConversations || 0),
-      Number(report.conversationCount || 0)
+      Number(displayReport.conversationCount || 0)
     );
-    const metrics = buildMetricCards(report, sourceRows, renderOptions);
+    const metrics = buildMetricCards(displayReport, sourceRows, renderOptions);
     const webCallHealth = ownerAnalyticsDashboard?.webCallHealth;
     const webCallRecentCalls = ownerAnalyticsDashboard?.webCallRecentCalls;
     const hasWebCallActivity = !activeProductScope && (hasWebCallHealthActivity(webCallHealth) || hasRecentWebCallActivity(webCallRecentCalls));
 
     return `
     <div class="dashboard-v2-analytics">
-      ${renderAnalyticsCommandBrief(report, sourceRows, topQuestionItems, renderOptions)}
+      ${renderAnalyticsCommandBrief(displayReport, sourceRows, topQuestionItems, renderOptions)}
       ${renderProductAnalyticsSection(sourceRows, ownerAnalyticsDashboard, options)}
       <section class="v2-grid v2-grid-6">
         ${metrics.map((metric) => renderMetricCard(metric, renderOptions)).join("")}
@@ -1482,26 +1553,26 @@
             <div class="v2-section-header">
               <div>
                 <h2 class="v2-section-title">${escapeHtml(context.t("analytics.conversationsOverTime"))}</h2>
-                <div class="v2-metric-value v2-chart-total">${escapeHtml(context.formatMetricValue(report.conversationCount))} <span class="v2-subtext">${escapeHtml(context.t("analytics.totalConversationLabel"))}</span></div>
+                <div class="v2-metric-value v2-chart-total">${escapeHtml(context.formatMetricValue(displayReport.conversationCount))} <span class="v2-subtext">${escapeHtml(context.t("analytics.totalConversationLabel"))}</span></div>
                 <div class="v2-metric-change"><span>${escapeHtml(context.t("analytics.liveCurrentWorkspace"))}</span></div>
               </div>
               <button class="v2-button" type="button">${escapeHtml(context.t("analytics.daily"))} ${context.renderIcon("chevronDown")}</button>
             </div>
-            ${renderLineChart(report.conversationSeries, renderOptions)}
+            ${renderLineChart(displayReport.conversationSeries, renderOptions)}
           </article>
           ${renderHeatmap(userMessages, renderOptions)}
         </div>
-        <div class="v2-analytics-column">
+        ${isWidgetView ? "" : `<div class="v2-analytics-column">
           ${renderAssistantSourceCard(sourceRows, sourceTotal, renderOptions)}
-          ${renderHandlingCard(report, renderOptions)}
-        </div>
+          ${renderHandlingCard(displayReport, renderOptions)}
+        </div>`}
         <div class="v2-analytics-column">
           ${renderTopQuestionsList(topQuestionItems, renderOptions)}
-          ${renderConversionCard(report, renderOptions)}
+          ${renderConversionCard(displayReport, renderOptions)}
         </div>
       </section>
-      ${renderPerformanceBySource(sourceRows, report, renderOptions)}
-      ${renderContactMixCard(report, renderOptions)}
+      ${isWidgetView ? "" : renderPerformanceBySource(sourceRows, displayReport, renderOptions)}
+      ${renderContactMixCard(displayReport, renderOptions)}
       ${activeProductScope ? "" : `
         <section class="v2-web-call-grid ${hasWebCallActivity ? "has-web-call-activity" : "is-web-call-empty"}" aria-label="Web Call analytics">
           ${renderWebCallHealthCard(webCallHealth, renderOptions)}

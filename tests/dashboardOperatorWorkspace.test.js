@@ -499,11 +499,11 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
   assert.match(markup, /Widget conversations/);
   assert.match(markup, /Widget leads/);
   assert.match(markup, /Needs reply/);
-  assert.match(markup, /AI handled/);
+  assert.match(markup, /Answered conversations/);
   assert.match(markup, /Recent activity/);
   assert.match(markup, /Can I book a consult\?/);
   assert.match(markup, /Website widget readiness/);
-  assert.match(markup, /Source activity/);
+  assert.match(markup, /Widget activity/);
   assert.match(markup, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
   assert.doesNotMatch(markup, /Jessica Smith|Dylan Lee|Katherine Hall|Michael Miller|Sarah Brown|James Taylor|Lauren Martinez|David Carter/);
 
@@ -516,7 +516,7 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
   );
   assert.match(emptyMarkup, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
   assert.match(emptyMarkup, /Widget leads/);
-  assert.match(emptyMarkup, /Source activity/);
+  assert.match(emptyMarkup, /Widget activity/);
 });
 
 test("Front Desk and Settings render async import progress and safe retry guidance", () => {
@@ -650,7 +650,7 @@ test("dashboard sections keep section-specific content boundaries", () => {
   assert.doesNotMatch(settings, /Team access|Invite member|Integrations|No active billing plan data|data-privacy-export|Save privacy preference|install-script-output/);
 });
 
-test("dashboard V2 Analytics source cards render real widget, page, and legacy counts only", () => {
+test("dashboard V2 Analytics keeps the Website Widget view product-only", () => {
   const harness = createDashboardHarness();
   const agent = {
     id: "agent-1",
@@ -706,11 +706,20 @@ test("dashboard V2 Analytics source cards render real widget, page, and legacy c
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(markup, /Entry point \/ source breakdown/);
-  assert.match(markup, /Website widget/);
-  assert.match(markup, /Front Desk page/);
-  assert.match(markup, /Legacy\/unknown/);
-  assert.match(markup, /Performance by source/);
+  assert.match(markup, /Website Widget snapshot/);
+  assert.match(markup, /2 Website Widget conversations recorded/);
+  assert.match(markup, /Website Widget analytics/);
+  assert.match(markup, /Widget conversations/);
+  assert.match(markup, /Widget leads/);
+  assert.match(markup, /From Website Widget conversations/);
+  assert.doesNotMatch(markup, /Entry point \/ source breakdown/);
+  assert.doesNotMatch(markup, /Performance by source/);
+  assert.doesNotMatch(markup, /Source: All/);
+  assert.doesNotMatch(markup, /Front Desk page/);
+  assert.doesNotMatch(markup, /Voice Agent/);
+  assert.doesNotMatch(markup, /Embedded assistant/);
+  assert.doesNotMatch(markup, /Legacy\/unknown/);
+  assert.doesNotMatch(markup, /AI handled|Human follow-ups|AI vs Human handling/i);
   assert.doesNotMatch(markup, /QR scans/);
   assert.doesNotMatch(markup, /QR code/);
   assert.doesNotMatch(markup, /QR scan analytics unavailable/);
@@ -722,7 +731,11 @@ test("dashboard V2 Analytics source cards render real widget, page, and legacy c
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyMarkup, /Front Desk page/);
+  assert.match(emptyMarkup, /Waiting for Website Widget traffic/);
+  assert.match(emptyMarkup, /No Website Widget analytics yet\./);
+  assert.doesNotMatch(emptyMarkup, /Front Desk page/);
+  assert.doesNotMatch(emptyMarkup, /Voice Agent/);
+  assert.doesNotMatch(emptyMarkup, /Entry point \/ source breakdown|Performance by source|Source: All/);
   assert.doesNotMatch(emptyMarkup, /QR scans/);
   assert.doesNotMatch(emptyMarkup, /QR code/);
   assert.doesNotMatch(emptyMarkup, /QR scan analytics unavailable/);
@@ -1435,11 +1448,13 @@ test("Hungarian Website Widget analytics route localizes top-level analytics cop
   assert.doesNotMatch(analytics, /Widget conversations/);
   assert.doesNotMatch(analytics, /Widget leads/);
   assert.doesNotMatch(analytics, /Derived from existing conversation source data/);
+  assert.doesNotMatch(analytics, /Forrás: minden|forrásbontás|AI kezelte|emberi kezelés|Emberi utánkövetések/i);
   assert.match(analytics, /Website Widget elemzések/);
+  assert.match(analytics, /Website Widget áttekintés/);
+  assert.match(analytics, /Website Widget beszélgetés rögzítve/);
   assert.match(analytics, /Widget beszélgetések/);
   assert.match(analytics, /Widget érdeklődők/);
-  assert.match(analytics, /Meglévő beszélgetésforrás-adatokból/);
-  assert.match(analytics, /beszélgetést az AI kezelt/);
+  assert.match(analytics, /Website Widget beszélgetésekből/);
   assert.match(analytics, new RegExp(`>${escapeRegExp(hungarianMonday)}<`));
   assert.doesNotMatch(analytics, />Mon</);
   assert.doesNotMatch(analytics, /\b(?:AM|PM|am|pm)\b/);
@@ -1462,10 +1477,13 @@ test("cached English Website Widget analytics and status copy remain English", (
   const analytics = harness.buildAnalyticsPanel(agent, messages, setup, actionQueue, workspace);
 
   assert.match(analytics, /Website Widget analytics/);
+  assert.match(analytics, /Website Widget snapshot/);
+  assert.match(analytics, /Website Widget conversations recorded/);
   assert.match(analytics, /Widget conversations/);
   assert.match(analytics, /Widget leads/);
-  assert.match(analytics, /Derived from existing conversation source data/);
-  assert.match(analytics, /conversations handled by AI/);
+  assert.match(analytics, /From Website Widget conversations/);
+  assert.doesNotMatch(analytics, /Derived from existing conversation source data/);
+  assert.doesNotMatch(analytics, /conversations handled by AI|AI handled|Human follow-ups|AI vs Human handling|Source: All|Entry point \/ source breakdown|Performance by source|Front Desk|Voice Agent/i);
   assert.equal(harness.t("websiteWidget.status.verifyProgress"), "Verifying installation...");
   assert.equal(harness.t("websiteWidget.status.settingsSaveSuccess"), "Website Widget settings saved.");
   assert.match(harness.formatAnalyticsShortDate("2026-06-10T09:00:00.000Z"), /Jun/);
@@ -1489,7 +1507,12 @@ test("Hungarian supported dashboard keys do not fall back to key names or Englis
     ["analytics.widgetAnalytics", "Website Widget elemzések"],
     ["analytics.widgetConversations", "Widget beszélgetések"],
     ["analytics.widgetLeads", "Widget érdeklődők"],
-    ["analytics.derivedFromConversationSource", "Meglévő beszélgetésforrás-adatokból"],
+    ["analytics.widgetEmptyTitle", "Még nincs Website Widget analitika."],
+    ["analytics.widgetEmptyCopy", "Telepítsd a beágyazást, ellenőrizd az engedélyezett domaineket, majd teszteld a widgetet egy weboldalon. A látogatói beszélgetések és érdeklődők használat után itt jelennek meg."],
+    ["analytics.widgetPageTitle", "Website Widget elemzések"],
+    ["analytics.widgetPageCopy", "Teljesítménymutatók a Website Widgethez."],
+    ["analytics.widgetSnapshot", "Website Widget áttekintés"],
+    ["analytics.derivedFromWidgetConversations", "Website Widget beszélgetésekből"],
     ["websiteWidget.status.verifyProgress", "Telepítés ellenőrzése..."],
     ["websiteWidget.sidebar.preferencesNote", "Irányítópult nyelve"],
     ["settings.preferencesCopy", "Válaszd ki az irányítópult nyelvét."],
@@ -1529,17 +1552,25 @@ test("Hungarian core dashboard screens surface missing translation keys through 
     "analytics.widgetAnalyticsCopy",
     "analytics.widgetConversations",
     "analytics.widgetLeads",
-    "analytics.derivedFromConversationSource",
+    "analytics.widgetEmptyTitle",
+    "analytics.widgetEmptyCopy",
+    "analytics.widgetPageTitle",
+    "analytics.widgetPageCopy",
+    "analytics.widgetSnapshot",
+    "analytics.derivedFromWidgetConversations",
     "analytics.notAvailableYet",
     "analytics.widgetOpensUnavailable",
     "analytics.setupWidget",
     "analytics.widgetSettings",
-    "analytics.aiHandledBriefTitle",
+    "analytics.widgetBriefTitle",
+    "analytics.widgetBriefCopy",
+    "analytics.widgetBriefWaitingTitle",
     "analytics.widgetWaitingForTrafficCopy",
-    "analytics.sourceBreakdownWidgetCopy",
-    "analytics.handlingCopy",
+    "analytics.widgetTopQuestionsEmpty",
+    "analytics.widgetChartEmpty",
+    "analytics.widgetQualitySignal",
+    "analytics.basedOnWidgetAnswerQuality",
     "analytics.topQuestionsCopy",
-    "analytics.performanceBySourceWidgetCopy",
     "websiteWidget.sidebar.preferencesNote",
     "websiteWidget.status.importStart",
     "websiteWidget.status.importRetry",
@@ -2142,7 +2173,7 @@ test("Home command center consolidates setup, priority workflows, and mobile-saf
 
   assert.match(overview, /data-mobile-safe="true"/);
   assert.match(overview, /Today&#39;s priority|Today's priority/);
-  assert.match(overview, /Taylor Reed needs a human reply/);
+  assert.match(overview, /Taylor Reed needs a reply/);
   assert.match(overview, /This customer is close to booking and should not wait on AI alone/);
   assert.doesNotMatch(overview, /data-target-id="human-follow-ups"/);
   assert.doesNotMatch(overview, /Knowledge Improvement/);
@@ -2568,7 +2599,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Widget conversations/);
   assert.match(overviewPanel, /Widget leads/);
   assert.match(overviewPanel, /Needs reply/);
-  assert.match(overviewPanel, /AI handled/);
+  assert.match(overviewPanel, /Answered conversations/);
   assert.doesNotMatch(overviewPanel, /Customers helped today/);
   assert.match(overviewPanel, /Today&#39;s priority|Today's priority/);
   assert.match(overviewPanel, /Taylor Reed/);
@@ -2581,7 +2612,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.doesNotMatch(overviewPanel, /Finish the live launch/);
   assert.match(overviewPanel, /Recent activity/);
   assert.match(overviewPanel, /Website widget readiness/);
-  assert.match(overviewPanel, /Source activity/);
+  assert.match(overviewPanel, /Widget activity/);
   assert.match(overviewPanel, /What to improve next/);
   assert.doesNotMatch(overviewPanel, /Today Copilot/);
   assert.doesNotMatch(overviewPanel, /today-side-column/);
@@ -3860,19 +3891,19 @@ test("analytics page renders the approved V2 analytics composition with real dat
     }
   );
 
-  assert.match(analyticsPanel, /Performance insights for your AI front desk/);
+  assert.match(analyticsPanel, /Performance insights for the Website Widget/);
   assert.match(analyticsPanel, /Conversations over time/);
   assert.doesNotMatch(analyticsPanel, /Is Vonza helping customer service\?/);
   assert.doesNotMatch(analyticsPanel, /Service report/);
-  assert.match(analyticsPanel, /Entry point \/ source breakdown/);
-  assert.match(analyticsPanel, /AI vs Human handling/);
-  assert.match(analyticsPanel, /Performance by source/);
+  assert.doesNotMatch(analyticsPanel, /Entry point \/ source breakdown/);
+  assert.doesNotMatch(analyticsPanel, /AI vs Human handling/);
+  assert.doesNotMatch(analyticsPanel, /Performance by source/);
   assert.match(analyticsPanel, /What to improve next/);
   assert.match(analyticsPanel, /Top questions and weak answers/);
   assert.match(analyticsPanel, /Conversion rate/);
   assert.match(analyticsPanel, /Looking for booking or availability/);
   assert.match(analyticsPanel, /Asking how to contact the business directly/);
-  assert.match(analyticsPanel, /AI vs Human handling/);
+  assert.doesNotMatch(analyticsPanel, /AI handled|Human follow-ups/);
   assert.doesNotMatch(analyticsPanel, /answered without needing a team reply/);
   assert.doesNotMatch(analyticsPanel, /Yeah I'd like to contact the boss/);
   assert.doesNotMatch(analyticsPanel, /data-refresh-operator data-force-sync="true">Refresh/);
@@ -3936,7 +3967,7 @@ test("analytics surfaces feedback recovery and owner-visible notifications", () 
   assert.match(analyticsPanel, /50% negative/);
 });
 
-test("analytics renders assistant source breakdown for widget, page, and legacy activity", () => {
+test("analytics ignores non-widget source rows on the Website Widget dashboard", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -3996,18 +4027,20 @@ test("analytics renders assistant source breakdown for widget, page, and legacy 
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(analyticsPanel, /Entry point \/ source breakdown/);
-  assert.match(analyticsPanel, /Performance by source/);
-  assert.match(analyticsPanel, /Website widget/);
-  assert.match(analyticsPanel, /Front Desk page/);
-  assert.match(analyticsPanel, /Embedded assistant/);
-  assert.match(analyticsPanel, /Legacy\/unknown/);
+  assert.match(analyticsPanel, /Website Widget snapshot/);
+  assert.match(analyticsPanel, /Widget conversations/);
+  assert.match(analyticsPanel, /From Website Widget conversations/);
   assert.match(analyticsPanel, /Conversion rate/);
-  assert.match(analyticsPanel, /AI handled/);
+  assert.doesNotMatch(analyticsPanel, /Entry point \/ source breakdown/);
+  assert.doesNotMatch(analyticsPanel, /Performance by source/);
+  assert.doesNotMatch(analyticsPanel, /Front Desk page/);
+  assert.doesNotMatch(analyticsPanel, /Embedded assistant/);
+  assert.doesNotMatch(analyticsPanel, /Legacy\/unknown/);
+  assert.doesNotMatch(analyticsPanel, /AI handled|Human follow-ups|AI vs Human handling/i);
   assert.doesNotMatch(analyticsPanel, /display_mode/);
 });
 
-test("analytics assistant source shows clean full-page empty state", () => {
+test("analytics widget view keeps empty companion source rows hidden", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -4050,8 +4083,12 @@ test("analytics assistant source shows clean full-page empty state", () => {
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(analyticsPanel, /Front Desk page/);
-  assert.match(analyticsPanel, /Not tracked/);
+  assert.match(analyticsPanel, /Website Widget snapshot/);
+  assert.match(analyticsPanel, /Widget conversations/);
+  assert.match(analyticsPanel, /From Website Widget conversations/);
+  assert.doesNotMatch(analyticsPanel, /Front Desk page/);
+  assert.doesNotMatch(analyticsPanel, /Not tracked/);
+  assert.doesNotMatch(analyticsPanel, /Entry point \/ source breakdown|Performance by source|Source: All/);
   assert.doesNotMatch(analyticsPanel, /Legacy\/unknown/);
 });
 

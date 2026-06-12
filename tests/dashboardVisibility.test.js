@@ -1988,7 +1988,8 @@ test("dashboard Home renders the real-data V2 snapshot without command-center pl
   assert.match(html, /Widget conversations/);
   assert.match(html, /Widget leads/);
   assert.match(html, /Needs reply/);
-  assert.match(html, /AI handled/);
+  assert.match(html, /Answered conversations/);
+  assert.doesNotMatch(html, /AI handled|Human follow-ups|AI vs Human handling/i);
   assert.match(html, /Today.?s priority/);
   assert.match(html, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
   assert.doesNotMatch(html, /data-target-id="knowledge-improvement"/);

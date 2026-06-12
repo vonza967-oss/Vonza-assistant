@@ -427,6 +427,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.satisfactionSignal": "Satisfaction signal",
   "analytics.basedOnAnswerQuality": "Estimated from weak answers and owner attention",
   "analytics.operatorBrief": "Operator brief",
+  "analytics.widgetSnapshot": "Website Widget snapshot",
   "analytics.waitingForTraffic": "Waiting for live Front Desk traffic",
   "analytics.waitingForTrafficCopy": "After customers use the Website Widget, hosted Front Desk page, QR/direct link, or embed, performance signals will appear here.",
   "analytics.operatorBriefCopy": "Customer-service performance from Front Desk conversations, owner follow-ups, leads, answer quality, and improvement signals.",
@@ -434,35 +435,43 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.webCallHealth": "Web Call health",
   "analytics.recentWebCalls": "Recent Web Calls",
   "analytics.aiHandledBriefTitle": "{handled} of {total} conversations handled by AI",
+  "analytics.widgetBriefTitle": "{total} Website Widget conversations recorded",
+  "analytics.widgetBriefCopy": "Track live widget conversations, captured leads, repeated questions, and answer-quality signals.",
+  "analytics.widgetBriefWaitingTitle": "Waiting for Website Widget traffic",
+  "analytics.widgetLeadStatus": "{count} leads captured",
   "analytics.widgetWaitingForTrafficCopy": "After customers use the Website Widget, conversations and captured leads will appear here.",
   "analytics.ownerFollowUp": "owner follow-up",
   "analytics.improvementFocus": "improvement focus",
   "analytics.repeatedQuestion": "repeated question: {question}",
-  "analytics.sourceBreakdownWidgetCopy": "Website Widget conversations and leads from the existing embedded widget records.",
+  "analytics.sourceBreakdownWidgetCopy": "Website Widget conversations and leads from recorded widget activity.",
   "analytics.sourceBreakdownDefaultCopy": "Hosted Front Desk page remains the primary surface; widget and embeds are secondary distribution.",
   "analytics.handlingCopy": "Shows work handled by Front Desk versus conversations still needing a person.",
   "analytics.topQuestionsCopy": "Use repeated questions to decide which answer guidance to improve next.",
   "analytics.customerQuestionFallback": "Customer question",
   "analytics.topQuestionsEmpty": "No repeated customer questions yet. As Front Desk handles more live questions, recurring themes will appear here.",
+  "analytics.widgetTopQuestionsEmpty": "No repeated widget questions yet. As more Website Widget conversations arrive, recurring themes will appear here.",
   "analytics.chartEmpty": "Live conversations will draw this trend after customers start using Front Desk.",
-  "analytics.performanceBySourceWidgetCopy": "Review Website Widget conversations and leads using existing widget source data.",
+  "analytics.widgetChartEmpty": "Live conversations will draw this trend after customers start using the Website Widget.",
+  "analytics.performanceBySourceWidgetCopy": "Review Website Widget conversations and leads from recorded widget activity.",
   "analytics.performanceBySourceDefaultCopy": "Compare Front Desk page, embed, and optional widget outcomes using real conversation data.",
-  "analytics.metricCompareWidgetSurface": "Embedded widget surface",
+  "analytics.metricCompareWidgetSurface": "Live website widget",
   "analytics.metricCompareVoiceSurface": "Browser voice surface",
   "analytics.liveWorkspaceData": "Live workspace data",
   "analytics.newSignal": "New",
   "analytics.productScope": "Product analytics",
   "analytics.productScopeCopy": "Product-specific view using the existing shared analytics data.",
+  "analytics.widgetPageTitle": "Website Widget analytics",
+  "analytics.widgetPageCopy": "Performance insights for the Website Widget.",
   "analytics.frontDeskAnalytics": "Front Desk analytics",
   "analytics.frontDeskAnalyticsCopy": "Full-page and hosted Front Desk outcomes from existing conversation source data.",
   "analytics.widgetAnalytics": "Website Widget analytics",
-  "analytics.widgetAnalyticsCopy": "Website Widget outcomes from existing conversation source data.",
+  "analytics.widgetAnalyticsCopy": "Website Widget outcomes from conversations, captured leads, and question patterns.",
   "analytics.voiceAnalytics": "Voice Agent analytics",
   "analytics.voiceAnalyticsCopy": "Browser Web Call outcomes from existing conversation and safe call-health data.",
   "analytics.frontDeskEmptyTitle": "No Front Desk analytics yet.",
   "analytics.frontDeskEmptyCopy": "Publish or open the full-page Front Desk, then ask one realistic test question. Page visitors, leads, and repeated questions will appear here after conversations are recorded.",
   "analytics.widgetEmptyTitle": "No Website Widget analytics yet.",
-  "analytics.widgetEmptyCopy": "Install the embed, confirm allowed domains, then test the widget on a site page. Website visitor conversations and embedded assistant leads will appear here after use.",
+  "analytics.widgetEmptyCopy": "Install the embed, confirm allowed domains, then test the widget on a site page. Website visitor conversations and leads will appear here after use.",
   "analytics.voiceEmptyTitle": "No Voice Agent analytics yet.",
   "analytics.voiceEmptyCopy": "Set up browser voice and Web Call, run a Web Call test, then review transcripts, handoff context, and analytics after conversations are recorded.",
   "analytics.frontDeskConversations": "Front Desk conversations",
@@ -476,7 +485,10 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.averageCallDuration": "Average call duration",
   "analytics.notAvailableYet": "Not available yet",
   "analytics.derivedFromConversationSource": "Derived from existing conversation source data",
+  "analytics.derivedFromWidgetConversations": "From Website Widget conversations",
   "analytics.derivedFromSafeWebCallTelemetry": "Derived from safe Web Call telemetry",
+  "analytics.widgetQualitySignal": "Answer quality signal",
+  "analytics.basedOnWidgetAnswerQuality": "Estimated from weak answers and visitor feedback",
   "analytics.setupFrontDesk": "Open full-page publish",
   "analytics.setupWidget": "Open embed install",
   "analytics.setupVoice": "Open voice setup",
@@ -1042,13 +1054,16 @@ function getShellSectionsForWorkspace(operatorWorkspace = createEmptyOperatorWor
 
 function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
   const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
+  const dedicatedWebsiteWidget = isDedicatedWebsiteWidgetDashboard();
 
   if (operatorWorkspace?.enabled === false) {
       return {
         key: "front_desk_only",
         eyebrow: "Workspace",
         title: "Your core workspace is ready.",
-        copy: "Home, Customers, Front Desk, Analytics, and Install are available here. Connected tools stay out of the launch workspace for now.",
+        copy: dedicatedWebsiteWidget
+          ? "Website Widget, Customers, Analytics, Install, and Settings are available here. Connected tools stay out of the launch workspace for now."
+          : "Home, Customers, Front Desk, Analytics, and Install are available here. Connected tools stay out of the launch workspace for now.",
       };
   }
 
@@ -1057,7 +1072,9 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_without_google_beta",
       eyebrow: "Workspace",
       title: "Your main workspace is live.",
-      copy: "Home, Customers, Front Desk, and Analytics are ready to use. Email, Calendar, and Automations stay out of the launch workspace for now.",
+      copy: dedicatedWebsiteWidget
+        ? "Website Widget, Customers, Analytics, Install, and Settings are ready to use. Email, Calendar, and Automations stay out of the launch workspace for now."
+        : "Home, Customers, Front Desk, and Analytics are ready to use. Email, Calendar, and Automations stay out of the launch workspace for now.",
     };
   }
 
@@ -1067,7 +1084,9 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
         key: "operator_calendar_connected",
         eyebrow: "Workspace",
         title: "Your core workspace is ready.",
-        copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are hidden from the launch navigation.",
+        copy: dedicatedWebsiteWidget
+          ? "Website Widget, Customers, Analytics, Install, and Settings stay at the center. Connected tools are hidden from the launch navigation."
+          : "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are hidden from the launch navigation.",
       };
     }
 
@@ -1075,7 +1094,9 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_google_connected",
       eyebrow: "Workspace",
       title: "Your core workspace is ready.",
-      copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are hidden from the launch navigation.",
+      copy: dedicatedWebsiteWidget
+        ? "Website Widget, Customers, Analytics, Install, and Settings stay at the center. Connected tools are hidden from the launch navigation."
+        : "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are hidden from the launch navigation.",
     };
   }
 
@@ -1083,7 +1104,9 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     key: "operator_beta_available",
     eyebrow: "Workspace",
     title: "Your main workspace is ready.",
-    copy: "Home, Customers, Front Desk, and Analytics are ready now. Connected tools stay out of the launch navigation until they are intentionally enabled.",
+    copy: dedicatedWebsiteWidget
+      ? "Website Widget, Customers, Analytics, Install, and Settings are ready now. Connected tools stay out of the launch navigation until they are intentionally enabled."
+      : "Home, Customers, Front Desk, and Analytics are ready now. Connected tools stay out of the launch navigation until they are intentionally enabled.",
   };
 }
 
@@ -2249,7 +2272,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Daily": "Napi",
   "Give open customer needs a clear next step": "Adj egyértelmű következő lépést a nyitott ügyféligényeknek",
   "Open needs create friction when a customer is waiting on an answer, booking path, contact route, or owner decision.": "A nyitott igények súrlódást okoznak, amikor az ügyfél válaszra, foglalási útra, kapcsolatfelvételre vagy tulajdonosi döntésre vár.",
-  "Review the affected customers and confirm the useful answer, handoff, or next-step guidance each one still needs.": "Nézd át az érintett ügyfeleket, és erősítsd meg a szükséges választ, átadást vagy következő lépést.",
+  "Review the affected customers and confirm the useful answer or next-step guidance each one still needs.": "Nézd át az érintett ügyfeleket, és erősítsd meg a szükséges választ vagy következő lépést.",
   "Review pricing questions": "Árazási kérdések áttekintése",
   "Clarify pricing answers and the quote next step": "Pontosítsd az árazási válaszokat és az ajánlatkérési következő lépést",
   "Customers asking about pricing need a more useful answer: what affects cost, what range to expect, or what to do next for a quote.": "Az árazásról kérdező ügyfelek hasznosabb választ igényelnek: mi befolyásolja a költséget, milyen ársáv várható, vagy mi a következő lépés ajánlatkéréshez.",
@@ -2542,7 +2565,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Launch routing": "Élesítési útvonalak",
   "Needs routes": "Útvonalak szükségesek",
   "Contact, booking, quote, or checkout destinations are available for customer next steps.": "Kapcsolatfelvételi, foglalási, ajánlatkérési vagy fizetési célok elérhetők az ügyfél következő lépéseihez.",
-  "Add contact, booking, quote, or checkout destinations before relying on handoffs.": "Adj meg kapcsolatfelvételi, foglalási, ajánlatkérési vagy fizetési célokat, mielőtt az átadásokra támaszkodsz.",
+  "Add contact, booking, quote, or checkout destinations before relying on automated next steps.": "Adj meg kapcsolatfelvételi, foglalási, ajánlatkérési vagy fizetési célokat, mielőtt az automatikus következő lépésekre támaszkodsz.",
   "Defines how the companion full-page assistant frames its help.": "Meghatározza, hogyan keretezi a segítséget a kiegészítő teljes oldalas asszisztens.",
   "Website Widget is the recommended launch surface. The hosted Front Desk page remains available for companion links, QR codes, and embeds.": "A Website Widget az ajánlott élesítési felület. A hosztolt Front Desk oldal továbbra is elérhető kiegészítő linkekhez, QR-kódokhoz és beágyazásokhoz.",
   "Hosted page live": "Hosztolt oldal él",
@@ -2597,7 +2620,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "The core setup is strong enough to hand off into Install, where the snippet, verification, and live-domain details already belong.": "Az alapbeállítás már elég erős ahhoz, hogy átadd a Telepítésnek, ahol a kódrészlet, az ellenőrzés és az élő domain részletei vannak a helyükön.",
   "Tighten the front-desk behavior and grounding first, then use Install for the final publishing path.": "Előbb pontosítsd a Front Desk működését és megalapozását, majd használd a Telepítést a végső közzétételi úthoz.",
   "Why Install still lives separately": "Miért marad külön a Telepítés",
-  "Front Desk owns the launch handoff, while the snippet, verification, and domain checks stay in the Install view where they are easier to manage.": "A Front Desk kezeli az élesítés átadását, míg a kódrészlet, az ellenőrzés és a domainellenőrzések a Telepítés nézetben maradnak, ahol könnyebb őket kezelni.",
+  "Front Desk owns the launch flow, while the snippet, verification, and domain checks stay in the Install view where they are easier to manage.": "A Front Desk kezeli az élesítési folyamatot, míg a kódrészlet, az ellenőrzés és a domainellenőrzések a Telepítés nézetben maradnak, ahol könnyebb őket kezelni.",
   "Use the stable head snippet with your install id so Vonza can verify the right site.": "Használd a stabil head-kódrészletet a telepítési azonosítóddal, hogy a Vonza a megfelelő oldalt tudja ellenőrizni.",
   "Paste it into the live site head, theme layout, or global custom code area.": "Illeszd be az éles oldal head részébe, a sablon elrendezésébe vagy a globális egyéni kód területre.",
   "Run the server check, then wait for the widget to ping back from a real page load.": "Futtasd a szerverellenőrzést, majd várd meg, hogy a widget visszajelezzen egy valódi oldalbetöltésből.",
@@ -2733,7 +2756,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Enable the public Front Desk page to generate a shareable link.": "Engedélyezd a publikus Front Desk oldalt a megosztható link létrehozásához.",
   "Available in Install": "Elérhető a Telepítésben",
   "Available after the public Front Desk page is enabled.": "A publikus Front Desk oldal engedélyezése után elérhető.",
-  "Direct handoff": "Közvetlen átadás",
+  "Direct next step": "Közvetlen következő lépés",
   "Website install": "Weboldali telepítés",
   "Enable the public Front Desk page to create the customer-facing link.": "Engedélyezd a publikus Front Desk oldalt az ügyféloldali link létrehozásához.",
   "Use Install to share the QR code anywhere customers already are.": "Használd a Telepítést, hogy a QR-kódot ott oszd meg, ahol az ügyfelek már jelen vannak.",
@@ -2760,7 +2783,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Paste website URL": "Weboldal URL beillesztése",
   "Start from the public website so content import has real business facts.": "A publikus weboldalból indulj ki, hogy a tartalomimport valós üzleti tényeket kapjon.",
   "Import and configure widget": "Widget importálása és beállítása",
-  "Import content, then choose the widget template, tone, welcome, and handoff basics.": "Importáld a tartalmat, majd válaszd ki a widget sablont, hangnemet, üdvözlést és átadási alapokat.",
+  "Import content, then choose the widget template, tone, welcome, and next-step basics.": "Importáld a tartalmat, majd válaszd ki a widget sablont, hangnemet, üdvözlést és következő lépés alapokat.",
   "Install snippet or WordPress": "Kódrészlet vagy WordPress telepítése",
   "Use WordPress or the one-line embed snippet on the live website.": "Használj WordPresst vagy egysoros beágyazási kódrészletet az élő weboldalon.",
   "Verify live site": "Élő oldal ellenőrzése",
@@ -3105,7 +3128,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Fallback CTA mode": "Tartalék CTA mód",
   "If a direct route is missing, Vonza follows this fallback.": "Ha hiányzik a közvetlen útvonal, a Vonza ezt a tartalékot követi.",
   "One domain per line. Keep it limited to real widget hosts.": "Soronként egy domain. Csak valódi widget hosztokra korlátozd.",
-  "Optional. This appears in the handoff card.": "Opcionális. Ez jelenik meg az átadási kártyán.",
+  "Optional. This appears in the next-step card.": "Opcionális. Ez jelenik meg a következő lépés kártyán.",
   "Outcome routing": "Eredményútvonalak",
   "Map the destinations Vonza can use for booking, quote, checkout, and success-state routing.": "Állítsd be azokat a célokat, amelyeket a Vonza foglaláshoz, ajánlatkéréshez, fizetéshez és sikerállapot-útvonalakhoz használhat.",
   "Booking provider": "Foglalási szolgáltató",
@@ -3114,7 +3137,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Manual link configured": "Manuális link beállítva",
   "Calendly link connected": "Calendly link csatlakoztatva",
   "Needs booking link": "Foglalási link szükséges",
-  "Add a booking URL before Vonza offers a booking handoff.": "Adj meg foglalási URL-t, mielőtt a Vonza foglalási átadást kínál.",
+  "Add a booking URL before Vonza offers a booking next step.": "Adj meg foglalási URL-t, mielőtt a Vonza foglalási következő lépést kínál.",
   "Vonza will send booking-intent visitors to this Calendly link.": "A Vonza erre a Calendly linkre küldi a foglalási szándékú látogatókat.",
   "Vonza will send booking-intent visitors to this booking link.": "A Vonza erre a foglalási linkre küldi a foglalási szándékú látogatókat.",
   "Manual": "Manuális",
@@ -7770,8 +7793,10 @@ function getProductLandingContext(product = activeDashboardProduct) {
 
   return {
     eyebrow: label,
-    title: localizedWidgetContext?.contextTitle || "Launch the full-page AI Front Desk",
-    copy: localizedWidgetContext?.contextCopy || "Website Widget is the recommended customer-facing launch surface. Use Front Desk practice and the full-page setup for companion pages, QR, and later expansion.",
+    title: localizedWidgetContext?.contextTitle || (dedicatedWebsiteWidget ? "Launch the Website Widget" : "Launch the full-page AI Front Desk"),
+    copy: localizedWidgetContext?.contextCopy || (dedicatedWebsiteWidget
+      ? "Use website import, widget settings, install, customers, and analytics to run the on-site Website Widget."
+      : "Website Widget is the recommended customer-facing launch surface. Use Front Desk practice and the full-page setup for companion pages, QR, and later expansion."),
     setupLink: dedicatedWebsiteWidget
       ? { label: websiteWidgetText("quickAction.install"), note: websiteWidgetText("link.installNote"), href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }
       : { label: setupContext?.eyebrow || "Open setup", note: "Open the product-specific setup checklist", href: "#setup", shellTarget: "setup", icon: "review", primary: true },
@@ -8457,7 +8482,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     const contactId = trimText(item.contactId || item.contact_id || item.customerId || item.personKey);
     addPriority({
       tone: item.priority === "high" ? "danger" : "brand",
-      title: `${item.customerLabel || "Customer"} needs a human reply`,
+      title: `${item.customerLabel || "Customer"} needs a reply`,
       why: item.whyItMatters?.[0]?.copy || item.safeSummary || "Vonza found a customer moment that should not be left only to AI.",
       change: item.recommendedNextAction || "Review the customer context, reply outside Vonza, and mark the follow-up replied.",
       action: { type: "section", value: "contacts", label: "Review conversation", filter: "needs_review", targetId: contactId },
@@ -8479,7 +8504,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       tone: "brand",
       title: "Give open customer needs a clear next step",
       why: "Open needs create friction when a customer is waiting on an answer, booking path, contact route, or owner decision.",
-      change: "Review the affected customers and confirm the useful answer, handoff, or next-step guidance each one still needs.",
+      change: "Review the affected customers and confirm the useful answer or next-step guidance each one still needs.",
       action: { type: "section", value: "contacts", label: "Review open needs", filter: "needs_review" },
     });
   }
@@ -8632,7 +8657,9 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       return {
         title: "Make the next step easier to say yes to",
         copy: "More customers are showing intent than sharing contact details, so the next-step path may still be too soft.",
-        action: { type: "section", value: "customize", label: "Open Front Desk" },
+        action: isWebsiteWidgetProduct
+          ? { type: "section", value: "settings", label: "Open widget settings" }
+          : { type: "section", value: "customize", label: "Open Front Desk" },
       };
     }
 
@@ -8887,30 +8914,54 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       }
       : action);
   if (!quickActions.length) {
-    quickActions.push(
-      {
-        label: "Review replies",
-        icon: "chat",
-        target: "contacts",
-        filter: "needs_review",
-      },
-      {
-        label: "Open Front Desk",
-        icon: "frontdesk",
-        target: "customize",
-      },
-      {
-        label: "Test conversation",
-        icon: "sparkle",
-        href: previewUrl,
-        disabled: !previewUrl,
-      },
-      {
-        label: "View analytics",
-        icon: "outcomes",
-        target: "analytics",
-      },
-    );
+    quickActions.push(...(isWebsiteWidgetProduct
+      ? [
+        {
+          label: "Review replies",
+          icon: "chat",
+          target: "contacts",
+          filter: "needs_review",
+        },
+        {
+          label: "Open install",
+          icon: "install",
+          target: "install",
+        },
+        {
+          label: "Test widget",
+          icon: "sparkle",
+          target: "install",
+        },
+        {
+          label: "Widget analytics",
+          icon: "outcomes",
+          target: "analytics",
+        },
+      ]
+      : [
+        {
+          label: "Review replies",
+          icon: "chat",
+          target: "contacts",
+          filter: "needs_review",
+        },
+        {
+          label: "Open Front Desk",
+          icon: "frontdesk",
+          target: "customize",
+        },
+        {
+          label: "Test conversation",
+          icon: "sparkle",
+          href: previewUrl,
+          disabled: !previewUrl,
+        },
+        {
+          label: "View analytics",
+          icon: "outcomes",
+          target: "analytics",
+        },
+      ]));
   }
   const primarySetupAction = isWebsiteWidgetProduct
     ? (setupNeedsAttention
@@ -8958,9 +9009,9 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     "Focused work that needs owner attention",
     "What to improve next",
     isWebsiteWidgetProduct ? "Website widget readiness" : "Front Desk readiness",
-    "Source activity",
+    isWebsiteWidgetProduct ? "Widget activity" : "Source activity",
     "Needs reply",
-    "AI handled",
+    isWebsiteWidgetProduct ? "Answered conversations" : "AI handled",
     "Warm lead / booking intent",
     "Unhappy or frustrated customer",
     "Unanswered or repeated question",
@@ -9053,7 +9104,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               <div class="glass-hero-metrics">
                 ${buildMetricTile({ label: productHomeContext.metricLabels?.conversations || t("home.conversationsToday"), value: conversationsToday, note: "Today", icon: "chat", tone: "blue" })}
                 ${buildMetricTile({ label: productHomeContext.metricLabels?.leads || "Leads captured", value: leadsCapturedCount, note: "Workspace", icon: "users", tone: "teal" })}
-                ${buildMetricTile({ label: productHomeContext.metricLabels?.handled || "AI handled", value: aiHandledCount, note: "Recorded outcomes", icon: "sparkle", tone: "teal" })}
+                ${buildMetricTile({ label: productHomeContext.metricLabels?.handled || (isWebsiteWidgetProduct ? "Answered conversations" : "AI handled"), value: aiHandledCount, note: "Recorded outcomes", icon: "sparkle", tone: "teal" })}
               </div>
             </div>
           </section>
@@ -9319,6 +9370,7 @@ function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace = createEmp
   const installStatus = getDefaultInstallStatus(agent);
   const workspaceMode = getWorkspaceMode(operatorWorkspace);
   const accessStatus = normalizeAccessStatus(agent.accessStatus);
+  const dedicatedWebsiteWidget = isDedicatedWebsiteWidgetDashboard();
 
   return `
     <div class="settings-panel-stack">
@@ -9343,8 +9395,12 @@ function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace = createEmp
             <p class="overview-label">Install visibility</p>
             <h3 class="settings-summary-title">${escapeHtml(installStatus.label || "Not installed yet")}</h3>
             <p class="settings-summary-copy">${escapeHtml(setup.isReady
-              ? "The front desk is configured well enough to move into live install and verification."
-              : "Finish the front-desk basics before treating install as complete.")}</p>
+              ? (dedicatedWebsiteWidget
+                ? "The Website Widget is configured well enough to move into live install and verification."
+                : "The front desk is configured well enough to move into live install and verification.")
+              : (dedicatedWebsiteWidget
+                ? "Finish the Website Widget basics before treating install as complete."
+                : "Finish the front-desk basics before treating install as complete."))}</p>
           </article>
         </div>
       </section>
@@ -10589,7 +10645,7 @@ function createEmptyActionQueue() {
       },
       items: [],
       topItems: [],
-      emptyState: "No customers need a human reply right now.",
+      emptyState: "No customers need a reply right now.",
     },
     ownerNotifications: {
       records: [],
@@ -10688,7 +10744,9 @@ function createEmptyOperatorWorkspace() {
     },
     briefing: {
       title: "Home briefing",
-      text: "Calendar context is beta. Home, Customers, Front Desk, and Analytics are ready without it.",
+      text: isDedicatedWebsiteWidgetDashboard()
+        ? "Calendar context is beta. Website Widget, Customers, Analytics, Install, and Settings are ready without it."
+        : "Calendar context is beta. Home, Customers, Front Desk, and Analytics are ready without it.",
     },
     nextAction: {
       key: "connect_google",
@@ -11841,7 +11899,7 @@ function buildDashboardV2AnalyticsMarkup(report = {}, ownerAnalyticsDashboard = 
       renderIconBadge: buildV2IconBadge,
       renderButton: buildV2Button,
       activeProduct: activeDashboardProduct,
-      hideProductTabs: isDedicatedWebsiteWidgetDashboard(),
+      hideProductTabs: activeDashboardProduct?.key === "website_widget",
       language: getDashboardLanguage(),
       locale: getDashboardLocale(),
     });
@@ -12143,24 +12201,24 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
 
   if (!setup.isReady) {
     title = "Home is open. The next step is finishing Website Widget setup.";
-    copy = "Use website import, Front Desk practice, and Settings to shape grounded answers, then install the Website Widget as the first launch surface.";
+    copy = "Use website import, widget testing, and Settings to shape grounded answers, then install the Website Widget.";
     primaryAction = {
       label: "Continue setup",
       type: "section",
-      value: "customize",
+      value: "settings",
     };
     if (trimText(agent.publicAgentKey)) {
       nextActions.push({
-        label: "Try your front desk",
+        label: "Test widget",
         type: "preview",
       });
     }
   } else if (isInstallSeen(installStatus)) {
     if (queueSummary.attentionNeeded > 0) {
-      title = `Your front desk is live and ${queueSummary.attentionNeeded} action item${queueSummary.attentionNeeded === 1 ? "" : "s"} need attention`;
-      copy = `Vonza is live on ${installStatus.host || "your site"} and is surfacing visitor conversations, follow-up work, and owner tasks that deserve attention.`;
+      title = `Your Website Widget is live and ${queueSummary.attentionNeeded} action item${queueSummary.attentionNeeded === 1 ? "" : "s"} need attention`;
+      copy = `Vonza is live on ${installStatus.host || "your site"} and is surfacing visitor conversations and owner tasks that deserve attention.`;
       primaryAction = {
-        label: "Review follow-up queue",
+        label: "Review open items",
         type: "focus",
         value: "action-queue",
       };
@@ -12170,20 +12228,20 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
         value: "analytics",
       });
     } else if (analyticsSummary.weakAnswerCount > 0) {
-      title = "Your front desk is live, and a few answers need strengthening";
-      copy = `Vonza is active on ${installStatus.host || "your site"}, and some real customer questions are showing where the front desk still needs help.`;
+      title = "Your Website Widget is live, and a few answers need strengthening";
+      copy = `Vonza is active on ${installStatus.host || "your site"}, and some real customer questions are showing where the widget answers need help.`;
       primaryAction = {
         label: "Review weak answers",
         type: "section",
         value: "analytics",
       };
       nextActions.push({
-        label: "Open Front Desk",
+        label: "Widget settings",
         type: "section",
-        value: "customize",
+        value: "settings",
       });
     } else if (highIntentSignals > 0) {
-      title = "Your front desk is live and showing real buyer intent";
+      title = "Your Website Widget is live and showing real buyer intent";
       copy = `Vonza is live on ${installStatus.host || "your site"} and is already capturing high-value visitor intent you can act on.`;
       primaryAction = {
         label: "Review analytics",
@@ -12191,55 +12249,56 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
         value: "analytics",
       };
       nextActions.push({
-        label: "Open Front Desk",
+        label: "Widget settings",
         type: "section",
-        value: "customize",
+        value: "settings",
       });
     } else if (messageCount > 0) {
-      title = "Your front desk is live and already working";
-      copy = `Vonza is live on ${installStatus.host || "your site"} and has already started handling real customer questions and next-step routing.`;
+      title = "Your Website Widget is live and already working";
+      copy = `Vonza is live on ${installStatus.host || "your site"} and has already started answering real customer questions.`;
       primaryAction = {
         label: "Review analytics",
         type: "section",
         value: "analytics",
       };
       nextActions.push({
-        label: "Open Front Desk",
+        label: "Widget settings",
         type: "section",
-        value: "customize",
+        value: "settings",
       });
     } else {
-      title = "Your front desk is live";
+      title = "Your Website Widget is live";
       copy = `Vonza has been detected on ${installStatus.host || "your site"} and is ready for customer questions, even if activity is still early.`;
       primaryAction = {
-        label: "Try your front desk",
+        label: "Test widget",
         type: "preview",
       };
       nextActions.push({
-        label: "Open Front Desk",
+        label: "Widget settings",
         type: "section",
-        value: "customize",
+        value: "settings",
       });
       nextActions.push({
-        label: "Try your front desk",
+        label: "Test widget",
         type: "preview",
       });
     }
   } else if (fullPageEnabled) {
-    title = "Your companion Front Desk page is live";
-    copy = "The public assistant page is enabled for links, QR, and dedicated pages. Keep the Website Widget install path first for normal website traffic.";
+    title = "Your Website Widget is ready for install";
+    copy = "The widget setup is in place. Install the snippet or WordPress plugin, verify the live site, then test a real customer question.";
     primaryAction = {
-      label: "Open Front Desk page",
-      type: "preview",
+      label: "Open install",
+      type: "focus",
+      value: "install",
     };
     nextActions.push({
-      label: "Open Front Desk",
+      label: "Widget settings",
       type: "section",
-      value: "customize",
+      value: "settings",
     });
   } else if (installStatus.state === "installed_unseen") {
     title = "Your Website Widget is published and waiting for first live traffic";
-    copy = "Vonza found the Website Widget snippet. Verify the live site and test the widget; the public Front Desk page can stay as a companion for links or QR.";
+    copy = "Vonza found the Website Widget snippet. Verify the live site and test the widget before sending traffic to it.";
     primaryAction = {
       label: "Review settings",
       type: "section",
@@ -12263,7 +12322,7 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       type: "install",
     });
   } else if (installStatus.state === "verify_failed") {
-    title = "Your front desk is ready for verification";
+    title = "Your Website Widget is ready for verification";
     copy = "The setup is in place, but the live install has not verified yet. Publish the snippet, then run the check again.";
     primaryAction = {
       label: "Add to website",
@@ -12276,16 +12335,16 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
     });
   } else {
     title = "Your Website Widget is ready for install";
-    copy = "The setup is in place. Install the Website Widget with the snippet or WordPress flow, verify the live site, then test a real customer question. Add the Front Desk page, QR, direct link, or embeds as companion channels.";
+    copy = "The setup is in place. Install the Website Widget with the snippet or WordPress flow, verify the live site, then test a real customer question.";
     primaryAction = {
       label: "Open install",
       type: "focus",
       value: "install",
     };
     nextActions.push({
-      label: "Open Front Desk",
+      label: "Widget settings",
       type: "section",
-      value: "customize",
+      value: "settings",
     });
   }
 
@@ -12301,24 +12360,24 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
 
   const progressItems = [
     {
-      title: "Front Desk created",
+      title: "Widget workspace ready",
       copy: hasFrontDeskPage
-        ? "The AI Front Desk workspace exists."
-        : "Create the Front Desk workspace first.",
+        ? "The Website Widget workspace exists."
+        : "Create the Website Widget workspace first.",
       done: hasFrontDeskPage,
     },
     {
-      title: "Public Front Desk page",
-      copy: fullPageEnabled
-        ? "Your companion Front Desk page is live."
-        : "Enable the public assistant page only when you need QR codes, links, or a dedicated assistant page.",
-      done: fullPageEnabled,
+      title: "Widget install path",
+      copy: hasDistributionChannel
+        ? "The Website Widget install path is available."
+        : "Start with the Website Widget snippet or WordPress install flow.",
+      done: hasDistributionChannel,
     },
     {
-      title: "Front Desk customized",
+      title: "Widget configured",
       copy: setup.isReady
-        ? "The front desk has the core details it needs."
-        : "The front desk still needs a few setup details before launch.",
+        ? "The widget has the core details it needs."
+        : "The widget still needs a few setup details before launch.",
       done: setup.isReady,
     },
     {
@@ -12332,14 +12391,14 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       title: "First test conversation",
       copy: hasConversation
         ? "A test or customer conversation exists."
-        : "Run one realistic Website Widget or Front Desk conversation.",
+        : "Run one realistic Website Widget conversation.",
       done: hasConversation,
     },
     {
-      title: "Distribution channel selected",
+      title: "Live site path selected",
       copy: hasDistributionChannel
-        ? "At least one Website Widget or companion Front Desk path is available."
-        : "Start with the Website Widget, then add Front Desk page, QR, direct link, or embed channels as needed.",
+        ? "A Website Widget install path is available."
+        : "Start with the Website Widget snippet or WordPress install flow.",
       done: hasDistributionChannel,
     },
   ];
@@ -12367,7 +12426,7 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       title: "Customers are already using it",
       copy: topIntent?.[1]
         ? `Recent activity suggests customers are asking most often about ${topIntentLabelMap[topIntent[0]]}.`
-        : "Recent activity shows customers are starting to use the front desk on your site.",
+        : "Recent activity shows customers are starting to use the widget on your site.",
     });
 
     if (recentQuestions.length) {
@@ -12382,7 +12441,7 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
     cards.push({
       title: "Next best move",
       copy: isInstallSeen(installStatus)
-        ? "Keep testing the front desk on your site and review the wording, welcome message, routing, and response style until it feels like a natural part of the business."
+        ? "Keep testing the widget on your site and review the wording, welcome message, and response style until it feels like a natural part of the business."
         : "Once the Website Widget is installed on a live site, Vonza will start showing real usage and recent customer questions here.",
     });
   }
@@ -12576,11 +12635,11 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
 	  return localizeDashboardHtml(`
 	    <section class="workspace-page" data-shell-section="analytics" hidden>
 	      ${buildPageHeader({
-	        title: t("analytics.title"),
-	        copy: t("analytics.copy"),
+	        title: activeDashboardProduct?.key === "website_widget" ? t("analytics.widgetPageTitle") : t("analytics.title"),
+	        copy: activeDashboardProduct?.key === "website_widget" ? t("analytics.widgetPageCopy") : t("analytics.copy"),
 	        actionsMarkup: `
 	          <span class="v2-select">${escapeHtml(t("analytics.dateRangeLast30"))}</span>
-	          <span class="v2-select">${escapeHtml(t("analytics.sourceAll"))}</span>
+	          ${activeDashboardProduct?.key === "website_widget" ? "" : `<span class="v2-select">${escapeHtml(t("analytics.sourceAll"))}</span>`}
 	          ${buildV2Button(t("analytics.export"), "download")}
 	        `,
 	      })}
@@ -13050,15 +13109,23 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
 
 function buildWorkspaceContextBar(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const workspaceMode = getWorkspaceMode(operatorWorkspace);
+  const dedicatedWebsiteWidget = isDedicatedWebsiteWidgetDashboard();
   const previewUrl = buildFrontDeskPreviewUrl(agent);
-  const secondaryActions = [
-    previewUrl
-      ? `<a class="test-link" data-action="open-preview" href="${escapeHtml(previewUrl)}" target="_blank" rel="noreferrer">Open Front Desk page</a>`
-      : "",
-    setup.isReady
-      ? `<button class="ghost-button" type="button" data-shell-target="install">Open install</button>`
-      : `<button class="ghost-button" type="button" data-shell-target="customize" data-frontdesk-open="customization">Finish setup</button>`,
-  ].filter(Boolean).join("");
+  const secondaryActions = (dedicatedWebsiteWidget
+    ? [
+      `<button class="test-link" type="button" data-shell-target="install" data-install-method-jump="widget">Open install</button>`,
+      setup.isReady
+        ? ""
+        : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="website_widget">Finish setup</button>`,
+    ]
+    : [
+      previewUrl
+        ? `<a class="test-link" data-action="open-preview" href="${escapeHtml(previewUrl)}" target="_blank" rel="noreferrer">Open Front Desk page</a>`
+        : "",
+      setup.isReady
+        ? `<button class="ghost-button" type="button" data-shell-target="install">Open install</button>`
+        : `<button class="ghost-button" type="button" data-shell-target="customize" data-frontdesk-open="customization">Finish setup</button>`,
+    ]).filter(Boolean).join("");
 
   return localizeDashboardHtml(`
     <div class="workspace-context-bar">
@@ -14054,8 +14121,10 @@ async function loadOperatorWorkspace(agentId, options = {}) {
       },
       briefing: {
         ...workspace.briefing,
-        title: workspace.briefing?.title || "Front-desk launch core",
-        text: workspace.briefing?.text || "Home, Customers, Front Desk, Analytics, Install, and Settings stay available.",
+        title: workspace.briefing?.title || (isDedicatedWebsiteWidgetDashboard() ? "Website Widget launch core" : "Front-desk launch core"),
+        text: workspace.briefing?.text || (isDedicatedWebsiteWidgetDashboard()
+          ? "Website Widget, Customers, Analytics, Install, and Settings stay available."
+          : "Home, Customers, Front Desk, Analytics, Install, and Settings stay available."),
       },
     });
   }
@@ -14071,8 +14140,9 @@ async function loadOperatorWorkspaceSafe(agentId, options = {}) {
       ...createEmptyOperatorWorkspace(),
       health: {
         ...createEmptyOperatorWorkspace().health,
-        globalError:
-          "Email, Calendar, and Automations are temporarily unavailable. Home, Customers, Front Desk, and Analytics are still available.",
+        globalError: isDedicatedWebsiteWidgetDashboard()
+          ? "Email, Calendar, and Automations are temporarily unavailable. Website Widget, Customers, Analytics, Install, and Settings are still available."
+          : "Email, Calendar, and Automations are temporarily unavailable. Home, Customers, Front Desk, and Analytics are still available.",
       },
     });
   }

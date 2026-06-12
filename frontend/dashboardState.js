@@ -257,11 +257,11 @@
       statusReadyCopy: "Review embed setup and appearance, then test the widget on the install surface.",
       statusSetupCopy: "Finish install/embed setup, allowed domains, and widget appearance before relying on site traffic.",
       contextTitle: "Launch the Website Widget in 5 minutes",
-      contextCopy: "Paste the website URL, import content, choose template and tone, preview the widget, then install through WordPress or one embed snippet. Contacts, conversations, analytics, and billing stay shared.",
+      contextCopy: "Paste the website URL, import content, choose template and tone, preview the widget, then install through WordPress or one embed snippet.",
       metricLabels: Object.freeze({
         conversations: "Widget conversations",
         leads: "Widget leads",
-        handled: "AI handled",
+        handled: "Answered conversations",
         empty: "Widget conversations, leads, and analytics will appear after site visitors use the embed.",
       }),
       previewActionLabel: "Test widget",
@@ -278,8 +278,8 @@
         Object.freeze({ label: "Widget appearance", note: "Open Website Widget settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
         Object.freeze({ label: "Launcher behavior", note: "Review the existing optional widget launcher settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "frontdesk" }),
         Object.freeze({ label: "Test widget", note: "Use the existing embed test and verification surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "sparkle" }),
-        Object.freeze({ label: "Widget conversations/leads", note: "Review shared customer records", href: "#customers", shellTarget: "contacts", icon: "users" }),
-        Object.freeze({ label: "Widget analytics", note: "Review shared traffic and outcomes", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+        Object.freeze({ label: "Widget conversations/leads", note: "Review widget customer records", href: "#customers", shellTarget: "contacts", icon: "users" }),
+        Object.freeze({ label: "Widget analytics", note: "Review widget conversations and outcomes", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
       ]),
     }),
     voice_agent: Object.freeze({
@@ -353,7 +353,7 @@
         Object.freeze({ label: "WordPress or embed snippet", note: "Open the current Website Widget snippet and WordPress install path", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
         Object.freeze({ label: "Install verification", note: "Check whether widget markup has been detected", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
         Object.freeze({ label: "Test widget", note: "Use the existing widget install/test surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "sparkle" }),
-        Object.freeze({ label: "Widget analytics/conversations", note: "Review shared analytics and customer records", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+        Object.freeze({ label: "Widget analytics/conversations", note: "Review widget analytics and customer records", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
       ]),
       launchPath: Object.freeze([
         Object.freeze({ label: "Import", note: "Paste the website URL and import public content.", href: "#setup", shellTarget: "setup", icon: "sparkle" }),
@@ -964,10 +964,10 @@
         }),
         createReadinessItem({
           key: "widget_routing",
-          label: "Routing/contact behavior configured",
+          label: "Contact/next-step behavior configured",
           copy: hasRouting
-            ? `${routingDestinationCount} routing destination${routingDestinationCount === 1 ? "" : "s"} available.`
-            : "Add contact, booking, quote, or checkout destinations for widget handoffs.",
+            ? `${routingDestinationCount} next-step destination${routingDestinationCount === 1 ? "" : "s"} available.`
+            : "Add contact, booking, quote, or checkout destinations for widget next steps.",
           complete: hasRouting,
           kind: "derived",
           href: "#settings/widget/routing",
@@ -979,7 +979,7 @@
           key: "widget_test",
           label: "Test widget action",
           copy: widgetActivity
-            ? "Widget-sourced conversation or telemetry activity exists in the current snapshot."
+            ? "Website Widget conversation or telemetry activity exists in the current snapshot."
             : "Use the existing install panel to copy, verify, and test the Website Widget.",
           complete: widgetActivity ? true : null,
           kind: widgetActivity ? "derived" : "action",
@@ -991,7 +991,7 @@
         createReadinessItem({
           key: "widget_analytics",
           label: "Widget analytics/conversations",
-          copy: "Open shared Analytics and Customers to review widget conversations, leads, and outcomes.",
+          copy: "Open Analytics and Customers to review widget conversations, leads, and outcomes.",
           complete: null,
           kind: "action",
           href: "#analytics",
