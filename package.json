@@ -7,8 +7,10 @@
   "scripts": {
     "setup": "npm install",
     "start": "node index.js",
+    "start:waitlist": "node waitlist-server.js",
     "start:prod": "npm run verify:deploy-readiness && node index.js",
     "dev": "node --watch index.js",
+    "dev:waitlist": "node --watch waitlist-server.js",
     "lint": "eslint .",
     "test:smoke": "node --test tests/*.test.js",
     "test:browser": "node --test tests/browser/*.test.js",

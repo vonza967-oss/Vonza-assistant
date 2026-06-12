@@ -451,6 +451,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-scoped Enterprise Request Desk setup-readiness persistence for the standalone product shell; no QDH merge, provider calls, final pricing guarantees, widget, embed, or operations cockpit behavior.",
   }),
+  Object.freeze({
+    id: "widget_early_access_waitlist",
+    version: "20260612110000",
+    name: "widget_early_access_waitlist",
+    file: "supabase/migrations/20260612110000_widget_early_access_waitlist.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds standalone Hungarian Website Widget early-access application persistence with service-role writes only; no public Supabase read/write policy, dashboard coupling, widget, embed, chat, or billing behavior.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

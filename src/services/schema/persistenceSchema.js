@@ -233,6 +233,27 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
     ],
     migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.owner_product_entitlements],
   },
+  widget_early_access_applications: {
+    requiredColumns: [
+      "id",
+      "name",
+      "company",
+      "focus_area",
+      "website_url",
+      "contact_email",
+      "contact_phone",
+      "contact_raw",
+      "application_fingerprint",
+      "status",
+      "locale",
+      "source",
+      "source_host",
+      "metadata",
+      "created_at",
+      "updated_at",
+    ],
+    migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.widget_early_access_waitlist],
+  },
   agent_action_queue_statuses: {
     requiredColumns: [
       "id",

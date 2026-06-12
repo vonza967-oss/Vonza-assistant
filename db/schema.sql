@@ -2144,6 +2144,38 @@ create index if not exists owner_product_entitlements_subscription_idx
   on public.owner_product_entitlements (stripe_subscription_id)
   where stripe_subscription_id is not null;
 
+create table if not exists public.widget_early_access_applications (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  company text not null,
+  focus_area text not null,
+  website_url text not null,
+  contact_email text,
+  contact_phone text,
+  contact_raw text not null,
+  application_fingerprint text not null,
+  status text not null default 'new',
+  locale text not null default 'hu-HU',
+  source text not null default 'widget_early_access_waitlist',
+  source_host text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
+  constraint widget_early_access_contact_check
+    check (contact_email is not null or contact_phone is not null),
+  constraint widget_early_access_status_check
+    check (status in ('new', 'reviewed', 'invited', 'declined', 'archived'))
+);
+
+create unique index if not exists widget_early_access_applications_fingerprint_idx
+  on public.widget_early_access_applications (application_fingerprint);
+
+create index if not exists widget_early_access_applications_status_created_idx
+  on public.widget_early_access_applications (status, created_at desc);
+
+create index if not exists widget_early_access_applications_created_idx
+  on public.widget_early_access_applications (created_at desc);
+
 create table if not exists public.owner_ai_usage_ledger (
   id uuid primary key default gen_random_uuid(),
   owner_user_id uuid not null,
@@ -2225,6 +2257,7 @@ alter table public.agent_copilot_proposal_states enable row level security;
 alter table public.operator_audit_logs enable row level security;
 alter table public.owner_billing_accounts enable row level security;
 alter table public.owner_product_entitlements enable row level security;
+alter table public.widget_early_access_applications enable row level security;
 alter table public.owner_ai_usage_ledger enable row level security;
 
 drop policy if exists "Owners can read their dashboard preferences." on public.user_dashboard_preferences;
@@ -2667,6 +2700,14 @@ create policy "Owners can read product entitlements."
   for select
   to authenticated
   using ((select auth.uid()) is not null and owner_user_id = (select auth.uid()));
+
+drop policy if exists "Service role manages widget early access applications." on public.widget_early_access_applications;
+create policy "Service role manages widget early access applications."
+  on public.widget_early_access_applications
+  for all
+  to service_role
+  using (true)
+  with check (true);
 
 drop policy if exists "Owners can read their AI usage ledger." on public.owner_ai_usage_ledger;
 create policy "Owners can read their AI usage ledger."

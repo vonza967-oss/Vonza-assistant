@@ -53,3 +53,29 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+  - type: web
+    name: widget-early-access-waitlist
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run start:waitlist
+    healthCheckPath: /ready
+    autoDeploy: false
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: WAITLIST_PUBLIC_URL
+        sync: false
+      - key: RATE_LIMIT_BACKEND
+        value: upstash
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: TRUSTED_PROXY_IPS
+        sync: false
+      - key: NODE_ENV
+        value: production
+      - key: VONZA_DEPLOY_ENV
+        value: staging

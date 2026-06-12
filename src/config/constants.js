@@ -28,6 +28,7 @@ export const PRIVACY_SETTINGS_TABLE = "agent_privacy_settings";
 export const OWNER_BILLING_ACCOUNT_TABLE = "owner_billing_accounts";
 export const OWNER_AI_USAGE_LEDGER_TABLE = "owner_ai_usage_ledger";
 export const OWNER_PRODUCT_ENTITLEMENT_TABLE = "owner_product_entitlements";
+export const WIDGET_EARLY_ACCESS_APPLICATION_TABLE = "widget_early_access_applications";
 export const CONNECTED_ACCOUNT_TABLE = "google_connected_accounts";
 export const CONNECTED_ACCOUNT_AUDIT_TABLE = "operator_audit_logs";
 export const GOOGLE_OAUTH_STATE_TABLE = "google_oauth_states";

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Korai hozzáférés magyar vállalkozásoknak a weboldali AI widgethez.">
+  <title>Widget Korai Hozzáférés</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Widget Korai Hozzáférés főoldal">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>Widget Korai Hozzáférés</span>
+    </a>
+    <nav class="header-nav" aria-label="Oldal navigáció">
+      <a href="#jelentkezes">Jelentkezés</a>
+      <a href="#mukodes">Működés</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero-section" id="jelentkezes">
+      <div class="hero-copy">
+        <h1>Korai hozzáférés a magyar weboldali AI widgethez</h1>
+        <p class="hero-lede">
+          Magyar kisvállalkozásoknak készülő weboldali widget, amely válaszol a látogatói kérdésekre, rögzíti az érdeklődőket, és csak a saját weboldalad alapján dolgozik.
+        </p>
+        <div class="hero-proof" aria-label="Korai hozzáférés feltételei">
+          <span>Magyar nyelvű válaszok</span>
+          <span>Meglévő weboldalra</span>
+          <span>Első körben válogatott cégeknek</span>
+        </div>
+      </div>
+
+      <section class="application-panel" aria-labelledby="application-title">
+        <div class="form-heading">
+          <h2 id="application-title">Jelentkezés</h2>
+          <p>Írd meg, milyen weboldalra és milyen ügyféligényre használnád.</p>
+        </div>
+
+        <form class="waitlist-form" id="waitlist-form" action="/api/waitlist/applications" method="post" novalidate>
+          <div class="field-group">
+            <label for="name">Név</label>
+            <input id="name" name="name" type="text" autocomplete="name" required maxlength="120">
+          </div>
+
+          <div class="field-group">
+            <label for="company">Cég neve</label>
+            <input id="company" name="company" type="text" autocomplete="organization" required maxlength="160">
+          </div>
+
+          <div class="field-group">
+            <label for="focus-area">Fókuszterület</label>
+            <input id="focus-area" name="focusArea" type="text" list="focus-options" required maxlength="320" placeholder="Pl. ajánlatkérés, foglalás, ügyfélszolgálat">
+            <datalist id="focus-options">
+              <option value="Ajánlatkérések kezelése"></option>
+              <option value="Foglalási kérdések"></option>
+              <option value="Webshop ügyfélszolgálat"></option>
+              <option value="Szolgáltatás előtti kérdések"></option>
+            </datalist>
+          </div>
+
+          <div class="field-group">
+            <label for="website-url">Weboldal URL</label>
+            <input id="website-url" name="websiteUrl" type="url" inputmode="url" autocomplete="url" required maxlength="300" placeholder="https://ceged.hu">
+          </div>
+
+          <div class="field-group">
+            <label for="contact">Email vagy telefon</label>
+            <input id="contact" name="contact" type="text" autocomplete="email" required maxlength="180" placeholder="nev@ceg.hu vagy +36...">
+          </div>
+
+          <div class="honeypot" aria-hidden="true">
+            <label for="nickname">Ne töltsd ki</label>
+            <input id="nickname" name="nickname" type="text" tabindex="-1" autocomplete="off">
+          </div>
+
+          <button class="primary-action" type="submit">Jelentkezem a listára</button>
+          <p class="privacy-note">Az adatokat csak a korai hozzáférés egyeztetésére használjuk.</p>
+          <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+    </section>
+
+    <section class="value-strip" aria-label="Widget érték">
+      <span>Weboldal alapján válaszol</span>
+      <span>Magyar ügyfélkérdésekhez igazítva</span>
+      <span>Lead rögzítés a beszélgetésben</span>
+      <span>Telepítés meglévő oldalra</span>
+    </section>
+
+    <section class="preview-section" id="mukodes">
+      <div class="preview-copy">
+        <h2>Korai hozzáférés olyan cégeknek, ahol a weboldal már kap kérdéseket.</h2>
+        <p>
+          A jelentkezésekből azokat vesszük előre, ahol gyorsan ellenőrizhető a weboldal tartalma, és egy konkrét ügyfélútvonalon mérhető a widget értéke.
+        </p>
+      </div>
+
+      <div class="product-preview" aria-label="Weboldali widget előnézet">
+        <div class="browser-frame">
+          <div class="browser-bar" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="mock-page">
+            <div class="mock-nav"></div>
+            <div class="mock-hero">
+              <div>
+                <span></span>
+                <strong></strong>
+                <p></p>
+              </div>
+              <aside></aside>
+            </div>
+            <div class="mock-lines">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+          <div class="widget-bubble">
+            <div class="widget-header">
+              <span class="widget-dot" aria-hidden="true"></span>
+              <strong>AI asszisztens</strong>
+            </div>
+            <p>Miben segíthetek a szolgáltatással kapcsolatban?</p>
+            <div class="widget-reply">Árakról és időpontról kérdeznék.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="success-dialog" id="success-dialog" hidden>
+    <div class="success-card" role="dialog" aria-modal="true" aria-labelledby="success-title">
+      <button class="success-close" type="button" aria-label="Bezárás">×</button>
+      <span class="success-mark" aria-hidden="true"></span>
+      <h2 id="success-title">Jelentkezés rögzítve</h2>
+      <p>Köszönjük. Átnézzük a weboldalt és jelentkezünk, ha illeszkedik az első korai hozzáférési körbe.</p>
+    </div>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

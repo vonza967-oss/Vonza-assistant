@@ -52,6 +52,14 @@ export default [
     },
   },
   {
+    files: ["early-access-widget-waitlist/**/*.js"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
+  {
     files: ["tests/**/*.js"],
     languageOptions: {
       globals: {
