@@ -106,6 +106,7 @@
     "language.noChanges": "No changes yet.",
     "language.save": "Save language",
     "nav.utilities": "Utilities",
+    "nav.connectedTools": "Connected Tools",
     "settings.title": "Settings",
     "settings.copy": "Manage product settings plus shared business, account, and privacy settings.",
     "settings.preferencesCopy": "Choose the language used by the dashboard.",
@@ -4564,6 +4565,25 @@
     return helpers.localizeDashboardHtml(html);
   }
 
+  function buildConnectedAppsPanel(options = {}) {
+    const helpers = getHelpers(options);
+    const shellSectionKey = defaultTrimText(options.shellSectionKey || "connected_apps").replace(/[^a-z0-9_-]/gi, "") || "connected_apps";
+    const html = `
+      <section class="workspace-page settings-shell-root settings-shell-root--connected-apps" data-shell-section="${helpers.escapeHtml(shellSectionKey)}" hidden>
+        ${helpers.buildPageHeader({
+          eyebrow: helpers.t("nav.connectedTools"),
+          title: "Connected apps",
+          copy: "Connect Google Calendar, WhatsApp Business, Calendly, and other dashboard-only integration records for this Website Widget workspace.",
+        })}
+        <div class="workspace-page-body settings-shell-layout settings-shell-layout--single">
+          ${buildConnectedAppsSettingsSection(options.agent || {}, options.connectedApps, helpers)}
+        </div>
+      </section>
+    `;
+
+    return helpers.localizeDashboardHtml(html);
+  }
+
   function buildWorkspacePreferencesPanel(options = {}) {
     const helpers = getHelpers(options);
     const shellSectionKey = defaultTrimText(options.shellSectionKey || "preferences").replace(/[^a-z0-9_-]/gi, "") || "preferences";
@@ -5348,6 +5368,7 @@
 
   global.VonzaSettingsShell = {
     buildSettingsPanel,
+    buildConnectedAppsPanel,
     buildWorkspacePreferencesPanel,
     buildFrontDeskSettingsForm: function buildFrontDeskSettingsFormForDashboard(options = {}) {
       const helpers = getHelpers(options);

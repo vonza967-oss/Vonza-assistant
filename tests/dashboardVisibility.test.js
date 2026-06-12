@@ -880,6 +880,8 @@ test("widget dashboard routes render widget-only home and sidebar copy", async (
     assert.match(html, /<span class="shell-nav-label">Install<\/span>/, pathname);
     assert.match(html, /data-shell-target="settings"/, pathname);
     assert.match(html, /<span class="shell-nav-label">Configuration<\/span>/, pathname);
+    assert.match(html, /data-shell-target="connected_apps"/, pathname);
+    assert.match(html, /<span class="shell-nav-label">Connected apps<\/span>/, pathname);
     assert.match(html, /data-shell-target="preferences"/, pathname);
     assert.match(html, /<span class="shell-nav-label">Settings<\/span>/, pathname);
     assert.doesNotMatch(html, /data-dashboard-product-nav|data-shell-target="customize"/, pathname);
@@ -903,7 +905,7 @@ test("Hungarian Website Widget dashboard renders localized nav and close label",
   const html = harness.getRootHtml();
   const shellLabels = Array.from(html.matchAll(/<span class="shell-nav-label">([^<]+)<\/span>/g), (match) => match[1]);
   assert.match(html, /aria-label="Navigáció bezárása"/);
-  ["Áttekintés", "Ügyfelek", "Elemzések", "Telepítés", "Widget konfiguráció", "Beállítások"].forEach((label) => {
+  ["Áttekintés", "Ügyfelek", "Elemzések", "Telepítés", "Widget konfiguráció", "Kapcsolt alkalmazások", "Beállítások"].forEach((label) => {
     assert.ok(shellLabels.includes(label), `Expected Hungarian nav label: ${label}`);
   });
 });
@@ -1018,6 +1020,202 @@ test("dedicated Website Widget dashboard has a separate Settings preferences pag
   assert.doesNotMatch(preferencesHtml, /data-dashboard-theme-choice|data-dashboard-background-choice|data-dashboard-background-blur-control/);
   assert.doesNotMatch(preferencesHtml, /Bright Glass|Dark Glass|Dashboard background|Glass transparency/);
   assert.doesNotMatch(preferencesHtml, /Widget configuration|How the widget answers|website-widget-config-form/);
+});
+
+test("dedicated Website Widget dashboard exposes connected apps page", async () => {
+  const connectedAppCapabilities = [
+    {
+      key: "google.calendar.read",
+      provider: "google",
+      appName: "Google Calendar",
+      capability: "calendar.read",
+      label: "Google Calendar read",
+      description: "Read Google Calendar context after the existing Google OAuth flow.",
+      requiresOAuth: true,
+      publicChatCallable: false,
+      allowedSurfaces: ["operator", "dashboard", "internal"],
+    },
+    {
+      key: "calendly.booking.webhook",
+      provider: "calendly",
+      appName: "Calendly",
+      capability: "booking.webhook",
+      label: "Calendly booking webhook",
+      description: "Signed webhook ingestion for trusted booking confirmations.",
+      requiresWebhook: true,
+      publicChatCallable: false,
+      allowedSurfaces: ["webhook", "internal"],
+    },
+    {
+      key: "stripe.billing.webhook",
+      provider: "stripe",
+      appName: "Stripe",
+      capability: "billing.webhook",
+      label: "Stripe billing webhook",
+      description: "Webhook-backed billing status mirror for owner dashboard review.",
+      requiresWebhook: true,
+      publicChatCallable: false,
+      allowedSurfaces: ["webhook", "dashboard", "internal"],
+    },
+    {
+      key: "whatsapp.business.webhook",
+      provider: "whatsapp",
+      appName: "WhatsApp Business",
+      capability: "business.webhook",
+      label: "WhatsApp Business webhook readiness",
+      description: "Manual/internal WhatsApp Business webhook readiness metadata.",
+      requiresWebhook: true,
+      publicChatCallable: false,
+      allowedSurfaces: ["webhook", "internal"],
+    },
+  ];
+
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    hash: "#connected-apps",
+    agents: () => [createActiveAgent()],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/connected-app-capabilities") {
+        return buildResponse({
+          status: 200,
+          body: {
+            capabilities: connectedAppCapabilities,
+          },
+        });
+      }
+
+      if (pathname === "/agents/connected-apps") {
+        return buildResponse({
+          status: 200,
+          body: {
+            connections: [
+              {
+                id: "connection-google-1",
+                provider: "google",
+                appKey: "google.calendar",
+                status: "active",
+                providerAccountLabel: "owner@example.com",
+                capabilityKeys: ["google.calendar.read"],
+                scopesGranted: ["calendar.read"],
+                metadata: {
+                  googleConnectedAccountId: "google-account-1",
+                },
+              },
+              {
+                id: "connection-whatsapp-1",
+                provider: "whatsapp",
+                appKey: "whatsapp.business",
+                status: "needs_setup",
+                providerAccountLabel: "WhatsApp Business",
+                capabilityKeys: ["whatsapp.business.webhook"],
+                scopesGranted: [],
+                webhookStatus: "needs_setup",
+              },
+            ],
+          },
+        });
+      }
+
+      if (pathname === "/agents/agent-1/connected-apps") {
+        return buildResponse({
+          status: 200,
+          body: {
+            enablements: [
+              {
+                id: "enablement-google-1",
+                connectionId: "connection-google-1",
+                enabled: true,
+                capabilityKeys: ["google.calendar.read"],
+                allowedSurfaces: ["operator"],
+                approvalMode: "manual_review",
+              },
+            ],
+          },
+        });
+      }
+
+      if (pathname === "/agents/connected-app-inbound-threads") {
+        return buildResponse({
+          status: 200,
+          body: {
+            threads: [],
+            manualReplies: {
+              enabled: false,
+              status: "disabled",
+            },
+            aiDrafts: {
+              enabled: false,
+              status: "disabled",
+            },
+          },
+        });
+      }
+
+      if (pathname === "/agents/connected-app-inbound-events") {
+        return buildResponse({
+          status: 200,
+          body: {
+            events: [],
+          },
+        });
+      }
+
+      if (pathname === "/agents/agent-1/connected-app-readiness") {
+        return buildResponse({
+          status: 200,
+          body: {
+            report: {
+              status: "ready",
+              summary: {
+                ready: 4,
+                warning: 0,
+                blocked: 0,
+                optionalWarnings: 0,
+              },
+              requirements: [],
+            },
+            context: {
+              surface: "operator",
+            },
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+  const connectedAppsStart = html.indexOf('data-shell-section="connected_apps"');
+  const nextShell = html.indexOf('data-shell-section="', connectedAppsStart + 1);
+  const connectedAppsHtml = connectedAppsStart >= 0
+    ? html.slice(connectedAppsStart, nextShell > connectedAppsStart ? nextShell : undefined)
+    : "";
+
+  assert.equal(harness.getLocation().hash, "#connected-apps");
+  assert.match(html, /data-shell-target="connected_apps"[\s\S]{0,260}aria-current="page"/);
+  assert.match(connectedAppsHtml, /Connected apps/);
+  assert.match(connectedAppsHtml, /Google Calendar adapter/);
+  assert.match(connectedAppsHtml, /Connect Google Calendar|Reconnect Google Calendar/);
+  assert.match(connectedAppsHtml, /WhatsApp Business foundation/);
+  assert.match(connectedAppsHtml, /Calendly booking webhook/);
+  assert.match(connectedAppsHtml, /Stripe billing webhook/);
+  assert.match(connectedAppsHtml, /No chat execution/);
+  assert.match(connectedAppsHtml, /No provider action without approval/);
+  assert.doesNotMatch(connectedAppsHtml, /Connect with OAuth|Call from public chat|Send AI reply|Embedded Signup is ready/i);
+});
+
+test("dedicated Website Widget dashboard redirects settings connected apps hash to menu page", async () => {
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    hash: "#settings/connected-apps",
+    agents: () => [createActiveAgent()],
+  });
+  await harness.settle();
+
+  assert.equal(harness.getLocation().hash, "#connected-apps");
+  assert.match(harness.getRootHtml(), /data-shell-target="connected_apps"[\s\S]{0,260}aria-current="page"/);
 });
 
 test("dedicated Website Widget analytics and customers default to widget context when product context is absent", () => {
@@ -1216,6 +1414,7 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.match(html, /data-shell-target="contacts"/);
   assert.match(html, /data-shell-target="analytics"/);
   assert.match(html, /data-shell-target="settings"[\s\S]{0,260}data-settings-target="website_widget"/);
+  assert.match(html, /data-shell-target="connected_apps"/);
   assert.match(html, /data-shell-target="preferences"/);
   assert.match(html, /Customers/);
   assert.match(html, /Website Widget analytics/);
@@ -1229,7 +1428,7 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.doesNotMatch(html, /Widget Conversations|Widget source leads|Widget Analytics/);
   assert.doesNotMatch(html, /Page-only question/);
   const shellLabels = Array.from(html.matchAll(/<span class="shell-nav-label">([^<]+)<\/span>/g), (match) => match[1]);
-  assert.deepEqual(Array.from(new Set(shellLabels)), ["Overview", "Customers", "Analytics", "Install", "Configuration", "Settings"]);
+  assert.deepEqual(Array.from(new Set(shellLabels)), ["Overview", "Customers", "Analytics", "Install", "Configuration", "Connected apps", "Settings"]);
   assert.doesNotMatch(shellLabels.join(" "), /Front Desk|Voice Agent|QDH|ESG|Enterprise Request Desk|Web Call|Hotel Concierge|Connected Tools/i);
   assert.doesNotMatch(html, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"|generic engine/i);
   assert.doesNotMatch(html, /data-dashboard-product-nav/);

@@ -125,7 +125,7 @@ const dashboardUiState = loadDashboardUiState();
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
-const WEBSITE_WIDGET_DASHBOARD_SECTIONS = ["overview", "contacts", "analytics", "install", "settings", "preferences"];
+const WEBSITE_WIDGET_DASHBOARD_SECTIONS = ["overview", "contacts", "analytics", "install", "settings", "connected_apps", "preferences"];
 const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
 const WEBSITE_WIDGET_QUICK_PROMPT_LIMIT = 5;
 const WEBSITE_WIDGET_QUICK_PROMPT_LABEL_LIMIT = 40;
@@ -3969,6 +3969,10 @@ function getDedicatedWebsiteWidgetRedirectHash(hash = window.location.hash) {
     const target = dashboardState.normalizeSettingsMainTab(parts[1] || "widget");
     const subtab = dashboardState.getSettingsFrontDeskTabHashSegment(parts[2] || "optional-widget");
 
+    if (target === "connected_apps") {
+      return "#connected-apps";
+    }
+
     if (target !== "website_widget" || !["optional-widget", "routing", "identity-welcome"].includes(subtab)) {
       return "#settings/widget/optional-widget";
     }
@@ -6483,6 +6487,7 @@ function getShellNavIconMarkup(sectionKey = "") {
     automations: "automations",
     install: "install",
     settings: "settings",
+    connected_apps: "automations",
     preferences: "settings",
   };
 
@@ -6653,6 +6658,11 @@ function buildSidebarShell(
         label: websiteWidgetText("sidebar.configuration"),
         note: websiteWidgetText("sidebar.configurationNote"),
         settingsTarget: "website_widget",
+      },
+      {
+        key: "connected_apps",
+        label: websiteWidgetText("sidebar.connectedApps"),
+        note: websiteWidgetText("sidebar.connectedAppsNote"),
       },
       {
         key: "preferences",
@@ -9423,6 +9433,40 @@ function buildSettingsPanel(
   }
 
   return settingsShell.buildSettingsPanel(getSettingsShellOptions(agent, setup, operatorWorkspace, actionQueue, connectedApps));
+}
+
+function buildWebsiteWidgetConnectedAppsPanel(
+  agent,
+  setup,
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+  actionQueue = createEmptyActionQueue(),
+  connectedApps = workspaceState?.connectedApps || createEmptyConnectedAppsState()
+) {
+  const settingsShell = window.VonzaSettingsShell;
+  const options = getSettingsShellOptions(agent, setup, operatorWorkspace, actionQueue, connectedApps);
+
+  if (settingsShell && typeof settingsShell.buildConnectedAppsPanel === "function") {
+    return settingsShell.buildConnectedAppsPanel({
+      ...options,
+      shellSectionKey: "connected_apps",
+    });
+  }
+
+  return localizeDashboardHtml(`
+    <section class="workspace-page settings-shell-root settings-shell-root--connected-apps" data-shell-section="connected_apps" hidden>
+      ${buildPageHeader({
+        eyebrow: t("nav.connectedTools"),
+        title: "Connected apps",
+        copy: "Connect Google Calendar, WhatsApp Business, Calendly, and other dashboard-only integration records for this Website Widget workspace.",
+      })}
+      <div class="workspace-page-body settings-shell-layout">
+        ${buildOperatorEmptyState({
+          title: "Connected apps unavailable",
+          copy: "The connected apps settings shell could not be loaded right now.",
+        })}
+      </div>
+    </section>
+  `);
 }
 
 function buildWebsiteWidgetPreferencesPanel(
@@ -13082,6 +13126,7 @@ function renderAssistantShell(
           ${isDedicatedWebsiteWidgetDashboard() ? "" : (isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : "")}
           ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetInstallPanel(agent) : buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
           ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetExistingConfigurationPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps)}
+          ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetConnectedAppsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : ""}
           ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetPreferencesPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : ""}
         </div>
       </div>
@@ -13129,6 +13174,7 @@ function renderDashboardV2Shell(
           ${isDedicatedWebsiteWidgetDashboard() ? "" : (isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : "")}
           ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetInstallPanel(agent) : buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
           ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetExistingConfigurationPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps)}
+          ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetConnectedAppsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : ""}
           ${isDedicatedWebsiteWidgetDashboard() ? buildWebsiteWidgetPreferencesPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps) : ""}
         </div>
       </div>

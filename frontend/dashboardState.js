@@ -135,6 +135,9 @@
     analytics: "analytics",
     install: "install",
     settings: "settings",
+    "connected-apps": "connected_apps",
+    connected_apps: "connected_apps",
+    integrations: "connected_apps",
     preferences: "preferences",
     "workspace-settings": "preferences",
     "dashboard-settings": "preferences",
@@ -148,6 +151,7 @@
     analytics: "analytics",
     install: "install",
     settings: "settings",
+    connected_apps: "connected-apps",
     preferences: "preferences",
   });
   const DASHBOARD_PRODUCT_REGISTRY = Object.freeze({

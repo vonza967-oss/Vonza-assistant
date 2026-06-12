@@ -68,12 +68,17 @@ test("dashboard connected apps surface reuses existing Google connect flow", () 
   assert.match(dashboard, /fetchJson\("\/agents\/google\/disconnect"/);
 });
 
-test("dashboard settings state routes connected apps hashes to the settings section", () => {
+test("dashboard state and Website Widget shell route connected apps hashes", () => {
+  const dashboard = readSource("frontend/dashboard.js");
   const dashboardState = readSource("frontend/dashboardState.js");
 
   assert.match(dashboardState, /"connected_apps"/);
   assert.match(dashboardState, /connected_apps:\s*"connected-apps"/);
   assert.match(dashboardState, /"connected-apps":\s*"connected_apps"/);
+  assert.match(dashboard, /WEBSITE_WIDGET_DASHBOARD_SECTIONS\s*=\s*\[[^\]]*"connected_apps"/s);
+  assert.match(dashboard, /data-shell-target="\$\{escapeHtml\(targetSection\)\}"/);
+  assert.match(dashboard, /buildWebsiteWidgetConnectedAppsPanel/);
+  assert.match(dashboard, /#connected-apps/);
 });
 
 test("dashboard connected apps controls avoid credential oauth and provider execution input names", () => {
