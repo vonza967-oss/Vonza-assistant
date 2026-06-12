@@ -6,128 +6,36 @@
   <title>Vonza | Home</title>
   <script>
     (() => {
-      let appearance = "bright";
-      try {
-        const storedTheme = String(window.localStorage?.getItem("vonza_dashboard_theme") || "").trim().toLowerCase();
-        appearance = storedTheme === "dark"
-          ? "dark"
-          : storedTheme === "system"
-            ? "system"
-            : "bright";
-      } catch {}
-      const resolvedTheme = appearance === "system"
-        ? (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "bright")
-        : appearance;
+      const appearance = "bright";
+      const resolvedTheme = "bright";
       document.documentElement.dataset.dashboardAppearance = appearance;
       document.documentElement.dataset.dashboardTheme = resolvedTheme;
-      try {
-        const allowedBackgrounds = new Set([
-          "skyline-atrium",
-          "harbor-lounge",
-          "coastal-gallery",
-          "midnight-lobby",
-          "midnight-suite",
-        ]);
-        const storedBackground = String(window.localStorage?.getItem("vonza_dashboard_background") || "")
-          .trim()
-          .toLowerCase()
-          .replace(/[_\s]+/g, "-");
-        document.documentElement.dataset.dashboardBackground = allowedBackgrounds.has(storedBackground)
-          ? storedBackground
-          : "skyline-atrium";
-      } catch {
-        document.documentElement.dataset.dashboardBackground = "skyline-atrium";
-      }
-      try {
-        const storedBlur = Number.parseFloat(window.localStorage?.getItem("vonza_dashboard_background_blur"));
-        const backgroundBlur = Number.isFinite(storedBlur)
-          ? Math.min(24, Math.max(0, Math.round(storedBlur)))
-          : 10;
-        document.documentElement.dataset.dashboardBackgroundBlur = String(backgroundBlur);
-        document.documentElement.style.setProperty("--dashboard-background-blur", `${backgroundBlur}px`);
-      } catch {
-        document.documentElement.dataset.dashboardBackgroundBlur = "10";
-        document.documentElement.style.setProperty("--dashboard-background-blur", "10px");
-      }
-      try {
-        const normalizeChoice = (value, allowed, fallback) => {
-          const normalized = String(value || "").trim().toLowerCase().replace(/[_\s]+/g, "-");
-          return allowed.includes(normalized) ? normalized : fallback;
-        };
-        const backgroundDim = normalizeChoice(
-          window.localStorage?.getItem("vonza_dashboard_background_dim"),
-          ["bright", "balanced", "dim"],
-          "balanced"
-        );
-        const accentGlow = normalizeChoice(
-          window.localStorage?.getItem("vonza_dashboard_accent_glow"),
-          ["off", "soft", "vivid"],
-          "soft"
-        );
-        const density = normalizeChoice(
-          window.localStorage?.getItem("vonza_dashboard_density"),
-          ["comfortable", "compact"],
-          "comfortable"
-        );
-        document.documentElement.dataset.dashboardBackgroundDim = backgroundDim;
-        document.documentElement.dataset.dashboardAccentGlow = accentGlow;
-        document.documentElement.dataset.dashboardDensity = density;
-      } catch {
-        document.documentElement.dataset.dashboardBackgroundDim = "balanced";
-        document.documentElement.dataset.dashboardAccentGlow = "soft";
-        document.documentElement.dataset.dashboardDensity = "comfortable";
-      }
-      try {
-        const storedTransparency = Number.parseFloat(window.localStorage?.getItem("vonza:glass-transparency"));
-        const transparency = Number.isFinite(storedTransparency)
-          ? Math.min(100, Math.max(0, Math.round(storedTransparency)))
-          : 70;
-        const t = transparency / 100;
-        const glassVars = {
-          topAlpha: 0.52 - t * 0.46,
-          bottomAlpha: 0.36 - t * 0.33,
-          radialAlpha: 0.18 - t * 0.15,
-          sheenAlpha: 0.16 - t * 0.12,
-          reflectionOpacity: 0.42 - t * 0.34,
-          blur: 36 - t * 24,
-          borderAlpha: 0.48 + t * 0.24,
-          highlightAlpha: 0.72 + t * 0.2,
-          innerShadowAlpha: 0.12 - t * 0.07,
-        };
-        document.documentElement.dataset.dashboardGlassTransparency = String(transparency);
-        document.documentElement.style.setProperty("--vz-liquid-top-alpha", glassVars.topAlpha.toFixed(2));
-        document.documentElement.style.setProperty("--vz-liquid-bottom-alpha", glassVars.bottomAlpha.toFixed(2));
-        document.documentElement.style.setProperty("--vz-liquid-radial-alpha", glassVars.radialAlpha.toFixed(2));
-        document.documentElement.style.setProperty("--vz-liquid-sheen-alpha", glassVars.sheenAlpha.toFixed(2));
-        document.documentElement.style.setProperty("--vz-liquid-reflection-opacity", glassVars.reflectionOpacity.toFixed(2));
-        document.documentElement.style.setProperty("--vz-liquid-blur", `${Math.round(glassVars.blur)}px`);
-        document.documentElement.style.setProperty("--vz-liquid-border-alpha", glassVars.borderAlpha.toFixed(2));
-        document.documentElement.style.setProperty("--vz-liquid-highlight-alpha", glassVars.highlightAlpha.toFixed(2));
-        document.documentElement.style.setProperty("--vz-liquid-inner-shadow", glassVars.innerShadowAlpha.toFixed(2));
-        document.documentElement.style.setProperty("--vz-glass-top-alpha", glassVars.topAlpha.toFixed(2));
-        document.documentElement.style.setProperty("--vz-glass-bottom-alpha", glassVars.bottomAlpha.toFixed(2));
-        document.documentElement.style.setProperty("--vz-glass-radial-alpha", glassVars.radialAlpha.toFixed(2));
-        document.documentElement.style.setProperty("--vz-glass-blur", `${Math.round(glassVars.blur)}px`);
-        document.documentElement.style.setProperty("--vz-glass-border-alpha", glassVars.borderAlpha.toFixed(2));
-        document.documentElement.style.setProperty("--vz-glass-highlight-alpha", glassVars.highlightAlpha.toFixed(2));
-      } catch {
-        document.documentElement.dataset.dashboardGlassTransparency = "70";
-        document.documentElement.style.setProperty("--vz-liquid-top-alpha", "0.20");
-        document.documentElement.style.setProperty("--vz-liquid-bottom-alpha", "0.13");
-        document.documentElement.style.setProperty("--vz-liquid-radial-alpha", "0.07");
-        document.documentElement.style.setProperty("--vz-liquid-sheen-alpha", "0.08");
-        document.documentElement.style.setProperty("--vz-liquid-reflection-opacity", "0.18");
-        document.documentElement.style.setProperty("--vz-liquid-blur", "19px");
-        document.documentElement.style.setProperty("--vz-liquid-border-alpha", "0.65");
-        document.documentElement.style.setProperty("--vz-liquid-highlight-alpha", "0.86");
-        document.documentElement.style.setProperty("--vz-liquid-inner-shadow", "0.07");
-        document.documentElement.style.setProperty("--vz-glass-top-alpha", "0.20");
-        document.documentElement.style.setProperty("--vz-glass-bottom-alpha", "0.13");
-        document.documentElement.style.setProperty("--vz-glass-radial-alpha", "0.07");
-        document.documentElement.style.setProperty("--vz-glass-blur", "19px");
-        document.documentElement.style.setProperty("--vz-glass-border-alpha", "0.65");
-        document.documentElement.style.setProperty("--vz-glass-highlight-alpha", "0.86");
-      }
+      document.documentElement.dataset.dashboardBackground = "simple-white";
+      document.documentElement.dataset.dashboardBackgroundBlur = "0";
+      document.documentElement.dataset.dashboardBackgroundDim = "bright";
+      document.documentElement.dataset.dashboardAccentGlow = "off";
+      document.documentElement.dataset.dashboardDensity = "comfortable";
+      document.documentElement.dataset.dashboardGlassTransparency = "100";
+      document.documentElement.style.setProperty("--dashboard-background-image", "none");
+      document.documentElement.style.setProperty("--dashboard-background-blur", "0px");
+      document.documentElement.style.setProperty("--dashboard-background-dim", "bright");
+      document.documentElement.style.setProperty("--dashboard-accent-glow-setting", "off");
+      document.documentElement.style.setProperty("--dashboard-density", "comfortable");
+      document.documentElement.style.setProperty("--vz-liquid-top-alpha", "0");
+      document.documentElement.style.setProperty("--vz-liquid-bottom-alpha", "0");
+      document.documentElement.style.setProperty("--vz-liquid-radial-alpha", "0");
+      document.documentElement.style.setProperty("--vz-liquid-sheen-alpha", "0");
+      document.documentElement.style.setProperty("--vz-liquid-reflection-opacity", "0");
+      document.documentElement.style.setProperty("--vz-liquid-blur", "0px");
+      document.documentElement.style.setProperty("--vz-liquid-border-alpha", "0");
+      document.documentElement.style.setProperty("--vz-liquid-highlight-alpha", "0");
+      document.documentElement.style.setProperty("--vz-liquid-inner-shadow", "0");
+      document.documentElement.style.setProperty("--vz-glass-top-alpha", "0");
+      document.documentElement.style.setProperty("--vz-glass-bottom-alpha", "0");
+      document.documentElement.style.setProperty("--vz-glass-radial-alpha", "0");
+      document.documentElement.style.setProperty("--vz-glass-blur", "0px");
+      document.documentElement.style.setProperty("--vz-glass-border-alpha", "0");
+      document.documentElement.style.setProperty("--vz-glass-highlight-alpha", "0");
       try {
         const language = window.localStorage?.getItem("vonza_dashboard_language") === "en" ? "en" : "hu";
         document.documentElement.dataset.dashboardLanguage = language;

@@ -55,101 +55,6 @@
     appearance: "optional-widget",
   });
   const FULL_PAGE_SETTINGS_TABS = Object.freeze(["content", "design", "layout"]);
-  const DASHBOARD_BACKGROUND_BLUR_MIN = 0;
-  const DASHBOARD_BACKGROUND_BLUR_MAX = 24;
-  const DEFAULT_DASHBOARD_BACKGROUND_BLUR = 10;
-  const DASHBOARD_GLASS_TRANSPARENCY_MIN = 0;
-  const DASHBOARD_GLASS_TRANSPARENCY_MAX = 100;
-  const DEFAULT_DASHBOARD_GLASS_TRANSPARENCY = 70;
-  const DASHBOARD_BACKGROUND_DIM_OPTIONS = Object.freeze(["bright", "balanced", "dim"]);
-  const DASHBOARD_ACCENT_GLOW_OPTIONS = Object.freeze(["off", "soft", "vivid"]);
-  const DASHBOARD_DENSITY_OPTIONS = Object.freeze(["comfortable", "compact"]);
-  const DEFAULT_DASHBOARD_BACKGROUND_DIM = "balanced";
-  const DEFAULT_DASHBOARD_ACCENT_GLOW = "soft";
-  const DEFAULT_DASHBOARD_DENSITY = "comfortable";
-  const DASHBOARD_CUSTOM_BACKGROUND_STORAGE_KEY = "vonza:custom-dashboard-background";
-  const DASHBOARD_CUSTOM_BACKGROUND_ID = "custom-upload";
-  const DASHBOARD_BACKGROUND_OPTIONS = Object.freeze([
-    Object.freeze({
-      value: "skyline-atrium",
-      label: "Skyline Atrium",
-      copy: "Bright city glass with a soft skyline view.",
-      type: "image",
-      theme: "bright",
-      url: "/assets/dashboard/backgrounds/skyline-atrium.png",
-    }),
-    Object.freeze({
-      value: "harbor-lounge",
-      label: "Harbor Lounge",
-      copy: "Open lounge, water view, and bright marble floor.",
-      type: "image",
-      theme: "bright",
-      url: "/assets/dashboard/backgrounds/harbor-lounge.png",
-    }),
-    Object.freeze({
-      value: "coastal-gallery",
-      label: "Coastal Gallery",
-      copy: "Minimal coastal hall with clean daylight.",
-      type: "image",
-      theme: "bright",
-      url: "/assets/dashboard/backgrounds/coastal-gallery.png",
-    }),
-    Object.freeze({
-      value: "midnight-lobby",
-      label: "Midnight Lobby",
-      copy: "Dark executive lobby with purple light.",
-      type: "image",
-      theme: "dark",
-      url: "/assets/dashboard/backgrounds/midnight-lobby.png",
-    }),
-    Object.freeze({
-      value: "midnight-suite",
-      label: "Midnight Suite",
-      copy: "Low-light lounge with deep glass contrast.",
-      type: "image",
-      theme: "dark",
-      url: "/assets/dashboard/backgrounds/midnight-suite.png",
-    }),
-    Object.freeze({
-      value: "white-marble",
-      label: "White Marble",
-      copy: "Minimal white marble surface with soft premium texture.",
-      type: "image",
-      theme: "bright",
-      url: "/assets/dashboard/backgrounds/white-marble.png",
-    }),
-    Object.freeze({
-      value: "black-marble",
-      label: "Black Marble",
-      copy: "Minimal black marble surface with dark premium texture.",
-      type: "image",
-      theme: "dark",
-      url: "/assets/dashboard/backgrounds/black-marble.png",
-    }),
-    Object.freeze({
-      value: "simple-white",
-      label: "Simple White",
-      copy: "Clean white background for maximum clarity.",
-      type: "css",
-      theme: "bright",
-      cssBackground: "linear-gradient(135deg, #f8fafc 0%, #eef2ff 52%, #ffffff 100%)",
-    }),
-    Object.freeze({
-      value: "simple-dark",
-      label: "Simple Dark",
-      copy: "Clean dark background for low-light work.",
-      type: "css",
-      theme: "dark",
-      cssBackground: "radial-gradient(circle at 20% 10%, rgba(124, 60, 255, 0.16), transparent 34%), linear-gradient(135deg, #090b12 0%, #111827 52%, #020617 100%)",
-    }),
-    Object.freeze({
-      value: DASHBOARD_CUSTOM_BACKGROUND_ID,
-      label: "Custom image",
-      copy: "Use your own photo or background.",
-      type: "custom",
-      theme: "custom",
-    }),
-  ]);
   const SETTINGS_SECTION_ALIASES = Object.freeze({
     assistant: "general",
     branding: "general",
@@ -203,38 +108,8 @@
     "nav.utilities": "Utilities",
     "settings.title": "Settings",
     "settings.copy": "Manage product settings plus shared business, account, and privacy settings.",
-    "settings.preferencesCopy": "Choose dashboard language, appearance, and device-level workspace preferences.",
-    "settings.theme": "Theme",
-    "settings.themeCopy": "Choose how the dashboard looks in this browser. Bright Glass is the default.",
-    "settings.background": "Dashboard background",
-    "settings.backgroundCopy": "Choose the environment image visible through the dashboard glass.",
-    "settings.backgroundBlur": "Background blur",
-    "settings.backgroundBlurCopy": "Soften the image behind dashboard glass without blurring cards or text.",
-    "settings.glassTransparency": "Glass transparency",
-    "settings.glassTransparencyCopy": "Adjust how see-through dashboard surfaces appear.",
-    "settings.glassTransparencyLessSolid": "Less solid",
-    "settings.glassTransparencyMoreTransparent": "More transparent",
-    "settings.backgroundDim": "Background dim",
-    "settings.backgroundDimCopy": "Adjust only the overlay over the selected background image.",
-    "settings.backgroundDimBright": "Bright",
-    "settings.backgroundDimBalanced": "Balanced",
-    "settings.backgroundDimDim": "Dim",
-    "settings.accentGlow": "Accent glow",
-    "settings.accentGlowCopy": "Control the purple highlight intensity across active dashboard states.",
-    "settings.accentGlowOff": "Off",
-    "settings.accentGlowSoft": "Soft",
-    "settings.accentGlowVivid": "Vivid",
-    "settings.dashboardDensity": "Dashboard density",
-    "settings.dashboardDensityCopy": "Compact reduces card padding and gaps while preserving readable text.",
-    "settings.dashboardDensityComfortable": "Comfortable",
-    "settings.dashboardDensityCompact": "Compact",
-    "settings.brightGlass": "Bright Glass",
-    "settings.darkGlass": "Dark Glass",
-    "settings.system": "System",
-    "settings.light": "Bright Glass",
-    "settings.dark": "Dark Glass",
+    "settings.preferencesCopy": "Choose the language used by the dashboard.",
   });
-  global.VONZA_DASHBOARD_BACKGROUND_OPTIONS = DASHBOARD_BACKGROUND_OPTIONS;
   const LEGAL_LINKS = Object.freeze([
     { href: "/aszf", label: "ÁSZF" },
     { href: "/impresszum", label: "Impresszum" },
@@ -1784,334 +1659,6 @@
     return normalizedTab;
   }
 
-  function getDashboardAppearanceChoice() {
-    const appearance = defaultTrimText(global.document?.documentElement?.dataset?.dashboardAppearance).toLowerCase();
-    const theme = defaultTrimText(global.document?.documentElement?.dataset?.dashboardTheme).toLowerCase();
-
-    if (appearance === "system" || appearance === "dark" || appearance === "bright") {
-      return appearance;
-    }
-
-    return theme === "dark" ? "dark" : "bright";
-  }
-
-  function normalizeDashboardBackgroundChoice(value = "") {
-    const normalized = defaultTrimText(value).toLowerCase().replace(/[_\s]+/g, "-");
-    if (normalized === DASHBOARD_CUSTOM_BACKGROUND_ID && !getSavedDashboardCustomBackground()) {
-      return DASHBOARD_BACKGROUND_OPTIONS[0].value;
-    }
-
-    return DASHBOARD_BACKGROUND_OPTIONS.some((option) => option.value === normalized)
-      ? normalized
-      : DASHBOARD_BACKGROUND_OPTIONS[0].value;
-  }
-
-  function getDashboardBackgroundChoice() {
-    return normalizeDashboardBackgroundChoice(global.document?.documentElement?.dataset?.dashboardBackground);
-  }
-
-  function normalizeDashboardBackgroundBlurChoice(value = DEFAULT_DASHBOARD_BACKGROUND_BLUR) {
-    const parsedValue = Number.parseFloat(value);
-
-    if (!Number.isFinite(parsedValue)) {
-      return DEFAULT_DASHBOARD_BACKGROUND_BLUR;
-    }
-
-    return Math.min(
-      DASHBOARD_BACKGROUND_BLUR_MAX,
-      Math.max(DASHBOARD_BACKGROUND_BLUR_MIN, Math.round(parsedValue))
-    );
-  }
-
-  function normalizeDashboardAppearanceChoice(value, allowedValues, defaultValue) {
-    const normalized = defaultTrimText(value).toLowerCase().replace(/[_\s]+/g, "-");
-    return allowedValues.includes(normalized) ? normalized : defaultValue;
-  }
-
-  function normalizeDashboardGlassTransparencyChoice(value = DEFAULT_DASHBOARD_GLASS_TRANSPARENCY) {
-    const parsedValue = Number.parseFloat(value);
-
-    if (!Number.isFinite(parsedValue)) {
-      return DEFAULT_DASHBOARD_GLASS_TRANSPARENCY;
-    }
-
-    return Math.min(
-      DASHBOARD_GLASS_TRANSPARENCY_MAX,
-      Math.max(DASHBOARD_GLASS_TRANSPARENCY_MIN, Math.round(parsedValue))
-    );
-  }
-
-  function normalizeDashboardBackgroundDimChoice(value = DEFAULT_DASHBOARD_BACKGROUND_DIM) {
-    return normalizeDashboardAppearanceChoice(
-      value,
-      DASHBOARD_BACKGROUND_DIM_OPTIONS,
-      DEFAULT_DASHBOARD_BACKGROUND_DIM
-    );
-  }
-
-  function normalizeDashboardAccentGlowChoice(value = DEFAULT_DASHBOARD_ACCENT_GLOW) {
-    return normalizeDashboardAppearanceChoice(
-      value,
-      DASHBOARD_ACCENT_GLOW_OPTIONS,
-      DEFAULT_DASHBOARD_ACCENT_GLOW
-    );
-  }
-
-  function normalizeDashboardDensityChoice(value = DEFAULT_DASHBOARD_DENSITY) {
-    return normalizeDashboardAppearanceChoice(
-      value,
-      DASHBOARD_DENSITY_OPTIONS,
-      DEFAULT_DASHBOARD_DENSITY
-    );
-  }
-
-  function getDashboardBackgroundBlurChoice() {
-    return normalizeDashboardBackgroundBlurChoice(global.document?.documentElement?.dataset?.dashboardBackgroundBlur);
-  }
-
-  function getDashboardGlassTransparencyChoice() {
-    return normalizeDashboardGlassTransparencyChoice(global.document?.documentElement?.dataset?.dashboardGlassTransparency);
-  }
-
-  function getDashboardBackgroundDimChoice() {
-    return normalizeDashboardBackgroundDimChoice(global.document?.documentElement?.dataset?.dashboardBackgroundDim);
-  }
-
-  function getDashboardAccentGlowChoice() {
-    return normalizeDashboardAccentGlowChoice(global.document?.documentElement?.dataset?.dashboardAccentGlow);
-  }
-
-  function getDashboardDensityChoice() {
-    return normalizeDashboardDensityChoice(global.document?.documentElement?.dataset?.dashboardDensity);
-  }
-
-  function getDashboardThemeOptions(helpers) {
-    return [
-      {
-        value: "bright",
-        label: helpers.t("settings.brightGlass"),
-        copy: helpers.translateDashboardText("Default bright frosted glass dashboard theme."),
-      },
-      {
-        value: "dark",
-        label: helpers.t("settings.darkGlass"),
-        copy: helpers.translateDashboardText("Deep navy glass dashboard theme for lower-light work."),
-      },
-      {
-        value: "system",
-        label: helpers.t("settings.system"),
-        copy: helpers.translateDashboardText("Follow this device's light or dark appearance."),
-      },
-    ];
-  }
-
-  function getDashboardBackgroundOptions() {
-    return DASHBOARD_BACKGROUND_OPTIONS;
-  }
-
-  function isSafeDashboardCustomBackgroundDataUrl(value = "") {
-    const dataUrl = defaultTrimText(value);
-    return /^data:image\/(?:png|jpe?g|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl);
-  }
-
-  function getSavedDashboardCustomBackground() {
-    try {
-      const savedDataUrl = global.localStorage?.getItem(DASHBOARD_CUSTOM_BACKGROUND_STORAGE_KEY) || "";
-      return isSafeDashboardCustomBackgroundDataUrl(savedDataUrl) ? savedDataUrl : "";
-    } catch {
-      return "";
-    }
-  }
-
-  function buildDashboardBackgroundThumbMarkup(helpers, background, customDataUrl) {
-    if (background.type === "css") {
-      return `<span class="settings-shell-background-thumb" style="background:${helpers.escapeHtml(background.cssBackground || "")}" aria-hidden="true"></span>`;
-    }
-
-    if (background.type === "custom") {
-      const customStyle = customDataUrl
-        ? ` style="background-image:url('${helpers.escapeHtml(customDataUrl)}')"`
-        : "";
-      const emptyState = customDataUrl ? "" : `<span class="settings-shell-background-upload-label">${helpers.escapeHtml(helpers.translateDashboardText("Upload"))}</span>`;
-      return `<span class="settings-shell-background-thumb settings-shell-background-thumb--custom"${customStyle} aria-hidden="true">${emptyState}</span>`;
-    }
-
-    return `<img class="settings-shell-background-thumb" src="${helpers.escapeHtml(background.url)}" alt="" loading="lazy" aria-hidden="true">`;
-  }
-
-  function buildDashboardBackgroundOptionsMarkup(helpers, selectedBackground) {
-    const customDataUrl = getSavedDashboardCustomBackground();
-    const selected = normalizeDashboardBackgroundChoice(selectedBackground);
-
-    return `
-      <div class="settings-shell-background-options" role="radiogroup" aria-label="${helpers.escapeHtml(helpers.t("settings.background"))}">
-        ${getDashboardBackgroundOptions().map((background) => `
-          <label class="settings-shell-background-option ${selected === background.value ? "active" : ""} ${background.type === "custom" ? "settings-shell-background-option--custom" : ""}">
-            <input
-              type="radio"
-              name="dashboard_background"
-              value="${helpers.escapeHtml(background.value)}"
-              data-dashboard-background-choice
-              ${background.type === "custom" && !customDataUrl ? "disabled" : ""}
-              ${selected === background.value ? "checked" : ""}
-            >
-            ${buildDashboardBackgroundThumbMarkup(helpers, background, customDataUrl)}
-            <span class="settings-shell-background-copy">
-              <strong>${helpers.escapeHtml(background.label)}</strong>
-              <small>${helpers.escapeHtml(helpers.translateDashboardText(background.copy))}</small>
-            </span>
-          </label>
-        `).join("")}
-      </div>
-      <div class="settings-custom-background-control" data-dashboard-custom-background-control>
-        <input
-          id="dashboard-custom-background-upload"
-          class="settings-custom-background-input"
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          data-dashboard-custom-background-upload
-        >
-        <div class="settings-custom-background-actions">
-          <label class="ghost-button" for="dashboard-custom-background-upload" data-dashboard-custom-background-upload-trigger>
-            ${helpers.escapeHtml(customDataUrl ? helpers.translateDashboardText("Replace") : helpers.translateDashboardText("Upload background"))}
-          </label>
-          <button class="ghost-button" type="button" data-dashboard-custom-background-remove ${customDataUrl ? "" : "hidden"}>
-            ${helpers.escapeHtml(helpers.translateDashboardText("Remove"))}
-          </button>
-        </div>
-        <p class="settings-shell-section-copy" data-dashboard-custom-background-message>
-          ${helpers.escapeHtml(helpers.translateDashboardText("PNG, JPG, JPEG, or WebP. Max 5 MB. SVG and remote URLs are not allowed."))}
-        </p>
-      </div>
-    `;
-  }
-
-  function buildDashboardBackgroundBlurMarkup(helpers, blurValue) {
-    const blur = normalizeDashboardBackgroundBlurChoice(blurValue);
-
-    return `
-      <div class="settings-background-blur-control">
-        <label for="dashboard-background-blur">${helpers.escapeHtml(helpers.t("settings.backgroundBlur"))}</label>
-        <div class="settings-background-blur-row">
-          <input
-            id="dashboard-background-blur"
-            type="range"
-            name="dashboard_background_blur"
-            min="${DASHBOARD_BACKGROUND_BLUR_MIN}"
-            max="${DASHBOARD_BACKGROUND_BLUR_MAX}"
-            step="1"
-            value="${helpers.escapeHtml(String(blur))}"
-            aria-describedby="dashboard-background-blur-value"
-            data-dashboard-background-blur-control
-          >
-          <output id="dashboard-background-blur-value" for="dashboard-background-blur" data-dashboard-background-blur-value>${helpers.escapeHtml(String(blur))}px</output>
-        </div>
-        <p class="settings-shell-section-copy">${helpers.escapeHtml(helpers.t("settings.backgroundBlurCopy"))}</p>
-      </div>
-    `;
-  }
-
-  function buildDashboardGlassTransparencyMarkup(helpers, transparencyValue) {
-    const transparency = normalizeDashboardGlassTransparencyChoice(transparencyValue);
-
-    return `
-      <div class="settings-glass-transparency-control">
-        <div class="settings-glass-transparency-head">
-          <h4>${helpers.escapeHtml(helpers.t("settings.glassTransparency"))}</h4>
-          <output class="settings-glass-transparency-value" data-dashboard-glass-transparency-value>${helpers.escapeHtml(String(transparency))}%</output>
-        </div>
-        <p>${helpers.escapeHtml(helpers.t("settings.glassTransparencyCopy"))}</p>
-        <div class="settings-glass-transparency-row">
-          <span>${helpers.escapeHtml(helpers.t("settings.glassTransparencyLessSolid"))}</span>
-          <input
-            type="range"
-            name="dashboard_glass_transparency"
-            min="${DASHBOARD_GLASS_TRANSPARENCY_MIN}"
-            max="${DASHBOARD_GLASS_TRANSPARENCY_MAX}"
-            step="1"
-            value="${helpers.escapeHtml(String(transparency))}"
-            aria-label="${helpers.escapeHtml(helpers.t("settings.glassTransparency"))}"
-            data-dashboard-glass-transparency-control
-          >
-          <span>${helpers.escapeHtml(helpers.t("settings.glassTransparencyMoreTransparent"))}</span>
-        </div>
-      </div>
-    `;
-  }
-
-  function buildDashboardAppearanceSegmentedControl(helpers, options = {}) {
-    const selected = options.normalize(options.selected);
-
-    return `
-      <div class="settings-dashboard-appearance-control">
-        <div class="settings-dashboard-appearance-head">
-          <h4>${helpers.escapeHtml(options.title)}</h4>
-          <p>${helpers.escapeHtml(options.copy)}</p>
-        </div>
-        <div class="settings-dashboard-appearance-options" role="radiogroup" aria-label="${helpers.escapeHtml(options.title)}">
-          ${options.choices.map((choice) => `
-            <label class="settings-dashboard-appearance-option ${selected === choice.value ? "active" : ""}">
-              <input
-                type="radio"
-                name="${helpers.escapeHtml(options.name)}"
-                value="${helpers.escapeHtml(choice.value)}"
-                ${options.dataAttribute}
-                ${selected === choice.value ? "checked" : ""}
-              >
-              <span>${helpers.escapeHtml(choice.label)}</span>
-            </label>
-          `).join("")}
-        </div>
-      </div>
-    `;
-  }
-
-  function buildDashboardAppearanceControlsMarkup(helpers, appearance = {}) {
-    return `
-      <div class="settings-dashboard-appearance-grid">
-        ${buildDashboardGlassTransparencyMarkup(helpers, appearance.glassTransparency)}
-        ${buildDashboardAppearanceSegmentedControl(helpers, {
-          title: helpers.t("settings.backgroundDim"),
-          copy: helpers.t("settings.backgroundDimCopy"),
-          name: "dashboard_background_dim",
-          dataAttribute: "data-dashboard-background-dim-choice",
-          selected: appearance.backgroundDim,
-          normalize: normalizeDashboardBackgroundDimChoice,
-          choices: [
-            { value: "bright", label: helpers.t("settings.backgroundDimBright") },
-            { value: "balanced", label: helpers.t("settings.backgroundDimBalanced") },
-            { value: "dim", label: helpers.t("settings.backgroundDimDim") },
-          ],
-        })}
-        ${buildDashboardAppearanceSegmentedControl(helpers, {
-          title: helpers.t("settings.accentGlow"),
-          copy: helpers.t("settings.accentGlowCopy"),
-          name: "dashboard_accent_glow",
-          dataAttribute: "data-dashboard-accent-glow-choice",
-          selected: appearance.accentGlow,
-          normalize: normalizeDashboardAccentGlowChoice,
-          choices: [
-            { value: "off", label: helpers.t("settings.accentGlowOff") },
-            { value: "soft", label: helpers.t("settings.accentGlowSoft") },
-            { value: "vivid", label: helpers.t("settings.accentGlowVivid") },
-          ],
-        })}
-        ${buildDashboardAppearanceSegmentedControl(helpers, {
-          title: helpers.t("settings.dashboardDensity"),
-          copy: helpers.t("settings.dashboardDensityCopy"),
-          name: "dashboard_density",
-          dataAttribute: "data-dashboard-density-choice",
-          selected: appearance.density,
-          normalize: normalizeDashboardDensityChoice,
-          choices: [
-            { value: "comfortable", label: helpers.t("settings.dashboardDensityComfortable") },
-            { value: "compact", label: helpers.t("settings.dashboardDensityCompact") },
-          ],
-        })}
-      </div>
-    `;
-  }
-
   function renderSettingsIcon(name) {
     const icons = {
       general: '<path d="M12 3v2.2M12 18.8V21M4.64 4.64l1.56 1.56M17.8 17.8l1.56 1.56M3 12h2.2M18.8 12H21M4.64 19.36l1.56-1.56M17.8 6.2l1.56-1.56"/><circle cx="12" cy="12" r="3.2"/>',
@@ -3192,15 +2739,6 @@
       : "Current monthly period begins after activation.";
     const billingNoticeTone = defaultTrimText(billingUsage.tone).toLowerCase() || "ok";
     const upgradeOptions = Array.isArray(billing.upgradeOptions) ? billing.upgradeOptions : [];
-    const dashboardTheme = getDashboardAppearanceChoice();
-    const dashboardBackground = getDashboardBackgroundChoice();
-    const dashboardBackgroundBlur = getDashboardBackgroundBlurChoice();
-    const dashboardAppearance = {
-      glassTransparency: getDashboardGlassTransparencyChoice(),
-      backgroundDim: getDashboardBackgroundDimChoice(),
-      accentGlow: getDashboardAccentGlowChoice(),
-      density: getDashboardDensityChoice(),
-    };
     const dashboardLanguage = getDashboardLanguage();
     const supportedDashboardLanguages = getSupportedDashboardLanguages();
     const isHungarian = dashboardLanguage === "hu";
@@ -3211,7 +2749,7 @@
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Account</p>
             <h2 class="settings-shell-page-title">Account and billing</h2>
-            <p class="settings-shell-page-copy">Review the real access, billing, language, theme, and legal surfaces available for this workspace.</p>
+            <p class="settings-shell-page-copy">Review the real access, billing, language, and legal surfaces available for this workspace.</p>
           </div>
         </header>
 
@@ -3348,45 +2886,6 @@
             <button class="primary-button" type="submit">${escapeHtml(t("language.save"))}</button>
           </div>
         </form>
-
-        <section class="settings-shell-section">
-          <div class="settings-shell-section-header">
-            <div>
-              <h3 class="settings-shell-section-title">${escapeHtml(t("settings.theme"))}</h3>
-              <p class="settings-shell-section-copy">${escapeHtml(t("settings.themeCopy"))}</p>
-            </div>
-          </div>
-          <div class="settings-shell-theme-options" role="radiogroup" aria-label="Theme">
-            ${getDashboardThemeOptions(helpers).map((theme) => `
-              <label class="settings-shell-theme-option ${dashboardTheme === theme.value ? "active" : ""}">
-                <input
-                  type="radio"
-                  name="dashboard_theme"
-                  value="${escapeHtml(theme.value)}"
-                  data-dashboard-theme-choice
-                  ${dashboardTheme === theme.value ? "checked" : ""}
-                >
-                <span>
-                  <strong>${escapeHtml(theme.label)}</strong>
-                  <small>${escapeHtml(theme.copy)}</small>
-                </span>
-              </label>
-            `).join("")}
-          </div>
-          <p class="settings-shell-section-copy">${escapeHtml(helpers.translateDashboardText("Saved as a dashboard preference on this device."))}</p>
-        </section>
-
-        <section class="settings-shell-section settings-shell-section--background">
-          <div class="settings-shell-section-header">
-            <div>
-              <h3 class="settings-shell-section-title">${escapeHtml(t("settings.background"))}</h3>
-              <p class="settings-shell-section-copy">${escapeHtml(t("settings.backgroundCopy"))}</p>
-            </div>
-          </div>
-          ${buildDashboardBackgroundOptionsMarkup(helpers, dashboardBackground)}
-          ${buildDashboardBackgroundBlurMarkup(helpers, dashboardBackgroundBlur)}
-          ${buildDashboardAppearanceControlsMarkup(helpers, dashboardAppearance)}
-        </section>
 
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">
@@ -4762,15 +4261,6 @@
       getSupportedDashboardLanguages,
       t,
     } = helpers;
-    const dashboardTheme = getDashboardAppearanceChoice();
-    const dashboardBackground = getDashboardBackgroundChoice();
-    const dashboardBackgroundBlur = getDashboardBackgroundBlurChoice();
-    const dashboardAppearance = {
-      glassTransparency: getDashboardGlassTransparencyChoice(),
-      backgroundDim: getDashboardBackgroundDimChoice(),
-      accentGlow: getDashboardAccentGlowChoice(),
-      density: getDashboardDensityChoice(),
-    };
     const dashboardLanguage = getDashboardLanguage();
     const supportedDashboardLanguages = getSupportedDashboardLanguages();
 
@@ -4779,51 +4269,23 @@
         <div class="settings-card-heading">
           <div>
             <h2 class="settings-card-title">Workspace preferences</h2>
-            <p class="settings-card-copy">Dashboard language, theme, and glass background are real workspace preferences for this browser/session.</p>
+            <p class="settings-card-copy">Dashboard language is a real workspace preference for this browser/session.</p>
           </div>
         </div>
-        <div class="settings-preferences-grid">
-          <form data-dashboard-language-form>
-            <div class="field">
-              <label for="dashboard-language-select">${escapeHtml(t("language.settingsTitle"))}</label>
-              <select id="dashboard-language-select" name="dashboard_language">
-                ${supportedDashboardLanguages.map((language) => `
-                  <option value="${escapeHtml(language.code)}" ${dashboardLanguage === language.code ? "selected" : ""}>${escapeHtml(language.nativeLabel || language.label)}</option>
-                `).join("")}
-              </select>
-            </div>
-            <div class="settings-card-actions">
-              <span data-save-state class="save-state">${escapeHtml(t("language.noChanges"))}</span>
-              <button class="ghost-button" type="submit">${escapeHtml(t("language.save"))}</button>
-            </div>
-          </form>
-          <div class="settings-shell-theme-options" role="radiogroup" aria-label="Theme">
-            ${getDashboardThemeOptions(helpers).map((theme) => `
-              <label class="settings-shell-theme-option ${dashboardTheme === theme.value ? "active" : ""}">
-                <input
-                  type="radio"
-                  name="dashboard_theme"
-                  value="${escapeHtml(theme.value)}"
-                  data-dashboard-theme-choice
-                  ${dashboardTheme === theme.value ? "checked" : ""}
-                >
-                <span>
-                  <strong>${escapeHtml(theme.label)}</strong>
-                  <small>${escapeHtml(theme.copy)}</small>
-                </span>
-              </label>
-            `).join("")}
+        <form data-dashboard-language-form>
+          <div class="field">
+            <label for="dashboard-language-select">${escapeHtml(t("language.settingsTitle"))}</label>
+            <select id="dashboard-language-select" name="dashboard_language">
+              ${supportedDashboardLanguages.map((language) => `
+                <option value="${escapeHtml(language.code)}" ${dashboardLanguage === language.code ? "selected" : ""}>${escapeHtml(language.nativeLabel || language.label)}</option>
+              `).join("")}
+            </select>
           </div>
-        </div>
-        <div class="settings-background-preference">
-          <div>
-            <h3 class="settings-card-title">${escapeHtml(t("settings.background"))}</h3>
-            <p class="settings-card-copy">${escapeHtml(t("settings.backgroundCopy"))}</p>
+          <div class="settings-card-actions">
+            <span data-save-state class="save-state">${escapeHtml(t("language.noChanges"))}</span>
+            <button class="ghost-button" type="submit">${escapeHtml(t("language.save"))}</button>
           </div>
-          ${buildDashboardBackgroundOptionsMarkup(helpers, dashboardBackground)}
-          ${buildDashboardBackgroundBlurMarkup(helpers, dashboardBackgroundBlur)}
-          ${buildDashboardAppearanceControlsMarkup(helpers, dashboardAppearance)}
-        </div>
+        </form>
       </article>
     `;
   }

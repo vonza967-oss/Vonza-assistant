@@ -63,93 +63,20 @@ const DASHBOARD_CUSTOM_BACKGROUND_ALLOWED_TYPES = Object.freeze(["image/png", "i
 const DASHBOARD_CUSTOM_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
 const DASHBOARD_CUSTOM_BACKGROUND_MAX_WIDTH = 2400;
 const DASHBOARD_CUSTOM_BACKGROUND_QUALITY = 0.85;
-const DASHBOARD_BACKGROUND_OPTIONS = Object.freeze(
-  Array.isArray(window.VONZA_DASHBOARD_BACKGROUND_OPTIONS) && window.VONZA_DASHBOARD_BACKGROUND_OPTIONS.length
-    ? window.VONZA_DASHBOARD_BACKGROUND_OPTIONS
-    : [
-      {
-        value: "skyline-atrium",
-        label: "Skyline Atrium",
-        type: "image",
-        theme: "bright",
-        url: "/assets/dashboard/backgrounds/skyline-atrium.png",
-      },
-      {
-        value: "harbor-lounge",
-        label: "Harbor Lounge",
-        type: "image",
-        theme: "bright",
-        url: "/assets/dashboard/backgrounds/harbor-lounge.png",
-      },
-      {
-        value: "coastal-gallery",
-        label: "Coastal Gallery",
-        type: "image",
-        theme: "bright",
-        url: "/assets/dashboard/backgrounds/coastal-gallery.png",
-      },
-      {
-        value: "midnight-lobby",
-        label: "Midnight Lobby",
-        type: "image",
-        theme: "dark",
-        url: "/assets/dashboard/backgrounds/midnight-lobby.png",
-      },
-      {
-        value: "midnight-suite",
-        label: "Midnight Suite",
-        type: "image",
-        theme: "dark",
-        url: "/assets/dashboard/backgrounds/midnight-suite.png",
-      },
-      {
-        value: "white-marble",
-        label: "White Marble",
-        type: "image",
-        theme: "bright",
-        url: "/assets/dashboard/backgrounds/white-marble.png",
-      },
-      {
-        value: "black-marble",
-        label: "Black Marble",
-        type: "image",
-        theme: "dark",
-        url: "/assets/dashboard/backgrounds/black-marble.png",
-      },
-      {
-        value: "simple-white",
-        label: "Simple White",
-        type: "css",
-        theme: "bright",
-        cssBackground: "linear-gradient(135deg, #f8fafc 0%, #eef2ff 52%, #ffffff 100%)",
-      },
-      {
-        value: "simple-dark",
-        label: "Simple Dark",
-        type: "css",
-        theme: "dark",
-        cssBackground: "radial-gradient(circle at 20% 10%, rgba(124, 60, 255, 0.16), transparent 34%), linear-gradient(135deg, #090b12 0%, #111827 52%, #020617 100%)",
-      },
-      {
-        value: DASHBOARD_CUSTOM_BACKGROUND_ID,
-        label: "Custom image",
-        type: "custom",
-        theme: "custom",
-      },
-    ]
-);
-const DEFAULT_DASHBOARD_BACKGROUND = DASHBOARD_BACKGROUND_OPTIONS[0]?.value || "skyline-atrium";
-const DASHBOARD_BACKGROUND_BLUR_MIN = 0;
-const DASHBOARD_BACKGROUND_BLUR_MAX = 24;
-const DEFAULT_DASHBOARD_BACKGROUND_BLUR = 10;
-const DASHBOARD_GLASS_TRANSPARENCY_MIN = 0;
-const DASHBOARD_GLASS_TRANSPARENCY_MAX = 100;
-const DEFAULT_DASHBOARD_GLASS_TRANSPARENCY = 70;
-const DASHBOARD_BACKGROUND_DIM_OPTIONS = Object.freeze(["bright", "balanced", "dim"]);
-const DASHBOARD_ACCENT_GLOW_OPTIONS = Object.freeze(["off", "soft", "vivid"]);
-const DASHBOARD_DENSITY_OPTIONS = Object.freeze(["comfortable", "compact"]);
-const DEFAULT_DASHBOARD_BACKGROUND_DIM = "balanced";
-const DEFAULT_DASHBOARD_ACCENT_GLOW = "soft";
+const DASHBOARD_BACKGROUND_OPTIONS = Object.freeze([
+  Object.freeze({
+    value: "simple-white",
+    label: "Simple White",
+    type: "css",
+    theme: "bright",
+    cssBackground: "#f4f6f9",
+  }),
+]);
+const DEFAULT_DASHBOARD_BACKGROUND = "simple-white";
+const DEFAULT_DASHBOARD_BACKGROUND_BLUR = 0;
+const DEFAULT_DASHBOARD_GLASS_TRANSPARENCY = 100;
+const DEFAULT_DASHBOARD_BACKGROUND_DIM = "bright";
+const DEFAULT_DASHBOARD_ACCENT_GLOW = "off";
 const DEFAULT_DASHBOARD_DENSITY = "comfortable";
 const DASHBOARD_APPEARANCE_CHOICE_LABELS = Object.freeze({
   subtle: "Subtle",
@@ -610,14 +537,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "install.testFrontDesk": "Test front desk",
   "settings.title": "Settings",
   "settings.copy": "Control assistant branding, business context, billing, privacy, and workspace access.",
-  "settings.preferencesCopy": "Choose dashboard language, appearance, and device-level workspace preferences.",
-  "settings.theme": "Theme",
-  "settings.themeCopy": "Choose how the dashboard looks in this browser. Bright Glass is the default.",
-  "settings.brightGlass": "Bright Glass",
-  "settings.darkGlass": "Dark Glass",
-  "settings.system": "System",
-  "settings.light": "Bright Glass",
-  "settings.dark": "Dark Glass",
+  "settings.preferencesCopy": "Choose the language used by the dashboard.",
 };
 const DEFAULT_LAUNCH_PROFILE = {
   mode: "public_cohort_v1",
@@ -1792,31 +1712,13 @@ function getClientId() {
 }
 
 function normalizeDashboardTheme(value = "") {
-  const normalized = trimText(value).toLowerCase().replace(/[_\s]+/g, "-");
-
-  if (normalized === "dark" || normalized === "dark-glass") {
-    return "dark";
-  }
-
-  if (normalized === "system" || normalized === "auto") {
-    return "system";
-  }
-
+  void value;
   return "bright";
 }
 
 function resolveDashboardTheme(value = "") {
-  const normalizedTheme = normalizeDashboardTheme(value);
-
-  if (normalizedTheme !== "system") {
-    return normalizedTheme;
-  }
-
-  try {
-    return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "bright";
-  } catch {
-    return "bright";
-  }
+  void value;
+  return "bright";
 }
 
 function isSafeDashboardCustomBackgroundDataUrl(value = "") {
@@ -1833,74 +1735,34 @@ function getSavedDashboardCustomBackground() {
   }
 }
 
-function hasDashboardCustomBackground() {
-  return Boolean(getSavedDashboardCustomBackground());
-}
-
 function normalizeDashboardBackground(value = "") {
-  const normalized = trimText(value).toLowerCase().replace(/[_\s]+/g, "-");
-  if (normalized === DASHBOARD_CUSTOM_BACKGROUND_ID && !hasDashboardCustomBackground()) {
-    return DEFAULT_DASHBOARD_BACKGROUND;
-  }
-
-  return DASHBOARD_BACKGROUND_OPTIONS.some((option) => option.value === normalized)
-    ? normalized
-    : DEFAULT_DASHBOARD_BACKGROUND;
+  void value;
+  return DEFAULT_DASHBOARD_BACKGROUND;
 }
 
 function normalizeDashboardBackgroundBlur(value = DEFAULT_DASHBOARD_BACKGROUND_BLUR) {
-  const parsedValue = Number.parseFloat(value);
-
-  if (!Number.isFinite(parsedValue)) {
-    return DEFAULT_DASHBOARD_BACKGROUND_BLUR;
-  }
-
-  return Math.min(
-    DASHBOARD_BACKGROUND_BLUR_MAX,
-    Math.max(DASHBOARD_BACKGROUND_BLUR_MIN, Math.round(parsedValue))
-  );
-}
-
-function normalizeDashboardAppearanceChoice(value, allowedValues, defaultValue) {
-  const normalized = trimText(value).toLowerCase().replace(/[_\s]+/g, "-");
-  return allowedValues.includes(normalized) ? normalized : defaultValue;
+  void value;
+  return DEFAULT_DASHBOARD_BACKGROUND_BLUR;
 }
 
 function normalizeDashboardGlassTransparency(value = DEFAULT_DASHBOARD_GLASS_TRANSPARENCY) {
-  const parsedValue = Number.parseFloat(value);
-
-  if (!Number.isFinite(parsedValue)) {
-    return DEFAULT_DASHBOARD_GLASS_TRANSPARENCY;
-  }
-
-  return Math.min(
-    DASHBOARD_GLASS_TRANSPARENCY_MAX,
-    Math.max(DASHBOARD_GLASS_TRANSPARENCY_MIN, Math.round(parsedValue))
-  );
+  void value;
+  return DEFAULT_DASHBOARD_GLASS_TRANSPARENCY;
 }
 
 function normalizeDashboardBackgroundDim(value = DEFAULT_DASHBOARD_BACKGROUND_DIM) {
-  return normalizeDashboardAppearanceChoice(
-    value,
-    DASHBOARD_BACKGROUND_DIM_OPTIONS,
-    DEFAULT_DASHBOARD_BACKGROUND_DIM
-  );
+  void value;
+  return DEFAULT_DASHBOARD_BACKGROUND_DIM;
 }
 
 function normalizeDashboardAccentGlow(value = DEFAULT_DASHBOARD_ACCENT_GLOW) {
-  return normalizeDashboardAppearanceChoice(
-    value,
-    DASHBOARD_ACCENT_GLOW_OPTIONS,
-    DEFAULT_DASHBOARD_ACCENT_GLOW
-  );
+  void value;
+  return DEFAULT_DASHBOARD_ACCENT_GLOW;
 }
 
 function normalizeDashboardDensity(value = DEFAULT_DASHBOARD_DENSITY) {
-  return normalizeDashboardAppearanceChoice(
-    value,
-    DASHBOARD_DENSITY_OPTIONS,
-    DEFAULT_DASHBOARD_DENSITY
-  );
+  void value;
+  return DEFAULT_DASHBOARD_DENSITY;
 }
 
 function getDashboardAppearanceChoiceLabel(value = "") {
@@ -2720,14 +2582,14 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Public legal pages": "Publikus jogi oldalak",
   "Open the public legal and privacy pages used by the website, app, hosted Front Desk page, Website Widget, and checkout.": "Nyisd meg a weboldal, app, hosztolt Front Desk oldal, Website Widget és fizetés által használt publikus jogi és adatvédelmi oldalakat.",
   "These links are presented as operational references for owner review and public trust checks.": "Ezek a linkek működési hivatkozásként szolgálnak tulajdonosi áttekintéshez és publikus bizalmi ellenőrzésekhez.",
-  "Dashboard language, appearance, and workspace status.": "Irányítópult nyelve, megjelenés és munkaterület-állapot.",
+  "Dashboard language and workspace status.": "Irányítópult nyelve és munkaterület-állapot.",
   "Customer-facing behavior, welcome, routing, and launch readiness.": "Ügyféloldali működés, üdvözlés, útvonalak és élesítési készenlét.",
   "Business facts Vonza uses to answer customer questions.": "Üzleti tények, amelyekből a Vonza ügyfélkérdésekre válaszol.",
   "Real account, plan, subscription, and usage status.": "Valós fiók-, csomag-, előfizetés- és használati állapot.",
   "Public legal pages and privacy links.": "Publikus jogi oldalak és adatvédelmi linkek.",
   "Settings section": "Beállítási szakasz",
   "Workspace preferences": "Munkaterület beállításai",
-  "Dashboard language and theme are real workspace preferences for this browser/session.": "Az irányítópult nyelve és témája valós munkaterület-beállítás ebben a böngészőben/munkamenetben.",
+  "Dashboard language is a real workspace preference for this browser/session.": "Az irányítópult nyelve valós munkaterület-beállítás ebben a böngészőben/munkamenetben.",
   "Workspace status": "Munkaterület állapota",
   "Operational readiness from the existing auth, activation, install, and Front Desk setup state.": "Működési készenlét a meglévő belépési, aktiválási, telepítési és Front Desk beállítási állapotból.",
   "Lightweight account and workspace state from the existing auth and activation flow.": "Egyszerű fiók- és munkaterület-állapot a meglévő belépési és aktiválási folyamatból.",
@@ -3527,51 +3389,27 @@ function getDashboardTheme() {
 }
 
 function getDashboardBackground() {
-  try {
-    return normalizeDashboardBackground(window.localStorage.getItem(DASHBOARD_BACKGROUND_STORAGE_KEY));
-  } catch {
-    return DEFAULT_DASHBOARD_BACKGROUND;
-  }
+  return DEFAULT_DASHBOARD_BACKGROUND;
 }
 
 function getDashboardBackgroundBlur() {
-  try {
-    return normalizeDashboardBackgroundBlur(window.localStorage.getItem(DASHBOARD_BACKGROUND_BLUR_STORAGE_KEY));
-  } catch {
-    return DEFAULT_DASHBOARD_BACKGROUND_BLUR;
-  }
+  return DEFAULT_DASHBOARD_BACKGROUND_BLUR;
 }
 
 function getDashboardGlassTransparency() {
-  try {
-    return normalizeDashboardGlassTransparency(window.localStorage.getItem(DASHBOARD_GLASS_TRANSPARENCY_STORAGE_KEY));
-  } catch {
-    return DEFAULT_DASHBOARD_GLASS_TRANSPARENCY;
-  }
+  return DEFAULT_DASHBOARD_GLASS_TRANSPARENCY;
 }
 
 function getDashboardBackgroundDim() {
-  try {
-    return normalizeDashboardBackgroundDim(window.localStorage.getItem(DASHBOARD_BACKGROUND_DIM_STORAGE_KEY));
-  } catch {
-    return DEFAULT_DASHBOARD_BACKGROUND_DIM;
-  }
+  return DEFAULT_DASHBOARD_BACKGROUND_DIM;
 }
 
 function getDashboardAccentGlow() {
-  try {
-    return normalizeDashboardAccentGlow(window.localStorage.getItem(DASHBOARD_ACCENT_GLOW_STORAGE_KEY));
-  } catch {
-    return DEFAULT_DASHBOARD_ACCENT_GLOW;
-  }
+  return DEFAULT_DASHBOARD_ACCENT_GLOW;
 }
 
 function getDashboardDensity() {
-  try {
-    return normalizeDashboardDensity(window.localStorage.getItem(DASHBOARD_DENSITY_STORAGE_KEY));
-  } catch {
-    return DEFAULT_DASHBOARD_DENSITY;
-  }
+  return DEFAULT_DASHBOARD_DENSITY;
 }
 
 function syncDashboardThemeControls(root = document) {
@@ -3698,29 +3536,7 @@ function bindDashboardSystemThemeListener() {
     return;
   }
 
-  try {
-    const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
-
-    if (!mediaQuery) {
-      return;
-    }
-
-    const handleSystemThemeChange = () => {
-      if (normalizeDashboardTheme(document.documentElement?.dataset.dashboardAppearance) === "system") {
-        applyDashboardTheme("system");
-      }
-    };
-
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", handleSystemThemeChange);
-    } else if (typeof mediaQuery.addListener === "function") {
-      mediaQuery.addListener(handleSystemThemeChange);
-    }
-
-    dashboardSystemThemeListenerBound = true;
-  } catch {
-    // System appearance is optional when matchMedia is unavailable.
-  }
+  dashboardSystemThemeListenerBound = true;
 }
 
 function applyDashboardTheme(theme = getDashboardTheme()) {
@@ -3742,26 +3558,8 @@ function applyDashboardTheme(theme = getDashboardTheme()) {
   return normalizedTheme;
 }
 
-function getDashboardBackgroundCssValue(option = {}) {
-  if (option.type === "css") {
-    return trimText(option.cssBackground);
-  }
-
-  if (option.type === "custom") {
-    const customImageUrl = trimText(option.imageUrl);
-    return isSafeDashboardCustomBackgroundDataUrl(customImageUrl)
-      ? `url("${customImageUrl.replace(/"/g, "%22")}")`
-      : "";
-  }
-
-  const imageUrl = trimText(option.url);
-  return imageUrl ? `url("${imageUrl.replace(/"/g, "%22")}")` : "";
-}
-
 function applyDashboardBackground(background = getDashboardBackground()) {
   const normalizedBackground = normalizeDashboardBackground(background);
-  const option = getDashboardBackgroundOption(normalizedBackground);
-  const cssImageValue = getDashboardBackgroundCssValue(option);
 
   if (document.documentElement?.dataset) {
     document.documentElement.dataset.dashboardBackground = normalizedBackground;
@@ -3771,9 +3569,8 @@ function applyDashboardBackground(background = getDashboardBackground()) {
     document.body.dataset.dashboardBackground = normalizedBackground;
   }
 
-  if (cssImageValue) {
-    document.documentElement?.style?.setProperty?.("--dashboard-background-image", cssImageValue);
-  }
+  document.documentElement?.style?.setProperty?.("--dashboard-background-image", "none");
+  document.body?.style?.setProperty?.("--dashboard-background-image", "none");
 
   syncDashboardBackgroundControls();
   return normalizedBackground;
@@ -3799,18 +3596,18 @@ function applyDashboardBackgroundBlur(blur = getDashboardBackgroundBlur()) {
 }
 
 function getGlassVars(transparency) {
-  const t = normalizeDashboardGlassTransparency(transparency) / 100;
+  void transparency;
 
   return {
-    topAlpha: 0.52 - t * 0.46,
-    bottomAlpha: 0.36 - t * 0.33,
-    radialAlpha: 0.18 - t * 0.15,
-    sheenAlpha: 0.16 - t * 0.12,
-    reflectionOpacity: 0.42 - t * 0.34,
-    blur: 36 - t * 24,
-    borderAlpha: 0.48 + t * 0.24,
-    highlightAlpha: 0.72 + t * 0.2,
-    innerShadowAlpha: 0.12 - t * 0.07,
+    topAlpha: 0,
+    bottomAlpha: 0,
+    radialAlpha: 0,
+    sheenAlpha: 0,
+    reflectionOpacity: 0,
+    blur: 0,
+    borderAlpha: 0,
+    highlightAlpha: 0,
+    innerShadowAlpha: 0,
   };
 }
 
@@ -9745,6 +9542,13 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       <button type="button" data-overview-target="analytics">View analytics</button>
     </div>
 	  `;
+  const auxiliaryRequestReviewMarkup = isDedicatedWebsiteWidgetDashboard()
+    ? ""
+    : [
+      buildStaffRequestQueueCard(actionQueue.staffRequests),
+      buildBookingRequestReviewCard(actionQueue.bookingRequests),
+      buildQuoteRequestReviewCard(actionQueue.quoteRequests),
+    ].join("");
   const overviewIntroCopy = `${productHomeContext.homeSubtitle || t("home.copy")} ${priorityRows.length
     ? (isWebsiteWidgetProduct ? websiteWidgetText("home.startWithActions") : "Start with the customer moments that need a clear next step.")
     : (isWebsiteWidgetProduct ? websiteWidgetText("home.setupReady") : "Setup health and next steps stay available here.")}`;
@@ -9891,9 +9695,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
 	                : "Your front desk is ready to greet visitors with a clear, helpful first message.",
             })}
           </section>
-          ${buildStaffRequestQueueCard(actionQueue.staffRequests)}
-          ${buildBookingRequestReviewCard(actionQueue.bookingRequests)}
-          ${buildQuoteRequestReviewCard(actionQueue.quoteRequests)}
+          ${auxiliaryRequestReviewMarkup}
           ${legacyHomeContractMarkup}
         </div>
       </div>
@@ -16210,14 +16012,15 @@ async function refreshAgentInstallState(agentId, options = {}) {
 
   setDashboardBackgroundRefreshing(true, options.activeAction || "workspace-refresh");
   try {
+    const shouldLoadRequestReviewQueues = !isDedicatedWebsiteWidgetDashboard();
     const [agentResult, messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, quoteRequestsResult, ownerAnalyticsResult, operatorResult, connectedAppsResult] = await Promise.allSettled([
       loadAgentInstallSnapshot(agentId),
       loadAgentMessages(agentId),
       loadFrontDeskTraining(agentId),
       loadActionQueue(agentId),
-      loadStaffActionRequests(agentId),
-      loadBookingRequests(),
-      loadQuoteRequests(),
+      shouldLoadRequestReviewQueues ? loadStaffActionRequests(agentId) : createEmptyActionQueue().staffRequests,
+      shouldLoadRequestReviewQueues ? loadBookingRequests() : createEmptyActionQueue().bookingRequests,
+      shouldLoadRequestReviewQueues ? loadQuoteRequests() : createEmptyActionQueue().quoteRequests,
       loadOwnerAnalyticsDashboard(agentId),
       loadOperatorWorkspaceSafe(agentId, {
         forceSync: options.forceSync === true,
@@ -19806,8 +19609,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       }
 
       const savedTheme = saveDashboardTheme(input.value);
-      const themeLabel = savedTheme === "system" ? "system" : savedTheme === "dark" ? "Dark Glass" : "Bright Glass";
-      setStatus(`Dashboard theme set to ${themeLabel}.`);
+      setStatus(`Dashboard appearance set to ${savedTheme}.`);
     });
   });
 
@@ -22407,13 +22209,14 @@ async function boot(options = {}) {
       setStatus(t("language.settingsError"));
     }
 
+    const shouldLoadRequestReviewQueues = !isDedicatedWebsiteWidgetDashboard();
     const [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, quoteRequestsResult, ownerAnalyticsResult, operatorResult, activationWizardResult, connectedAppsResult] = await Promise.allSettled([
       loadAgentMessages(agent.id),
       loadFrontDeskTraining(agent.id),
       loadActionQueue(agent.id),
-      loadStaffActionRequests(agent.id),
-      loadBookingRequests(),
-      loadQuoteRequests(),
+      shouldLoadRequestReviewQueues ? loadStaffActionRequests(agent.id) : createEmptyActionQueue().staffRequests,
+      shouldLoadRequestReviewQueues ? loadBookingRequests() : createEmptyActionQueue().bookingRequests,
+      shouldLoadRequestReviewQueues ? loadQuoteRequests() : createEmptyActionQueue().quoteRequests,
       loadOwnerAnalyticsDashboard(agent.id),
       loadOperatorWorkspaceSafe(agent.id),
       loadActivationWizard(agent.id),

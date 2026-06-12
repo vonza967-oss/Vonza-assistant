@@ -6112,12 +6112,43 @@ html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboa
   backdrop-filter: none !important;
 }
 
+html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboard-shell .shell-nav-button :is(
+  .shell-nav-icon,
+  .shell-nav-label-row,
+  .shell-nav-label,
+  strong,
+  span
+) {
+  color: #d8e5f1 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboard-shell .shell-nav-button .shell-nav-note {
+  color: rgb(216 229 241 / 0.66) !important;
+}
+
 html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboard-shell .shell-nav-button:hover,
 html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboard-shell .shell-nav-button.active {
   color: #ffffff !important;
   border-color: var(--vz-plain-sidebar-border) !important;
   background: var(--vz-plain-sidebar-soft) !important;
   box-shadow: none !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboard-shell .shell-nav-button:hover :is(
+  .shell-nav-icon,
+  .shell-nav-label-row,
+  .shell-nav-label,
+  strong,
+  span
+),
+html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboard-shell .shell-nav-button.active :is(
+  .shell-nav-icon,
+  .shell-nav-label-row,
+  .shell-nav-label,
+  strong,
+  span
+) {
+  color: #ffffff !important;
 }
 
 html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboard-shell .shell-nav-button.active::before {

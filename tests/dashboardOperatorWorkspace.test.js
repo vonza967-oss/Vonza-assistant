@@ -735,7 +735,7 @@ test("settings saves only show success after backend confirmation", () => {
   assert.doesNotMatch(businessProfileParserSource, /approvedContactChannels|approvalPreferences|approved_contact|approval_/);
 });
 
-test("dashboard theme and background preferences persist and render Settings controls", () => {
+test("dashboard uses bright theme only and renders language-only Settings preferences", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -747,153 +747,113 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.equal(harness.document.documentElement.dataset.dashboardAppearance, "bright");
   assert.equal(harness.document.documentElement.dataset.dashboardTheme, "bright");
 
-  assert.equal(harness.saveDashboardTheme("dark"), "dark");
-  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_theme"), "dark");
-  assert.equal(harness.document.documentElement.dataset.dashboardAppearance, "dark");
-  assert.equal(harness.document.documentElement.dataset.dashboardTheme, "dark");
-
-  assert.equal(harness.saveDashboardTheme("system"), "system");
-  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_theme"), "system");
-  assert.equal(harness.document.documentElement.dataset.dashboardAppearance, "system");
+  assert.equal(harness.saveDashboardTheme("dark"), "bright");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_theme"), "bright");
+  assert.equal(harness.document.documentElement.dataset.dashboardAppearance, "bright");
   assert.equal(harness.document.documentElement.dataset.dashboardTheme, "bright");
 
-  assert.equal(harness.getDashboardBackground(), "skyline-atrium");
-  assert.equal(harness.applyDashboardBackground(), "skyline-atrium");
-  assert.equal(harness.document.documentElement.dataset.dashboardBackground, "skyline-atrium");
+  assert.equal(harness.saveDashboardTheme("system"), "bright");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_theme"), "bright");
+  assert.equal(harness.document.documentElement.dataset.dashboardAppearance, "bright");
+  assert.equal(harness.document.documentElement.dataset.dashboardTheme, "bright");
 
-  assert.equal(harness.saveDashboardBackground("midnight-suite"), "midnight-suite");
-  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_background"), "midnight-suite");
-  assert.equal(harness.document.documentElement.dataset.dashboardBackground, "midnight-suite");
-  assert.equal(harness.document.body.dataset.dashboardBackground, "midnight-suite");
+  harness.window.localStorage.setItem("vonza_dashboard_background", "midnight-suite");
+  harness.window.localStorage.setItem("vonza_dashboard_background_blur", "24");
+  harness.window.localStorage.setItem("vonza:glass-transparency", "0");
+  harness.window.localStorage.setItem("vonza_dashboard_background_dim", "dim");
+  harness.window.localStorage.setItem("vonza_dashboard_accent_glow", "vivid");
 
-  assert.equal(harness.getDashboardBackgroundBlur(), 10);
-  assert.equal(harness.applyDashboardBackgroundBlur(), 10);
-  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundBlur, "10");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-blur"), "10px");
+  assert.equal(harness.getDashboardBackground(), "simple-white");
+  assert.equal(harness.applyDashboardBackground(), "simple-white");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackground, "simple-white");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-image"), "none");
 
-  assert.equal(harness.saveDashboardBackgroundBlur("18.4"), 18);
-  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_background_blur"), "18");
-  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundBlur, "18");
-  assert.equal(harness.document.body.dataset.dashboardBackgroundBlur, "18");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-blur"), "18px");
+  assert.equal(harness.saveDashboardBackground("midnight-suite"), "simple-white");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_background"), "simple-white");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackground, "simple-white");
+  assert.equal(harness.document.body.dataset.dashboardBackground, "simple-white");
 
-  assert.equal(harness.saveDashboardBackgroundBlur("99"), 24);
-  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_background_blur"), "24");
-  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundBlur, "24");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-blur"), "24px");
+  assert.equal(harness.getDashboardBackgroundBlur(), 0);
+  assert.equal(harness.applyDashboardBackgroundBlur(), 0);
+  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundBlur, "0");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-blur"), "0px");
 
-  assert.equal(harness.getDashboardGlassTransparency(), 70);
-  assert.equal(harness.applyDashboardGlassTransparency(), 70);
-  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "70");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-top-alpha"), "0.20");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-bottom-alpha"), "0.13");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-blur"), "19px");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-inner-shadow"), "0.07");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-radial-alpha"), "0.07");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-sheen-alpha"), "0.08");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-reflection-opacity"), "0.18");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-top-alpha"), "0.20");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-bottom-alpha"), "0.13");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-radial-alpha"), "0.07");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-blur"), "19px");
+  assert.equal(harness.saveDashboardBackgroundBlur("18.4"), 0);
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_background_blur"), "0");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundBlur, "0");
+  assert.equal(harness.document.body.dataset.dashboardBackgroundBlur, "0");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-blur"), "0px");
 
-  assert.equal(harness.saveDashboardGlassTransparency("100"), 100);
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-top-alpha"), "0.06");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-bottom-alpha"), "0.03");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-radial-alpha"), "0.03");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-sheen-alpha"), "0.04");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-reflection-opacity"), "0.08");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-blur"), "12px");
+  assert.equal(harness.getDashboardGlassTransparency(), 100);
+  assert.equal(harness.applyDashboardGlassTransparency(), 100);
+  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "100");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-top-alpha"), "0.00");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-bottom-alpha"), "0.00");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-blur"), "0px");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-inner-shadow"), "0.00");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-radial-alpha"), "0.00");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-sheen-alpha"), "0.00");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-reflection-opacity"), "0.00");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-top-alpha"), "0.00");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-bottom-alpha"), "0.00");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-radial-alpha"), "0.00");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-blur"), "0px");
 
-  assert.equal(harness.saveDashboardGlassTransparency("0"), 0);
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-top-alpha"), "0.52");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-bottom-alpha"), "0.36");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-blur"), "36px");
+  assert.equal(harness.saveDashboardGlassTransparency("0"), 100);
+  assert.equal(harness.window.localStorage.getItem("vonza:glass-transparency"), "100");
+  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "100");
+  assert.equal(harness.document.body.dataset.dashboardGlassTransparency, "100");
 
-  assert.equal(harness.saveDashboardGlassTransparency("82.2"), 82);
-  assert.equal(harness.window.localStorage.getItem("vonza:glass-transparency"), "82");
-  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "82");
-  assert.equal(harness.document.body.dataset.dashboardGlassTransparency, "82");
+  assert.equal(harness.getDashboardBackgroundDim(), "bright");
+  assert.equal(harness.applyDashboardBackgroundDim(), "bright");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundDim, "bright");
 
-  assert.equal(harness.getDashboardBackgroundDim(), "balanced");
-  assert.equal(harness.applyDashboardBackgroundDim(), "balanced");
-  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundDim, "balanced");
+  assert.equal(harness.saveDashboardBackgroundDim("dim"), "bright");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_background_dim"), "bright");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundDim, "bright");
+  assert.equal(harness.document.body.dataset.dashboardBackgroundDim, "bright");
 
-  assert.equal(harness.saveDashboardBackgroundDim("dim"), "dim");
-  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_background_dim"), "dim");
-  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundDim, "dim");
-  assert.equal(harness.document.body.dataset.dashboardBackgroundDim, "dim");
+  assert.equal(harness.getDashboardAccentGlow(), "off");
+  assert.equal(harness.applyDashboardAccentGlow(), "off");
+  assert.equal(harness.document.documentElement.dataset.dashboardAccentGlow, "off");
 
-  assert.equal(harness.getDashboardAccentGlow(), "soft");
-  assert.equal(harness.applyDashboardAccentGlow(), "soft");
-  assert.equal(harness.document.documentElement.dataset.dashboardAccentGlow, "soft");
-
-  assert.equal(harness.saveDashboardAccentGlow("vivid"), "vivid");
-  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_accent_glow"), "vivid");
-  assert.equal(harness.document.documentElement.dataset.dashboardAccentGlow, "vivid");
-  assert.equal(harness.document.body.dataset.dashboardAccentGlow, "vivid");
+  assert.equal(harness.saveDashboardAccentGlow("vivid"), "off");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_accent_glow"), "off");
+  assert.equal(harness.document.documentElement.dataset.dashboardAccentGlow, "off");
+  assert.equal(harness.document.body.dataset.dashboardAccentGlow, "off");
 
   assert.equal(harness.getDashboardDensity(), "comfortable");
   assert.equal(harness.applyDashboardDensity(), "comfortable");
   assert.equal(harness.document.documentElement.dataset.dashboardDensity, "comfortable");
 
-  assert.equal(harness.saveDashboardDensity("compact"), "compact");
-  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_density"), "compact");
-  assert.equal(harness.document.documentElement.dataset.dashboardDensity, "compact");
-  assert.equal(harness.document.body.dataset.dashboardDensity, "compact");
+  assert.equal(harness.saveDashboardDensity("compact"), "comfortable");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_density"), "comfortable");
+  assert.equal(harness.document.documentElement.dataset.dashboardDensity, "comfortable");
+  assert.equal(harness.document.body.dataset.dashboardDensity, "comfortable");
 
   const settingsPanel = harness.window.VonzaSettingsShell.buildSettingsPanel({
     agent: {},
     setup: {},
   });
 
-  assert.match(settingsPanel, /Theme/);
-  assert.match(settingsPanel, /data-dashboard-theme-choice/);
-  assert.match(settingsPanel, /Bright Glass/);
-  assert.match(settingsPanel, /Dark Glass/);
-  assert.match(settingsPanel, /System/);
-  assert.match(settingsPanel, /value="system"[\s\S]*checked/);
-  assert.match(settingsPanel, /Dashboard background/);
-  assert.match(settingsPanel, /data-dashboard-background-choice/);
-  assert.match(settingsPanel, /Skyline Atrium/);
-  assert.match(settingsPanel, /Midnight Suite/);
-  assert.match(settingsPanel, /value="midnight-suite"[\s\S]*checked/);
-  assert.match(settingsPanel, /Background blur/);
-  assert.match(settingsPanel, /data-dashboard-background-blur-control/);
-  assert.match(settingsPanel, /name="dashboard_background_blur"/);
-  assert.match(settingsPanel, /min="0"/);
-  assert.match(settingsPanel, /max="24"/);
-  assert.match(settingsPanel, /value="24"/);
-  assert.match(settingsPanel, /24px/);
-  assert.match(settingsPanel, /Glass transparency/);
-  assert.match(settingsPanel, /data-dashboard-glass-transparency-control/);
-  assert.match(settingsPanel, /name="dashboard_glass_transparency"/);
-  assert.match(settingsPanel, /value="82"/);
-  assert.match(settingsPanel, /82%/);
-  assert.match(settingsPanel, /Background dim/);
-  assert.match(settingsPanel, /data-dashboard-background-dim-choice/);
-  assert.match(settingsPanel, /name="dashboard_background_dim"/);
-  assert.match(settingsPanel, /value="dim"[\s\S]*checked/);
-  assert.match(settingsPanel, /Accent glow/);
-  assert.match(settingsPanel, /data-dashboard-accent-glow-choice/);
-  assert.match(settingsPanel, /name="dashboard_accent_glow"/);
-  assert.match(settingsPanel, /value="vivid"[\s\S]*checked/);
-  assert.match(settingsPanel, /Dashboard density/);
-  assert.match(settingsPanel, /data-dashboard-density-choice/);
-  assert.match(settingsPanel, /name="dashboard_density"/);
-  assert.match(settingsPanel, /value="compact"[\s\S]*checked/);
-  assert.match(settingsPanel, /Comfortable/);
+  assert.match(settingsPanel, /Dashboard language/);
+  assert.match(settingsPanel, /data-dashboard-language-form/);
+  assert.match(settingsPanel, /name="dashboard_language"/);
+  assert.doesNotMatch(settingsPanel, /data-dashboard-theme-choice|data-dashboard-background-choice|data-dashboard-background-blur-control/);
+  assert.doesNotMatch(settingsPanel, /data-dashboard-glass-transparency-control|data-dashboard-background-dim-choice|data-dashboard-accent-glow-choice|data-dashboard-density-choice/);
+  assert.doesNotMatch(settingsPanel, /Bright Glass|Dark Glass|System|Dashboard background|Background blur|Glass transparency|Background dim|Accent glow|Dashboard density/);
 
   const dashboardHtml = readFileSync(path.join(repoRoot, "dashboard.html"), "utf8");
-  assert.match(dashboardHtml, /vonza:glass-transparency/);
+  assert.doesNotMatch(dashboardHtml, /vonza:glass-transparency/);
   assert.match(dashboardHtml, /dataset\.dashboardGlassTransparency/);
-  assert.match(dashboardHtml, /: 70;/);
-  assert.match(dashboardHtml, /blur: 36 - t \* 24/);
-  assert.match(dashboardHtml, /vonza_dashboard_background_dim/);
+  assert.match(dashboardHtml, /dataset\.dashboardBackground = "simple-white"/);
+  assert.match(dashboardHtml, /dataset\.dashboardBackgroundBlur = "0"/);
+  assert.doesNotMatch(dashboardHtml, /blur: 36 - t \* 24/);
+  assert.doesNotMatch(dashboardHtml, /vonza_dashboard_background_dim/);
   assert.match(dashboardHtml, /dataset\.dashboardBackgroundDim/);
-  assert.match(dashboardHtml, /vonza_dashboard_accent_glow/);
+  assert.doesNotMatch(dashboardHtml, /vonza_dashboard_accent_glow/);
   assert.match(dashboardHtml, /dataset\.dashboardAccentGlow/);
-  assert.match(dashboardHtml, /vonza_dashboard_density/);
+  assert.doesNotMatch(dashboardHtml, /vonza_dashboard_density/);
   assert.match(dashboardHtml, /dataset\.dashboardDensity/);
 });
 
@@ -951,7 +911,7 @@ test("settings connected apps panel renders Google reconnect and disconnect life
   assert.doesNotMatch(settingsPanel, /public chat calendar execution/i);
 });
 
-test("dashboard appearance preferences reject invalid stored values safely", () => {
+test("dashboard ignores stale appearance preferences safely", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -963,19 +923,19 @@ test("dashboard appearance preferences reject invalid stored values safely", () 
   harness.window.localStorage.setItem("vonza_dashboard_accent_glow", "neon");
   harness.window.localStorage.setItem("vonza_dashboard_density", "tiny");
 
-  assert.equal(harness.getDashboardGlassTransparency(), 70);
-  assert.equal(harness.getDashboardBackgroundDim(), "balanced");
-  assert.equal(harness.getDashboardAccentGlow(), "soft");
+  assert.equal(harness.getDashboardGlassTransparency(), 100);
+  assert.equal(harness.getDashboardBackgroundDim(), "bright");
+  assert.equal(harness.getDashboardAccentGlow(), "off");
   assert.equal(harness.getDashboardDensity(), "comfortable");
 
-  assert.equal(harness.applyDashboardGlassTransparency(harness.getDashboardGlassTransparency()), 70);
-  assert.equal(harness.applyDashboardBackgroundDim(harness.getDashboardBackgroundDim()), "balanced");
-  assert.equal(harness.applyDashboardAccentGlow(harness.getDashboardAccentGlow()), "soft");
+  assert.equal(harness.applyDashboardGlassTransparency(harness.getDashboardGlassTransparency()), 100);
+  assert.equal(harness.applyDashboardBackgroundDim(harness.getDashboardBackgroundDim()), "bright");
+  assert.equal(harness.applyDashboardAccentGlow(harness.getDashboardAccentGlow()), "off");
   assert.equal(harness.applyDashboardDensity(harness.getDashboardDensity()), "comfortable");
 
-  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "70");
-  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundDim, "balanced");
-  assert.equal(harness.document.documentElement.dataset.dashboardAccentGlow, "soft");
+  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "100");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundDim, "bright");
+  assert.equal(harness.document.documentElement.dataset.dashboardAccentGlow, "off");
   assert.equal(harness.document.documentElement.dataset.dashboardDensity, "comfortable");
 });
 
@@ -1464,7 +1424,6 @@ test("Hungarian supported dashboard keys do not fall back to key names or Englis
     ["nav.install", "Telepítés"],
     ["nav.settings", "Beállítások"],
     ["language.settingsTitle", "Irányítópult nyelve"],
-    ["settings.theme", "Téma"],
     ["install.copyInstallCode", "Telepítőkód másolása"],
     ["customers.needsReply", "Válaszra vár"],
     ["analytics.productScope", "Termékanalitika"],
@@ -1473,8 +1432,8 @@ test("Hungarian supported dashboard keys do not fall back to key names or Englis
     ["analytics.widgetLeads", "Widget érdeklődők"],
     ["analytics.derivedFromConversationSource", "Meglévő beszélgetésforrás-adatokból"],
     ["websiteWidget.status.verifyProgress", "Telepítés ellenőrzése..."],
-    ["websiteWidget.sidebar.preferencesNote", "Nyelv és irányítópult beállítások"],
-    ["settings.preferencesCopy", "Válaszd ki az irányítópult nyelvét, megjelenését és eszközszintű munkaterület-beállításait."],
+    ["websiteWidget.sidebar.preferencesNote", "Irányítópult nyelve"],
+    ["settings.preferencesCopy", "Válaszd ki az irányítópult nyelvét."],
   ]);
 
   for (const [key, value] of expected.entries()) {
@@ -1546,7 +1505,6 @@ test("Hungarian core dashboard screens surface missing translation keys through 
     "install.verifyInstallation",
     "settings.title",
     "settings.preferencesCopy",
-    "settings.theme",
     "language.settingsTitle",
   ];
 
@@ -2321,9 +2279,8 @@ test("today copilot renders inside Today when the flag is on", () => {
 
   assert.match(general, /Workspace preferences/);
   assert.match(general, /data-dashboard-language-form/);
-  assert.match(general, /data-dashboard-theme-choice/);
-  assert.match(general, /data-dashboard-background-choice/);
-  assert.match(general, /data-dashboard-background-blur-control/);
+  assert.doesNotMatch(general, /data-dashboard-theme-choice|data-dashboard-background-choice|data-dashboard-background-blur-control/);
+  assert.doesNotMatch(general, /Bright Glass|Dark Glass|Dashboard background|Glass transparency/);
   assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
   assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
   assert.doesNotMatch(general, /Front Desk purpose|business-summary|assistant-welcome|Website knowledge/);

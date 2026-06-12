@@ -1015,7 +1015,8 @@ test("dedicated Website Widget dashboard has a separate Settings preferences pag
   assert.match(preferencesHtml, /Dashboard language/);
   assert.match(preferencesHtml, /data-dashboard-language-form/);
   assert.match(preferencesHtml, /name="dashboard_language"/);
-  assert.match(preferencesHtml, /data-dashboard-theme-choice/);
+  assert.doesNotMatch(preferencesHtml, /data-dashboard-theme-choice|data-dashboard-background-choice|data-dashboard-background-blur-control/);
+  assert.doesNotMatch(preferencesHtml, /Bright Glass|Dark Glass|Dashboard background|Glass transparency/);
   assert.doesNotMatch(preferencesHtml, /Widget configuration|How the widget answers|website-widget-config-form/);
 });
 
@@ -2005,6 +2006,22 @@ test("dashboard fetches quote requests from the owner API", async () => {
 
   assert.ok(quoteFetch);
   assert.equal(quoteFetch.options.method || "GET", "GET");
+});
+
+test("dedicated Website Widget dashboard does not load Front Desk request review queues", async () => {
+  const harness = createDashboardHarness({
+    pathname: "/website-widget/dashboard",
+    agents: [createActiveAgent()],
+  });
+  await harness.settle();
+
+  const fetchedPaths = harness.fetchCalls.map((call) => call.pathname);
+  const html = harness.getRootHtml();
+
+  assert.equal(fetchedPaths.includes("/agents/action-requests"), false);
+  assert.equal(fetchedPaths.includes("/agents/booking-requests"), false);
+  assert.equal(fetchedPaths.includes("/agents/quote-requests"), false);
+  assert.doesNotMatch(html, /Guest service requests|Booking requests|Quote requests|QDH public intake/i);
 });
 
 test("dashboard booking request status updates post to the owner API only", () => {
