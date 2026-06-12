@@ -5932,7 +5932,7 @@ html[data-dashboard-theme]:has(.website-widget-dashboard-shell),
 html[data-dashboard-theme]:has([data-website-widget-dashboard="dedicated"]),
 html[data-dashboard-theme]:has(.website-widget-dashboard-shell) body,
 html[data-dashboard-theme]:has([data-website-widget-dashboard="dedicated"]) body {
-  background: #f4f6f9 !important;
+  background: #ffffff !important;
   background-image: none !important;
 }
 
@@ -5948,7 +5948,7 @@ html[data-dashboard-theme]:has([data-website-widget-dashboard="dedicated"]) body
 
 html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboard-shell,
 html[data-dashboard-theme] [data-website-widget-dashboard="dedicated"] {
-  --vz-plain-bg: #f4f6f9;
+  --vz-plain-bg: #ffffff;
   --vz-plain-sidebar: #111827;
   --vz-plain-sidebar-soft: #1f2937;
   --vz-plain-sidebar-border: #263241;
@@ -6019,12 +6019,31 @@ html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboa
 html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboard-shell :is(
   .workspace-shell,
   .workspace-pages
+),
+html[data-dashboard-theme] [data-website-widget-dashboard="dedicated"] :is(
+  .workspace-shell,
+  .workspace-pages
 ) {
   background: var(--vz-plain-bg) !important;
   background-image: none !important;
 }
 
 html[data-dashboard-theme] .dashboard-v2-production-shell.website-widget-dashboard-shell :is(
+  .workspace-page,
+  .workspace-page-overview,
+  .workspace-page-body,
+  .home-surface,
+  .dashboard-v2-analytics,
+  .analytics-route-stack,
+  .contacts-workspace,
+  .settings-shell-root,
+  .settings-active-content,
+  .website-widget-body,
+  .website-widget-config-layout,
+  .website-widget-config-form,
+  .install-page-layout
+),
+html[data-dashboard-theme] [data-website-widget-dashboard="dedicated"] :is(
   .workspace-page,
   .workspace-page-overview,
   .workspace-page-body,
