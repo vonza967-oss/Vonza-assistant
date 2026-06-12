@@ -5038,6 +5038,46 @@ function getOwnerSafeImportErrorMessage() {
   return "Website import could not finish. Check that the site is reachable, then retry.";
 }
 
+function formatKnowledgeImportReportSummary(report = {}) {
+  const discovered = Number(report.discoveredUrlCount || 0);
+  const attempted = Number(report.attemptedPages || 0);
+  const imported = Number(report.importedPages ?? report.pageCount ?? 0);
+  const failed = Number(report.failedPages || 0);
+  const skipped = Number(report.skippedPages || 0);
+  const structuredFacts = Number(report.structuredFactCount || 0);
+  const jsFallbackPages = Number(report.jsFallbackPages || 0);
+  const sitemapUsed = report.sitemapUsed === true;
+  const indexingStatus = trimText(report.ragIndexingStatus);
+  const parts = [];
+
+  if (imported || attempted) {
+    parts.push(`${imported}/${attempted || imported} pages imported`);
+  }
+  if (discovered && discovered > attempted) {
+    parts.push(`${discovered} URLs discovered`);
+  }
+  if (sitemapUsed) {
+    parts.push("sitemap used");
+  }
+  if (structuredFacts) {
+    parts.push(`${structuredFacts} structured facts`);
+  }
+  if (jsFallbackPages) {
+    parts.push(`${jsFallbackPages} JS-rendered`);
+  }
+  if (failed) {
+    parts.push(`${failed} failed`);
+  }
+  if (skipped) {
+    parts.push(`${skipped} skipped`);
+  }
+  if (indexingStatus) {
+    parts.push(`RAG indexing ${indexingStatus}`);
+  }
+
+  return parts.join(" - ");
+}
+
 function getKnowledgeImportStatusUrl(agentId, jobId, clientId, statusUrl = "") {
   const provided = trimText(statusUrl);
 
@@ -5122,6 +5162,7 @@ function normalizeKnowledgeImportState(value = "") {
 function buildKnowledgeImportDisplayState(input = {}) {
   const job = input.job || {};
   const indexing = job.indexing || input.indexing || {};
+  const report = job.report || job.quality?.report || input.importReport || input.quality?.report || {};
   const rawState = normalizeKnowledgeImportState(input.state || job.status || input.status);
   const rawPhase = normalizeKnowledgeImportState(input.phase || job.phase);
   let state = rawState || rawPhase || "queued";
@@ -5137,8 +5178,8 @@ function buildKnowledgeImportDisplayState(input = {}) {
     }
   }
 
-  const pageCount = Number(job.pageCount || input.pageCount || input.knowledge?.pageCount || 0);
-  const contentLength = Number(job.contentLength || input.contentLength || input.knowledge?.contentLength || 0);
+  const pageCount = Number(job.pageCount || input.pageCount || input.knowledge?.pageCount || report.pageCount || report.importedPages || 0);
+  const contentLength = Number(job.contentLength || input.contentLength || input.knowledge?.contentLength || report.contentLength || 0);
   const display = {
     jobId: trimText(input.jobId || job.id),
     statusUrl: trimText(input.statusUrl),
@@ -5163,6 +5204,9 @@ function buildKnowledgeImportDisplayState(input = {}) {
       pageCount,
       knowledge: input.knowledge,
     }),
+    details: formatKnowledgeImportReportSummary(report),
+    qualityState: trimText(job.quality?.state || input.quality?.state || input.import?.qualityState || ""),
+    report,
     pageCount,
     contentLength,
     indexingStatus: trimText(indexing.status || ""),
@@ -5349,6 +5393,12 @@ function inferSetup(agent) {
   const personalityReady = Boolean(trimText(agent.assistantName) && trimText(agent.welcomeMessage) && trimText(agent.tone));
   const hasWebsite = isMeaningfulWebsite(agent.websiteUrl);
   const knowledgeState = hasWebsite ? (knowledge.state || "missing") : "missing";
+  const importStatus = knowledge.importStatus
+    ? buildKnowledgeImportDisplayState({
+      ...knowledge.importStatus,
+      knowledge,
+    })
+    : null;
   const previewReady = Boolean(trimText(agent.publicAgentKey));
   const installReady = previewReady;
 
@@ -5365,6 +5415,7 @@ function inferSetup(agent) {
       : "Add your website so Vonza can learn the details customers ask about.",
     knowledgePageCount: Number(knowledge.pageCount || 0),
     knowledgeContentLength: Number(knowledge.contentLength || 0),
+    importStatus,
     previewReady,
     installReady,
     isReady: personalityReady && hasWebsite && knowledgeState === "ready" && previewReady && installReady,
@@ -10158,9 +10209,11 @@ function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
 	  const welcomeMessage = trimText(agent.welcomeMessage) || "Welcome. Ask a question and we will help with the next step.";
 	  const fullPageConfig = agent.fullPageConfig || agent.full_page_config || {};
 	  const quickPrompts = getWebsiteWidgetQuickPromptsFromConfig(fullPageConfig);
-	  const knowledgeActionLabel = setup.knowledgeState === "limited"
-	    ? websiteWidgetText("config.retryImport")
-	    : websiteWidgetText("config.importKnowledge");
+	  const knowledgeActionLabel = setup.knowledgeState === "ready"
+	    ? websiteWidgetText("config.refreshImport")
+	    : setup.knowledgeState === "limited"
+	      ? websiteWidgetText("config.retryImport")
+	      : websiteWidgetText("config.importKnowledge");
 	  const knowledgeStateLabel = translateDashboardText(formatKnowledgeState(setup.knowledgeState || agent.knowledge?.state || "missing"));
 	  const rawKnowledgeDescription = trimText(setup.knowledgeDescription || agent.knowledge?.description);
 	  const knowledgeDescription = isHungarianDashboard()

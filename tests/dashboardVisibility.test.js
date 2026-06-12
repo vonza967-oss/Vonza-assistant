@@ -1408,7 +1408,7 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.match(html, /data-tone-card="professional"/);
   assert.match(html, /Agent instructions/);
   assert.match(html, /Generate instructions/);
-  assert.match(html, /Import website knowledge|Retry website import/);
+  assert.match(html, /Import website knowledge|Retry website import|Refresh website knowledge/);
   assert.match(html, /Live widget preview/);
   assert.match(html, /Save Website Widget/);
   assert.match(html, /Embed\/install status/);

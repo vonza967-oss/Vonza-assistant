@@ -1,5 +1,6 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
+import { createHash } from "node:crypto";
 import dns from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
@@ -7,6 +8,7 @@ import net from "node:net";
 
 import {
   BUSINESSES_TABLE,
+  WEBSITE_CONTENT_PAGES_TABLE,
   WEBSITE_CONTENT_TABLE,
 } from "../../config/constants.js";
 import {
@@ -56,6 +58,16 @@ function isMissingStructuredFactsColumnError(error) {
   return (
     ["PGRST204", "42703"].includes(error?.code) &&
     message.includes("structured_facts")
+  );
+}
+
+function isMissingRelationError(error, relationName) {
+  const message = cleanText(error?.message || "").toLowerCase();
+  return (
+    error?.code === "PGRST205" ||
+    error?.code === "42P01" ||
+    message.includes(`'public.${relationName}'`) ||
+    message.includes(`${relationName} was not found`)
   );
 }
 
@@ -986,6 +998,8 @@ export async function discoverSitemapCrawlUrls(rootUrl, options = {}) {
     return {
       used: false,
       urls: [],
+      rankedUrls: [],
+      skippedUrls: [],
       discoveredUrlCount: 0,
       sitemapUrl: "",
       sitemapFileCount: 0,
@@ -1048,6 +1062,8 @@ export async function discoverSitemapCrawlUrls(rootUrl, options = {}) {
     return {
       used: false,
       urls: [],
+      rankedUrls: [],
+      skippedUrls: [],
       discoveredUrlCount: 0,
       sitemapUrl: rootSitemapUrl,
       sitemapFileCount: visitedSitemaps.size,
@@ -1059,6 +1075,8 @@ export async function discoverSitemapCrawlUrls(rootUrl, options = {}) {
   return {
     used: rankedUrls.length > 0,
     urls: rankedUrls.slice(0, pageLimit),
+    rankedUrls: rankedUrls.slice(0, Math.max(pageLimit, 100)),
+    skippedUrls: rankedUrls.slice(pageLimit, pageLimit + 50),
     discoveredUrlCount: rankedUrls.length,
     sitemapUrl: rootSitemapUrl,
     sitemapFileCount: visitedSitemaps.size,
@@ -1757,8 +1775,23 @@ function normalizeWebsiteContentPage(page = {}, index = 0) {
     metaDescription: cleanText(page.metaDescription),
     content: buildPlainWebsiteContent(page.content),
     structuredFacts: normalizeStructuredBusinessFacts(page.structuredFacts),
+    status: cleanText(page.status || "imported"),
+    errorCode: cleanText(page.errorCode || page.error_code),
+    jsFallbackUsed: page.jsFallbackUsed === true || page.js_fallback_used === true,
+    contentHash: cleanText(page.contentHash || page.content_hash),
+    importedAt: page.importedAt || page.imported_at || null,
     index,
   };
+}
+
+function hashWebsiteContentPage(page = {}) {
+  return createHash("sha256")
+    .update([
+      cleanText(page.url),
+      buildPlainWebsiteContent(page.content),
+      JSON.stringify(normalizeStructuredBusinessFacts(page.structuredFacts)),
+    ].join("\n"), "utf8")
+    .digest("hex");
 }
 
 export function parseWebsiteContentPages(content = "") {
@@ -2099,6 +2132,230 @@ async function extractWebsitePageWithOptionalJsFallback(url, html, options = {})
   };
 }
 
+function buildWebsiteContentPageRows(contentRecord = {}) {
+  const businessId = cleanText(contentRecord.businessId);
+  const websiteUrl = cleanText(contentRecord.websiteUrl);
+  const importJobId = cleanText(contentRecord.importJobId);
+  const importedAt = contentRecord.importedAt || new Date().toISOString();
+  const importedPages = (Array.isArray(contentRecord.pages) ? contentRecord.pages : [])
+    .map((page, index) => {
+      const normalized = normalizeWebsiteContentPage({
+        ...page,
+        status: "imported",
+      }, index);
+
+      if (!businessId || !normalized.url) {
+        return null;
+      }
+
+      return {
+        business_id: businessId,
+        import_job_id: importJobId || null,
+        website_url: websiteUrl,
+        page_url: normalized.url,
+        page_title: normalized.pageTitle || null,
+        meta_description: normalized.metaDescription || null,
+        content: normalized.content,
+        structured_facts: normalized.structuredFacts,
+        content_hash: normalized.contentHash || hashWebsiteContentPage(normalized),
+        status: "imported",
+        error_code: null,
+        js_fallback_used: normalized.jsFallbackUsed === true,
+        page_index: index,
+        content_length: normalized.content.length,
+        imported_at: importedAt,
+        updated_at: new Date().toISOString(),
+      };
+    })
+    .filter(Boolean);
+
+  const importedUrlKeys = new Set(importedPages.map((page) => getCrawlUrlKey(page.page_url)));
+  const failedRows = (Array.isArray(contentRecord.failedPages) ? contentRecord.failedPages : [])
+    .map((page, index) => {
+      const pageUrl = cleanText(page.url);
+
+      if (!businessId || !pageUrl || importedUrlKeys.has(getCrawlUrlKey(pageUrl))) {
+        return null;
+      }
+
+      return {
+        business_id: businessId,
+        import_job_id: importJobId || null,
+        website_url: websiteUrl,
+        page_url: pageUrl,
+        page_title: null,
+        meta_description: null,
+        content: "",
+        structured_facts: createEmptyStructuredFacts(),
+        content_hash: hashWebsiteContentPage({ url: pageUrl, content: cleanText(page.code || page.errorCode) }),
+        status: "failed",
+        error_code: cleanText(page.code || page.errorCode || "crawl_failed").slice(0, 80),
+        js_fallback_used: false,
+        page_index: importedPages.length + index,
+        content_length: 0,
+        imported_at: importedAt,
+        updated_at: new Date().toISOString(),
+      };
+    })
+    .filter(Boolean);
+
+  const persistedUrlKeys = new Set([...importedUrlKeys, ...failedRows.map((page) => getCrawlUrlKey(page.page_url))]);
+  const skippedRows = (Array.isArray(contentRecord.skippedPages) ? contentRecord.skippedPages : [])
+    .map((page, index) => {
+      const pageUrl = cleanText(page.url);
+
+      if (!businessId || !pageUrl || persistedUrlKeys.has(getCrawlUrlKey(pageUrl))) {
+        return null;
+      }
+
+      return {
+        business_id: businessId,
+        import_job_id: importJobId || null,
+        website_url: websiteUrl,
+        page_url: pageUrl,
+        page_title: null,
+        meta_description: null,
+        content: "",
+        structured_facts: createEmptyStructuredFacts(),
+        content_hash: hashWebsiteContentPage({ url: pageUrl, content: cleanText(page.reason || "crawl_limit") }),
+        status: "skipped",
+        error_code: cleanText(page.reason || "crawl_limit").slice(0, 80),
+        js_fallback_used: false,
+        page_index: importedPages.length + failedRows.length + index,
+        content_length: 0,
+        imported_at: importedAt,
+        updated_at: new Date().toISOString(),
+      };
+    })
+    .filter(Boolean);
+
+  return [...importedPages, ...failedRows, ...skippedRows];
+}
+
+function mapStoredWebsiteContentPage(row = {}, index = 0) {
+  return normalizeWebsiteContentPage({
+    url: row.page_url,
+    pageTitle: row.page_title,
+    metaDescription: row.meta_description,
+    content: row.content,
+    structuredFacts: row.structured_facts,
+    status: row.status,
+    errorCode: row.error_code,
+    jsFallbackUsed: row.js_fallback_used,
+    contentHash: row.content_hash,
+    importedAt: row.imported_at,
+  }, Number.isFinite(row.page_index) ? Number(row.page_index) : index);
+}
+
+async function replaceStoredWebsiteContentPages(supabase, contentRecord = {}) {
+  const businessId = cleanText(contentRecord.businessId);
+  const rows = buildWebsiteContentPageRows(contentRecord);
+
+  if (!businessId || !supabase || typeof supabase.from !== "function") {
+    return { ok: false, skipped: true, pageRows: 0 };
+  }
+
+  const baseDeleteQuery = supabase.from(WEBSITE_CONTENT_PAGES_TABLE);
+
+  if (typeof baseDeleteQuery.delete !== "function") {
+    return { ok: false, skipped: true, pageRows: 0 };
+  }
+
+  const deleteQuery = baseDeleteQuery
+    .delete()
+    .eq("business_id", businessId);
+  const deleteResult = await deleteQuery;
+
+  if (deleteResult.error) {
+    if (isMissingRelationError(deleteResult.error, WEBSITE_CONTENT_PAGES_TABLE)) {
+      return { ok: false, skipped: true, pageRows: 0 };
+    }
+    throw deleteResult.error;
+  }
+
+  if (!rows.length) {
+    return { ok: true, pageRows: 0 };
+  }
+
+  const { error } = await supabase
+    .from(WEBSITE_CONTENT_PAGES_TABLE)
+    .upsert(rows, { onConflict: "business_id,page_url" });
+
+  if (error) {
+    if (isMissingRelationError(error, WEBSITE_CONTENT_PAGES_TABLE)) {
+      return { ok: false, skipped: true, pageRows: 0 };
+    }
+    throw error;
+  }
+
+  return { ok: true, pageRows: rows.length };
+}
+
+export async function listStoredWebsiteContentPages(supabase, businessId) {
+  const normalizedBusinessId = cleanText(businessId);
+
+  if (!normalizedBusinessId || !supabase || typeof supabase.from !== "function") {
+    return [];
+  }
+
+  let query = supabase
+    .from(WEBSITE_CONTENT_PAGES_TABLE)
+    .select(
+      "business_id, import_job_id, website_url, page_url, page_title, meta_description, content, structured_facts, content_hash, status, error_code, js_fallback_used, page_index, content_length, imported_at, updated_at"
+    )
+    .eq("business_id", normalizedBusinessId);
+
+  if (typeof query.order === "function") {
+    query = query.order("page_index", { ascending: true });
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    if (isMissingRelationError(error, WEBSITE_CONTENT_PAGES_TABLE)) {
+      return [];
+    }
+    throw error;
+  }
+
+  return (data || []).map(mapStoredWebsiteContentPage);
+}
+
+function buildImportReportPageSamples({
+  importedPages = [],
+  failedPages = [],
+  skippedPages = [],
+} = {}) {
+  return [
+    ...importedPages.map((page) => ({
+      url: cleanText(page.url),
+      title: cleanText(page.pageTitle),
+      status: "imported",
+      contentLength: cleanText(page.content).length,
+      structuredFactCount: getStructuredBusinessFactCount(page.structuredFacts),
+      jsFallbackUsed: page.jsFallbackUsed === true,
+    })),
+    ...failedPages.map((page) => ({
+      url: cleanText(page.url),
+      title: "",
+      status: "failed",
+      errorCode: cleanText(page.code || page.errorCode || "crawl_failed"),
+      contentLength: 0,
+      structuredFactCount: 0,
+      jsFallbackUsed: false,
+    })),
+    ...skippedPages.map((page) => ({
+      url: cleanText(page.url),
+      title: "",
+      status: "skipped",
+      errorCode: cleanText(page.reason || "crawl_limit"),
+      contentLength: 0,
+      structuredFactCount: 0,
+      jsFallbackUsed: false,
+    })),
+  ].filter((page) => page.url).slice(0, 20);
+}
+
 export async function storeWebsiteContent(supabase, contentRecord) {
   const payload = {
     business_id: contentRecord.businessId,
@@ -2140,6 +2397,8 @@ export async function storeWebsiteContent(supabase, contentRecord) {
 
     throw finalError;
   }
+
+  await replaceStoredWebsiteContentPages(supabase, contentRecord);
 }
 
 export async function getStoredWebsiteContent(supabase, businessId) {
@@ -2172,6 +2431,12 @@ export async function getStoredWebsiteContent(supabase, businessId) {
     return null;
   }
 
+  const storedPages = await listStoredWebsiteContentPages(supabase, businessId).catch(() => []);
+  const parsedPages = parseWebsiteContentPages(content.content);
+  const pages = storedPages.length ? storedPages : parsedPages;
+  const importedPages = pages.filter((page) => cleanText(page.status || "imported") === "imported");
+  const mediaAssets = extractStructuredMediaAssets(content.content);
+
   return {
     businessId: content.business_id,
     websiteUrl: content.website_url,
@@ -2180,10 +2445,10 @@ export async function getStoredWebsiteContent(supabase, businessId) {
     content: buildPlainWebsiteContent(content.content),
     rawContent: content.content,
     structuredFacts: normalizeStructuredBusinessFacts(content.structured_facts),
-    mediaAssets: extractStructuredMediaAssets(content.content),
+    mediaAssets,
     crawledUrls: content.crawled_urls || [],
-    pageCount: content.page_count || 0,
-    pages: parseWebsiteContentPages(content.content),
+    pageCount: content.page_count || importedPages.length || 0,
+    pages,
     updatedAt: content.updated_at || null,
   };
 }
@@ -2205,6 +2470,8 @@ export async function extractBusinessWebsiteContent(supabase, options = {}) {
     sitemapDiscovery = {
       used: false,
       urls: [],
+      rankedUrls: [],
+      skippedUrls: [],
       discoveredUrlCount: 0,
       sitemapUrl: buildSitemapUrl(business.website_url),
       sitemapFileCount: 0,
@@ -2281,6 +2548,19 @@ export async function extractBusinessWebsiteContent(supabase, options = {}) {
   const structuredFacts = mergeStructuredBusinessFacts(pageResults.map((page) => page.structuredFacts));
   const serializedMediaAssets = serializeMediaAssets(combinedMediaAssets);
   const persistedContent = [combinedContent, serializedMediaAssets].filter(Boolean).join("\n\n");
+  const discoveredUrlList = sitemapUsed
+    ? (Array.isArray(sitemapDiscovery.rankedUrls) && sitemapDiscovery.rankedUrls.length
+      ? sitemapDiscovery.rankedUrls
+      : sitemapDiscovery.urls || [])
+    : [...discoveredUrls];
+  const visitedKeys = new Set([...visited].map(getCrawlUrlKey));
+  const skippedPageResults = discoveredUrlList
+    .filter((url) => cleanText(url) && !visitedKeys.has(getCrawlUrlKey(url)))
+    .slice(0, 50)
+    .map((url) => ({
+      url,
+      reason: "crawl_limit",
+    }));
 
   const combinedRecord =
     combinedContent && combinedContent.length >= 500
@@ -2295,8 +2575,19 @@ export async function extractBusinessWebsiteContent(supabase, options = {}) {
           crawledUrls: pageResults.map((page) => page.url),
           pageCount: pageResults.length,
           pages: pageResults.map(normalizeWebsiteContentPage),
+          failedPages: failedPageResults,
+          skippedPages: skippedPageResults,
+          importJobId: cleanText(options.importJobId),
         }
       : buildFallbackContentRecord(business, pageResults);
+  combinedRecord.failedPages = Array.isArray(combinedRecord.failedPages)
+    ? combinedRecord.failedPages
+    : failedPageResults;
+  combinedRecord.skippedPages = Array.isArray(combinedRecord.skippedPages)
+    ? combinedRecord.skippedPages
+    : skippedPageResults;
+  combinedRecord.importJobId = cleanText(combinedRecord.importJobId || options.importJobId);
+  combinedRecord.importedAt = new Date().toISOString();
   const importedPages = pageResults.length;
   const attemptedPages = visited.size;
   const discoveredUrlCount = sitemapUsed
@@ -2317,6 +2608,11 @@ export async function extractBusinessWebsiteContent(supabase, options = {}) {
     sitemapFileCount: sitemapUsed ? Number(sitemapDiscovery.sitemapFileCount || 0) : 0,
     crawlLimit: pageLimit,
     discoveryMethod: sitemapUsed ? "sitemap" : "links",
+    pageSamples: buildImportReportPageSamples({
+      importedPages: pageResults,
+      failedPages: failedPageResults,
+      skippedPages: skippedPageResults,
+    }),
   };
   combinedRecord.importReport = importReport;
   combinedRecord.pages = Array.isArray(combinedRecord.pages)

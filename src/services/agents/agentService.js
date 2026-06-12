@@ -56,6 +56,7 @@ import { normalizeBusinessVertical } from "../../templates/businessVerticals.js"
 const AGENTS_TABLE = "agents";
 const WIDGET_CONFIGS_TABLE = "widget_configs";
 const WEBSITE_CONTENT_TABLE = "website_content";
+const WEBSITE_IMPORT_JOBS_TABLE = "website_import_jobs";
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const DEFAULT_ACCESS_STATUS = "pending";
 const DEFAULT_AGENT_PACKAGE_VERSION = getAgentPackage(DEFAULT_AGENT_PACKAGE_KEY)?.version || "0.1.0";
@@ -1494,7 +1495,41 @@ function mapPersistedWidgetConfigRow(row) {
   };
 }
 
-function buildKnowledgeSummary(row) {
+function toPlainObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function normalizeLatestImportJob(row = {}) {
+  if (!row) {
+    return null;
+  }
+
+  const result = toPlainObject(row.result);
+  const report = toPlainObject(result.report);
+  const indexing = toPlainObject(result.indexing);
+
+  return {
+    websiteUrl: cleanText(row.website_url || result.websiteUrl),
+    job: {
+      id: cleanText(row.id),
+      status: cleanText(row.status || result.status),
+      pageCount: Number(row.page_count ?? result.pageCount ?? report.pageCount ?? 0),
+      contentLength: Number(row.content_length ?? result.contentLength ?? report.contentLength ?? 0),
+      startedAt: row.started_at || null,
+      completedAt: row.completed_at || null,
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null,
+      quality: {
+        state: cleanText(toPlainObject(result.quality).state),
+        report,
+      },
+      report,
+      indexing,
+    },
+  };
+}
+
+function buildKnowledgeSummary(row, latestImportJob = null) {
   const content = cleanText(row?.content || "");
   const contentLength = content.length;
   const pageCount = Number(row?.page_count || 0);
@@ -1522,6 +1557,7 @@ function buildKnowledgeSummary(row) {
     pageCount,
     importedWebsiteUrl: row?.website_url || "",
     updatedAt: row?.updated_at || null,
+    importStatus: normalizeLatestImportJob(latestImportJob),
   };
 }
 
@@ -2221,6 +2257,7 @@ export async function listAgents(supabase, options = {}) {
   let widgetConfigsByAgentId = new Map();
   let businessesById = new Map();
   let websiteContentByBusinessId = new Map();
+  let latestImportJobByAgentId = new Map();
   let messageStatsByAgentId = new Map();
   let installStatusByAgentId = new Map();
   let widgetMetricsByAgentId = new Map();
@@ -2308,6 +2345,28 @@ export async function listAgents(supabase, options = {}) {
   }
 
   if (agentIds.length) {
+    const { data: importJobRows, error: importJobError } = await supabase
+      .from(WEBSITE_IMPORT_JOBS_TABLE)
+      .select("id, agent_id, business_id, website_url, status, page_count, content_length, result, started_at, completed_at, created_at, updated_at")
+      .in("agent_id", agentIds)
+      .order("created_at", { ascending: false });
+
+    if (importJobError) {
+      if (!isMissingRelationError(importJobError, WEBSITE_IMPORT_JOBS_TABLE)) {
+        console.error(importJobError);
+        throw importJobError;
+      }
+    } else {
+      latestImportJobByAgentId = new Map();
+      (importJobRows || []).forEach((row) => {
+        if (!latestImportJobByAgentId.has(row.agent_id)) {
+          latestImportJobByAgentId.set(row.agent_id, row);
+        }
+      });
+    }
+  }
+
+  if (agentIds.length) {
     messageStatsByAgentId = await getAgentMessageStats(supabase, agentIds);
     installStatusByAgentId = await listInstallStatusByAgentIds(supabase, agentIds);
     bookingIntegrationsByAgentId = await listBookingIntegrationStatusesByAgentIds(supabase, agentIds);
@@ -2320,7 +2379,14 @@ export async function listAgents(supabase, options = {}) {
 
   const agents = agentRows.map((row) => {
     const widgetConfig = widgetConfigsByAgentId.get(row.id);
-    const knowledge = websiteContentByBusinessId.get(row.business_id) || buildKnowledgeSummary(null);
+    const latestImportJob = latestImportJobByAgentId.get(row.id) || null;
+    const baseKnowledge = websiteContentByBusinessId.get(row.business_id) || buildKnowledgeSummary(null);
+    const knowledge = latestImportJob
+      ? {
+          ...baseKnowledge,
+          importStatus: normalizeLatestImportJob(latestImportJob),
+        }
+      : baseKnowledge;
     const messageStats = messageStatsByAgentId.get(row.id) || {};
     const business = businessesById.get(row.business_id) || {};
     const websiteUrl = business.website_url || "";

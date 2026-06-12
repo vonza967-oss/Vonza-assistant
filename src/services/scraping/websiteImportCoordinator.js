@@ -253,6 +253,17 @@ function normalizeImportReport(record = {}, indexing = {}) {
     structuredFactCount: Number(rawReport.structuredFactCount || 0),
     jsFallbackPages: Number(rawReport.jsFallbackPages || 0),
     discoveryMethod: cleanText(rawReport.discoveryMethod) || (sitemapUsed ? "sitemap" : "links"),
+    pageSamples: Array.isArray(rawReport.pageSamples)
+      ? rawReport.pageSamples.slice(0, 20).map((page) => ({
+        url: cleanText(page.url),
+        title: cleanText(page.title),
+        status: cleanText(page.status || "imported"),
+        errorCode: cleanText(page.errorCode),
+        contentLength: Number(page.contentLength || 0),
+        structuredFactCount: Number(page.structuredFactCount || 0),
+        jsFallbackUsed: page.jsFallbackUsed === true,
+      })).filter((page) => page.url)
+      : [],
     ragIndexingStatus: mapRagIndexingStatus(indexing),
   };
 
@@ -507,6 +518,7 @@ async function startImportJob(supabase, business, deps, meta = {}) {
     const record = await extractImpl(supabase, {
       businessId: business.id,
       websiteUrl: business.website_url,
+      importJobId: meta.jobId,
     });
     const completedAt = new Date().toISOString();
     const contentLength = cleanText(record?.content).length;

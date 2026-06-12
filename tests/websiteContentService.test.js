@@ -10,6 +10,7 @@ import {
   extractStructuredBusinessFactsFromHtml,
   extractStructuredMediaAssets,
   fetchHtml,
+  getStoredWebsiteContent,
   hasVisualIntent,
   isBlockedIpAddress,
   parseSitemapXml,
@@ -64,6 +65,7 @@ function createWebsiteContentSupabase() {
       },
     ],
     website_content: [],
+    website_content_pages: [],
   };
 
   class Query {
@@ -72,11 +74,22 @@ function createWebsiteContentSupabase() {
       this.filters = [];
       this.operation = "select";
       this.values = null;
+      this.orderColumn = "";
+      this.orderAscending = true;
     }
 
     select() { return this; }
+    delete() {
+      this.operation = "delete";
+      return this;
+    }
     eq(column, value) {
       this.filters.push({ column, value });
+      return this;
+    }
+    order(column, options = {}) {
+      this.orderColumn = column;
+      this.orderAscending = options.ascending !== false;
       return this;
     }
     upsert(value) {
@@ -100,16 +113,42 @@ function createWebsiteContentSupabase() {
     }
     #run() {
       const rows = state[this.table] || [];
-      if (this.operation === "upsert") {
-        const existing = rows.find((row) => row.business_id === this.values.business_id);
-        if (existing) {
-          Object.assign(existing, this.values);
-          return { data: [{ ...existing }], error: null };
-        }
-        rows.push({ ...this.values });
-        return { data: [{ ...this.values }], error: null };
+      if (this.operation === "delete") {
+        const kept = rows.filter((row) => !this.#matches(row));
+        state[this.table] = kept;
+        return { data: [], error: null };
       }
-      return { data: rows.filter((row) => this.#matches(row)).map((row) => ({ ...row })), error: null };
+      if (this.operation === "upsert") {
+        const values = Array.isArray(this.values) ? this.values : [this.values];
+        const upserted = values.map((value) => {
+          const existing = rows.find((row) => (
+            this.table === "website_content_pages"
+              ? row.business_id === value.business_id && row.page_url === value.page_url
+              : row.business_id === value.business_id
+          ));
+          if (existing) {
+            Object.assign(existing, value);
+            return { ...existing };
+          }
+          rows.push({ ...value });
+          return { ...value };
+        });
+        return { data: upserted, error: null };
+      }
+      let selected = rows.filter((row) => this.#matches(row));
+      if (this.orderColumn) {
+        selected = selected.sort((left, right) => {
+          const leftValue = Number.isFinite(left[this.orderColumn]) ? left[this.orderColumn] : String(left[this.orderColumn] || "");
+          const rightValue = Number.isFinite(right[this.orderColumn]) ? right[this.orderColumn] : String(right[this.orderColumn] || "");
+          if (typeof leftValue === "number" && typeof rightValue === "number") {
+            return this.orderAscending ? leftValue - rightValue : rightValue - leftValue;
+          }
+          return this.orderAscending
+            ? String(leftValue).localeCompare(String(rightValue))
+            : String(rightValue).localeCompare(String(leftValue));
+        });
+      }
+      return { data: selected.map((row) => ({ ...row })), error: null };
     }
   }
 
@@ -400,6 +439,58 @@ test("website import uses sitemap urls before link crawl and reports crawl quali
     "https://example.com/services",
     "https://example.com/pricing",
   ]);
+  assert.equal(supabase.state.website_content_pages.filter((page) => page.status === "imported").length, 3);
+  assert.equal(supabase.state.website_content_pages.some((page) => page.page_url === "https://example.com/tag/news" && page.status === "skipped"), true);
+  assert.equal(result.importReport.pageSamples.some((page) => page.url === "https://example.com/services" && page.status === "imported"), true);
+
+  const stored = await getStoredWebsiteContent(supabase, "business-1");
+  assert.deepEqual(stored.pages.filter((page) => page.status === "imported").map((page) => page.url), [
+    "https://example.com/",
+    "https://example.com/services",
+    "https://example.com/pricing",
+  ]);
+});
+
+test("website import refresh replaces stale page rows", async () => {
+  const supabase = createWebsiteContentSupabase();
+  const firstPages = {
+    "https://example.com/": "<html><head><title>Home</title></head><body><h1>Home</h1><p>Useful service, contact, booking, FAQ, and business detail for customers. Useful service, contact, booking, FAQ, and business detail for customers.</p><a href='/old'>Old</a></body></html>",
+    "https://example.com/old": "<html><head><title>Old</title></head><body><p>Old service page with enough useful details for import.</p></body></html>",
+  };
+  const secondPages = {
+    "https://example.com/": "<html><head><title>Home</title></head><body><h1>Home</h1><p>Updated service, pricing, contact, booking, FAQ, and business detail for customers. Updated service, pricing, contact, booking, FAQ, and business detail for customers.</p><a href='/new'>New</a></body></html>",
+    "https://example.com/new": "<html><head><title>New</title></head><body><p>New service page with enough useful details for import.</p></body></html>",
+  };
+  let pages = firstPages;
+
+  const importOnce = () => extractBusinessWebsiteContent(supabase, {
+    businessId: "business-1",
+    maxPages: 2,
+    lookup: async () => [{ address: "93.184.216.34", family: 4 }],
+    httpClient: {
+      get: async (url) => {
+        if (url === "https://example.com/sitemap.xml") {
+          throw new Error("no sitemap");
+        }
+        return {
+          status: 200,
+          headers: { "content-type": "text/html" },
+          config: { url },
+          request: { res: { responseUrl: url } },
+          data: pages[url] || pages["https://example.com/"],
+        };
+      },
+    },
+  });
+
+  await importOnce();
+  assert.equal(supabase.state.website_content_pages.some((page) => page.page_url === "https://example.com/old"), true);
+
+  pages = secondPages;
+  await importOnce();
+
+  assert.equal(supabase.state.website_content_pages.some((page) => page.page_url === "https://example.com/old"), false);
+  assert.equal(supabase.state.website_content_pages.some((page) => page.page_url === "https://example.com/new"), true);
 });
 
 test("website import falls back to ranked link crawl when sitemap is empty", async () => {

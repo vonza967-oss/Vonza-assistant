@@ -1,5 +1,6 @@
 export const BUSINESSES_TABLE = "businesses";
 export const WEBSITE_CONTENT_TABLE = "website_content";
+export const WEBSITE_CONTENT_PAGES_TABLE = "website_content_pages";
 export const MESSAGES_TABLE = "messages";
 export const ACTION_QUEUE_STATUS_TABLE = "agent_action_queue_statuses";
 export const AGENT_ACTION_REQUEST_TABLE = "agent_action_requests";

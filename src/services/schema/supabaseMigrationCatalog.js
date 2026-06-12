@@ -469,6 +469,24 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-scoped Website Widget knowledge file metadata for low-risk text uploads that index into existing Front Desk RAG chunks without changing public widget or embed behavior.",
   }),
+  Object.freeze({
+    id: "website_import_structured_facts",
+    version: "20260612153000",
+    name: "website_import_structured_facts",
+    file: "supabase/migrations/20260612153000_website_import_structured_facts.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds structured website facts storage and website_structured RAG source support for improved Website Widget imports without changing public widget, embed, or billing behavior.",
+  }),
+  Object.freeze({
+    id: "website_content_pages",
+    version: "20260612170000",
+    name: "website_content_pages",
+    file: "supabase/migrations/20260612170000_website_content_pages.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Persists page-level website import results for durable refresh, quality reporting, and future reindexing while preserving the existing website_content summary row.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

@@ -1629,10 +1629,18 @@
     const retryable = importStatus?.retryable === true || ["limited", "failed", "stalled"].includes(state);
 
     if (importStatus) {
+      const details = String(importStatus.details || "").trim();
+      const summary = [importStatus.message || "Website import status will appear here.", details]
+        .filter(Boolean)
+        .join(" ");
+
       return {
         label: importStatus.label || "Website import",
         value: active ? `${importStatus.label || "Import"} now` : importStatus.label || "Website import",
-        summary: importStatus.message || "Website import status will appear here.",
+        summary,
+        report: importStatus.report || {},
+        qualityState: String(importStatus.qualityState || "").trim(),
+        updatedAt: importStatus.updatedAt || "",
         retryable,
         active,
       };
@@ -1642,9 +1650,85 @@
       label: setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Missing",
       value: setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Missing",
       summary: setup.knowledgeDescription || "Website knowledge status appears after import.",
+      report: {},
+      qualityState: "",
+      updatedAt: "",
       retryable: setup.knowledgeState === "limited",
       active: false,
     };
+  }
+
+  function formatImportReportNumber(value) {
+    const number = Number(value || 0);
+    return Number.isFinite(number) ? number : 0;
+  }
+
+  function getImportReportPageSamples(report = {}) {
+    return Array.isArray(report.pageSamples) ? report.pageSamples.slice(0, 6) : [];
+  }
+
+  function buildWebsiteImportQualityReport(importState = {}, helpers = {}) {
+    const escapeHtml = helpers.escapeHtml || defaultEscapeHtml;
+    const report = importState.report || {};
+    const importedPages = formatImportReportNumber(report.importedPages ?? report.pageCount);
+    const attemptedPages = formatImportReportNumber(report.attemptedPages || importedPages);
+    const discoveredUrls = formatImportReportNumber(report.discoveredUrlCount || attemptedPages);
+    const failedPages = formatImportReportNumber(report.failedPages);
+    const skippedPages = formatImportReportNumber(report.skippedPages);
+    const structuredFacts = formatImportReportNumber(report.structuredFactCount);
+    const jsFallbackPages = formatImportReportNumber(report.jsFallbackPages);
+    const crawlLimit = formatImportReportNumber(report.crawlLimit);
+    const ragStatus = String(report.ragIndexingStatus || "").trim();
+    const pageSamples = getImportReportPageSamples(report);
+
+    if (!importedPages && !attemptedPages && !discoveredUrls && !structuredFacts && !pageSamples.length) {
+      return "";
+    }
+
+    const metricRows = [
+      {
+        label: "Pages",
+        value: `${importedPages} / ${attemptedPages || importedPages || 0} imported`,
+        copy: `${discoveredUrls || attemptedPages || importedPages || 0} discovered${crawlLimit ? `, ${crawlLimit} page crawl cap` : ""}`,
+      },
+      {
+        label: "Quality signals",
+        value: `${structuredFacts} structured facts`,
+        copy: `${failedPages} failed, ${skippedPages} skipped${jsFallbackPages ? `, ${jsFallbackPages} JS-rendered` : ""}`,
+      },
+      {
+        label: "Indexing",
+        value: ragStatus ? `RAG ${ragStatus}` : "RAG status pending",
+        copy: report.sitemapUsed ? "Sitemap discovery used for this import." : "Ranked internal links used for this import.",
+      },
+    ];
+
+    return `
+      <div class="settings-shell-status-list" aria-label="Website import quality report">
+        ${metricRows.map((item) => `
+          <div class="settings-shell-status-row">
+            <div class="settings-shell-status-main">
+              <p class="settings-shell-status-label">${escapeHtml(item.label)}</p>
+              <h4 class="settings-shell-status-value">${escapeHtml(item.value)}</h4>
+              <p class="settings-shell-status-copy">${escapeHtml(item.copy)}</p>
+            </div>
+          </div>
+        `).join("")}
+        ${pageSamples.length ? `
+          <div class="settings-shell-status-row">
+            <div class="settings-shell-status-main">
+              <p class="settings-shell-status-label">Imported pages</p>
+              <h4 class="settings-shell-status-value">${escapeHtml(`${pageSamples.length} recent page samples`)}</h4>
+              <p class="settings-shell-status-copy">${escapeHtml(pageSamples.map((page) => {
+                const status = String(page.status || "imported").trim();
+                const title = String(page.title || page.url || "Website page").trim();
+                return `${status}: ${title}`;
+              }).join(" | "))}</p>
+            </div>
+          </div>
+        ` : ""}
+      </div>
+    `;
   }
 
   function buildLegalLinksMarkup() {
@@ -1766,7 +1850,11 @@
   function buildBusinessContextSetupPanel(agent, setup, operatorWorkspace, helpers) {
     const { escapeHtml, getBadgeClass, getBusinessProfileViewModel } = helpers;
     const profile = getBusinessProfileViewModel(operatorWorkspace);
-    const knowledgeActionLabel = setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge";
+    const knowledgeActionLabel = setup.knowledgeState === "ready"
+      ? "Refresh website knowledge"
+      : setup.knowledgeState === "limited"
+        ? "Retry website import"
+        : "Import website knowledge";
     const importState = getKnowledgeImportSettingsState(setup);
 
     return `
@@ -1854,6 +1942,7 @@
               </div>
             </div>
           </div>
+          ${buildWebsiteImportQualityReport(importState, { escapeHtml })}
           <div class="settings-shell-sticky-save">
             <span data-save-state class="save-state">No changes yet.</span>
             <button class="primary-button" type="submit">Save website</button>
@@ -4369,7 +4458,7 @@
             <h2 class="settings-card-title">Integrations</h2>
             <p class="settings-card-copy">Real install, website knowledge, and connected workspace status.</p>
           </div>
-          <button class="ghost-button" type="button" data-action="import-knowledge" ${importState.retryable ? 'data-import-force="true"' : ""}>${escapeHtml(importState.retryable ? "Retry website import" : setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge")}</button>
+          <button class="ghost-button" type="button" data-action="import-knowledge" ${importState.retryable ? 'data-import-force="true"' : ""}>${escapeHtml(importState.retryable ? "Retry website import" : setup.knowledgeState === "ready" ? "Refresh website knowledge" : setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge")}</button>
         </div>
         <div class="settings-status-list">
           ${capabilities.map((item) => `
