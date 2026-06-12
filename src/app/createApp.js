@@ -20,6 +20,7 @@ import {
 } from "../utils/httpErrors.js";
 
 const DISABLED_PRODUCTION_FRONTEND_ASSETS = Object.freeze(new Set([
+  "/dashboardfixture.js",
   "/full-page-assistant-v2-preview.html",
   "/full-page-assistant-v2-preview.css",
   "/full-page-assistant-v2-preview.js",
@@ -56,6 +57,7 @@ export function createApp({ rootDir }) {
       const normalizedPath = filePath.split(path.sep).join("/");
       if (
         normalizedPath.endsWith("/frontend/dashboard.js")
+        || normalizedPath.endsWith("/frontend/dashboardFixture.js")
         || normalizedPath.endsWith("/frontend/dashboard.css")
         || normalizedPath.endsWith("/frontend/dashboard-customers.css")
         || normalizedPath.endsWith("/frontend/dashboard-install.css")

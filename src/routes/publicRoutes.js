@@ -94,7 +94,7 @@ function renderDashboardDocument(rootDir, { localFixture = false } = {}) {
   if (localFixture) {
     html = html.replace(
       '<script src="/dashboard.js',
-      '<script>window.VONZA_LOCAL_DASHBOARD_FIXTURE = true;</script>\n  <script src="/dashboard.js'
+      `<script>window.VONZA_LOCAL_DASHBOARD_FIXTURE = true;</script>\n  <script src="/dashboardFixture.js?v=${version}"></script>\n  <script src="/dashboard.js`
     );
   }
 

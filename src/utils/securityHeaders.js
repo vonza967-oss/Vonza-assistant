@@ -30,6 +30,7 @@ function isDashboardPrivateAssetPath(pathname) {
     "/public-config.js",
     "/supabase-auth.js",
     "/dashboard.js",
+    "/dashboardFixture.js",
     "/dashboard.css",
     "/dashboard-customers.css",
     "/dashboard-install.css",

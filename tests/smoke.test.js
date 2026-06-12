@@ -1470,6 +1470,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /Betöltjük a Website Widget beállításait\.\.\./);
         assert.match(dashboard.text, /ingyenes Render példányok inaktivitás után akár egy percig is indulhatnak\./);
         assert.doesNotMatch(dashboard.text, /dashboard-skeleton-preview/);
+        assert.doesNotMatch(dashboard.text, /dashboardFixture\.js|VONZA_LOCAL_DASHBOARD_FIXTURE/);
         assert.doesNotMatch(dashboard.text, /approvals/i);
         assert.doesNotMatch(dashboard.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
 
@@ -1485,8 +1486,18 @@ test("marketing homepage and app routes load without broken handoff paths", { co
           assert.match(productDashboard.headers.get("cache-control") || "", /no-store/);
           assert.match(productDashboard.text, /dashboard-root/);
           assert.match(productDashboard.text, /\/dashboard\.js/);
+          assert.doesNotMatch(productDashboard.text, /dashboardFixture\.js|VONZA_LOCAL_DASHBOARD_FIXTURE/);
           assert.doesNotMatch(productDashboard.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
         }
+
+        const dashboardV2Fixture = await getText(server.baseUrl, "/dashboard-v2-fixture");
+        assert.equal(dashboardV2Fixture.status, 200);
+        assert.match(dashboardV2Fixture.text, /VONZA_LOCAL_DASHBOARD_FIXTURE/);
+        assert.match(dashboardV2Fixture.text, /\/dashboardFixture\.js/);
+        assert.ok(
+          dashboardV2Fixture.text.indexOf("/dashboardFixture.js") < dashboardV2Fixture.text.indexOf("/dashboard.js"),
+          "local fixture script should load before dashboard.js"
+        );
 
         const dashboardV2Preview = await getText(server.baseUrl, "/dashboard-v2-preview");
         assert.equal(dashboardV2Preview.status, 200);
@@ -1921,12 +1932,14 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         const dashboardFrontDeskScript = await getText(server.baseUrl, "/dashboardFrontDesk.js");
         const dashboardAnalyticsScript = await getText(server.baseUrl, "/dashboardAnalytics.js");
         const dashboardTodayScript = await getText(server.baseUrl, "/dashboardToday.js");
+        const dashboardCustomersScript = await getText(server.baseUrl, "/dashboardCustomers.js");
         assert.equal(dashboardScript.status, 200);
         assert.equal(dashboardLabelsScript.status, 200);
         assert.equal(dashboardInstallScript.status, 200);
         assert.equal(dashboardFrontDeskScript.status, 200);
         assert.equal(dashboardAnalyticsScript.status, 200);
         assert.equal(dashboardTodayScript.status, 200);
+        assert.equal(dashboardCustomersScript.status, 200);
         assert.match(dashboardScript.text, /Create your Vonza account/);
         assert.match(dashboardScript.text, /Sign in to continue into Vonza/);
         assert.match(dashboardScript.text, /Create account/);
@@ -1989,20 +2002,19 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardAnalyticsScript.text, /Who Vonza is talking to/);
         assert.match(dashboardTodayScript.text, /Clarify pricing guidance/);
         assert.match(dashboardScript.text, /Top questions and weak answers/);
-        assert.match(dashboardScript.text, /Reviewed/);
-        assert.match(dashboardScript.text, /Follow-up needed/);
+        assert.match(dashboardAnalyticsScript.text, /Reviewed/);
+        assert.match(dashboardAnalyticsScript.text, /Needs follow-up/);
         assert.match(dashboardTodayScript.text, /Attention now/);
         assert.match(dashboardScript.text, /Resolved items/);
-        assert.match(dashboardScript.text, /Returning people/);
         assert.match(dashboardScript.text, /Owner attention now/);
-        assert.match(dashboardScript.text, /Owner follow-up state/);
-        assert.match(dashboardScript.text, /Conversation summary/);
-        assert.match(dashboardScript.text, /Visitor thread/);
+        assert.match(dashboardTodayScript.text, /action-queue-badges/);
+        assert.match(dashboardTodayScript.text, /getActionQueueOwnerWorkflow/);
         assert.match(dashboardLabelsScript.text, /Approved\/fixed/);
-        assert.match(dashboardScript.text, /Drafted guidance to add/);
-        assert.match(dashboardScript.text, /People view/);
+        assert.match(dashboardCustomersScript.text, /Needs a follow-up/);
+        assert.match(dashboardCustomersScript.text, /Open follow-up draft/);
+        assert.match(dashboardCustomersScript.text, /action-queue-follow-up-form/);
+        assert.match(dashboardCustomersScript.text, /data-open-follow-up/);
         assert.match(dashboardScript.text, /Open follow-up note/);
-        assert.match(dashboardScript.text, /Save follow-up note/);
         assert.match(dashboardInstallScript.text, /Installation methods/);
         assert.match(dashboardInstallScript.text, /Front Desk page/);
         assert.match(dashboardAnalyticsScript.text, /Front Desk page/);

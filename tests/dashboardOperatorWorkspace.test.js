@@ -91,6 +91,10 @@ function createDashboardHarness({
     Object.entries(initialLocalStorage).map(([key, value]) => [key, String(value)])
   );
   const elements = new Map();
+  const eventLog = {
+    document: [],
+    window: [],
+  };
   const document = {
     body: createFakeElement("body"),
     documentElement: createFakeElement("documentElement"),
@@ -109,8 +113,12 @@ function createDashboardHarness({
     createElement(tagName) {
       return createFakeElement(tagName);
     },
-    addEventListener() {},
-    removeEventListener() {},
+    addEventListener(type, callback) {
+      eventLog.document.push({ action: "add", type, callback });
+    },
+    removeEventListener(type, callback) {
+      eventLog.document.push({ action: "remove", type, callback });
+    },
   };
   const window = {
     ...windowFlags,
@@ -165,8 +173,12 @@ function createDashboardHarness({
         removeEventListener() {},
       };
     },
-    addEventListener() {},
-    removeEventListener() {},
+    addEventListener(type, callback) {
+      eventLog.window.push({ action: "add", type, callback });
+    },
+    removeEventListener(type, callback) {
+      eventLog.window.push({ action: "remove", type, callback });
+    },
     setTimeout,
     clearTimeout,
   };
@@ -198,6 +210,7 @@ function createDashboardHarness({
   vm.runInNewContext(dashboardAnalyticsScript, context, { filename: "frontend/dashboardAnalytics.js" });
   vm.runInNewContext(dashboardTodayScript, context, { filename: "frontend/dashboardToday.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
+  context.__eventLog = eventLog;
   return context;
 }
 
@@ -330,6 +343,43 @@ function assertInstallMethodActive(html, panelKey) {
   assert.match(button, /aria-selected="true"/);
   assert.match(panel, /active/);
   assert.doesNotMatch(panel, /\shidden(?:\s|>|=)/);
+}
+
+function createRouteContractWorkspace(harness) {
+  const emptyWorkspace = harness.createEmptyOperatorWorkspace();
+  return {
+    ...emptyWorkspace,
+    enabled: true,
+    featureEnabled: true,
+    contacts: {
+      ...emptyWorkspace.contacts,
+      list: [
+        {
+          id: "contact-1",
+          customerRowKey: "contact-1",
+          name: "Route Contract Customer",
+          email: "route@example.test",
+          lifecycleState: "needs_reply",
+          source: "widget",
+          latestMessageId: "message-1",
+          latestSummary: "Asked about next steps.",
+          lastMessageAt: "2026-05-10T08:00:00.000Z",
+          chatMessages: [
+            {
+              role: "customer",
+              content: "Can I book a consultation?",
+              createdAt: "2026-05-10T08:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      summary: {
+        ...emptyWorkspace.contacts.summary,
+        totalContacts: 1,
+        contactsNeedingAttention: 1,
+      },
+    },
+  };
 }
 
 test("dashboard flag resolver prefers the canonical browser flag and falls back safely", () => {
@@ -939,19 +989,28 @@ test("dashboard ignores stale appearance preferences safely", () => {
   assert.equal(harness.document.documentElement.dataset.dashboardDensity, "comfortable");
 });
 
-test("first-time dashboard language chooser renders and translation fallback is safe", () => {
+test("dashboard language uses the current cached supported-language flow", () => {
   const harness = createDashboardHarness();
 
   assert.equal(harness.t("nav.home"), "Home");
   assert.equal(harness.t("missing.translation.key"), "missing.translation.key");
+  assert.equal(harness.getDashboardLanguage(), "en");
 
-  harness.renderDashboardLanguageChooser();
-  const chooser = harness.document.getElementById("dashboard-root").innerHTML;
+  const supportedLanguages = harness.window.VonzaDashboardI18n.SUPPORTED_LANGUAGES.map((language) => language.code);
+  assert.deepEqual(Array.from(supportedLanguages), ["en", "hu"]);
 
-  assert.match(chooser, /Choose your dashboard language/);
-  assert.match(chooser, /English/);
-  assert.match(chooser, /Magyar/);
-  assert.match(chooser, /Continue/);
+  assert.equal(harness.cacheDashboardLanguage("hu"), "hu");
+  assert.equal(harness.getDashboardLanguage(), "hu");
+  assert.equal(harness.t("nav.home"), "Kezdőlap");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_language"), "hu");
+  assert.equal(harness.document.documentElement.lang, "hu");
+  assert.equal(harness.document.documentElement.dataset.dashboardLanguage, "hu");
+
+  const settingsPanel = harness.buildSettingsPanel({}, {}, harness.createEmptyOperatorWorkspace());
+  assert.match(settingsPanel, /Irányítópult nyelve/);
+  assert.match(settingsPanel, /data-dashboard-language-form/);
+  assert.match(settingsPanel, /value="hu" selected/);
+  assert.doesNotMatch(settingsPanel, /data-dashboard-language-first-run/);
 });
 
 test("Hungarian loading state stays fully Hungarian", () => {
@@ -5040,7 +5099,7 @@ test("dashboard action handlers use background refresh instead of boot loader re
   const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
   const frontDeskScript = readFileSync(path.join(repoRoot, "frontend", "dashboardFrontDesk.js"), "utf8");
   const saveAssistantSource = dashboardScript.match(/async function saveAssistant[\s\S]*?\n}\n\nasync function copyInstallCode/)?.[0] || "";
-  const sharedEventsSource = dashboardScript.match(/function bindSharedDashboardEvents[\s\S]*?\n}\n\nasync function boot/)?.[0] || "";
+  const sharedEventsSource = dashboardScript.match(/function bindSharedDashboardEvents[\s\S]*?\n}\n\n(?:\/\/ Dashboard bootstrapping\n\n)?async function boot/)?.[0] || "";
   const frontDeskEventsSource = frontDeskScript.match(/function bindFrontDeskEvents[\s\S]*?\n\s*return \{\n\s*getApprovedAnswerItems/)?.[0] || "";
 
   assert.match(saveAssistantSource, /refreshDashboardInBackground/);
@@ -5193,6 +5252,135 @@ test("Install selected method survives install status refresh and nested hashes"
   assertInstallMethodActive(harness.document.getElementById("dashboard-root").innerHTML, "widget");
 });
 
+test("dashboard launch route hashes render required shell DOM contracts", () => {
+  const routeCases = [
+    {
+      hash: "#customers",
+      section: "contacts",
+      expected: [
+        /data-shell-section="contacts"/,
+        /data-contact-filter-results/,
+        /data-contact-row/,
+        /data-contact-id="contact-1"/,
+      ],
+    },
+    {
+      hash: "#front-desk",
+      section: "customize",
+      expected: [
+        /data-shell-section="customize"/,
+        /data-frontdesk-target="practice"/,
+        /data-frontdesk-section="practice"/,
+        /data-frontdesk-practice-form/,
+      ],
+    },
+    {
+      hash: "#analytics",
+      section: "analytics",
+      expected: [
+        /data-shell-section="analytics"/,
+        /data-product-analytics-view="website_widget"/,
+        /data-product-analytics-card="widget_conversations"/,
+      ],
+    },
+    {
+      hash: "#install/embed",
+      section: "install",
+      installMethod: "widget",
+      expected: [
+        /data-shell-section="install"/,
+        /data-install-method-tab="widget"/,
+        /data-install-method-panel="widget"/,
+        /data-action="copy-install"/,
+        /data-action="verify-install"/,
+      ],
+    },
+    {
+      hash: "#install/full-page",
+      section: "install",
+      installMethod: "page",
+      expected: [
+        /data-shell-section="install"/,
+        /data-install-method-tab="page"/,
+        /data-install-method-panel="page"/,
+        /data-full-page-option="share"/,
+        /data-action="copy-full-page-url"/,
+      ],
+    },
+    {
+      hash: "#settings",
+      section: "settings",
+      expected: [
+        /data-shell-section="settings"/,
+        /data-active-settings-section="general"/,
+        /data-settings-active-content/,
+        /data-settings-section="general"/,
+        /data-dashboard-language-form/,
+      ],
+    },
+  ];
+
+  for (const routeCase of routeCases) {
+    const harness = createDashboardHarness({
+      windowFlags: {
+        VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+        VONZA_PUBLIC_APP_URL: "https://app.example.com",
+      },
+      hash: routeCase.hash,
+    });
+    const agent = createDashboardUiStateAgent({
+      id: "agent-route-contract",
+      publicAgentKey: "route-public-key",
+      installId: "install-route-contract",
+      assistantName: "Route Contract Assistant",
+      fullPageConfig: {
+        publicPageEnabled: true,
+        publicPageKey: "page-key-route",
+      },
+    });
+    const actionQueue = {
+      ...harness.createEmptyActionQueue(),
+      analyticsSummary: {
+        ...harness.createEmptyAnalyticsSummary(),
+        totalMessages: 1,
+        totalConversations: 1,
+        visitorQuestionCount: 1,
+      },
+    };
+    const workspace = createRouteContractWorkspace(harness);
+    const setup = harness.inferSetup(agent);
+
+    assert.equal(harness.getActiveShellSection(setup, workspace), routeCase.section);
+
+    harness.renderReadyState(
+      agent,
+      [
+        {
+          id: "message-1",
+          role: "user",
+          content: "Can I book a consultation?",
+          source: "widget",
+          createdAt: "2026-05-10T08:00:00.000Z",
+        },
+      ],
+      actionQueue,
+      workspace
+    );
+
+    const markup = harness.document.getElementById("dashboard-root").innerHTML;
+    const activeNavTag = getTagWithAttribute(markup, "data-shell-target", routeCase.section);
+
+    assert.match(markup, /data-app-shell/);
+    assert.match(markup, /data-dashboard-v2="enabled"/);
+    assert.match(activeNavTag, /active/);
+    routeCase.expected.forEach((pattern) => assert.match(markup, pattern, `${routeCase.hash} should include ${pattern}`));
+
+    if (routeCase.installMethod) {
+      assertInstallMethodActive(markup, routeCase.installMethod);
+    }
+  }
+});
+
 test("invalid nested dashboard hashes fall back without breaking default UI state", () => {
   const agent = createDashboardUiStateAgent();
   const harness = createDashboardHarness({
@@ -5224,6 +5412,38 @@ test("dashboard refresh buttons use the full live reload path", () => {
   const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
 
   assert.match(dashboardScript, /refreshAgentInstallState\(agent\.id,\s*\{\s*forceSync\s*\}\)/);
+});
+
+test("dashboard shell replaces the hashchange listener on rerender", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+    hash: "#customers",
+  });
+  const agent = createDashboardUiStateAgent();
+
+  harness.renderReadyState(
+    agent,
+    [],
+    harness.createEmptyActionQueue(),
+    createRouteContractWorkspace(harness)
+  );
+  harness.renderReadyState(
+    agent,
+    [],
+    harness.createEmptyActionQueue(),
+    createRouteContractWorkspace(harness)
+  );
+
+  const hashEvents = harness.__eventLog.window.filter((entry) => entry.type === "hashchange");
+  const addedHandlers = hashEvents.filter((entry) => entry.action === "add");
+  const removedHandlers = hashEvents.filter((entry) => entry.action === "remove");
+
+  assert.equal(addedHandlers.length, 2);
+  assert.equal(removedHandlers.length, 1);
+  assert.equal(removedHandlers[0].callback, addedHandlers[0].callback);
+  assert.notEqual(addedHandlers[1].callback, addedHandlers[0].callback);
 });
 
 test("dashboard coalesces partial workspace failures without blanking the shell", () => {
@@ -5290,19 +5510,73 @@ test("dashboard help assistant stays out of the dashboard shell for now", () => 
   assert.doesNotMatch(rootMarkup, /dashboard-help-drawer/);
 });
 
-test("dashboard help prompt chips submit real AI questions instead of canned answers", () => {
+test("dashboard help drawer implementation stays out of the dashboard bundle for now", () => {
   const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
 
-  assert.match(dashboardScript, /await submitDashboardHelpQuestion\(button\.dataset\.helpPrompt \|\| ""\);/);
-  assert.match(dashboardScript, /fetchJson\("\/agents\/product-help"/);
+  assert.doesNotMatch(dashboardScript, /buildDashboardHelpAssistantMarkup/);
+  assert.doesNotMatch(dashboardScript, /submitDashboardHelpQuestion/);
+  assert.doesNotMatch(dashboardScript, /fetchJson\("\/agents\/product-help"/);
+  assert.doesNotMatch(dashboardScript, /DASHBOARD_HELP_UNAVAILABLE_MESSAGE/);
+  assert.doesNotMatch(dashboardScript, /data-help-toggle/);
+  assert.doesNotMatch(dashboardScript, /data-help-prompt/);
   assert.doesNotMatch(dashboardScript, /data-help-answer/);
   assert.doesNotMatch(dashboardScript, /buildDashboardHelpFallbackAnswer/);
 });
 
-test("dashboard help shows a clean explicit fallback when AI support fails", () => {
+test("stale dashboard renderers and local fixture data stay out of the production dashboard bundle", () => {
   const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+  const dashboardFixtureScript = readFileSync(path.join(repoRoot, "frontend", "dashboardFixture.js"), "utf8");
 
-  assert.match(dashboardScript, /DASHBOARD_HELP_UNAVAILABLE_MESSAGE = "I couldn't load Vonza help right now\. Please try again\."/);
-  assert.match(dashboardScript, /content: DASHBOARD_HELP_UNAVAILABLE_MESSAGE/);
-  assert.doesNotMatch(dashboardScript, /I couldn't load a Vonza help answer just yet/);
+  [
+    /function renderDashboardLanguageChooser/,
+    /data-dashboard-language-first-run/,
+    /activationWizardState/,
+    /function renderActivationWizard/,
+    /data-activation-wizard/,
+    /_buildOperatorNextActionButton/,
+    /_buildOperatorChecklistMarkup/,
+    /_buildSummaryStrip/,
+    /_buildContactIdentitySummary/,
+    /function renderLocalDashboardV2Fixture/,
+    /local-dashboard-v2-fixture/,
+    /fixture-contact-1/,
+    /Local Customer/,
+  ].forEach((pattern) => assert.doesNotMatch(dashboardScript, pattern));
+
+  assert.match(dashboardFixtureScript, /function renderLocalDashboardV2Fixture/);
+  assert.match(dashboardFixtureScript, /window\.VonzaDashboardFixture/);
+  assert.match(dashboardFixtureScript, /fixture-contact-1/);
+});
+
+test("fetchJson normalizes dashboard API error payloads", async () => {
+  const cases = [
+    {
+      body: { message: "Validation failed" },
+      expected: "Validation failed",
+    },
+    {
+      body: { error: { message: "Owner scoped access required" } },
+      expected: "Owner scoped access required",
+    },
+    {
+      body: { errors: [{ message: "First field failed" }] },
+      expected: "First field failed",
+    },
+  ];
+
+  for (const errorCase of cases) {
+    const harness = createDashboardHarness({
+      fetchImpl: async () => ({
+        ok: false,
+        async json() {
+          return errorCase.body;
+        },
+      }),
+    });
+
+    await assert.rejects(
+      () => harness.fetchJson("/agents/update", { method: "POST" }),
+      { message: errorCase.expected }
+    );
+  }
 });
