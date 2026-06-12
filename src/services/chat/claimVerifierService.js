@@ -28,6 +28,7 @@ const STRONG_SOURCE_TYPES = new Set([
   "approved_answer",
   "business_profile",
   "website",
+  "website_structured",
   "manual",
   "live_booking",
   "guest_record",

@@ -107,6 +107,27 @@ export function getRagChunkOverlapChars() {
   });
 }
 
+export function getWebsiteImportMaxPages() {
+  return normalizeIntegerEnv(process.env.WEBSITE_IMPORT_MAX_PAGES, 20, {
+    min: 1,
+    max: 50,
+  });
+}
+
+export function getWebsiteImportJsFallbackConfig() {
+  return {
+    enabled: normalizeBooleanEnv(process.env.WEBSITE_IMPORT_JS_FALLBACK_ENABLED, false),
+    timeoutMs: normalizeIntegerEnv(process.env.WEBSITE_IMPORT_JS_FALLBACK_TIMEOUT_MS, 8000, {
+      min: 1000,
+      max: 15000,
+    }),
+    maxHtmlBytes: normalizeIntegerEnv(process.env.WEBSITE_IMPORT_JS_FALLBACK_MAX_BYTES, 1_500_000, {
+      min: 100_000,
+      max: 2_000_000,
+    }),
+  };
+}
+
 export function getRagConfig() {
   const minSimilarity = getRagMinSimilarity();
 

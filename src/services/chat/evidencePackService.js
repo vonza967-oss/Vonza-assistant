@@ -12,6 +12,7 @@ const SOURCE_TYPES = new Set([
   "approved_answer",
   "business_profile",
   "website",
+  "website_structured",
   "manual",
   "keyword_fallback",
   "live_booking",
@@ -22,6 +23,7 @@ const TRUST_LEVEL_BY_SOURCE_TYPE = {
   approved_answer: "owner_approved",
   business_profile: "reviewed_business_fact",
   website: "retrieved_website",
+  website_structured: "retrieved_website",
   manual: "retrieved_website",
   keyword_fallback: "weak_fallback",
   live_booking: "live_booking_record",
@@ -183,7 +185,11 @@ function buildCounts(items = []) {
   return {
     approvedAnswers: items.filter((item) => item.sourceType === "approved_answer").length,
     businessProfileFacts: items.filter((item) => item.sourceType === "business_profile").length,
-    websiteChunks: items.filter((item) => item.sourceType === "website" || item.sourceType === "manual").length,
+    websiteChunks: items.filter((item) =>
+      item.sourceType === "website" ||
+      item.sourceType === "website_structured" ||
+      item.sourceType === "manual"
+    ).length,
     keywordFallback: items.filter((item) => item.sourceType === "keyword_fallback").length,
   };
 }
@@ -312,7 +318,9 @@ export function renderEvidencePackForPrompt(evidencePack = {}) {
   const businessItems = items.filter((item) => item.sourceType === "business_profile");
   const uploadedKnowledgeItems = items.filter(isUploadedKnowledgeFileEvidence);
   const websiteItems = items.filter((item) =>
-    item.sourceType === "website" || (item.sourceType === "manual" && !isUploadedKnowledgeFileEvidence(item))
+    item.sourceType === "website" ||
+    item.sourceType === "website_structured" ||
+    (item.sourceType === "manual" && !isUploadedKnowledgeFileEvidence(item))
   );
   const keywordFallbackItems = items.filter((item) => item.sourceType === "keyword_fallback");
   const keywordFallbackContext = formatSourceEvidence(keywordFallbackItems);

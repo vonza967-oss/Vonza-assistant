@@ -1397,7 +1397,7 @@ async function assembleChatKnowledge({
     };
   });
   const semanticHasWebsiteContext = semanticRetrieval.chunks?.some((chunk) =>
-    ["website", "manual"].includes(chunk.sourceType)
+    ["website", "website_structured", "manual"].includes(chunk.sourceType)
   );
   const evidencePack = buildEvidencePack({
     approvedAnswers: relevantApprovedAnswers,

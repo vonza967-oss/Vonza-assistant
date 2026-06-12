@@ -28,6 +28,7 @@ create table if not exists public.website_content (
   page_title text,
   meta_description text,
   content text,
+  structured_facts jsonb not null default '{}'::jsonb,
   crawled_urls text[],
   page_count integer,
   created_at timestamp with time zone default now(),
@@ -860,7 +861,7 @@ create table if not exists public.front_desk_knowledge_chunks (
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now(),
   constraint front_desk_knowledge_chunks_source_type_check
-    check (source_type in ('website', 'business_profile', 'approved_answer', 'manual'))
+    check (source_type in ('website', 'website_structured', 'business_profile', 'approved_answer', 'manual'))
 );
 
 create unique index if not exists front_desk_knowledge_chunks_source_hash_idx

@@ -340,6 +340,132 @@ test("unchanged source chunks reuse existing embeddings instead of embedding aga
   });
 });
 
+test("reindex stores website chunks with page-level source metadata", async () => {
+  await withEnv({ RAG_EMBEDDINGS_ENABLED: "false" }, async () => {
+    const supabase = createRagSupabase({
+      chunks: [
+        {
+          id: "legacy-website",
+          owner_user_id: "owner-1",
+          agent_id: "agent-1",
+          source_type: "website",
+          source_id: "business-1",
+          source_url: "https://acme.test",
+          content_hash: "old",
+          chunk_index: 0,
+          is_active: true,
+        },
+      ],
+    });
+
+    const result = await reindexFrontDeskKnowledge(supabase, null, {
+      agent: { id: "agent-1", businessId: "business-1", ownerUserId: "owner-1" },
+      ownerUserId: "owner-1",
+      websiteContent: {
+        businessId: "business-1",
+        websiteUrl: "https://acme.test",
+        pageTitle: "Acme",
+        content: "Aggregate website content for compatibility.",
+        pageCount: 2,
+        crawledUrls: ["https://acme.test/services", "https://acme.test/pricing"],
+        pages: [
+          {
+            url: "https://acme.test/services",
+            pageTitle: "Services",
+            metaDescription: "Service overview",
+            content: "We build websites, landing pages, and SEO content for local businesses.",
+          },
+          {
+            url: "https://acme.test/pricing",
+            pageTitle: "Pricing",
+            metaDescription: "Quote-based pricing",
+            content: "Pricing is prepared after scope review. Customers can request a quote before booking.",
+          },
+        ],
+      },
+      businessProfile: {},
+    });
+
+    const activeWebsiteChunks = supabase.state.front_desk_knowledge_chunks
+      .filter((chunk) => chunk.source_type === "website" && chunk.is_active)
+      .sort((left, right) => String(left.source_url).localeCompare(String(right.source_url)));
+
+    assert.equal(result.sources.website.sourceCount, 2);
+    assert.equal(activeWebsiteChunks.length, 2);
+    assert.deepEqual(
+      activeWebsiteChunks.map((chunk) => chunk.source_url),
+      ["https://acme.test/pricing", "https://acme.test/services"]
+    );
+    assert.equal(activeWebsiteChunks[0].metadata.page_title, "Pricing");
+    assert.equal(activeWebsiteChunks[0].metadata.page_url, "https://acme.test/pricing");
+    assert.notEqual(activeWebsiteChunks[0].source_id, "business-1");
+    assert.equal(
+      supabase.state.front_desk_knowledge_chunks.find((chunk) => chunk.id === "legacy-website").is_active,
+      false
+    );
+  });
+});
+
+test("reindex stores structured website facts as a separate knowledge source", async () => {
+  await withEnv({ RAG_EMBEDDINGS_ENABLED: "false" }, async () => {
+    const supabase = createRagSupabase({
+      chunks: [
+        {
+          id: "legacy-structured",
+          owner_user_id: "owner-1",
+          agent_id: "agent-1",
+          source_type: "website_structured",
+          source_id: "business-1:structured_facts",
+          source_url: "https://acme.test",
+          content_hash: "old",
+          chunk_index: 0,
+          is_active: true,
+        },
+      ],
+    });
+
+    const result = await reindexFrontDeskKnowledge(supabase, null, {
+      agent: { id: "agent-1", businessId: "business-1", ownerUserId: "owner-1" },
+      ownerUserId: "owner-1",
+      websiteContent: {
+        businessId: "business-1",
+        websiteUrl: "https://acme.test",
+        pageTitle: "Acme",
+        content: "Title: Home\nContent:\nAcme repairs appliances.",
+        pageCount: 1,
+        crawledUrls: ["https://acme.test"],
+        structuredFacts: {
+          businessNames: ["Acme Repair"],
+          phones: ["+36 1 234 5678"],
+          openingHours: ["Monday 09:00-17:00"],
+          services: ["Washing machine repair"],
+          priceHints: ["Diagnostic visit 15000 HUF"],
+          urls: {
+            booking: ["https://booking.acme.test/appointments"],
+            contact: ["https://acme.test/contact"],
+            social: [],
+          },
+          faqs: [{ question: "Do you repair ovens?", answer: "Oven repair is listed after diagnostics." }],
+        },
+      },
+      businessProfile: {},
+    });
+
+    const activeStructuredChunks = supabase.state.front_desk_knowledge_chunks
+      .filter((chunk) => chunk.source_type === "website_structured" && chunk.is_active);
+
+    assert.equal(result.sources.website_structured.chunksCreated, 1);
+    assert.equal(activeStructuredChunks.length, 1);
+    assert.match(activeStructuredChunks[0].content, /Structured website facts:/);
+    assert.match(activeStructuredChunks[0].content, /Diagnostic visit 15000 HUF/);
+    assert.equal(activeStructuredChunks[0].metadata.structured_fact_count, 8);
+    assert.equal(
+      supabase.state.front_desk_knowledge_chunks.find((chunk) => chunk.id === "legacy-structured").is_active,
+      false
+    );
+  });
+});
+
 test("archived approved answer deactivates its semantic chunk", async () => {
   const supabase = createRagSupabase({
     chunks: [

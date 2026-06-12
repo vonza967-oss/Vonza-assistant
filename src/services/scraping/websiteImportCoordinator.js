@@ -178,6 +178,98 @@ function buildRunningIndexingOutcome(startedAt) {
   };
 }
 
+function getFailedRatio(report = {}) {
+  const attemptedPages = Number(report.attemptedPages || 0);
+  const failedPages = Number(report.failedPages || 0);
+
+  if (attemptedPages <= 0) {
+    return failedPages > 0 ? 1 : 0;
+  }
+
+  return Math.max(0, Math.min(1, failedPages / attemptedPages));
+}
+
+function mapRagIndexingStatus(indexing = {}) {
+  const status = cleanText(indexing.status).toLowerCase();
+
+  if (status === "indexed") {
+    return "succeeded";
+  }
+  if (status === "failed") {
+    return "failed";
+  }
+  if (status === "partial" || status === "unavailable" || status === "running" || status === "not_started") {
+    return "partial";
+  }
+
+  return "";
+}
+
+function deriveImportQualityState(report = {}, indexing = {}) {
+  const importedPages = Number(report.importedPages ?? report.pageCount ?? 0);
+  const contentLength = Number(report.contentLength || 0);
+  const structuredFactCount = Number(report.structuredFactCount || 0);
+  const failedRatio = getFailedRatio(report);
+  const ragIndexingStatus = mapRagIndexingStatus(indexing);
+
+  if (importedPages <= 0 || (contentLength < 300 && structuredFactCount < 3) || ragIndexingStatus === "failed") {
+    return "poor";
+  }
+
+  if (
+    importedPages < 2 ||
+    (contentLength < 900 && structuredFactCount < 6) ||
+    failedRatio >= 0.5 ||
+    ragIndexingStatus === "partial"
+  ) {
+    return "limited";
+  }
+
+  return "ready";
+}
+
+function normalizeImportReport(record = {}, indexing = {}) {
+  const rawReport = safeJson(record.importReport || record.report);
+  const pageCount = Number(record.pageCount ?? rawReport.pageCount ?? 0);
+  const contentLength = Number(rawReport.contentLength ?? cleanText(record.content).length ?? 0);
+  const importedPages = Number(rawReport.importedPages ?? pageCount);
+  const attemptedPages = Number(rawReport.attemptedPages ?? importedPages);
+  const discoveredUrlCount = Number(rawReport.discoveredUrlCount ?? Math.max(attemptedPages, importedPages));
+  const failedPages = Number(rawReport.failedPages ?? 0);
+  const skippedPages = Number(rawReport.skippedPages ?? Math.max(0, discoveredUrlCount - attemptedPages));
+  const sitemapUsed = rawReport.sitemapUsed === true;
+  const normalized = {
+    discoveredUrlCount,
+    attemptedPages,
+    importedPages,
+    failedPages,
+    skippedPages,
+    contentLength,
+    pageCount,
+    sitemapUsed,
+    sitemapUrl: sitemapUsed ? cleanText(rawReport.sitemapUrl) : "",
+    sitemapFileCount: sitemapUsed ? Number(rawReport.sitemapFileCount || 0) : 0,
+    crawlLimit: Number(rawReport.crawlLimit || 0),
+    structuredFactCount: Number(rawReport.structuredFactCount || 0),
+    jsFallbackPages: Number(rawReport.jsFallbackPages || 0),
+    discoveryMethod: cleanText(rawReport.discoveryMethod) || (sitemapUsed ? "sitemap" : "links"),
+    ragIndexingStatus: mapRagIndexingStatus(indexing),
+  };
+
+  return {
+    ...normalized,
+    failedRatio: getFailedRatio(normalized),
+  };
+}
+
+function buildImportQuality(record = {}, indexing = {}) {
+  const report = normalizeImportReport(record, indexing);
+  return {
+    state: deriveImportQualityState(report, indexing),
+    report,
+  };
+}
+
 async function findActiveImportJobRecord(supabase, business, options = {}) {
   if (!supabase || typeof supabase.from !== "function") {
     return null;
@@ -300,6 +392,7 @@ function buildKnowledgeSummary(record) {
   const pageCount = Number(record?.pageCount || 0);
   const importedWebsiteUrl = cleanText(record?.websiteUrl || "");
   const updatedAt = record?.updatedAt || new Date().toISOString();
+  const quality = buildImportQuality(record);
 
   if (!content) {
     return {
@@ -310,6 +403,8 @@ function buildKnowledgeSummary(record) {
       pageCount,
       importedWebsiteUrl,
       updatedAt,
+      qualityState: quality.state,
+      report: quality.report,
     };
   }
 
@@ -322,6 +417,8 @@ function buildKnowledgeSummary(record) {
       pageCount,
       importedWebsiteUrl,
       updatedAt,
+      qualityState: quality.state,
+      report: quality.report,
     };
   }
 
@@ -333,11 +430,14 @@ function buildKnowledgeSummary(record) {
     pageCount,
     importedWebsiteUrl,
     updatedAt,
+    qualityState: quality.state,
+    report: quality.report,
   };
 }
 
 function buildImportResponse(record, importMeta = {}) {
   const knowledge = buildKnowledgeSummary(record);
+  const quality = buildImportQuality(record, importMeta.indexing);
 
   return {
     ok: true,
@@ -348,6 +448,12 @@ function buildImportResponse(record, importMeta = {}) {
     content: record.content,
     crawledUrls: record.crawledUrls,
     pageCount: record.pageCount,
+    pages: Array.isArray(record.pages) ? record.pages : [],
+    importReport: quality.report,
+    quality: {
+      state: quality.state,
+      report: quality.report,
+    },
     knowledge,
     import: {
       status: knowledge.state === "ready" ? "success" : "limited",
@@ -364,6 +470,8 @@ function buildImportResponse(record, importMeta = {}) {
           ? "Website knowledge import completed successfully."
           : "Website knowledge import completed with limited detail.",
       jobId: importMeta.jobId || null,
+      qualityState: quality.state,
+      report: quality.report,
     },
   };
 }
@@ -419,12 +527,15 @@ async function startImportJob(supabase, business, deps, meta = {}) {
     if (meta.index === true) {
       const indexingStartedAt = new Date().toISOString();
       indexing = buildRunningIndexingOutcome(indexingStartedAt);
+      const runningQuality = buildImportQuality(response, indexing);
       await updateImportJobRecord(supabase, meta.jobId, {
         result: {
           status: response.import.status,
           pageCount: response.pageCount || 0,
           contentLength,
           websiteUrl: response.websiteUrl,
+          report: runningQuality.report,
+          quality: { state: runningQuality.state },
           indexing,
         },
       }).catch((error) => {
@@ -468,26 +579,43 @@ async function startImportJob(supabase, business, deps, meta = {}) {
         });
       }
     }
+    const finalQuality = buildImportQuality(response, meta.index === true ? indexing : {});
+    const finalImportStatus = finalQuality.state === "ready" ? "success" : "limited";
+    response.import.status = finalImportStatus;
+    response.import.qualityState = finalQuality.state;
+    response.import.report = finalQuality.report;
+    response.importReport = finalQuality.report;
+    response.quality = {
+      state: finalQuality.state,
+      report: finalQuality.report,
+    };
+    response.knowledge = {
+      ...response.knowledge,
+      qualityState: finalQuality.state,
+      report: finalQuality.report,
+    };
 
     logger.info?.("[knowledge/import] Finished website knowledge import.", {
       businessId: business.id,
       websiteUrl: business.website_url,
-      status: response.import.status,
+      status: finalImportStatus,
       pageCount: response.pageCount,
       queued: response.import.queued,
       reused: response.import.reused,
     });
 
     await updateImportJobRecord(supabase, meta.jobId, {
-      status: response.import.status,
+      status: finalImportStatus,
       completed_at: completedAt,
       page_count: response.pageCount || 0,
       content_length: contentLength,
       result: {
-        status: response.import.status,
+        status: finalImportStatus,
         pageCount: response.pageCount || 0,
         contentLength,
         websiteUrl: response.websiteUrl,
+        report: finalQuality.report,
+        quality: { state: finalQuality.state },
         ...(meta.index === true ? { indexing } : {}),
       },
     }).catch((error) => {
@@ -841,6 +969,18 @@ function mapImportJobStatus(job = {}) {
     ...buildInitialIndexingOutcome(),
     ...safeJson(result.indexing),
   };
+  const rawReport = {
+    contentLength: Number(job.content_length ?? result.contentLength ?? 0),
+    pageCount: Number(job.page_count ?? result.pageCount ?? 0),
+    importedPages: Number(job.page_count ?? result.pageCount ?? 0),
+    ...safeJson(result.report),
+  };
+  const report = normalizeImportReport({
+    pageCount: Number(job.page_count ?? result.pageCount ?? 0),
+    content: "",
+    importReport: rawReport,
+  }, indexing);
+  const qualityState = cleanText(safeJson(result.quality).state) || deriveImportQualityState(report, indexing);
 
   return {
     id: cleanText(job.id),
@@ -855,6 +995,11 @@ function mapImportJobStatus(job = {}) {
     updatedAt: job.updated_at || null,
     stalled: isStalledImportJob(job),
     error: sanitizeJobError(job),
+    quality: {
+      state: qualityState,
+      report,
+    },
+    report,
     indexing: {
       status: cleanText(indexing.status) || "not_started",
       message: sanitizeIndexingStatusMessage(indexing),

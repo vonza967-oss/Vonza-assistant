@@ -4,7 +4,12 @@ import {
   FRONT_DESK_KNOWLEDGE_CHUNKS_TABLE,
 } from "../../config/constants.js";
 import { getRagConfig } from "../../config/env.js";
-import { getStoredWebsiteContent } from "../scraping/websiteContentService.js";
+import {
+  buildStructuredBusinessFactsKnowledgeText,
+  getStructuredBusinessFactCount,
+  getStoredWebsiteContent,
+  parseWebsiteContentPages,
+} from "../scraping/websiteContentService.js";
 import { getOperatorBusinessProfile } from "../operator/operatorBusinessProfileService.js";
 import {
   listFrontDeskTrainingItems,
@@ -12,7 +17,7 @@ import {
 import { cleanText } from "../../utils/text.js";
 
 const MATCH_RPC = "match_front_desk_knowledge_chunks";
-const SOURCE_TYPES = new Set(["website", "business_profile", "approved_answer", "manual"]);
+const SOURCE_TYPES = new Set(["website", "website_structured", "business_profile", "approved_answer", "manual"]);
 
 function safeJson(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -205,6 +210,39 @@ export async function deactivateKnowledgeSource(supabase, {
   return { deactivated: (data || []).length };
 }
 
+async function deactivateKnowledgeSourcesByType(supabase, {
+  agentId,
+  ownerUserId,
+  sourceType,
+}) {
+  const normalizedAgentId = cleanText(agentId);
+  const normalizedOwnerUserId = cleanText(ownerUserId);
+
+  if (!normalizedAgentId || !normalizedOwnerUserId) {
+    return { deactivated: 0 };
+  }
+
+  const { data, error } = await supabase
+    .from(FRONT_DESK_KNOWLEDGE_CHUNKS_TABLE)
+    .update({
+      is_active: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("agent_id", normalizedAgentId)
+    .eq("owner_user_id", normalizedOwnerUserId)
+    .eq("source_type", normalizeSourceType(sourceType))
+    .select("id");
+
+  if (error) {
+    if (isMissingRagStorageError(error)) {
+      return { deactivated: 0, storageUnavailable: true };
+    }
+    throw error;
+  }
+
+  return { deactivated: (data || []).length };
+}
+
 export async function upsertKnowledgeSourceChunks(supabase, openai, {
   agentId,
   ownerUserId,
@@ -348,6 +386,91 @@ export function buildBusinessProfileKnowledgeText(profile = {}) {
   return sections.join("\n\n");
 }
 
+function buildWebsiteKnowledgePageSources(websiteContent = {}, fallbackSourceId = "") {
+  const businessSourceId = cleanText(websiteContent.businessId || fallbackSourceId);
+  const pages = (Array.isArray(websiteContent.pages) && websiteContent.pages.length
+    ? websiteContent.pages
+    : parseWebsiteContentPages(websiteContent.rawContent || websiteContent.content)
+  )
+    .map((page, index) => ({
+      url: cleanText(page.url) || cleanText(websiteContent.websiteUrl),
+      title: cleanText(page.pageTitle || page.title) || cleanText(websiteContent.pageTitle),
+      description: cleanText(page.metaDescription || page.description),
+      content: normalizeKnowledgeText(page.content),
+      index: Number.isFinite(page.index) ? Number(page.index) : index,
+    }))
+    .filter((page) => page.content);
+
+  if (!businessSourceId) {
+    return [];
+  }
+
+  if (!pages.length) {
+    return [{
+      sourceId: businessSourceId,
+      sourceUrl: cleanText(websiteContent.websiteUrl),
+      title: cleanText(websiteContent.pageTitle),
+      content: websiteContent.content,
+      metadata: {
+        page_count: Number(websiteContent.pageCount || 0),
+        crawled_urls: websiteContent.crawledUrls || [],
+      },
+    }];
+  }
+
+  return pages.map((page, index) => {
+    const sourceUrl = page.url || cleanText(websiteContent.websiteUrl);
+    const sourceIdSuffix = sourceUrl
+      ? hashKnowledgeContent(sourceUrl).slice(0, 16)
+      : `page_${index + 1}`;
+    const title = page.title || `Website page ${index + 1}`;
+    const content = [
+      sourceUrl ? `URL: ${sourceUrl}` : "",
+      title ? `Title: ${title}` : "",
+      page.description ? `Description: ${page.description}` : "",
+      "Content:",
+      page.content,
+    ].filter(Boolean).join("\n");
+
+    return {
+      sourceId: `${businessSourceId}:${sourceIdSuffix}`,
+      sourceUrl,
+      title,
+      content,
+      metadata: {
+        page_url: sourceUrl,
+        page_title: title,
+        page_index: index,
+        page_count: pages.length,
+        business_id: businessSourceId,
+      },
+    };
+  });
+}
+
+function buildStructuredWebsiteFactsSource(websiteContent = {}, fallbackSourceId = "") {
+  const businessSourceId = cleanText(websiteContent.businessId || fallbackSourceId);
+  const content = buildStructuredBusinessFactsKnowledgeText(websiteContent.structuredFacts);
+
+  if (!businessSourceId || !content) {
+    return null;
+  }
+
+  return {
+    sourceId: `${businessSourceId}:structured_facts`,
+    sourceUrl: cleanText(websiteContent.websiteUrl),
+    title: "Structured website facts",
+    content,
+    metadata: {
+      business_id: businessSourceId,
+      page_count: Number(websiteContent.pageCount || 0),
+      crawled_urls: websiteContent.crawledUrls || [],
+      structured_fact_count: getStructuredBusinessFactCount(websiteContent.structuredFacts),
+      origin: "website_structured_facts",
+    },
+  };
+}
+
 export async function syncApprovedAnswerKnowledgeChunk(supabase, openai, {
   item,
   agentId,
@@ -426,19 +549,68 @@ export async function reindexFrontDeskKnowledge(supabase, openai, {
   );
 
   if (resolvedWebsiteContent?.content) {
-    merge("website", await upsertKnowledgeSourceChunks(supabase, openai, {
-      agentId: normalizedAgentId,
-      ownerUserId: normalizedOwnerUserId,
-      sourceType: "website",
-      sourceId: cleanText(resolvedWebsiteContent.businessId || agent.businessId || agent.business_id),
-      sourceUrl: resolvedWebsiteContent.websiteUrl,
-      title: resolvedWebsiteContent.pageTitle,
-      content: resolvedWebsiteContent.content,
-      metadata: {
-        page_count: resolvedWebsiteContent.pageCount || 0,
-        crawled_urls: resolvedWebsiteContent.crawledUrls || [],
-      },
-    }));
+    const websiteSourceId = cleanText(resolvedWebsiteContent.businessId || agent.businessId || agent.business_id);
+    const websiteSources = buildWebsiteKnowledgePageSources(resolvedWebsiteContent, websiteSourceId);
+    const structuredFactsSource = buildStructuredWebsiteFactsSource(resolvedWebsiteContent, websiteSourceId);
+    const websiteResult = {
+      chunksCreated: 0,
+      chunksUpdated: 0,
+      chunksSkipped: 0,
+      embeddingsCreated: 0,
+      errors: [],
+      sourceCount: websiteSources.length,
+    };
+
+    if (websiteSources.length) {
+      await deactivateKnowledgeSourcesByType(supabase, {
+        agentId: normalizedAgentId,
+        ownerUserId: normalizedOwnerUserId,
+        sourceType: "website",
+      });
+    }
+
+    for (const source of websiteSources) {
+      const sourceResult = await upsertKnowledgeSourceChunks(supabase, openai, {
+        agentId: normalizedAgentId,
+        ownerUserId: normalizedOwnerUserId,
+        sourceType: "website",
+        sourceId: source.sourceId,
+        sourceUrl: source.sourceUrl,
+        title: source.title,
+        content: source.content,
+        metadata: {
+          page_count: resolvedWebsiteContent.pageCount || websiteSources.length,
+          crawled_urls: resolvedWebsiteContent.crawledUrls || [],
+          ...safeJson(source.metadata),
+        },
+      });
+      websiteResult.chunksCreated += Number(sourceResult.chunksCreated || 0);
+      websiteResult.chunksUpdated += Number(sourceResult.chunksUpdated || 0);
+      websiteResult.chunksSkipped += Number(sourceResult.chunksSkipped || 0);
+      websiteResult.embeddingsCreated += Number(sourceResult.embeddingsCreated || 0);
+      websiteResult.errors.push(...(sourceResult.errors || []));
+    }
+
+    merge("website", websiteResult);
+
+    if (structuredFactsSource) {
+      merge("website_structured", await upsertKnowledgeSourceChunks(supabase, openai, {
+        agentId: normalizedAgentId,
+        ownerUserId: normalizedOwnerUserId,
+        sourceType: "website_structured",
+        sourceId: structuredFactsSource.sourceId,
+        sourceUrl: structuredFactsSource.sourceUrl,
+        title: structuredFactsSource.title,
+        content: structuredFactsSource.content,
+        metadata: structuredFactsSource.metadata,
+      }));
+    } else {
+      await deactivateKnowledgeSourcesByType(supabase, {
+        agentId: normalizedAgentId,
+        ownerUserId: normalizedOwnerUserId,
+        sourceType: "website_structured",
+      });
+    }
   }
 
   const resolvedProfile = businessProfile || await getOperatorBusinessProfile(supabase, {

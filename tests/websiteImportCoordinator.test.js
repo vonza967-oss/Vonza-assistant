@@ -495,8 +495,78 @@ test("async website import stores sanitized partial indexing result when RAG ind
 
   assert.equal(job.status, "limited");
   assert.equal(job.result.indexing.status, "partial");
+  assert.equal(job.result.report.ragIndexingStatus, "partial");
+  assert.equal(job.result.quality.state, "poor");
   assert.equal(job.result.indexing.message, "Website content was imported, but semantic indexing did not finish.");
   assert.doesNotMatch(JSON.stringify(job.result.indexing), /sk-secret|stack trace|OpenAI/);
+});
+
+test("async website import persists ready quality report with sitemap and indexing metadata", async () => {
+  const supabase = createImportJobsSupabase();
+  const longContent = "Detailed service, pricing, booking, location, FAQ, and contact content for grounded answers. ".repeat(20);
+
+  const result = await importBusinessWebsiteKnowledge(supabase, {
+    async: true,
+    businessId: "business-1",
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    agent: { id: "agent-1", businessId: "business-1", ownerUserId: "owner-1" },
+  }, {
+    ensureBusinessRecord: async () => ({
+      id: "business-1",
+      website_url: "https://example.com/",
+    }),
+    extractBusinessWebsiteContent: async () => ({
+      businessId: "business-1",
+      websiteUrl: "https://example.com/",
+      content: longContent,
+      pageCount: 3,
+      crawledUrls: ["https://example.com/", "https://example.com/services", "https://example.com/pricing"],
+      importReport: {
+        discoveredUrlCount: 5,
+        attemptedPages: 3,
+        importedPages: 3,
+        failedPages: 0,
+        skippedPages: 2,
+        contentLength: longContent.length,
+        pageCount: 3,
+        sitemapUsed: true,
+        sitemapUrl: "https://example.com/sitemap.xml",
+        sitemapFileCount: 1,
+        crawlLimit: 3,
+        discoveryMethod: "sitemap",
+      },
+    }),
+    reindexFrontDeskKnowledge: async () => ({
+      ok: true,
+      chunksCreated: 3,
+      chunksUpdated: 0,
+      chunksSkipped: 0,
+      embeddingsCreated: 3,
+      errors: [],
+    }),
+    getOpenAIClient: () => ({}),
+    logger: {
+      info() {},
+      warn() {},
+      error() {},
+    },
+  });
+
+  await waitFor(() => supabase.state.website_import_jobs.find((job) => job.id === result.import.jobId)?.completed_at);
+  const status = await getBusinessWebsiteImportStatus(supabase, {
+    ownerUserId: "owner-1",
+    agentId: "agent-1",
+    jobId: result.import.jobId,
+  });
+
+  assert.equal(status.job.status, "success");
+  assert.equal(status.job.quality.state, "ready");
+  assert.equal(status.job.report.discoveredUrlCount, 5);
+  assert.equal(status.job.report.sitemapUsed, true);
+  assert.equal(status.job.report.skippedPages, 2);
+  assert.equal(status.job.report.ragIndexingStatus, "succeeded");
+  assert.equal(status.job.indexing.status, "indexed");
 });
 
 test("async website import catches background crawl errors and marks the job failed", async () => {
