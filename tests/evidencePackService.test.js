@@ -95,6 +95,34 @@ test("Evidence Pack prompt rendering preserves source priority and missing-info 
   assert.match(rendered, /RETRIEVAL CONFIDENCE:\nmedium/);
 });
 
+test("Evidence Pack renders uploaded knowledge files as trusted owner context", () => {
+  const pack = buildEvidencePack({
+    semanticChunks: [
+      {
+        id: "uploaded-file-chunk-1",
+        sourceType: "manual",
+        title: "services.md",
+        content: "Emergency support visits are available after owner triage.",
+        metadata: {
+          origin: "uploaded_knowledge_file",
+          knowledge_file_id: "file-1",
+          filename: "services.md",
+        },
+        similarity: 0.74,
+      },
+    ],
+    retrievalConfidence: "medium",
+  });
+  const uploadedItem = pack.items.find((item) => item.id === "manual:uploaded-file-chunk-1");
+  const rendered = renderEvidencePackForPrompt(pack);
+
+  assert.equal(uploadedItem.trustLevel, "reviewed_business_fact");
+  assert.equal(uploadedItem.metadata.origin, "uploaded_knowledge_file");
+  assert.match(rendered, /OWNER-UPLOADED KNOWLEDGE FILES:/);
+  assert.match(rendered, /Emergency support visits are available after owner triage/);
+  assert.match(rendered, /Context priority: active owner-approved answers first, business profile facts and owner-uploaded knowledge files second/);
+});
+
 test("Evidence Pack sanitizes placeholder contact details and debug summaries omit content", () => {
   const pack = buildEvidencePack({
     approvedAnswers: [

@@ -175,17 +175,22 @@ function findMultipartFile(buffer, boundary, acceptedNames = ["background", "fil
   return null;
 }
 
-export async function readMultipartBackgroundFile(req, { maxBytes }) {
+export async function readMultipartFile(req, {
+  maxBytes,
+  fieldNames = ["file"],
+  missingMessage = "Upload a file.",
+  tooLargeMessage = "Uploaded file is too large.",
+} = {}) {
   const boundary = getMultipartBoundary(req);
   if (!boundary) {
-    const error = new Error("Use multipart/form-data with a background file.");
+    const error = new Error("Use multipart/form-data with a file.");
     error.statusCode = 400;
     throw error;
   }
 
   const contentLength = Number(req.headers["content-length"] || 0);
   if (Number.isFinite(contentLength) && contentLength > maxBytes + 16384) {
-    const error = new Error("Uploaded background file is too large.");
+    const error = new Error(tooLargeMessage);
     error.statusCode = 413;
     throw error;
   }
@@ -196,21 +201,39 @@ export async function readMultipartBackgroundFile(req, { maxBytes }) {
   for await (const chunk of req) {
     totalBytes += chunk.length;
     if (totalBytes > maxBytes + 16384) {
-      const error = new Error("Uploaded background file is too large.");
+      const error = new Error(tooLargeMessage);
       error.statusCode = 413;
       throw error;
     }
     chunks.push(chunk);
   }
 
-  const file = findMultipartFile(Buffer.concat(chunks), boundary);
+  const file = findMultipartFile(Buffer.concat(chunks), boundary, fieldNames);
   if (!file) {
-    const error = new Error("Upload a background file.");
+    const error = new Error(missingMessage);
     error.statusCode = 400;
     throw error;
   }
 
   return file;
+}
+
+export async function readMultipartBackgroundFile(req, { maxBytes }) {
+  return readMultipartFile(req, {
+    maxBytes,
+    fieldNames: ["background", "file"],
+    missingMessage: "Upload a background file.",
+    tooLargeMessage: "Uploaded background file is too large.",
+  });
+}
+
+export async function readMultipartKnowledgeFile(req, { maxBytes }) {
+  return readMultipartFile(req, {
+    maxBytes,
+    fieldNames: ["knowledge_file", "file"],
+    missingMessage: "Upload a knowledge file.",
+    tooLargeMessage: "Uploaded knowledge file is too large.",
+  });
 }
 
 export function getCheckoutDraftBusinessName(user) {

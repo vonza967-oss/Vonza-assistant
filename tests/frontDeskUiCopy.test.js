@@ -68,6 +68,11 @@ test("widget-first launch path exposes status and form accessibility semantics",
   assert.match(launchSurface, /id="frontdesk-practice-message" name="message"/);
   assert.match(launchSurface, /aria-label="Retry website knowledge import"/);
   assert.match(launchSurface, /data-action="import-knowledge"[\s\S]{0,240}Import website knowledge/);
+  assert.match(launchSurface, /Knowledge files/);
+  assert.match(launchSurface, /data-knowledge-files-panel/);
+  assert.match(launchSurface, /data-action="upload-knowledge-file"/);
+  assert.match(launchSurface, /\.txt,\.md,\.csv,\.json/);
+  assert.match(launchSurface, /trusted owner-provided business context/i);
   assert.match(launchSurface, /<label class="settings-shell-choice-row" for="full-page-public-enabled">/);
 });
 

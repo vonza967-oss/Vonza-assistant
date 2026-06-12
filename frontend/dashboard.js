@@ -2537,6 +2537,33 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Changing this website uses the existing assistant save flow and runs website import afterward.": "A weboldal módosítása a meglévő asszisztensmentési folyamatot használja, majd weboldal-importot futtat.",
   "Import website knowledge": "Weboldali tudás importálása",
   "Save website": "Weboldal mentése",
+  "Owner knowledge": "Tulajdonosi tudás",
+  "Knowledge files": "Tudásfájlok",
+  "Upload TXT, Markdown, CSV, or JSON files with business details the Website Widget can use after indexing.": "Tölts fel TXT, Markdown, CSV vagy JSON fájlokat olyan üzleti részletekkel, amelyeket a Website Widget indexelés után használhat.",
+  "Upload business information file": "Üzleti információs fájl feltöltése",
+  "Files are used as trusted owner-provided business context after upload and indexing. Supported now: TXT, Markdown, CSV, and JSON up to 1 MB.": "A fájlokat feltöltés és indexelés után megbízható, tulajdonos által megadott üzleti kontextusként használjuk. Támogatott: TXT, Markdown, CSV és JSON legfeljebb 1 MB-ig.",
+  "Upload file": "Fájl feltöltése",
+  "Uploaded content is not shown publicly; only scoped knowledge chunks are used for retrieval.": "A feltöltött tartalom nem jelenik meg publikusan; csak a körülhatárolt tudásrészletek kerülnek keresésbe.",
+  "Uploaded files": "Feltöltött fájlok",
+  "Loading knowledge files...": "Tudásfájlok betöltése...",
+  "Filename, size, status, and upload date will appear here.": "Itt jelenik meg a fájlnév, méret, állapot és feltöltési dátum.",
+  "No knowledge files uploaded yet": "Még nincs feltöltött tudásfájl",
+  "Add TXT, Markdown, CSV, or JSON files with business details the Website Widget should know.": "Adj hozzá TXT, Markdown, CSV vagy JSON fájlokat azokkal az üzleti részletekkel, amelyeket a Website Widgetnek ismernie kell.",
+  "Indexing": "Indexelés alatt",
+  "Archived": "Archiválva",
+  "Archive": "Archiválás",
+  "Knowledge files could not load": "A tudásfájlok nem tölthetők be",
+  "Try again after refreshing the dashboard.": "Próbáld újra az irányítópult frissítése után.",
+  "Choose a TXT, Markdown, CSV, or JSON file first.": "Először válassz TXT, Markdown, CSV vagy JSON fájlt.",
+  "Upload a TXT, Markdown, CSV, or JSON knowledge file.": "TXT, Markdown, CSV vagy JSON tudásfájlt tölts fel.",
+  "Use a knowledge file under 1 MB.": "Használj 1 MB alatti tudásfájlt.",
+  "Uploading and indexing knowledge file...": "Tudásfájl feltöltése és indexelése...",
+  "Knowledge file uploaded and indexed.": "A tudásfájl feltöltve és indexelve.",
+  "Knowledge file upload failed.": "A tudásfájl feltöltése nem sikerült.",
+  "Archive this knowledge file and remove it from retrieval?": "Archiválod ezt a tudásfájlt, és kiveszed a keresésből?",
+  "Archiving knowledge file...": "Tudásfájl archiválása...",
+  "Knowledge file archived.": "A tudásfájl archiválva.",
+  "Could not archive that knowledge file.": "Nem sikerült archiválni ezt a tudásfájlt.",
   "Business Profile readiness": "Üzleti profil készenléte",
   "Keep the business facts Vonza should trust when the Website Widget, hosted Front Desk page, QR links, or embeds answer customer questions.": "Tartsd naprakészen azokat az üzleti tényeket, amelyekben a Vonza megbízhat, amikor a Website Widget, a hosztolt Front Desk oldal, QR-linkek vagy beágyazások válaszolnak ügyfélkérdésekre.",
   "Review what is ready and what still needs detail before this profile supports live customer questions.": "Nézd át, mi áll készen és mi igényel még részleteket, mielőtt ez a profil élő ügyfélkérdéseket támogat.",
@@ -9447,6 +9474,7 @@ function getSettingsShellOptions(
     buildPageHeader,
     createEmptyOperatorWorkspace,
     getBusinessProfileViewModel,
+    buildKnowledgeFilesSection,
     buildBehaviorSummary,
     isCapabilityExplicitlyVisible,
     getPublicAppUrl,
@@ -9836,6 +9864,285 @@ function buildWebsiteWidgetInstallPanel(agent) {
   `;
 }
 
+function buildKnowledgeFilesSection(agent = {}, options = {}) {
+  const sectionClass = options.panelClass || "settings-shell-section settings-knowledge-files-section";
+  const isWebsiteWidgetPanel = sectionClass.includes("website-widget-panel");
+  const headerClass = isWebsiteWidgetPanel ? "website-widget-panel-header" : "settings-shell-section-header";
+  const titleTag = isWebsiteWidgetPanel ? "h2" : "h3";
+  const inputId = options.inputId || `knowledge-file-upload-${trimText(options.context || "default").replace(/[^a-z0-9_-]/gi, "-") || "default"}`;
+
+  return `
+    <section class="${escapeHtml(sectionClass)}" data-knowledge-files-panel data-agent-id="${escapeHtml(agent.id || "")}" data-knowledge-files-context="${escapeHtml(options.context || "website_widget")}">
+      <div class="${headerClass}">
+        <div>
+          <p class="website-widget-kicker">${escapeHtml(translateDashboardText("Owner knowledge"))}</p>
+          <${titleTag} class="${isWebsiteWidgetPanel ? "" : "settings-shell-section-title"}">${escapeHtml(translateDashboardText("Knowledge files"))}</${titleTag}>
+          <p class="${isWebsiteWidgetPanel ? "" : "settings-shell-section-copy"}">${escapeHtml(translateDashboardText("Upload TXT, Markdown, CSV, or JSON files with business details the Website Widget can use after indexing."))}</p>
+        </div>
+      </div>
+      <div class="knowledge-file-upload-form" data-knowledge-file-upload-form>
+        <div class="field">
+          <label for="${escapeHtml(inputId)}">${escapeHtml(translateDashboardText("Upload business information file"))}</label>
+          <input id="${escapeHtml(inputId)}" name="file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/markdown,text/csv,application/json" data-knowledge-file-input>
+          <p class="field-help">${escapeHtml(translateDashboardText("Files are used as trusted owner-provided business context after upload and indexing. Supported now: TXT, Markdown, CSV, and JSON up to 1 MB."))}</p>
+        </div>
+        <div class="knowledge-file-upload-actions">
+          <button class="ghost-button" type="button" data-action="upload-knowledge-file">${escapeHtml(translateDashboardText("Upload file"))}</button>
+          <span class="save-state" role="status" aria-live="polite" data-knowledge-files-message>${escapeHtml(translateDashboardText("Uploaded content is not shown publicly; only scoped knowledge chunks are used for retrieval."))}</span>
+        </div>
+      </div>
+      <div class="settings-shell-status-list knowledge-file-list" data-knowledge-files-list aria-live="polite">
+        <div class="settings-shell-status-row">
+          <div class="settings-shell-status-main">
+            <p class="settings-shell-status-label">${escapeHtml(translateDashboardText("Uploaded files"))}</p>
+            <h4 class="settings-shell-status-value">${escapeHtml(translateDashboardText("Loading knowledge files..."))}</h4>
+            <p class="settings-shell-status-copy">${escapeHtml(translateDashboardText("Filename, size, status, and upload date will appear here."))}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function formatKnowledgeFileSize(bytes) {
+  const size = Number(bytes || 0);
+
+  if (!Number.isFinite(size) || size <= 0) {
+    return "0 B";
+  }
+
+  if (size < 1024) {
+    return `${Math.round(size)} B`;
+  }
+
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(size >= 100 * 1024 ? 0 : 1)} KB`;
+  }
+
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getKnowledgeFileStatusLabel(status = "") {
+  const normalized = trimText(status).toLowerCase();
+  const labels = {
+    indexing: "Indexing",
+    ready: "Ready",
+    failed: "Needs attention",
+    archived: "Archived",
+  };
+
+  return labels[normalized] || "Pending";
+}
+
+function getKnowledgeFileStatusTone(status = "") {
+  const normalized = trimText(status).toLowerCase();
+
+  if (normalized === "ready") {
+    return "Ready";
+  }
+
+  if (normalized === "failed") {
+    return "Limited";
+  }
+
+  if (normalized === "archived") {
+    return "Pending";
+  }
+
+  return "Pending";
+}
+
+function renderKnowledgeFileRows(files = []) {
+  const visibleFiles = Array.isArray(files) ? files : [];
+
+  if (!visibleFiles.length) {
+    return `
+      <div class="settings-shell-status-row">
+        <div class="settings-shell-status-main">
+          <p class="settings-shell-status-label">${escapeHtml(translateDashboardText("Uploaded files"))}</p>
+          <h4 class="settings-shell-status-value">${escapeHtml(translateDashboardText("No knowledge files uploaded yet"))}</h4>
+          <p class="settings-shell-status-copy">${escapeHtml(translateDashboardText("Add TXT, Markdown, CSV, or JSON files with business details the Website Widget should know."))}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  return visibleFiles.map((file) => {
+    const status = trimText(file.status || "indexing").toLowerCase();
+    const archived = status === "archived";
+    const uploadedAt = file.createdAt ? formatSeenAt(file.createdAt) : "Unknown date";
+    const details = [
+      formatKnowledgeFileSize(file.byteSize),
+      `${Number(file.chunkCount || 0)} chunk${Number(file.chunkCount || 0) === 1 ? "" : "s"}`,
+      uploadedAt,
+    ].filter(Boolean).join(" · ");
+    const errorCopy = trimText(file.errorMessage);
+
+    return `
+      <div class="settings-shell-status-row knowledge-file-row" data-knowledge-file-id="${escapeHtml(file.id || "")}">
+        <div class="settings-shell-status-main">
+          <p class="settings-shell-status-label">${escapeHtml((file.fileExtension || "file").toUpperCase())}</p>
+          <h4 class="settings-shell-status-value">${escapeHtml(file.originalFilename || "Knowledge file")}</h4>
+          <p class="settings-shell-status-copy">${escapeHtml(details)}</p>
+          ${errorCopy ? `<p class="settings-shell-status-copy knowledge-file-error">${escapeHtml(errorCopy)}</p>` : ""}
+        </div>
+        <div class="settings-shell-status-actions knowledge-file-actions">
+          <span class="${getBadgeClass(getKnowledgeFileStatusTone(status))}">${escapeHtml(translateDashboardText(getKnowledgeFileStatusLabel(status)))}</span>
+          ${archived ? "" : `<button class="ghost-button" type="button" data-action="archive-knowledge-file" data-knowledge-file-id="${escapeHtml(file.id || "")}">${escapeHtml(translateDashboardText("Archive"))}</button>`}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function setKnowledgeFilesMessage(panel, message, tone = "") {
+  const messageEl = panel?.querySelector?.("[data-knowledge-files-message]");
+
+  if (!messageEl) {
+    return;
+  }
+
+  messageEl.textContent = translateDashboardText(message);
+  messageEl.className = `save-state${tone ? ` ${tone}` : ""}`;
+}
+
+async function refreshKnowledgeFilePanel(panel, agentId) {
+  const list = panel?.querySelector?.("[data-knowledge-files-list]");
+
+  if (!panel || !list || !agentId) {
+    return;
+  }
+
+  list.innerHTML = renderKnowledgeFileRows([]);
+  list.querySelector(".settings-shell-status-value").textContent = translateDashboardText("Loading knowledge files...");
+
+  try {
+    const url = new URL(`/api/agents/${encodeURIComponent(agentId)}/knowledge-files`, window.location.origin);
+    url.searchParams.set("client_id", getClientId());
+    const data = await fetchJson(`${url.pathname}${url.search}`);
+    list.innerHTML = renderKnowledgeFileRows(data?.files || []);
+  } catch (error) {
+    list.innerHTML = `
+      <div class="settings-shell-status-row">
+        <div class="settings-shell-status-main">
+          <p class="settings-shell-status-label">${escapeHtml(translateDashboardText("Uploaded files"))}</p>
+          <h4 class="settings-shell-status-value">${escapeHtml(translateDashboardText("Knowledge files could not load"))}</h4>
+          <p class="settings-shell-status-copy">${escapeHtml(error.message || translateDashboardText("Try again after refreshing the dashboard."))}</p>
+        </div>
+      </div>
+    `;
+  }
+}
+
+async function uploadKnowledgeFileFromPanel(panel, agentId) {
+  const input = panel?.querySelector?.("[data-knowledge-file-input]");
+  const button = panel?.querySelector?.('[data-action="upload-knowledge-file"]');
+  const file = input?.files?.[0] || null;
+
+  if (!file) {
+    setKnowledgeFilesMessage(panel, "Choose a TXT, Markdown, CSV, or JSON file first.", "unsaved");
+    return;
+  }
+
+  const allowedExtensions = /\.(txt|md|csv|json)$/i;
+  if (!allowedExtensions.test(file.name || "")) {
+    setKnowledgeFilesMessage(panel, "Upload a TXT, Markdown, CSV, or JSON knowledge file.", "unsaved");
+    return;
+  }
+
+  if (file.size > 1024 * 1024) {
+    setKnowledgeFilesMessage(panel, "Use a knowledge file under 1 MB.", "unsaved");
+    return;
+  }
+
+  const body = new FormData();
+  body.set("file", file);
+  button.disabled = true;
+  setKnowledgeFilesMessage(panel, "Uploading and indexing knowledge file...", "saving");
+  setStatus("Uploading and indexing knowledge file...");
+
+  try {
+    const url = new URL(`/api/agents/${encodeURIComponent(agentId)}/knowledge-files`, window.location.origin);
+    url.searchParams.set("client_id", getClientId());
+    const data = await fetchJson(`${url.pathname}${url.search}`, {
+      method: "POST",
+      body,
+    });
+
+    if (data?.ok !== true) {
+      throw new Error(data?.file?.errorMessage || "Knowledge file upload was not confirmed.");
+    }
+
+    input.value = "";
+    setKnowledgeFilesMessage(panel, "Knowledge file uploaded and indexed.", "saved");
+    setStatus("Knowledge file uploaded and indexed.");
+    await refreshKnowledgeFilePanel(panel, agentId);
+  } catch (error) {
+    setKnowledgeFilesMessage(panel, error.message || "Knowledge file upload failed.", "unsaved");
+    setStatus(error.message || "Knowledge file upload failed.");
+    await refreshKnowledgeFilePanel(panel, agentId);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function archiveKnowledgeFileFromPanel(panel, agentId, fileId) {
+  if (!agentId || !fileId) {
+    return;
+  }
+
+  const confirmed = typeof window.confirm === "function"
+    ? window.confirm(translateDashboardText("Archive this knowledge file and remove it from retrieval?"))
+    : true;
+
+  if (!confirmed) {
+    return;
+  }
+
+  setKnowledgeFilesMessage(panel, "Archiving knowledge file...", "saving");
+
+  try {
+    const url = new URL(`/api/agents/${encodeURIComponent(agentId)}/knowledge-files/${encodeURIComponent(fileId)}`, window.location.origin);
+    url.searchParams.set("client_id", getClientId());
+    await fetchJson(`${url.pathname}${url.search}`, {
+      method: "DELETE",
+    });
+    setKnowledgeFilesMessage(panel, "Knowledge file archived.", "saved");
+    setStatus("Knowledge file archived.");
+    await refreshKnowledgeFilePanel(panel, agentId);
+  } catch (error) {
+    setKnowledgeFilesMessage(panel, error.message || "Could not archive that knowledge file.", "unsaved");
+    setStatus(error.message || "Could not archive that knowledge file.");
+  }
+}
+
+function bindKnowledgeFileControls(agent = {}) {
+  const agentId = trimText(agent.id);
+  const panels = Array.from(document.querySelectorAll("[data-knowledge-files-panel]"));
+
+  panels.forEach((panel) => {
+    if (panel.dataset.knowledgeFilesBound === "true") {
+      return;
+    }
+
+    panel.dataset.knowledgeFilesBound = "true";
+    const panelAgentId = trimText(panel.dataset.agentId) || agentId;
+
+    panel.querySelector('[data-action="upload-knowledge-file"]')?.addEventListener("click", () => {
+      uploadKnowledgeFileFromPanel(panel, panelAgentId);
+    });
+    panel.querySelector("[data-knowledge-files-list]")?.addEventListener("click", (event) => {
+      const button = event.target?.closest?.('[data-action="archive-knowledge-file"]');
+      if (!button) {
+        return;
+      }
+
+      archiveKnowledgeFileFromPanel(panel, panelAgentId, button.dataset.knowledgeFileId);
+    });
+    refreshKnowledgeFilePanel(panel, panelAgentId);
+  });
+}
+
 function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) && installStatus.allowedDomains.length
@@ -9962,6 +10269,12 @@ function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
 	              <button class="ghost-button" type="button" data-action="import-knowledge" ${setup.knowledgeState === "limited" ? 'data-import-force="true"' : ""}>${escapeHtml(knowledgeActionLabel)}</button>
 	            </div>
           </section>
+
+            ${buildKnowledgeFilesSection(agent, {
+              context: "website_widget",
+              panelClass: "website-widget-panel website-widget-knowledge-files-panel",
+              inputId: "website-widget-knowledge-file-upload",
+            })}
 
 	          <section class="website-widget-panel">
 	            <div class="website-widget-panel-header">
@@ -17754,6 +18067,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       await frontDeskController.sendPracticeMessage(prompt);
     },
   }) || null;
+  bindKnowledgeFileControls(agent);
   websiteWidgetInstructionForms.forEach((form) => {
     bindWebsiteWidgetInstructionGenerator(form, agent, setup, operatorWorkspace);
   });

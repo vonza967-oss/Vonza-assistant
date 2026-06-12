@@ -1860,6 +1860,13 @@
           </div>
         </form>
 
+        ${typeof helpers.buildKnowledgeFilesSection === "function"
+          ? helpers.buildKnowledgeFilesSection(agent, {
+              context: "business_profile",
+              inputId: "business-profile-knowledge-file-upload",
+            })
+          : ""}
+
         <form data-settings-form data-form-kind="business-context" class="settings-business-context-form">
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">
@@ -4491,6 +4498,13 @@
                 `).join("")}
               </div>
             </section>
+
+            ${typeof helpers.buildKnowledgeFilesSection === "function"
+              ? helpers.buildKnowledgeFilesSection(agent, {
+                  context: "website_widget_settings",
+                  inputId: "settings-widget-knowledge-file-upload",
+                })
+              : ""}
 
             <section class="settings-shell-section">
               <div class="settings-shell-section-header">

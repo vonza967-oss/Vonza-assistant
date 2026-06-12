@@ -214,6 +214,37 @@ html[data-dashboard-theme="dark"] .website-widget-status-band {
   background: rgba(248, 250, 252, 0.86);
 }
 
+.website-widget-knowledge-files-panel {
+  grid-column: 1 / -1;
+}
+
+.knowledge-file-upload-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.knowledge-file-upload-actions,
+.knowledge-file-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.knowledge-file-list {
+  margin-top: 16px;
+}
+
+.knowledge-file-row .settings-shell-status-value {
+  overflow-wrap: anywhere;
+}
+
+.knowledge-file-error {
+  color: #991b1b;
+}
+
 .website-widget-knowledge-row span,
 .website-widget-preview-meta span {
   display: block;

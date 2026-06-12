@@ -72,6 +72,10 @@ const widgetEarlyAccessWaitlistMigrationSql = readFileSync(
   "supabase/migrations/20260612110000_widget_early_access_waitlist.sql",
   "utf8"
 );
+const agentKnowledgeFilesMigrationSql = readFileSync(
+  "supabase/migrations/20260612130000_agent_knowledge_files.sql",
+  "utf8"
+);
 const connectedAppConnectionFoundationMigrationSql = readFileSync(
   "supabase/migrations/20260602150000_connected_app_connection_foundation.sql",
   "utf8"
@@ -92,7 +96,7 @@ const whatsappAiReplyDraftContextMigrationSql = readFileSync(
   "supabase/migrations/20260603143000_whatsapp_ai_reply_draft_context.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}\n${connectedAppInboundEventsMigrationSql}\n${connectedAppInboundThreadsMigrationSql}\n${connectedAppOutboundMessagesMigrationSql}\n${whatsappAiReplyDraftContextMigrationSql}\n${agentQuoteRequestsMigrationSql}\n${qdhOwnerSetupsMigrationSql}\n${enterpriseRequestDeskRequestsMigrationSql}\n${enterpriseRequestDeskOwnerSetupsMigrationSql}\n${widgetEarlyAccessWaitlistMigrationSql}`;
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}\n${connectedAppInboundEventsMigrationSql}\n${connectedAppInboundThreadsMigrationSql}\n${connectedAppOutboundMessagesMigrationSql}\n${whatsappAiReplyDraftContextMigrationSql}\n${agentQuoteRequestsMigrationSql}\n${qdhOwnerSetupsMigrationSql}\n${enterpriseRequestDeskRequestsMigrationSql}\n${enterpriseRequestDeskOwnerSetupsMigrationSql}\n${widgetEarlyAccessWaitlistMigrationSql}\n${agentKnowledgeFilesMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]
@@ -161,6 +165,7 @@ test("critical owner and customer tables have authenticated owner-scoped policie
     "agent_visitor_reply_feedback",
     "front_desk_training_items",
     "front_desk_knowledge_chunks",
+    "agent_knowledge_files",
     "agent_phone_numbers",
     "agent_phone_call_sessions",
     "web_call_sessions",
@@ -178,6 +183,38 @@ test("critical owner and customer tables have authenticated owner-scoped policie
   assert.match(postRlsMigrationSql, /owner_user_id = \(select auth\.uid\(\)\)/i);
   assert.doesNotMatch(postRlsMigrationSql, /agent_visitor_reply_feedback[\s\S]+?for insert\s+to anon/i);
   assert.doesNotMatch(postRlsMigrationSql, /messages[\s\S]+?for select\s+to anon/i);
+});
+
+test("owner knowledge file storage is RLS protected and indexed for owner-scoped access", () => {
+  assert.match(
+    agentKnowledgeFilesMigrationSql,
+    /create table if not exists public\.agent_knowledge_files/i
+  );
+  assert.match(
+    agentKnowledgeFilesMigrationSql,
+    /alter table public\.agent_knowledge_files enable row level security/i
+  );
+  assert.match(
+    agentKnowledgeFilesMigrationSql,
+    /on public\.agent_knowledge_files\s+for all\s+to authenticated/i
+  );
+  assert.match(
+    agentKnowledgeFilesMigrationSql,
+    /owner_user_id = \(select auth\.uid\(\)\)[\s\S]+?agents\.owner_user_id = \(select auth\.uid\(\)\)/i
+  );
+  [
+    "agent_knowledge_files_agent_id_idx",
+    "agent_knowledge_files_owner_user_id_idx",
+    "agent_knowledge_files_status_idx",
+    "agent_knowledge_files_created_at_idx",
+    "agent_knowledge_files_agent_status_created_idx",
+  ].forEach((indexName) => {
+    assert.match(agentKnowledgeFilesMigrationSql, new RegExp(`create index if not exists ${indexName}`, "i"));
+  });
+  assert.match(agentKnowledgeFilesMigrationSql, /file_extension in \('txt', 'md', 'csv', 'json'\)/i);
+  assert.match(agentKnowledgeFilesMigrationSql, /byte_size >= 0 and byte_size <= 1048576/i);
+  assert.match(agentKnowledgeFilesMigrationSql, /extracted_character_count >= 0 and extracted_character_count <= 200000/i);
+  assert.doesNotMatch(agentKnowledgeFilesMigrationSql, /to anon/i);
 });
 
 test("connected app foundation policies are authenticated owner-select only", () => {

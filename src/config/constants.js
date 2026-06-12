@@ -6,6 +6,7 @@ export const AGENT_ACTION_REQUEST_TABLE = "agent_action_requests";
 export const FOLLOW_UP_WORKFLOW_TABLE = "agent_follow_up_workflows";
 export const HUMAN_FOLLOW_UP_STATUS_TABLE = "agent_human_follow_up_statuses";
 export const KNOWLEDGE_FIX_WORKFLOW_TABLE = "agent_knowledge_fix_workflows";
+export const AGENT_KNOWLEDGE_FILE_TABLE = "agent_knowledge_files";
 export const LEAD_CAPTURE_TABLE = "agent_contact_leads";
 export const CONVERSION_OUTCOME_TABLE = "agent_conversion_outcomes";
 export const BOOKING_INTEGRATION_TABLE = "agent_booking_integrations";

@@ -460,6 +460,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds standalone Hungarian Website Widget early-access application persistence with service-role writes only; no public Supabase read/write policy, dashboard coupling, widget, embed, chat, or billing behavior.",
   }),
+  Object.freeze({
+    id: "agent_knowledge_files",
+    version: "20260612130000",
+    name: "agent_knowledge_files",
+    file: "supabase/migrations/20260612130000_agent_knowledge_files.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds owner-scoped Website Widget knowledge file metadata for low-risk text uploads that index into existing Front Desk RAG chunks without changing public widget or embed behavior.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

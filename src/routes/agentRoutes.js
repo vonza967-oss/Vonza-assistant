@@ -81,6 +81,12 @@ import {
   updateKnowledgeFixWorkflow,
 } from "../services/knowledge/knowledgeFixService.js";
 import {
+  KNOWLEDGE_FILE_UPLOAD_LIMITS,
+  archiveKnowledgeFile,
+  listKnowledgeFiles,
+  uploadKnowledgeFile,
+} from "../services/knowledge/knowledgeFileService.js";
+import {
   assertConversionOutcomeSchemaReady,
   detectConversionOutcomesForPage,
   listConversionOutcomesForAgent,
@@ -250,6 +256,7 @@ import {
   getCheckoutDraftBusinessName,
   readBodyField,
   readMultipartBackgroundFile,
+  readMultipartKnowledgeFile,
 } from "./agentRouteHelpers.js";
 
 const CONNECTED_APP_ROUTE_UNSAFE_FIELD_NAMES = new Set([
@@ -722,6 +729,9 @@ export function createAgentRouter(deps = {}) {
     deps.deleteVisitorOrCustomerRecords || deleteVisitorOrCustomerRecords;
   const syncKnowledgeFixWorkflowsImpl = deps.syncKnowledgeFixWorkflows || syncKnowledgeFixWorkflows;
   const updateKnowledgeFixWorkflowImpl = deps.updateKnowledgeFixWorkflow || updateKnowledgeFixWorkflow;
+  const listKnowledgeFilesImpl = deps.listKnowledgeFiles || listKnowledgeFiles;
+  const uploadKnowledgeFileImpl = deps.uploadKnowledgeFile || uploadKnowledgeFile;
+  const archiveKnowledgeFileImpl = deps.archiveKnowledgeFile || archiveKnowledgeFile;
   const listConversionOutcomesForAgentImpl =
     deps.listConversionOutcomesForAgent || listConversionOutcomesForAgent;
   const recordTrackedCtaClickImpl = deps.recordTrackedCtaClick || recordTrackedCtaClick;
@@ -1813,6 +1823,109 @@ export function createAgentRouter(deps = {}) {
       });
     }
   });
+
+  router.get([
+    "/agents/:agentId/knowledge-files",
+    "/api/agents/:agentId/knowledge-files",
+  ], async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.params.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const result = await listKnowledgeFilesImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        status: req.query.status,
+        limit: req.query.limit,
+      });
+
+      res.json({
+        ok: true,
+        agentId,
+        files: result.files || [],
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/api/agents/:agentId/knowledge-files" });
+    }
+  });
+
+  router.post([
+    "/agents/:agentId/knowledge-files",
+    "/api/agents/:agentId/knowledge-files",
+  ], async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agent = await requireActiveAgentAccessImpl(supabase, {
+        agentId: req.params.agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+      const file = await readMultipartKnowledgeFile(req, {
+        maxBytes: KNOWLEDGE_FILE_UPLOAD_LIMITS.maxBytes,
+      });
+      const result = await uploadKnowledgeFileImpl(supabase, getOpenAI(), {
+        agent,
+        ownerUserId: user.id,
+        file,
+      });
+
+      res.status(result.ok === false ? 202 : 201).json({
+        ok: result.ok !== false,
+        agentId: req.params.agentId,
+        file: result.file,
+        indexResult: result.indexResult,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/api/agents/:agentId/knowledge-files" });
+    }
+  });
+
+  const archiveKnowledgeFileRoute = async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.params.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId || req.body?.client_id || req.body?.clientId,
+      });
+
+      const result = await archiveKnowledgeFileImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        fileId: req.params.fileId,
+      });
+
+      res.json({
+        ok: true,
+        agentId,
+        file: result.file,
+        chunksDeactivated: result.chunksDeactivated,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/api/agents/:agentId/knowledge-files/:fileId" });
+    }
+  };
+
+  router.delete([
+    "/agents/:agentId/knowledge-files/:fileId",
+    "/api/agents/:agentId/knowledge-files/:fileId",
+  ], archiveKnowledgeFileRoute);
+
+  router.post([
+    "/agents/:agentId/knowledge-files/:fileId/archive",
+    "/api/agents/:agentId/knowledge-files/:fileId/archive",
+  ], archiveKnowledgeFileRoute);
 
   router.post("/agents/front-desk/feedback", async (req, res) => {
     try {

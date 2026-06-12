@@ -1,4 +1,7 @@
-import { OWNER_PRODUCT_ENTITLEMENT_TABLE } from "../../config/constants.js";
+import {
+  AGENT_KNOWLEDGE_FILE_TABLE,
+  OWNER_PRODUCT_ENTITLEMENT_TABLE,
+} from "../../config/constants.js";
 import { SUPABASE_MIGRATION_FILE_BY_ID } from "./supabaseMigrationCatalog.js";
 
 export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
@@ -682,6 +685,29 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
       "updated_at",
     ],
     migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.front_desk_training_items],
+  },
+  [AGENT_KNOWLEDGE_FILE_TABLE]: {
+    requiredColumns: [
+      "id",
+      "owner_user_id",
+      "agent_id",
+      "original_filename",
+      "stored_filename",
+      "file_extension",
+      "mime_type",
+      "byte_size",
+      "content_hash",
+      "extracted_character_count",
+      "chunk_count",
+      "status",
+      "error_message",
+      "metadata",
+      "archived_at",
+      "last_indexed_at",
+      "created_at",
+      "updated_at",
+    ],
+    migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.agent_knowledge_files],
   },
   front_desk_knowledge_chunks: {
     requiredColumns: [

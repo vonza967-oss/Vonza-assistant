@@ -392,19 +392,22 @@ function extractTrustedFactText(context = "") {
 
   const ownerMarker = "OWNER-APPROVED ANSWERS";
   const businessMarker = "BUSINESS PROFILE FACTS:";
+  const uploadedMarker = "OWNER-UPLOADED KNOWLEDGE FILES:";
   const websiteMarker = "WEBSITE CONTEXT:";
   const confidenceMarker = "RETRIEVAL CONFIDENCE:";
   const ownerIndex = text.indexOf(ownerMarker);
   const businessIndex = text.indexOf(businessMarker);
+  const uploadedIndex = text.indexOf(uploadedMarker);
   const websiteIndex = text.indexOf(websiteMarker);
 
-  if (ownerIndex !== -1 || businessIndex !== -1 || websiteIndex !== -1) {
+  if (ownerIndex !== -1 || businessIndex !== -1 || uploadedIndex !== -1 || websiteIndex !== -1) {
     const sections = [];
     const confidenceIndex = text.indexOf(confidenceMarker);
+    const sectionEnd = (...indexes) => indexes.filter((index) => index !== -1).sort((left, right) => left - right)[0] ?? -1;
 
     if (ownerIndex !== -1) {
       const start = text.indexOf(":", ownerIndex);
-      const end = businessIndex !== -1 ? businessIndex : websiteIndex !== -1 ? websiteIndex : confidenceIndex;
+      const end = sectionEnd(businessIndex, uploadedIndex, websiteIndex, confidenceIndex);
       sections.push(
         text
           .slice(start + 1, end)
@@ -413,8 +416,13 @@ function extractTrustedFactText(context = "") {
     }
 
     if (businessIndex !== -1) {
-      const end = websiteIndex !== -1 ? websiteIndex : confidenceIndex;
+      const end = sectionEnd(uploadedIndex, websiteIndex, confidenceIndex);
       sections.push(text.slice(businessIndex + businessMarker.length, end === -1 ? text.length : end));
+    }
+
+    if (uploadedIndex !== -1) {
+      const end = sectionEnd(websiteIndex, confidenceIndex);
+      sections.push(text.slice(uploadedIndex + uploadedMarker.length, end === -1 ? text.length : end));
     }
 
     if (websiteIndex !== -1) {
