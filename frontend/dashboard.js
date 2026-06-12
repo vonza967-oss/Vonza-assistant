@@ -14407,6 +14407,67 @@ async function submitConnectedAppStatusForm(event, agent) {
   }
 }
 
+async function submitCalendlyConnectForm(event, agent) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const bookingUrl = trimText(formData.get("booking_url"));
+  const statusTarget = form.querySelector("[data-calendly-connect-status]");
+
+  if (!agent?.id) {
+    setStatus("Calendly needs a saved assistant before it can connect.");
+    return;
+  }
+
+  if (!bookingUrl) {
+    setStatus("Add a Calendly booking link before connecting Calendly.");
+    return;
+  }
+
+  setConnectedAppFormDisabled(form, true);
+  if (statusTarget) {
+    statusTarget.textContent = "Connecting Calendly webhook...";
+  }
+  setStatus("Connecting Calendly webhook...");
+
+  try {
+    const result = await fetchJson(`/agents/${encodeURIComponent(agent.id)}/connected-apps/calendly/connect`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        booking_url: bookingUrl,
+      }),
+    });
+    const statusMessage = result.providerConnected
+      ? "Calendly webhook connected."
+      : result.message || "Calendly webhook endpoint saved, but provider setup still needs attention.";
+
+    if (workspaceState?.agent?.id === agent.id && result.integration) {
+      workspaceState = {
+        ...workspaceState,
+        agent: {
+          ...workspaceState.agent,
+          bookingIntegrationStatus: result.integration,
+        },
+      };
+    }
+
+    await reloadConnectedAppsForAgent(agent.id, {
+      statusMessage,
+    });
+  } catch (error) {
+    const message = error.message || "Calendly could not connect right now.";
+    if (statusTarget) {
+      statusTarget.textContent = message;
+    }
+    setStatus(message);
+  } finally {
+    setConnectedAppFormDisabled(form, false);
+  }
+}
+
 async function submitConnectedAppEnablementForm(event, agent) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -16481,6 +16542,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const dashboardDensityInputs = document.querySelectorAll("[data-dashboard-density-choice]");
   const billingChangeButtons = document.querySelectorAll("[data-billing-plan-key]");
   const connectedAppConnectionForms = document.querySelectorAll("[data-connected-app-connection-form]");
+  const calendlyConnectForms = document.querySelectorAll("[data-calendly-connect-form]");
   const connectedAppStatusForms = document.querySelectorAll("[data-connected-app-status-form]");
   const connectedAppEnablementForms = document.querySelectorAll("[data-connected-app-enable-form]");
   const connectedAppInboxStatusForms = document.querySelectorAll("[data-connected-app-inbox-status-form]");
@@ -17847,6 +17909,12 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   connectedAppConnectionForms.forEach((form) => {
     form.addEventListener("submit", (event) => {
       submitConnectedAppConnectionForm(event, agent);
+    });
+  });
+
+  calendlyConnectForms.forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      submitCalendlyConnectForm(event, agent);
     });
   });
 

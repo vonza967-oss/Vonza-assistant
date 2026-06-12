@@ -1198,6 +1198,8 @@ test("dedicated Website Widget dashboard exposes connected apps page", async () 
   assert.match(connectedAppsHtml, /Connected apps/);
   assert.match(connectedAppsHtml, /Google Calendar adapter/);
   assert.match(connectedAppsHtml, /Connect Google Calendar|Reconnect Google Calendar/);
+  assert.match(connectedAppsHtml, /Calendly booking connect/);
+  assert.match(connectedAppsHtml, /Connect Calendly|Reconnect Calendly/);
   assert.match(connectedAppsHtml, /WhatsApp Business foundation/);
   assert.match(connectedAppsHtml, /Calendly booking webhook/);
   assert.match(connectedAppsHtml, /Stripe billing webhook/);

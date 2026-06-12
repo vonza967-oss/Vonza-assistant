@@ -15,6 +15,7 @@ function createConnectedAppRouteSupabase({
   agents = [],
   connections = [],
   enablements = [],
+  bookingIntegrations = [],
   inboundThreads = [],
   inboundEvents = [],
   outboundMessages = [],
@@ -23,12 +24,14 @@ function createConnectedAppRouteSupabase({
     agents: agents.map(clone),
     connected_app_connections: connections.map(clone),
     agent_connected_app_enablements: enablements.map(clone),
+    agent_booking_integrations: bookingIntegrations.map(clone),
     connected_app_inbound_threads: inboundThreads.map(clone),
     connected_app_inbound_events: inboundEvents.map(clone),
     connected_app_outbound_messages: outboundMessages.map(clone),
     insertCounts: {
       connected_app_connections: 0,
       agent_connected_app_enablements: 0,
+      agent_booking_integrations: 0,
       connected_app_inbound_threads: 0,
       connected_app_inbound_events: 0,
       connected_app_outbound_messages: 0,
@@ -46,6 +49,10 @@ function createConnectedAppRouteSupabase({
 
     if (table === "agent_connected_app_enablements") {
       return state.agent_connected_app_enablements;
+    }
+
+    if (table === "agent_booking_integrations") {
+      return state.agent_booking_integrations;
     }
 
     if (table === "connected_app_inbound_threads") {
@@ -67,7 +74,9 @@ function createConnectedAppRouteSupabase({
     return {
       filters: [],
       insertPayload: null,
+      upsertPayload: null,
       updatePayload: null,
+      conflictColumns: [],
       orderSpec: null,
       select() {
         return this;
@@ -78,6 +87,14 @@ function createConnectedAppRouteSupabase({
       },
       insert(payload) {
         this.insertPayload = clone(payload);
+        return this;
+      },
+      upsert(payload, options = {}) {
+        this.upsertPayload = clone(payload);
+        this.conflictColumns = String(options.onConflict || "id")
+          .split(",")
+          .map((column) => column.trim())
+          .filter(Boolean);
         return this;
       },
       update(payload) {
@@ -129,6 +146,29 @@ function createConnectedAppRouteSupabase({
         };
       },
       async single() {
+        if (this.upsertPayload) {
+          const rows = rowsFor(table);
+          const existing = rows.find((candidate) =>
+            this.conflictColumns.length > 0
+            && this.conflictColumns.every((column) => candidate[column] === this.upsertPayload[column])
+          );
+
+          if (existing) {
+            Object.assign(existing, this.upsertPayload);
+            return { data: clone(existing), error: null };
+          }
+
+          state.insertCounts[table] += 1;
+          const row = {
+            id: `${table}-${state.insertCounts[table]}`,
+            created_at: new Date().toISOString(),
+            ...this.upsertPayload,
+          };
+
+          rows.push(row);
+          return { data: clone(row), error: null };
+        }
+
         if (this.insertPayload) {
           state.insertCounts[table] += 1;
           const prefix = table === "connected_app_connections"
@@ -516,6 +556,117 @@ test("owner can create list and update an own connected app connection", async (
     ]);
     assert.doesNotMatch(JSON.stringify(whatsappResponse.json), /accessToken|appSecret|verifyToken|token_secret_ref/i);
   } finally {
+    await server.close();
+  }
+});
+
+test("Calendly connect route creates provider webhook and safe connected app enablement", async () => {
+  const previousEncryptionSecret = process.env.BOOKING_WEBHOOK_ENCRYPTION_SECRET;
+  process.env.BOOKING_WEBHOOK_ENCRYPTION_SECRET = "test-booking-webhook-encryption-secret";
+  const calendlyRequests = [];
+  const supabase = createConnectedAppRouteSupabase({
+    agents: [
+      {
+        id: "agent-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        is_active: true,
+      },
+    ],
+  });
+  const server = await startServer(createApp(buildRouteDeps(supabase, {
+    overrides: {
+      getPublicAppUrl: () => "https://app.example",
+      env: {
+        CALENDLY_PERSONAL_ACCESS_TOKEN: "calendly-test-token",
+        CALENDLY_USER_URI: "https://api.calendly.com/users/USER123",
+        CALENDLY_WEBHOOK_SCOPE: "user",
+      },
+      fetch: async (url, options = {}) => {
+        calendlyRequests.push({
+          url,
+          headers: options.headers || {},
+          body: JSON.parse(options.body || "{}"),
+        });
+        return new Response(JSON.stringify({
+          resource: {
+            uri: "https://api.calendly.com/webhook_subscriptions/SUB123",
+            user: "https://api.calendly.com/users/USER123",
+            scope: "user",
+            events: ["invitee.created", "invitee.canceled"],
+          },
+        }), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/agent-1/connected-apps/calendly/connect", {
+      method: "POST",
+      body: JSON.stringify({
+        booking_url: "https://calendly.com/acme/demo",
+      }),
+    });
+    const serializedResponse = JSON.stringify(response.json);
+    const bookingIntegration = supabase.state.agent_booking_integrations[0];
+    const connection = supabase.state.connected_app_connections[0];
+    const enablement = supabase.state.agent_connected_app_enablements[0];
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.equal(response.json.providerConnected, true);
+    assert.equal(response.json.backendConfigured, true);
+    assert.equal(response.json.integration.status, "active");
+    assert.equal(response.json.integration.providerAccountId, "USER123");
+    assert.equal(response.json.integration.providerEventTypeId, "SUB123");
+    assert.equal(calendlyRequests.length, 1);
+    assert.equal(calendlyRequests[0].url, "https://api.calendly.com/webhook_subscriptions");
+    assert.match(calendlyRequests[0].body.url, /^https:\/\/app\.example\/bookings\/webhooks\/calendly\//);
+    assert.deepEqual(calendlyRequests[0].body.events, ["invitee.created", "invitee.canceled"]);
+    assert.equal(calendlyRequests[0].body.user, "https://api.calendly.com/users/USER123");
+    assert.equal(calendlyRequests[0].body.scope, "user");
+    assert.equal(typeof calendlyRequests[0].body.signing_key, "string");
+    assert.equal(bookingIntegration.status, "active");
+    assert.equal(bookingIntegration.booking_url, "https://calendly.com/acme/demo");
+    assert.equal(bookingIntegration.provider_account_id, "USER123");
+    assert.equal(bookingIntegration.provider_event_type_id, "SUB123");
+    assert.equal(bookingIntegration.webhook_endpoint_token_hash.length, 64);
+    assert.equal(bookingIntegration.webhook_endpoint_token_hash.includes("/bookings/webhooks"), false);
+    assert.equal(bookingIntegration.webhook_secret_encrypted.includes(calendlyRequests[0].body.signing_key), false);
+    assert.equal(connection.provider, "calendly");
+    assert.equal(connection.app_key, "calendly.booking");
+    assert.deepEqual(connection.capability_keys, ["calendly.booking.webhook"]);
+    assert.equal(connection.status, "active");
+    assert.equal(connection.webhook_status, "active");
+    assert.equal(connection.token_secret_ref, null);
+    assert.equal(enablement.agent_id, "agent-1");
+    assert.equal(enablement.enabled, true);
+    assert.deepEqual(enablement.capability_keys, ["calendly.booking.webhook"]);
+    assert.deepEqual(enablement.allowed_surfaces, ["webhook", "internal"]);
+    assert.doesNotMatch(
+      serializedResponse,
+      /calendly-test-token|signing_key|webhookSecret|webhook_secret|endpointToken|webhookUrl|webhook_url|api\.calendly\.com/i
+    );
+
+    const unsafeResponse = await requestJson(server.baseUrl, "/agents/agent-1/connected-apps/calendly/connect", {
+      method: "POST",
+      body: JSON.stringify({
+        booking_url: "https://calendly.com/acme/demo",
+        accessToken: "raw-token",
+      }),
+    });
+
+    assert.equal(unsafeResponse.status, 400);
+    assert.equal(unsafeResponse.json.code, "calendly_connect_field_rejected");
+  } finally {
+    if (previousEncryptionSecret === undefined) {
+      delete process.env.BOOKING_WEBHOOK_ENCRYPTION_SECRET;
+    } else {
+      process.env.BOOKING_WEBHOOK_ENCRYPTION_SECRET = previousEncryptionSecret;
+    }
     await server.close();
   }
 });

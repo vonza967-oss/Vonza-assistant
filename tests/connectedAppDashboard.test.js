@@ -14,6 +14,9 @@ test("dashboard source includes connected apps management surface", () => {
   assert.match(combined, /Connected apps/i);
   assert.match(combined, /Google Calendar adapter/);
   assert.match(combined, /Uses existing Google connection flow/);
+  assert.match(combined, /Calendly booking connect/);
+  assert.match(combined, /Calendly signed webhook connect flow/);
+  assert.match(combined, /Connect Calendly|Reconnect Calendly/);
   assert.match(combined, /No chat execution/);
   assert.match(combined, /No provider action without approval/);
   assert.match(combined, /Report-only readiness/);
@@ -46,6 +49,7 @@ test("dashboard posts status-only connected app and agent enablement endpoints",
 
   assert.match(dashboard, /fetchJson\("\/agents\/connected-apps",\s*\{[^}]*method:\s*"POST"/s);
   assert.match(dashboard, /fetchJson\("\/agents\/connected-apps\/status",\s*\{[^}]*method:\s*"POST"/s);
+  assert.match(dashboard, /fetchJson\(`\/agents\/\$\{encodeURIComponent\(agent\.id\)\}\/connected-apps\/calendly\/connect`,\s*\{[^}]*method:\s*"POST"/s);
   assert.match(dashboard, /fetchJson\(`\/agents\/\$\{encodeURIComponent\(agent\.id\)\}\/connected-apps`,\s*\{[^}]*method:\s*"POST"/s);
   assert.match(dashboard, /fetchJson\("\/agents\/connected-app-inbound-threads\/status",\s*\{[^}]*method:\s*"POST"/s);
   assert.match(dashboard, /fetchJson\("\/agents\/connected-app-inbound-threads\/ai-draft",\s*\{[^}]*method:\s*"POST"/s);
@@ -67,6 +71,20 @@ test("dashboard connected apps surface reuses existing Google connect flow", () 
   assert.match(dashboard, /fetchJson\("\/agents\/google\/connect\/start"/);
   assert.match(dashboard, /fetchJson\("\/agents\/google\/disconnect"/);
 });
+
+test("dashboard connected apps surface has dedicated Calendly connect flow without credential fields", () => {
+  const dashboard = readSource("frontend/dashboard.js");
+  const settingsShell = readSource("frontend/settings/SettingsShell.js");
+
+  assert.match(settingsShell, /data-calendly-connect-form/);
+  assert.match(settingsShell, /name="booking_url"/);
+  assert.match(settingsShell, /Calendly booking connect/);
+  assert.match(settingsShell, /signed Calendly webhook evidence/i);
+  assert.match(dashboard, /submitCalendlyConnectForm/);
+  assert.match(dashboard, /connected-apps\/calendly\/connect/);
+  assert.doesNotMatch(settingsShell, /name=["'](?:access_token|accessToken|api_key|apiKey|client_secret|clientSecret|signing_key|signingKey|webhook_secret|webhookSecret|token|secret)["']/i);
+});
+
 
 test("dashboard state and Website Widget shell route connected apps hashes", () => {
   const dashboard = readSource("frontend/dashboard.js");

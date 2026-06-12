@@ -189,6 +189,15 @@ import {
   updateAgentBookingRequestStatus,
 } from "../services/bookings/agentBookingRequestService.js";
 import {
+  createBookingWebhookEndpointToken,
+  createBookingWebhookSigningSecret,
+  provisionCalendlyBookingIntegration,
+} from "../services/bookings/bookingIntegrationService.js";
+import {
+  createCalendlyWebhookSubscription,
+  isCalendlyWebhookSubscriptionConfigured,
+} from "../services/bookings/calendlyWebhookSubscriptionService.js";
+import {
   listAgentQuoteRequests,
   updateAgentQuoteRequestStatus,
 } from "../services/quotes/agentQuoteRequestService.js";
@@ -341,12 +350,102 @@ const CONNECTED_APP_ROUTE_UNSAFE_FIELD_NAMES = new Set([
   "webhookUrl",
   "webhook_url",
 ]);
+const CALENDLY_CONNECTED_APP_PROVIDER = "calendly";
+const CALENDLY_CONNECTED_APP_KEY = "calendly.booking";
+const CALENDLY_CONNECTED_APP_CAPABILITY = "calendly.booking.webhook";
+const CALENDLY_CONNECT_ALLOWED_FIELD_NAMES = new Set([
+  "booking_url",
+  "bookingurl",
+  "client_id",
+  "clientid",
+]);
 
 function buildConnectedAppRouteError(message, statusCode = 400, code = "connected_app_route_invalid") {
   const error = new Error(message);
   error.statusCode = statusCode;
   error.code = code;
   return error;
+}
+
+function assertCalendlyConnectRouteInput(value, path = "body") {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return;
+  }
+
+  for (const [key, nestedValue] of Object.entries(value)) {
+    const normalizedKey = normalizeConnectedAppRouteFieldName(key);
+
+    if (
+      CONNECTED_APP_ROUTE_UNSAFE_FIELD_NAMES.has(key)
+      || CONNECTED_APP_ROUTE_UNSAFE_FIELD_NAMES.has(normalizedKey)
+      || !CALENDLY_CONNECT_ALLOWED_FIELD_NAMES.has(normalizedKey)
+    ) {
+      throw buildConnectedAppRouteError(
+        `Calendly connect API does not accept field '${path}.${key}'.`,
+        400,
+        "calendly_connect_field_rejected"
+      );
+    }
+
+    if (nestedValue && typeof nestedValue === "object") {
+      throw buildConnectedAppRouteError(
+        `Calendly connect API does not accept nested field '${path}.${key}'.`,
+        400,
+        "calendly_connect_field_rejected"
+      );
+    }
+  }
+}
+
+function normalizeCalendlyBookingUrl(value = "") {
+  const rawValue = cleanText(value);
+
+  if (!rawValue) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(rawValue);
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+
+    if (parsed.protocol !== "https:" || (hostname !== "calendly.com" && !hostname.endsWith(".calendly.com"))) {
+      return "";
+    }
+
+    parsed.hash = "";
+    return parsed.toString();
+  } catch (_error) {
+    return "";
+  }
+}
+
+function normalizePublicHttpsBaseUrl(value = "") {
+  const rawValue = cleanText(value).replace(/\/$/, "");
+
+  if (!rawValue) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(rawValue);
+    const hostname = parsed.hostname.toLowerCase();
+
+    if (
+      parsed.protocol !== "https:"
+      || hostname === "localhost"
+      || hostname === "0.0.0.0"
+      || hostname === "127.0.0.1"
+      || hostname.endsWith(".local")
+    ) {
+      return "";
+    }
+
+    parsed.hash = "";
+    parsed.search = "";
+    return parsed.toString().replace(/\/$/, "");
+  } catch (_error) {
+    return "";
+  }
 }
 
 function assertNoConnectedAppRouteUnsafeInput(value, path = "body") {
@@ -753,6 +852,12 @@ export function createAgentRouter(deps = {}) {
     deps.listAgentBookingRequests || listAgentBookingRequests;
   const updateAgentBookingRequestStatusImpl =
     deps.updateAgentBookingRequestStatus || updateAgentBookingRequestStatus;
+  const provisionCalendlyBookingIntegrationImpl =
+    deps.provisionCalendlyBookingIntegration || provisionCalendlyBookingIntegration;
+  const createCalendlyWebhookSubscriptionImpl =
+    deps.createCalendlyWebhookSubscription || createCalendlyWebhookSubscription;
+  const isCalendlyWebhookSubscriptionConfiguredImpl =
+    deps.isCalendlyWebhookSubscriptionConfigured || isCalendlyWebhookSubscriptionConfigured;
   const listAgentQuoteRequestsImpl =
     deps.listAgentQuoteRequests || listAgentQuoteRequests;
   const updateAgentQuoteRequestStatusImpl =
@@ -791,6 +896,7 @@ export function createAgentRouter(deps = {}) {
     deps.evaluateConnectedAppReadiness || evaluateConnectedAppReadiness;
   const getActionRequestDefinitionImpl =
     deps.getActionRequestDefinition || getActionRequestDefinition;
+  const getPublicAppUrlImpl = deps.getPublicAppUrl || getPublicAppUrl;
   const trackOwnerProductEvent = createTrackOwnerProductEvent(trackProductEventImpl);
   const limitWidgetBootstrap =
     deps.limitWidgetBootstrap || createRateLimitMiddleware("widget_bootstrap");
@@ -2857,6 +2963,213 @@ export function createAgentRouter(deps = {}) {
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/agents/connected-app-inbound-events" });
+    }
+  });
+
+  router.post("/agents/:agentId/connected-apps/calendly/connect", async (req, res) => {
+    try {
+      assertCalendlyConnectRouteInput(req.body);
+
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = cleanText(req.params.agentId);
+      const bookingUrl = normalizeCalendlyBookingUrl(readBodyField(req.body, "booking_url", "bookingUrl"));
+      const publicAppUrl = normalizePublicHttpsBaseUrl(getPublicAppUrlImpl());
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      if (!bookingUrl) {
+        throw buildConnectedAppRouteError(
+          "A public HTTPS calendly.com booking link is required.",
+          400,
+          "calendly_booking_url_required"
+        );
+      }
+
+      if (!publicAppUrl) {
+        throw buildConnectedAppRouteError(
+          "PUBLIC_APP_URL must be set to a public HTTPS URL before Calendly can connect.",
+          503,
+          "calendly_public_app_url_required"
+        );
+      }
+
+      const env = deps.env || process.env;
+      const providerConfigured = isCalendlyWebhookSubscriptionConfiguredImpl(env);
+      const endpointToken = createBookingWebhookEndpointToken();
+      const webhookSecret = createBookingWebhookSigningSecret();
+      const now = new Date().toISOString();
+      const baseMetadata = {
+        provisioned_by: "dashboard_connected_apps",
+        dashboard_surface: "website_widget_connected_apps",
+        connected_app_capability: CALENDLY_CONNECTED_APP_CAPABILITY,
+      };
+      let providerConnected = false;
+      let providerFailureCode = "";
+      let providerSubscription = null;
+      let integrationResult = await provisionCalendlyBookingIntegrationImpl(supabase, {
+        ownerUserId: user.id,
+        agentId,
+        endpointToken,
+        webhookSecret,
+        publicAppUrl,
+        bookingUrl,
+        status: "pending",
+        metadata: {
+          ...baseMetadata,
+          provider_onboarding: providerConfigured ? "pending" : "not_configured",
+        },
+      });
+
+      if (providerConfigured) {
+        try {
+          providerSubscription = await createCalendlyWebhookSubscriptionImpl(
+            {
+              webhookUrl: integrationResult.webhookUrl,
+              signingKey: webhookSecret,
+            },
+            {
+              env,
+              fetch: deps.fetch,
+            }
+          );
+          providerConnected = true;
+          integrationResult = await provisionCalendlyBookingIntegrationImpl(supabase, {
+            ownerUserId: user.id,
+            agentId,
+            endpointToken,
+            webhookSecret,
+            publicAppUrl,
+            bookingUrl,
+            status: "active",
+            providerAccountId:
+              providerSubscription.organizationId
+              || providerSubscription.userId
+              || null,
+            providerEventTypeId: providerSubscription.subscriptionId || null,
+            metadata: {
+              ...baseMetadata,
+              provider_onboarding: "connected",
+              calendly_scope: providerSubscription.scope || "",
+              calendly_events: providerSubscription.events || [],
+              calendly_subscription_id: providerSubscription.subscriptionId || "",
+            },
+          });
+        } catch (error) {
+          providerFailureCode = cleanText(error?.code) || "calendly_provider_subscription_failed";
+          integrationResult = await provisionCalendlyBookingIntegrationImpl(supabase, {
+            ownerUserId: user.id,
+            agentId,
+            endpointToken,
+            webhookSecret,
+            publicAppUrl,
+            bookingUrl,
+            status: "needs_attention",
+            metadata: {
+              ...baseMetadata,
+              provider_onboarding: "failed",
+              provider_failure_code: providerFailureCode,
+            },
+          });
+        }
+      }
+
+      const connectionStatus = providerConnected ? "active" : providerConfigured ? "needs_attention" : "needs_setup";
+      const webhookStatus = providerConnected ? "active" : providerConfigured ? "needs_attention" : "needs_setup";
+      const needsAttentionReason = providerConnected
+        ? ""
+        : providerConfigured
+          ? providerFailureCode || "calendly_provider_subscription_failed"
+          : "calendly_provider_not_configured";
+      const connectionMetadata = {
+        setupMode: "dashboard_calendly_webhook",
+        dashboardSurface: "website_widget_connected_apps",
+        providerConnected,
+        backendConfigured: providerConfigured,
+      };
+      const existingConnections = await listConnectedAppConnectionsImpl(supabase, {
+        ownerUserId: user.id,
+        provider: CALENDLY_CONNECTED_APP_PROVIDER,
+        appKey: CALENDLY_CONNECTED_APP_KEY,
+      });
+      const existingConnection = existingConnections.find((connection) =>
+        connection.appKey === CALENDLY_CONNECTED_APP_KEY
+        && connection.capabilityKeys.includes(CALENDLY_CONNECTED_APP_CAPABILITY)
+      );
+      const connection = existingConnection
+        ? await updateConnectedAppConnectionStatusImpl(supabase, {
+          ownerUserId: user.id,
+          connectionId: existingConnection.id,
+          status: connectionStatus,
+          webhookStatus,
+          lastVerifiedAt: providerConnected ? now : "",
+          needsAttentionReason,
+          metadata: connectionMetadata,
+        })
+        : await createConnectedAppConnectionImpl(supabase, {
+          ownerUserId: user.id,
+          provider: CALENDLY_CONNECTED_APP_PROVIDER,
+          appKey: CALENDLY_CONNECTED_APP_KEY,
+          capabilityKeys: [CALENDLY_CONNECTED_APP_CAPABILITY],
+          status: connectionStatus,
+          providerAccountLabel: "Calendly booking webhook",
+          webhookStatus,
+          lastVerifiedAt: providerConnected ? now : "",
+          needsAttentionReason,
+          metadata: connectionMetadata,
+        });
+      const existingEnablements = await listAgentConnectedAppEnablementsImpl(supabase, {
+        ownerUserId: user.id,
+        agentId,
+      });
+      const existingEnablement = existingEnablements.find((enablement) =>
+        enablement.connectionId === connection.id
+      );
+      const enablementOptions = {
+        ownerUserId: user.id,
+        agentId,
+        connectionId: connection.id,
+        capabilityKeys: [CALENDLY_CONNECTED_APP_CAPABILITY],
+        enabled: providerConnected,
+        approvalMode: providerConnected ? "owner_approved" : "manual_review",
+        allowedSurfaces: ["webhook", "internal"],
+        metadata: {
+          setupMode: "dashboard_calendly_webhook",
+          dashboardSurface: "website_widget_connected_apps",
+          providerConnected,
+        },
+      };
+      const enablement = existingEnablement
+        ? await updateAgentConnectedAppEnablementImpl(supabase, {
+          ...enablementOptions,
+          enablementId: existingEnablement.id,
+        })
+        : await enableConnectedAppForAgentImpl(supabase, enablementOptions);
+
+      res.json({
+        ok: providerConnected,
+        providerConnected,
+        backendConfigured: providerConfigured,
+        setupRequired: !providerConnected,
+        message: providerConnected
+          ? "Calendly webhook subscription connected."
+          : providerConfigured
+            ? "Calendly webhook endpoint needs provider review."
+            : "Calendly webhook endpoint saved. Configure Calendly provider onboarding on the server to create the provider subscription.",
+        integration: integrationResult.integration || null,
+        connection,
+        enablement,
+        calendly: {
+          scope: providerSubscription?.scope || "",
+          events: providerSubscription?.events || ["invitee.created", "invitee.canceled"],
+        },
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/:agentId/connected-apps/calendly/connect" });
     }
   });
 

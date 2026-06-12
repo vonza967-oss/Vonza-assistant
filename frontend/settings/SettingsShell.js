@@ -3524,9 +3524,22 @@
       && defaultTrimText(connection?.appKey).toLowerCase() === "whatsapp.business";
   }
 
+  function isCalendlyBookingCapability(capability = {}) {
+    return defaultTrimText(capability?.key).toLowerCase() === "calendly.booking.webhook";
+  }
+
+  function isCalendlyBookingConnection(connection = {}) {
+    return defaultTrimText(connection?.provider).toLowerCase() === "calendly"
+      && defaultTrimText(connection?.appKey).toLowerCase() === "calendly.booking";
+  }
+
   function getConnectedAppSetupStatus(capability = {}) {
     if (isGoogleCalendarCapability(capability)) {
       return "Uses existing Google connection flow";
+    }
+
+    if (isCalendlyBookingCapability(capability)) {
+      return "Dashboard webhook connect flow";
     }
 
     if (isWhatsAppBusinessCapability(capability)) {
@@ -3548,6 +3561,7 @@
     const { escapeHtml } = helpers;
     const labels = [
       "Uses existing Google connection flow",
+      "Calendly signed webhook connect flow",
       "No chat execution",
       "No provider action without approval",
       "Report-only readiness",
@@ -3671,6 +3685,88 @@
             >Disconnect Google Calendar</button>
           ` : ""}
         </div>
+      </section>
+    `;
+  }
+
+  function buildCalendlyBookingConnectPanel(agent, connectedApps, helpers) {
+    const { escapeHtml, getBadgeClass } = helpers;
+    const bookingUrl = defaultTrimText(agent.bookingUrl || agent.booking_url);
+    const hasCalendlyBookingUrl = isCalendlyBookingUrl(bookingUrl);
+    const calendlyCapabilities = connectedApps.capabilities.filter(isCalendlyBookingCapability);
+    const calendlyConnections = connectedApps.connections.filter(isCalendlyBookingConnection);
+    const activeConnection = calendlyConnections.find((connection) => defaultTrimText(connection.status) === "active") || calendlyConnections[0] || null;
+    const integration = agent.bookingIntegrationStatus || agent.booking_integration_status || {};
+    const enabledConnectionIds = new Set(
+      connectedApps.enablements
+        .filter((enablement) => enablement?.enabled === true)
+        .map((enablement) => defaultTrimText(enablement.connectionId))
+        .filter(Boolean)
+    );
+    const enabledForAgent = activeConnection ? enabledConnectionIds.has(defaultTrimText(activeConnection.id)) : false;
+    const providerConnected = integration.webhookConnected === true
+      || (
+        defaultTrimText(activeConnection?.status) === "active"
+        && defaultTrimText(activeConnection?.webhookStatus) === "active"
+        && enabledForAgent
+      );
+    const setupRequired = hasCalendlyBookingUrl && !providerConnected;
+    const displayLabel = providerConnected
+      ? "Connected"
+      : hasCalendlyBookingUrl
+        ? "Ready to connect"
+        : "Needs booking link";
+    const displayTone = providerConnected ? "Ready" : hasCalendlyBookingUrl ? "Pending" : "Warning";
+    const statusCopy = providerConnected
+      ? "Signed Calendly booking webhooks can record confirmed booking outcomes for this Website Widget."
+      : hasCalendlyBookingUrl
+        ? "Connect creates the Vonza webhook endpoint and, when backend Calendly onboarding is configured, creates the Calendly webhook subscription."
+        : "Add a public HTTPS Calendly booking link in Website Widget routing before connecting the webhook.";
+
+    return `
+      <section class="settings-shell-section settings-connected-app-adapter-panel">
+        <div class="settings-shell-section-header">
+          <div>
+            <h3 class="settings-shell-section-title">Calendly booking connect</h3>
+            <p class="settings-shell-section-copy">Use the saved Website Widget booking link to connect signed Calendly webhook evidence for confirmed bookings.</p>
+          </div>
+          <span class="${getBadgeClass(displayTone)}">${escapeHtml(displayLabel)}</span>
+        </div>
+        <div class="settings-operational-summary settings-connected-app-summary" aria-label="Calendly booking connected app flow">
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Booking link</span>
+              <span class="${getBadgeClass(hasCalendlyBookingUrl ? "Ready" : "Warning")}">${escapeHtml(hasCalendlyBookingUrl ? "Calendly" : "Missing")}</span>
+            </div>
+            <p>${escapeHtml(bookingUrl || "No Calendly booking link saved yet.")}</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Webhook evidence</span>
+              <span class="${getBadgeClass(providerConnected ? "Ready" : "Pending")}">${escapeHtml(providerConnected ? "Connected" : "Not connected")}</span>
+            </div>
+            <p>${escapeHtml(statusCopy)}</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Capability</span>
+              <span class="${getBadgeClass(calendlyCapabilities.length ? "Ready" : "Pending")}">${escapeHtml(String(calendlyCapabilities.length))}</span>
+            </div>
+            <p>${escapeHtml(calendlyCapabilities.map((capability) => capability.label || capability.key).join(", ") || "Calendly booking webhook")}</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Agent enablement</span>
+              <span class="${getBadgeClass(enabledForAgent ? "Ready" : "Pending")}">${escapeHtml(enabledForAgent ? "Enabled" : "Not enabled")}</span>
+            </div>
+            <p>Enablement remains webhook/internal only and is not public chat callable.</p>
+          </article>
+        </div>
+        <form data-calendly-connect-form class="settings-shell-sticky-save">
+          <input type="hidden" name="booking_url" value="${escapeHtml(bookingUrl)}">
+          <span class="save-state" data-calendly-connect-status>${escapeHtml(setupRequired ? "Ready to create the signed webhook connection." : providerConnected ? "Calendly webhook connection is active." : "Calendly booking link required.")}</span>
+          <button class="primary-button" type="submit" ${hasCalendlyBookingUrl ? "" : "disabled"}>${escapeHtml(providerConnected ? "Reconnect Calendly" : "Connect Calendly")}</button>
+        </form>
       </section>
     `;
   }
@@ -4002,7 +4098,7 @@
         <div class="settings-shell-section-header">
           <div>
             <h3 class="settings-shell-section-title">Create manual connection record</h3>
-            <p class="settings-shell-section-copy">Manual/internal status records stay available for non-adapter review. Google Calendar uses the existing Google connection flow instead of credential or OAuth URL inputs.</p>
+            <p class="settings-shell-section-copy">Manual/internal status records stay available for non-adapter review. Google Calendar and Calendly use dedicated flows instead of credential, token, or OAuth URL inputs.</p>
           </div>
         </div>
         <div class="settings-field-grid settings-field-grid--two">
@@ -4150,7 +4246,7 @@
                 <span>Capabilities</span>
                 <span class="${getBadgeClass(connectedApps.capabilities.length ? "Ready" : "Pending")}">${escapeHtml(String(connectedApps.capabilities.length))}</span>
               </div>
-              <p>Safe registry metadata only. Google Calendar uses the existing Google flow; other records remain manual/status-only.</p>
+              <p>Safe registry metadata only. Google Calendar uses the existing Google flow; Calendly can connect signed booking webhooks; other records remain manual/status-only.</p>
             </article>
             <article class="settings-operational-card">
               <div class="settings-operational-card-head">
@@ -4186,6 +4282,7 @@
           </section>
 
           ${buildGoogleCalendarAdapterPanel(connectedApps, helpers)}
+          ${buildCalendlyBookingConnectPanel(agent, connectedApps, helpers)}
           ${buildWhatsAppBusinessFoundationPanel(connectedApps, helpers)}
           ${buildConnectedAppInboxPanel(connectedApps, helpers, agent)}
 
