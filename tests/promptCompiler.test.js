@@ -111,6 +111,50 @@ test("custom agent instructions and tone still appear", () => {
   assert.match(prompt, /Additional agent instructions:\nOnly mention warranties when they are documented\./);
 });
 
+test("owner custom instructions are included after guardrails as lower-priority behavior guidance", () => {
+  const prompt = compileAgentSystemPrompt({
+    language: "English",
+    agent: {
+      name: "Acme Front Desk",
+      tone: "professional",
+      systemPrompt: "Ask one practical follow-up before suggesting contact.",
+      customInstructions: "Keep answers under 4 sentences. Use one emoji only when confirming bookings.",
+    },
+  });
+
+  assert.match(prompt, /Instruction priority:/);
+  assert.match(prompt, /Owner custom instructions, when present, for style and behavior only/);
+  assert.match(prompt, /Additional agent instructions:\nAsk one practical follow-up before suggesting contact\./);
+  assert.match(prompt, /Owner custom instructions:\nThese instructions can guide answer length, tone, behavior, emoji usage/);
+  assert.match(prompt, /Keep answers under 4 sentences\. Use one emoji only when confirming bookings\./);
+  assert.ok(prompt.indexOf("Hard rules:") < prompt.indexOf("Additional agent instructions:"));
+  assert.ok(prompt.indexOf("Additional agent instructions:") < prompt.indexOf("Owner custom instructions:"));
+  assert.ok(prompt.indexOf("Owner custom instructions:") < prompt.indexOf("Keep answers under 4 sentences."));
+});
+
+test("empty owner custom instructions do not change compiled prompt output", () => {
+  const agent = {
+    name: "Acme Front Desk",
+    tone: "professional",
+    systemPrompt: "Ask one practical follow-up before suggesting contact.",
+  };
+
+  const withoutCustomInstructions = compileAgentSystemPrompt({
+    language: "English",
+    agent,
+  });
+  const withEmptyCustomInstructions = compileAgentSystemPrompt({
+    language: "English",
+    agent: {
+      ...agent,
+      customInstructions: "   ",
+    },
+  });
+
+  assert.equal(withEmptyCustomInstructions, withoutCustomInstructions);
+  assert.doesNotMatch(withEmptyCustomInstructions, /Owner custom instructions:/);
+});
+
 test("saved Website Widget AI Behavior settings appear in prompt compilation", () => {
   const prompt = compileAgentSystemPrompt({
     language: "English",

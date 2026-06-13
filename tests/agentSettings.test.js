@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  CUSTOM_INSTRUCTIONS_MAX_LENGTH,
   getAgentWorkspaceSnapshot,
   getFullPageDesignPresetDefaults,
   getWidgetBootstrap,
@@ -908,6 +909,131 @@ test("updateAgentSettings persists widget AI behavior and defaults legacy purpos
   assert.equal(state.agents[0].purpose, "make_decision");
   assert.equal(state.agents[0].tone, "sales");
   assert.equal(state.agents[0].system_prompt, "Ask about project timing before suggesting a next step.");
+});
+
+test("updateAgentSettings persists, reloads, and clears advanced custom instructions", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "stay helpful",
+        custom_instructions: "Old custom instructions",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Vonza",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+      },
+    ],
+  });
+  const customInstructions = [
+    "Keep replies under 4 sentences unless the visitor asks for detail.",
+    "Use one friendly emoji only when confirming bookings.",
+    "Always answer in Hungarian unless the visitor writes in English.",
+  ].join("\n");
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    customInstructions,
+  });
+  const reloaded = await requireAgentAccess(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+  });
+
+  assert.equal(result.customInstructions, customInstructions);
+  assert.equal(state.agents[0].custom_instructions, customInstructions);
+  assert.equal(reloaded.customInstructions, customInstructions);
+
+  const cleared = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    customInstructions: "",
+  });
+
+  assert.equal(cleared.customInstructions, "");
+  assert.equal(state.agents[0].custom_instructions, null);
+});
+
+test("updateAgentSettings rejects advanced custom instructions over the max length", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "",
+        custom_instructions: "safe custom instructions",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Vonza",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+      },
+    ],
+  });
+
+  await assert.rejects(
+    () =>
+      updateAgentSettings(supabase, {
+        agentId: "agent-1",
+        customInstructions: "x".repeat(CUSTOM_INSTRUCTIONS_MAX_LENGTH + 1),
+      }),
+    (error) => {
+      assert.equal(error.statusCode, 400);
+      assert.equal(error.code, "custom_instructions_too_long");
+      assert.match(error.message, /10,000 characters or fewer/i);
+      return true;
+    }
+  );
+  assert.equal(state.agents[0].custom_instructions, "safe custom instructions");
 });
 
 test("updateAgentSettings persists generated Website Widget instructions through system_prompt", async () => {

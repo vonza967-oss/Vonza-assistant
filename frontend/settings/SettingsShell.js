@@ -55,6 +55,7 @@
     appearance: "optional-widget",
   });
   const FULL_PAGE_SETTINGS_TABS = Object.freeze(["content", "design", "layout"]);
+  const CUSTOM_INSTRUCTIONS_MAX_LENGTH = 10000;
   const SETTINGS_SECTION_ALIASES = Object.freeze({
     assistant: "general",
     branding: "general",
@@ -732,6 +733,34 @@
 
   function defaultEscapeHtml(value) {
     return String(value ?? "");
+  }
+
+  function getCustomInstructionsValue(agent = {}) {
+    return String(agent.customInstructions || agent.custom_instructions || "");
+  }
+
+  function formatCustomInstructionsCharacterCount(value = "") {
+    return `${String(value || "").length.toLocaleString("en-US")} / ${CUSTOM_INSTRUCTIONS_MAX_LENGTH.toLocaleString("en-US")}`;
+  }
+
+  function buildCustomInstructionsField(agent = {}, helpers = {}, inputId = "assistant-custom-instructions") {
+    const escapeHtml = helpers.escapeHtml || defaultEscapeHtml;
+    const translate = helpers.translateDashboardText || ((value) => value);
+    const value = getCustomInstructionsValue(agent);
+    const label = translate("Advanced custom instructions");
+    const copy = translate("This can control answer length, tone, behavior, emoji usage, formatting, language, escalation preferences, and booking or contact behavior. It cannot override security, billing, scoping, factuality, or no-fabrication rules.");
+    const placeholder = translate("Example: Keep answers under 4 sentences unless the customer asks for detail. Use a warm, professional tone. Avoid emojis except one friendly emoji when confirming bookings. Always answer in Hungarian unless the visitor writes in English. If pricing is unclear, explain what is known and suggest contacting us.");
+
+    return `
+      <div class="field settings-field-wide">
+        <label for="${escapeHtml(inputId)}">${escapeHtml(label)}</label>
+        <textarea id="${escapeHtml(inputId)}" name="custom_instructions" maxlength="${CUSTOM_INSTRUCTIONS_MAX_LENGTH}" rows="7" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value)}</textarea>
+        <div class="website-widget-field-meta">
+          <p class="field-help">${escapeHtml(copy)}</p>
+          <span class="website-widget-character-count" data-character-count aria-live="polite">${escapeHtml(formatCustomInstructionsCharacterCount(value))}</span>
+        </div>
+      </div>
+    `;
   }
 
   function defaultGetBadgeClass() {
@@ -2785,6 +2814,7 @@
                     <label for="assistant-instructions">Advanced guidance</label>
                     <textarea id="assistant-instructions" name="system_prompt">${escapeHtml(agent.systemPrompt || "")}</textarea>
                   </div>
+                  ${buildCustomInstructionsField(agent, helpers, "assistant-custom-instructions")}
                 </div>
               </section>
             ` : ""}
@@ -4702,6 +4732,7 @@
                   <label for="assistant-instructions">Advanced guidance</label>
                   <textarea id="assistant-instructions" name="system_prompt">${defaultEscapeHtml(agent.systemPrompt || "")}</textarea>
                 </div>
+                ${buildCustomInstructionsField(agent, helpers, "assistant-widget-custom-instructions")}
               </div>
             </section>
           </div>

@@ -50,6 +50,7 @@ create table if not exists public.agents (
   name text,
   purpose text,
   system_prompt text,
+  custom_instructions text,
   tone text,
   language text,
   is_active boolean default true,
@@ -63,6 +64,13 @@ alter table public.agents
 alter table public.agents
   add constraint agents_package_key_check
   check (package_key in ('front_desk_general', 'hotel_concierge'));
+
+alter table public.agents
+  drop constraint if exists agents_custom_instructions_length_check;
+
+alter table public.agents
+  add constraint agents_custom_instructions_length_check
+  check (custom_instructions is null or char_length(custom_instructions) <= 10000);
 
 create index if not exists agents_business_id_idx
   on public.agents (business_id);

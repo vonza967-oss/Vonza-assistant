@@ -188,6 +188,22 @@ test("agent package persistence keeps Front Desk default and allows only registe
   assert.doesNotMatch(activationMigrationSql, /create table|add column|drop column|alter column/i);
 });
 
+test("agent custom instructions schema is present with bounded length and owner policy coverage", () => {
+  const schemaSql = readFileSync("db/schema.sql", "utf8");
+  const migrationSql = readFileSync(
+    "supabase/migrations/20260612183000_agent_custom_instructions.sql",
+    "utf8"
+  );
+
+  [schemaSql, migrationSql].forEach((sql) => {
+    assert.match(sql, /custom_instructions text/i);
+    assert.match(sql, /agents_custom_instructions_length_check/i);
+    assert.match(sql, /char_length\(custom_instructions\) <= 10000/i);
+  });
+  assert.match(schemaSql, /create policy "Owners can manage their agents\."/i);
+  assert.match(schemaSql, /owner_user_id = \(select auth\.uid\(\)\)/i);
+});
+
 test("generic booking request schema is present in canonical schema and migration", () => {
   const schemaSql = readFileSync("db/schema.sql", "utf8");
   const migrationSql = readFileSync(

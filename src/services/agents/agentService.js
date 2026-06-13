@@ -66,6 +66,7 @@ const BOOKING_PROVIDERS = ["manual", "calendly"];
 const WIDGET_QUICK_PROMPT_LIMIT = 5;
 const WIDGET_QUICK_PROMPT_LABEL_LIMIT = 40;
 const WIDGET_QUICK_PROMPT_TEXT_LIMIT = 200;
+export const CUSTOM_INSTRUCTIONS_MAX_LENGTH = 10000;
 const ROUTING_WIDGET_CONFIG_COLUMNS = [
   "booking_url",
   "quote_url",
@@ -125,6 +126,7 @@ const AGENT_SELECT = [
   "name",
   "purpose",
   "system_prompt",
+  "custom_instructions",
   "tone",
   "language",
   "is_active",
@@ -494,6 +496,28 @@ function getFullPageBackgroundPresetDefaults(presetValue) {
 
 function normalizeLimitedText(value, maxLength) {
   return cleanText(value).slice(0, maxLength);
+}
+
+function normalizeInstructionText(value) {
+  return String(value || "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t\f\v]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function normalizeCustomInstructions(value) {
+  const normalized = normalizeInstructionText(value);
+
+  if (normalized.length > CUSTOM_INSTRUCTIONS_MAX_LENGTH) {
+    throw buildAgentSettingsError(
+      `Advanced custom instructions must be ${CUSTOM_INSTRUCTIONS_MAX_LENGTH.toLocaleString("en-US")} characters or fewer.`,
+      400,
+      "custom_instructions_too_long"
+    );
+  }
+
+  return normalized;
 }
 
 function normalizeQuickPromptText(value, maxLength) {
@@ -1359,6 +1383,7 @@ function mapAgentRow(row) {
     name: row.name || DEFAULT_AGENT_NAME,
     purpose: normalizeWidgetPurpose(row.purpose || DEFAULT_PURPOSE),
     systemPrompt: row.system_prompt || "",
+    customInstructions: normalizeInstructionText(row.custom_instructions || ""),
     tone: row.tone || DEFAULT_TONE,
     language: row.language || DEFAULT_LANGUAGE,
     isActive: row.is_active !== false,
@@ -1864,6 +1889,7 @@ export async function ensureAgentForBusiness(supabase, business, options = {}) {
         name: cleanText(business.name) || DEFAULT_AGENT_NAME,
         purpose: DEFAULT_PURPOSE,
         systemPrompt: "",
+        customInstructions: "",
         tone: DEFAULT_TONE,
         language: DEFAULT_LANGUAGE,
         isActive: true,
@@ -1959,6 +1985,7 @@ export async function resolveAgentContext(supabase, options = {}) {
         name: cleanText(business.name) || DEFAULT_AGENT_NAME,
         purpose: DEFAULT_PURPOSE,
         systemPrompt: "",
+        customInstructions: "",
         tone: DEFAULT_TONE,
         language: DEFAULT_LANGUAGE,
         isActive: true,
@@ -2410,6 +2437,7 @@ export async function listAgents(supabase, options = {}) {
       isActive: row.is_active !== false,
       tone: row.tone || DEFAULT_TONE,
       systemPrompt: row.system_prompt || "",
+      customInstructions: normalizeInstructionText(row.custom_instructions || ""),
       vertical,
       websiteUrl,
       welcomeMessage:
@@ -2608,6 +2636,7 @@ export async function listAllAgents(supabase) {
     isActive: row.is_active !== false,
     tone: row.tone || DEFAULT_TONE,
     systemPrompt: row.system_prompt || "",
+    customInstructions: normalizeInstructionText(row.custom_instructions || ""),
     vertical: normalizeBusinessVertical(businessesById.get(row.business_id)?.vertical),
     websiteUrl: businessesById.get(row.business_id)?.website_url || "",
     welcomeMessage:
@@ -2713,6 +2742,7 @@ export async function updateAgentSettings(
     widgetPurpose,
     tone,
     systemPrompt,
+    customInstructions,
     welcomeMessage,
     buttonLabel,
     widgetLogoUrl,
@@ -2872,6 +2902,10 @@ export async function updateAgentSettings(
   const nextSystemPrompt = hasField("systemPrompt")
     ? cleanText(systemPrompt)
     : agent.systemPrompt || "";
+  const hasCustomInstructionsUpdate = hasField("customInstructions") && customInstructions !== undefined;
+  const nextCustomInstructions = hasCustomInstructionsUpdate
+    ? normalizeCustomInstructions(customInstructions)
+    : agent.customInstructions || "";
   const currentWidgetConfig = await ensureWidgetConfigForAgent(supabase, normalizedAgentId);
   const currentWidgetConfigRow = await getWidgetConfigRowForAgent(supabase, normalizedAgentId);
   const persistedWidgetConfig = currentWidgetConfigRow
@@ -3030,6 +3064,7 @@ export async function updateAgentSettings(
       purpose: nextPurpose,
       tone: nextTone,
       system_prompt: nextSystemPrompt,
+      custom_instructions: nextCustomInstructions || null,
     })
     .eq("id", normalizedAgentId);
 
@@ -3281,6 +3316,7 @@ export async function updateAgentSettings(
     purpose: nextPurpose,
     tone: nextTone,
     systemPrompt: nextSystemPrompt,
+    customInstructions: nextCustomInstructions,
     vertical: nextVertical,
     websiteUrl: resolvedWebsiteUrl,
     websiteSync: {

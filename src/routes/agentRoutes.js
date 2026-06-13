@@ -2272,6 +2272,13 @@ export function createAgentRouter(deps = {}) {
     try {
       const supabase = getSupabase();
       user = await getOptionalAuthenticatedUser(supabase, req);
+      const hasCustomInstructionsField = hasBodyField(req.body, "custom_instructions", "customInstructions");
+      if (!user && hasCustomInstructionsField) {
+        const error = new Error("Authenticated owner is required to update custom instructions.");
+        error.statusCode = 401;
+        throw error;
+      }
+
       if (user) {
         await requireActiveAgentAccessImpl(supabase, {
           agentId: req.body.agent_id || req.body.agentId,
@@ -2293,6 +2300,7 @@ export function createAgentRouter(deps = {}) {
           ?? readBodyField(req.body, "purpose"),
         tone: readBodyField(req.body, "tone"),
         systemPrompt: readBodyField(req.body, "system_prompt", "systemPrompt"),
+        customInstructions: readBodyField(req.body, "custom_instructions", "customInstructions"),
         welcomeMessage: readBodyField(req.body, "welcome_message", "welcomeMessage"),
         buttonLabel: readBodyField(req.body, "button_label", "buttonLabel"),
         widgetLogoUrl: readBodyField(req.body, "widget_logo_url", "widgetLogoUrl"),

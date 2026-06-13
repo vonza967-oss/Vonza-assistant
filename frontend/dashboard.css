@@ -560,6 +560,11 @@ html[data-dashboard-theme="dark"] .website-widget-record {
   min-height: 120px;
 }
 
+.website-widget-config-form textarea[name="custom_instructions"],
+.settings-shell-form textarea[name="custom_instructions"] {
+  min-height: 180px;
+}
+
 .website-widget-field-action-row {
   display: flex;
   flex-wrap: wrap;
@@ -571,6 +576,30 @@ html[data-dashboard-theme="dark"] .website-widget-record {
 
 .website-widget-field-action-row label {
   margin-bottom: 0;
+}
+
+.website-widget-field-meta {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.website-widget-field-meta .field-help {
+  margin: 0;
+}
+
+.website-widget-character-count {
+  flex: 0 0 auto;
+  color: var(--dashboard-muted, #64748b);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.website-widget-character-count.warning {
+  color: #b45309;
 }
 
 .website-widget-field-action-row .ghost-button {

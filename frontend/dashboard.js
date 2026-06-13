@@ -130,6 +130,7 @@ const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
 const WEBSITE_WIDGET_QUICK_PROMPT_LIMIT = 5;
 const WEBSITE_WIDGET_QUICK_PROMPT_LABEL_LIMIT = 40;
 const WEBSITE_WIDGET_QUICK_PROMPT_TEXT_LIMIT = 200;
+const CUSTOM_INSTRUCTIONS_MAX_LENGTH = 10000;
 const DEFAULT_WEBSITE_WIDGET_QUICK_PROMPTS = Object.freeze({
   en: Object.freeze([
     Object.freeze({ label: "Services", prompt: "What services do you offer?" }),
@@ -3181,6 +3182,10 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Configure the Website Widget launcher for the recommended website launch path. Full-page Front Desk settings stay in the companion page section.": "Állítsd be a Website Widget indítót az ajánlott weboldali élesítési úthoz. A teljes oldalas Front Desk beállításai a kiegészítő oldal szakaszban maradnak.",
   "Use a small square PNG, JPG, WebP, or GIF.": "Használj kis négyzetes PNG, JPG, WebP vagy GIF képet.",
   "Optional guidance for emphasis, tone, and edge cases.": "Opcionális útmutatás hangsúlyhoz, hangnemhez és kivételes esetekhez.",
+  "Advanced custom instructions": "Haladó egyedi utasítások",
+  "Use this for detailed owner-written style and behavior preferences.": "Itt adhatsz meg részletes, tulajdonosi stílus- és működési preferenciákat.",
+  "This can control answer length, tone, behavior, emoji usage, formatting, language, escalation preferences, and booking or contact behavior. It cannot override security, billing, scoping, factuality, or no-fabrication rules.": "Ez szabályozhatja a válasz hosszát, hangnemét, működését, emoji-használatát, formázását, nyelvét, eszkalációs preferenciáit, valamint a foglalási vagy kapcsolatfelvételi viselkedést. Nem írhatja felül a biztonsági, számlázási, jogosultsági, tényszerűségi vagy nem kitalálási szabályokat.",
+  "Example: Keep answers under 4 sentences unless the customer asks for detail. Use a warm, professional tone. Avoid emojis except one friendly emoji when confirming bookings. Always answer in Hungarian unless the visitor writes in English. If pricing is unclear, explain what is known and suggest contacting us.": "Példa: Tartsd a válaszokat 4 mondat alatt, kivéve ha az ügyfél részleteket kér. Használj meleg, professzionális hangnemet. Kerüld az emojikat, kivéve egy barátságos emojit foglalás megerősítésekor. Mindig magyarul válaszolj, kivéve ha a látogató angolul ír. Ha az árazás nem egyértelmű, magyarázd el, ami biztos, és javasolj kapcsolatfelvételt.",
   "Front Desk live readout": "Front Desk élő összefoglaló",
   "Review how the customer-facing assistant will appear.": "Nézd át, hogyan jelenik meg az ügyféloldali asszisztens.",
   "Your front desk is ready to greet visitors with a clear, helpful first message.": "A Front Desk készen áll, hogy világos, hasznos első üzenettel fogadja a látogatókat.",
@@ -10363,6 +10368,10 @@ function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
 	              <textarea id="website-widget-guidance" name="system_prompt" rows="4" placeholder="${escapeHtml(websiteWidgetText("config.guidancePlaceholder"))}">${escapeHtml(agent.systemPrompt || "")}</textarea>
 	              <p class="field-help">${escapeHtml(websiteWidgetText("config.guidanceHelp"))}</p>
 	            </div>
+	            ${renderCustomInstructionsField({
+	              inputId: "website-widget-custom-instructions",
+	              value: getCustomInstructionsValue(agent),
+	            })}
 	          </section>
 
           <section class="website-widget-panel">
@@ -15634,6 +15643,48 @@ function renderWebsiteWidgetQuickPromptEditor(prompts = []) {
   `;
 }
 
+function getCustomInstructionsValue(agent = {}) {
+  return String(agent.customInstructions || agent.custom_instructions || "");
+}
+
+function formatCustomInstructionsCharacterCount(value = "") {
+  const locale = getDashboardLanguage() === "hu" ? "hu-HU" : "en-US";
+  return `${String(value || "").length.toLocaleString(locale)} / ${CUSTOM_INSTRUCTIONS_MAX_LENGTH.toLocaleString(locale)}`;
+}
+
+function syncCustomInstructionsCharacterCounts(scope = document) {
+  const root = scope?.querySelectorAll ? scope : document;
+  root.querySelectorAll('textarea[name="custom_instructions"]').forEach((textarea) => {
+    const counter = textarea.closest(".field")?.querySelector("[data-character-count]");
+
+    if (!counter) {
+      return;
+    }
+
+    counter.textContent = formatCustomInstructionsCharacterCount(textarea.value);
+    counter.classList.toggle("warning", textarea.value.length > CUSTOM_INSTRUCTIONS_MAX_LENGTH);
+  });
+}
+
+function renderCustomInstructionsField({
+  inputId = "assistant-custom-instructions",
+  value = "",
+  label,
+  helper,
+  placeholder,
+} = {}) {
+  return `
+    <div class="field website-widget-instructions-field website-widget-custom-instructions-field">
+      <label for="${escapeHtml(inputId)}">${escapeHtml(label || websiteWidgetText("config.customInstructions"))}</label>
+      <textarea id="${escapeHtml(inputId)}" name="custom_instructions" rows="7" maxlength="${CUSTOM_INSTRUCTIONS_MAX_LENGTH}" placeholder="${escapeHtml(placeholder || websiteWidgetText("config.customInstructionsPlaceholder"))}">${escapeHtml(value)}</textarea>
+      <div class="website-widget-field-meta">
+        <p class="field-help">${escapeHtml(helper || websiteWidgetText("config.customInstructionsHelp"))}</p>
+        <span class="website-widget-character-count" data-character-count aria-live="polite">${escapeHtml(formatCustomInstructionsCharacterCount(value))}</span>
+      </div>
+    </div>
+  `;
+}
+
 function parseFullPageListField(value, maxItems, maxLength) {
   return String(value || "")
     .split(/\n|,/)
@@ -15938,6 +15989,7 @@ async function saveAssistant(event, agent) {
     "vertical",
     "tone",
     "system_prompt",
+    "custom_instructions",
     "welcome_message",
     "button_label",
     "website_url",
@@ -16577,9 +16629,9 @@ function applyAppearancePreset(form, presetName) {
   form.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function buildBehaviorSummary(tone, systemPrompt) {
+function buildBehaviorSummary(tone, systemPrompt, customInstructions = "") {
   const normalizedTone = trimText(tone) || "friendly";
-  const guidance = trimText(systemPrompt);
+  const guidance = trimText(systemPrompt) || trimText(customInstructions);
 
   const toneMap = {
     friendly: {
@@ -16630,7 +16682,10 @@ function updateBehaviorSummary(form, fallbackAgent = {}) {
   const systemPrompt = formData.has("system_prompt")
     ? trimText(formData.get("system_prompt"))
     : trimText(fallbackAgent.systemPrompt);
-  const summary = buildBehaviorSummary(tone, systemPrompt);
+  const customInstructions = formData.has("custom_instructions")
+    ? trimText(formData.get("custom_instructions"))
+    : trimText(fallbackAgent.customInstructions || fallbackAgent.custom_instructions);
+  const summary = buildBehaviorSummary(tone, systemPrompt, customInstructions);
 
   summaryTitle.textContent = summary.title;
   summaryCopy.textContent = summary.copy;
@@ -16758,6 +16813,7 @@ function bindStudioState(form, agent) {
   const syncState = () => {
     updateStudioSummary(form, agent);
     updateBehaviorSummary(form, agent);
+    syncCustomInstructionsCharacterCounts(stateScope);
     stateScope.querySelectorAll("[data-tone-card]").forEach((toneCard) => {
       const input = toneCard.querySelector('input[name="tone"]');
       toneCard.classList.toggle("active", Boolean(input?.checked));
@@ -16782,6 +16838,7 @@ function bindStudioState(form, agent) {
   form.addEventListener("change", syncState);
   updateStudioSummary(form, agent);
   updateBehaviorSummary(form, agent);
+  syncCustomInstructionsCharacterCounts(stateScope);
 }
 
 function bindSimpleDirtyState(form) {

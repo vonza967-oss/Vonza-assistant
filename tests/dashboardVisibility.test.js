@@ -1463,6 +1463,9 @@ test("Website Widget AI Behavior copy is Hungarian-first and English-aware", asy
   assert.match(huHtml, /Nem tanítják újra a modellt/);
   assert.match(huHtml, /nem írják felül a jóváhagyott üzleti tényeket/);
   assert.match(huHtml, /name="system_prompt"/);
+  assert.match(huHtml, /Haladó egyedi utasítások/);
+  assert.match(huHtml, /válasz hossza, hangneme, működése, emoji-használata/);
+  assert.match(huHtml, /name="custom_instructions"/);
   assert.match(huHtml, /Gyors kérdések/);
   assert.match(huHtml, /Rövid kérdések, amelyekre a látogatók a beágyazott widgetben kattinthatnak/);
   assert.match(huHtml, /Chip felirata/);
@@ -1487,6 +1490,9 @@ test("Website Widget AI Behavior copy is Hungarian-first and English-aware", asy
   assert.match(enHtml, /These instructions shape future widget replies/);
   assert.match(enHtml, /They do not retrain the model or override approved business facts/);
   assert.match(enHtml, /name="system_prompt"/);
+  assert.match(enHtml, /Advanced custom instructions/);
+  assert.match(enHtml, /answer length, tone, behaviour, emoji usage/);
+  assert.match(enHtml, /name="custom_instructions"/);
   assert.match(enHtml, /Quick questions/);
   assert.match(enHtml, /Short questions visitors can click inside the embedded widget/);
   assert.match(enHtml, /Chip label/);

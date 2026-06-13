@@ -487,6 +487,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Persists page-level website import results for durable refresh, quality reporting, and future reindexing while preserving the existing website_content summary row.",
   }),
+  Object.freeze({
+    id: "agent_custom_instructions",
+    version: "20260612183000",
+    name: "agent_custom_instructions",
+    file: "supabase/migrations/20260612183000_agent_custom_instructions.sql",
+    legacySources: Object.freeze([]),
+    tier: "required",
+    note: "Adds owner-scoped advanced custom instructions on agents with a bounded prompt length, preserving existing Widget, embed, billing, and factual guardrail behavior.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

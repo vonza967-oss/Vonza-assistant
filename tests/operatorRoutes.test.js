@@ -821,6 +821,7 @@ test("agents update route maps Website Widget AI Behavior fields", async () => {
         purpose: payload.widgetPurpose,
         tone: payload.tone,
         systemPrompt: payload.systemPrompt,
+        customInstructions: payload.customInstructions,
       };
     },
   })));
@@ -833,6 +834,7 @@ test("agents update route maps Website Widget AI Behavior fields", async () => {
         widget_purpose: "make_decision",
         tone: "support",
         system_prompt: "Ask one practical follow-up before suggesting contact.",
+        custom_instructions: "Keep answers under 4 sentences and use Hungarian unless the visitor writes in English.",
       }),
     });
 
@@ -841,6 +843,7 @@ test("agents update route maps Website Widget AI Behavior fields", async () => {
     assert.equal(capturedPayload.widgetPurpose, "make_decision");
     assert.equal(capturedPayload.tone, "support");
     assert.equal(capturedPayload.systemPrompt, "Ask one practical follow-up before suggesting contact.");
+    assert.equal(capturedPayload.customInstructions, "Keep answers under 4 sentences and use Hungarian unless the visitor writes in English.");
   } finally {
     await server.close();
   }

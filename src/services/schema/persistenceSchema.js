@@ -64,14 +64,18 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
       "name",
       "purpose",
       "system_prompt",
+      "custom_instructions",
       "tone",
       "language",
       "is_active",
       "created_at",
       "updated_at",
     ],
-    migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.owner_access],
-    migrationColumns: ["owner_user_id", "access_status"],
+    migrationFiles: [
+      SUPABASE_MIGRATION_FILE_BY_ID.owner_access,
+      SUPABASE_MIGRATION_FILE_BY_ID.agent_custom_instructions,
+    ],
+    migrationColumns: ["owner_user_id", "access_status", "custom_instructions"],
   },
   widget_configs: {
     requiredColumns: [
