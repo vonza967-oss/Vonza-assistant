@@ -262,6 +262,27 @@ function createDashboardHarness({
       });
     }
 
+    if (/^\/agents\/[^/]+\/order-support$/.test(resolvedUrl.pathname)) {
+      return buildResponse({
+        status: 200,
+        body: {
+          ok: true,
+          orderSupport: {
+            enabled: false,
+            provider: "internal",
+            providerStatus: "needs_setup",
+            approvalMode: "read_only",
+            supportedActions: [
+              "order_lookup",
+              "shipping_tracking",
+            ],
+            escalationDestination: "",
+            persistenceAvailable: true,
+          },
+        },
+      });
+    }
+
     if (resolvedUrl.pathname === "/agents/front-desk/training-items") {
       return buildResponse({
         status: 200,

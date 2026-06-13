@@ -3571,6 +3571,7 @@
         status: defaultTrimText(aiDrafts.status) || (aiDrafts.enabled === true ? "enabled" : "disabled"),
         lastDraft: aiDrafts.lastDraft || null,
       },
+      orderSupport: state.orderSupport || null,
       readiness: state.readiness || null,
       readinessContext: state.readinessContext || null,
       loading: state.loading === true,
@@ -3599,6 +3600,55 @@
     if (["needs_attention", "warning", "blocked", "revoked"].includes(normalized)) return "Limited";
     if (["disabled", "needs_setup", "pending"].includes(normalized)) return "Pending";
     return normalized ? "Limited" : "Pending";
+  }
+
+  const ORDER_SUPPORT_PROVIDER_OPTIONS = Object.freeze([
+    { value: "internal", label: "Internal order snapshots" },
+    { value: "shopify", label: "Shopify" },
+    { value: "woocommerce", label: "WooCommerce" },
+  ]);
+  const ORDER_SUPPORT_PROVIDER_STATUS_OPTIONS = Object.freeze([
+    { value: "not_connected", label: "Not connected" },
+    { value: "connected", label: "Connected" },
+    { value: "needs_setup", label: "Needs setup" },
+    { value: "needs_attention", label: "Needs attention" },
+    { value: "disabled", label: "Disabled" },
+  ]);
+  const ORDER_SUPPORT_APPROVAL_OPTIONS = Object.freeze([
+    { value: "read_only", label: "Read-only tracking only" },
+    { value: "change_requests", label: "Allow change requests" },
+    { value: "safe_automatic", label: "Allow safe automatic changes" },
+  ]);
+  const ORDER_SUPPORT_ACTION_OPTIONS = Object.freeze([
+    { value: "order_lookup", label: "Order lookup" },
+    { value: "shipping_tracking", label: "Shipping tracking" },
+    { value: "shipping_address", label: "Shipping address change" },
+    { value: "contact_info", label: "Contact info change" },
+    { value: "cancellation", label: "Cancellation request" },
+    { value: "delivery_note", label: "Delivery note" },
+    { value: "item_change", label: "Item or quantity change" },
+  ]);
+
+  function getOrderSupportOptionLabel(options, value = "") {
+    const normalized = defaultTrimText(value).toLowerCase();
+    return options.find((option) => option.value === normalized)?.label || humanizeConnectedAppValue(normalized);
+  }
+
+  function normalizeOrderSupportSettings(settings = {}) {
+    const supportedActions = Array.isArray(settings.supportedActions)
+      ? settings.supportedActions.map((action) => defaultTrimText(action).toLowerCase()).filter(Boolean)
+      : ["order_lookup", "shipping_tracking"];
+
+    return {
+      enabled: settings.enabled === true,
+      provider: defaultTrimText(settings.provider).toLowerCase() || "internal",
+      providerStatus: defaultTrimText(settings.providerStatus).toLowerCase() || "needs_setup",
+      supportedActions,
+      approvalMode: defaultTrimText(settings.approvalMode).toLowerCase() || "read_only",
+      escalationDestination: defaultTrimText(settings.escalationDestination),
+      persistenceAvailable: settings.persistenceAvailable !== false,
+      updatedAt: settings.updatedAt || null,
+    };
   }
 
   function getGoogleCalendarDisplayStatus(connection = null) {
@@ -3922,6 +3972,126 @@
           <button class="primary-button" type="submit" ${hasCalendlyBookingUrl ? "" : "disabled"}>${escapeHtml(providerConnected ? "Reconnect Calendly" : "Connect Calendly")}</button>
         </form>
       </section>
+    `;
+  }
+
+  function buildOrderSupportSettingsPanel(agent, connectedApps, helpers) {
+    const { escapeHtml, getBadgeClass } = helpers;
+    const orderSupport = normalizeOrderSupportSettings(connectedApps.orderSupport || {});
+    const actionSet = new Set(orderSupport.supportedActions);
+    const supportStatus = orderSupport.enabled ? orderSupport.providerStatus : "disabled";
+    const providerStatusLabel = getOrderSupportOptionLabel(
+      ORDER_SUPPORT_PROVIDER_STATUS_OPTIONS,
+      supportStatus
+    );
+    const actionSummary = ORDER_SUPPORT_ACTION_OPTIONS
+      .filter((option) => actionSet.has(option.value))
+      .map((option) => option.label)
+      .join(", ") || "None selected";
+    const assistantName = escapeHtml(agent?.assistantName || agent?.name || "this assistant");
+
+    return `
+      <form data-order-support-form class="settings-shell-section settings-connected-app-adapter-panel">
+        <div class="settings-shell-section-header">
+          <div>
+            <h3 class="settings-shell-section-title">Order support</h3>
+            <p class="settings-shell-section-copy">${assistantName} can answer order lookup and shipping tracking questions only after the customer provides an order number plus their email or phone. Change requests stay controlled by approval mode.</p>
+          </div>
+          <span class="${getBadgeClass(connectedAppStatusTone(supportStatus))}">${escapeHtml(providerStatusLabel)}</span>
+        </div>
+
+        ${orderSupport.persistenceAvailable ? "" : `
+          <div class="settings-shell-billing-notice settings-shell-billing-notice--warning">
+            Order support storage is not ready yet. Apply the latest database migration before enabling this for visitors.
+          </div>
+        `}
+
+        <div class="settings-operational-summary settings-connected-app-summary" aria-label="Order support status">
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Public chat access</span>
+              <span class="${getBadgeClass(orderSupport.enabled ? "Ready" : "Pending")}">${escapeHtml(orderSupport.enabled ? "Enabled" : "Disabled")}</span>
+            </div>
+            <p>Verified order support is separate from generic connected apps and never reveals order details before customer verification.</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Provider</span>
+              <span class="${getBadgeClass(connectedAppStatusTone(orderSupport.providerStatus))}">${escapeHtml(getOrderSupportOptionLabel(ORDER_SUPPORT_PROVIDER_OPTIONS, orderSupport.provider))}</span>
+            </div>
+            <p>${escapeHtml(providerStatusLabel)}. Provider secrets stay server-side and are not accepted in this form.</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Approval mode</span>
+              <span class="${getBadgeClass(orderSupport.approvalMode === "safe_automatic" ? "Limited" : "Pending")}">${escapeHtml(getOrderSupportOptionLabel(ORDER_SUPPORT_APPROVAL_OPTIONS, orderSupport.approvalMode))}</span>
+            </div>
+            <p>Automatic mutation remains unavailable unless a provider adapter explicitly supports a safe action.</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Actions</span>
+              <span class="${getBadgeClass(actionSet.size ? "Ready" : "Pending")}">${escapeHtml(String(actionSet.size))}</span>
+            </div>
+            <p>${escapeHtml(actionSummary)}</p>
+          </article>
+        </div>
+
+        <div class="settings-field-grid settings-field-grid--two">
+          <div class="field">
+            <label for="order-support-enabled">Visitor order support</label>
+            <select id="order-support-enabled" name="enabled">
+              <option value="false"${orderSupport.enabled ? "" : " selected"}>Disabled</option>
+              <option value="true"${orderSupport.enabled ? " selected" : ""}>Enabled after verification</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="order-support-provider">Commerce provider</label>
+            <select id="order-support-provider" name="provider">
+              ${ORDER_SUPPORT_PROVIDER_OPTIONS.map((option) => `
+                <option value="${escapeHtml(option.value)}"${orderSupport.provider === option.value ? " selected" : ""}>${escapeHtml(option.label)}</option>
+              `).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="order-support-provider-status">Provider status</label>
+            <select id="order-support-provider-status" name="provider_status">
+              ${ORDER_SUPPORT_PROVIDER_STATUS_OPTIONS.map((option) => `
+                <option value="${escapeHtml(option.value)}"${orderSupport.providerStatus === option.value ? " selected" : ""}>${escapeHtml(option.label)}</option>
+              `).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="order-support-approval-mode">Approval mode</label>
+            <select id="order-support-approval-mode" name="approval_mode">
+              ${ORDER_SUPPORT_APPROVAL_OPTIONS.map((option) => `
+                <option value="${escapeHtml(option.value)}"${orderSupport.approvalMode === option.value ? " selected" : ""}>${escapeHtml(option.label)}</option>
+              `).join("")}
+            </select>
+          </div>
+          <div class="field settings-field-wide">
+            <label>Supported customer actions</label>
+            <div class="settings-connected-app-checkbox-group" aria-label="Supported order support actions">
+              ${ORDER_SUPPORT_ACTION_OPTIONS.map((option) => `
+                <label>
+                  <input type="checkbox" name="supported_actions" value="${escapeHtml(option.value)}"${actionSet.has(option.value) ? " checked" : ""}>
+                  <span>${escapeHtml(option.label)}</span>
+                </label>
+              `).join("")}
+            </div>
+          </div>
+          <div class="field settings-field-wide">
+            <label for="order-support-escalation">Escalation destination</label>
+            <input id="order-support-escalation" name="escalation_destination" type="text" value="${escapeHtml(orderSupport.escalationDestination)}" placeholder="support@business.example or staff queue">
+            <p class="field-help">Optional staff destination label for change requests that need review.</p>
+          </div>
+        </div>
+
+        <div class="settings-shell-sticky-save">
+          <span class="save-state">Order lookup requires customer verification. Risky changes stay staff-review first.</span>
+          <button class="primary-button" type="submit"${orderSupport.persistenceAvailable ? "" : " disabled"}>Save order support</button>
+        </div>
+      </form>
     `;
   }
 
@@ -4432,11 +4602,12 @@
                 <p class="settings-shell-section-copy">Provider and capability labels are read-only metadata. Public chat callable controls are not exposed.</p>
               </div>
             </div>
-            ${buildConnectedAppCapabilityList(connectedApps.capabilities, helpers)}
+          ${buildConnectedAppCapabilityList(connectedApps.capabilities, helpers)}
           </section>
 
           ${buildGoogleCalendarAdapterPanel(connectedApps, helpers)}
           ${buildCalendlyBookingConnectPanel(agent, connectedApps, helpers)}
+          ${buildOrderSupportSettingsPanel(agent, connectedApps, helpers)}
           ${buildWhatsAppBusinessFoundationPanel(connectedApps, helpers)}
           ${buildConnectedAppInboxPanel(connectedApps, helpers, agent)}
 

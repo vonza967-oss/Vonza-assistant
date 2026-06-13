@@ -195,6 +195,14 @@ export function detectUserIntent(message, history) {
   const combinedUserText = buildEffectiveUserText(message, history).toLowerCase();
 
   if (
+    /\b(order|package|shipment|tracking|ship(?:ped|ping)?|delivery note|shipping address|cancel my order|change my order|add .* order|remove .* order|rendel[eé]s|csomag|sz[aá]ll[ií]t[aá]s|rendel[eé]ssz[aá]m)\b/i.test(
+      combinedUserText
+    )
+  ) {
+    return "order_support";
+  }
+
+  if (
     /(mennyi|mennyibe|kerul|kerül|kerulne|kerülne|ár|árak|price|cost|pricing|quote|budget|ajánlat)/i.test(
       combinedUserText
     )
@@ -282,6 +290,14 @@ export function buildConversationGuidance(message, history, options = {}) {
       hungarianLanguage
         ? "A látogató elérhetőséget vagy következő lépést kér. Csak megerősített üzleti emailt, telefonszámot, kapcsolat URL-t vagy tulajdonos által jóváhagyott kapcsolatfelvételi útmutatást adj meg felsorolásban. Ha nincs ilyen, mondd magyarul: „Itt nincs megerősített elérhetőségem ehhez a vállalkozáshoz.” Utána ajánld fel, hogy megadhatja az adatait, és a vállalkozás utánkövethet."
         : "The user wants contact or next-step guidance. Use only verified business email, phone, contact URL, or owner-approved contact guidance in bullets. If none is present, say exactly: “I do not have a confirmed contact detail for this business here.” Then offer: “You can leave your details and the business can follow up.”"
+    );
+  }
+
+  if (intent === "order_support") {
+    guidance.push(
+      hungarianLanguage
+        ? "A látogató saját rendelésről, csomagkövetésről vagy rendelésmódosításról kérdez. Ezt ne válaszold meg weboldal/RAG tartalomból. Csak ellenőrzött rendeléstámogatási eredmény alapján adj státuszt; ha nincs ilyen, kérj rendelési számot és a rendeléshez használt emailt vagy telefonszámot, vagy ajánlj munkatársi utánkövetést."
+        : "The user is asking about their own order, package tracking, or an order change. Do not answer this from website/RAG content. Only provide status from a verified order-support result; otherwise ask for the order number plus the email or phone used on the order, or offer staff follow-up."
     );
   }
 

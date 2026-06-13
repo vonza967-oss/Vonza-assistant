@@ -62,6 +62,13 @@ import {
   isQuoteRequestsFromChatEnabled,
 } from "../quotes/quoteRequestDraftService.js";
 import {
+  buildChatOrderSupportDraft,
+} from "../orders/orderSupportDraftService.js";
+import {
+  lookupOrderStatus,
+  submitOrderChangeRequest,
+} from "../orders/orderSupportService.js";
+import {
   buildEffectiveUserText,
   cleanText,
   detectResponseLanguage,
@@ -515,6 +522,7 @@ async function buildChatResponse({
   actionRequest = null,
   bookingRequest = null,
   quoteRequest = null,
+  orderSupport = null,
 }) {
   const entries = [
     storeUserMessage ? { role: "user", content: userMessage, createdAt: userMessageCreatedAt || undefined } : null,
@@ -553,6 +561,7 @@ async function buildChatResponse({
     ...(actionRequest ? { actionRequest } : {}),
     ...(bookingRequest ? { bookingRequest } : {}),
     ...(quoteRequest ? { quoteRequest } : {}),
+    ...(orderSupport ? { orderSupport } : {}),
     ...(speech ? { speech } : {}),
   };
 }
@@ -584,6 +593,9 @@ function resolveChatServiceDependencies(deps = {}) {
     createAgentBookingRequest: deps.createAgentBookingRequest || createAgentBookingRequest,
     buildChatQuoteRequestDraft: deps.buildChatQuoteRequestDraft || buildChatQuoteRequestDraft,
     createAgentQuoteRequest: deps.createAgentQuoteRequest || createAgentQuoteRequest,
+    buildChatOrderSupportDraft: deps.buildChatOrderSupportDraft || buildChatOrderSupportDraft,
+    lookupOrderStatus: deps.lookupOrderStatus || lookupOrderStatus,
+    submitOrderChangeRequest: deps.submitOrderChangeRequest || submitOrderChangeRequest,
     hotelConciergeActionRequestsEnabled:
       Object.prototype.hasOwnProperty.call(deps, "hotelConciergeActionRequestsEnabled")
         ? deps.hotelConciergeActionRequestsEnabled
@@ -779,6 +791,95 @@ function buildQuoteRequestCreateFailedReply(draft, language) {
   }
 
   return `I couldn’t send this quote request to staff from this chat (${phrase}). Please contact the business directly. Only the business can confirm an exact price or final quote.`;
+}
+
+function orderSupportActionPhrase(actionType, language) {
+  const hungarian = language === "Hungarian";
+  const phrases = {
+    shipping_address: hungarian ? "szállítási cím módosítása" : "shipping address change",
+    contact_info: hungarian ? "kapcsolati adat módosítása" : "contact detail update",
+    cancellation: hungarian ? "rendeléslemondási kérés" : "order cancellation request",
+    delivery_note: hungarian ? "szállítási megjegyzés" : "delivery note",
+    item_change: hungarian ? "tételmódosítási kérés" : "item change request",
+  };
+
+  return phrases[actionType] || (hungarian ? "rendelési kérés" : "order request");
+}
+
+function buildOrderSupportMissingVerificationReply(language) {
+  if (language === "Hungarian") {
+    return "Tudok segíteni a rendelés kapcsán, de rendelésadatot csak ellenőrzés után adhatok ki. Kérem, adja meg a rendelési számot és a rendeléshez használt email címet vagy telefonszámot.";
+  }
+
+  return "I can help with the order, but I need to verify it before sharing any order details. Please provide the order number and the email or phone used on the order.";
+}
+
+function buildOrderSupportUnavailableReply(status, language) {
+  if (language === "Hungarian") {
+    return status === "not_enabled"
+      ? "Itt még nincs bekapcsolt rendeléstámogatás ehhez a vállalkozáshoz. Kérem, keresse közvetlenül a vállalkozást, vagy adja meg az elérhetőségét utánkövetéshez."
+      : "Most nem érem el a rendelési rendszert. Kérem, keresse közvetlenül a vállalkozást, vagy adja meg az elérhetőségét utánkövetéshez.";
+  }
+
+  return status === "not_enabled"
+    ? "Order support is not enabled for this business here. Please contact the business directly or leave your details for follow-up."
+    : "I can’t access the order system right now. Please contact the business directly or leave your details for follow-up.";
+}
+
+function buildOrderSupportVerificationFailedReply(language) {
+  if (language === "Hungarian") {
+    return "Nem tudtam ellenőrizni ezt a rendelést a megadott adatokkal. Rendelésadatot csak akkor adhatok ki, ha a rendelési szám és az email vagy telefonszám egyezik.";
+  }
+
+  return "I couldn’t verify that order with the details provided. I can’t share order details unless the order number and email or phone match.";
+}
+
+function buildOrderStatusReply(order = {}, language) {
+  const orderNumber = cleanText(order.orderNumber);
+  const status = cleanText(order.shippingStatus || order.fulfillmentStatus || order.status || "received");
+  const trackingNumber = cleanText(order.trackingNumber);
+  const trackingUrl = cleanText(order.trackingUrl || order.orderStatusUrl);
+  const carrier = cleanText(order.carrier);
+
+  if (language === "Hungarian") {
+    const trackingLine = trackingUrl
+      ? `\n\nKövetés: ${trackingUrl}${trackingNumber ? ` (${trackingNumber})` : ""}`
+      : trackingNumber
+        ? `\n\nKövetési szám: ${trackingNumber}${carrier ? `, futár: ${carrier}` : ""}`
+        : "\n\nNem látok követési linket vagy követési számot ehhez a rendeléshez.";
+
+    return `Megtaláltam a státuszt${orderNumber ? ` a(z) ${orderNumber} rendeléshez` : ""}: ${status}.${trackingLine}`;
+  }
+
+  const trackingLine = trackingUrl
+    ? `\n\nTracking: ${trackingUrl}${trackingNumber ? ` (${trackingNumber})` : ""}`
+    : trackingNumber
+      ? `\n\nTracking number: ${trackingNumber}${carrier ? `, carrier: ${carrier}` : ""}`
+      : "\n\nI don’t see a tracking link or tracking number for this order yet.";
+
+  return `I found this status${orderNumber ? ` for order ${orderNumber}` : ""}: ${status}.${trackingLine}`;
+}
+
+function buildOrderChangeRequestReply(result = {}, actionType, language) {
+  const phrase = orderSupportActionPhrase(actionType, language);
+
+  if (result.status === "not_allowed") {
+    if (language === "Hungarian") {
+      return `Ezt a rendelésmódosítást innen nem tudom elindítani (${phrase}). Kérem, keresse közvetlenül a vállalkozást; ebben a chatben nincs módosítás végrehajtva.`;
+    }
+
+    return `I can’t start this order change here (${phrase}). Please contact the business directly; no order change has been made in this chat.`;
+  }
+
+  if (language === "Hungarian") {
+    return result.requiresStaffApproval
+      ? `Ezt a kérést munkatársi jóváhagyásra küldtem (${phrase}). A rendelés módosítása ebben a chatben nincs végrehajtva; a vállalkozásnak kell megerősítenie, hogy lehetséges-e.`
+      : `Beküldtem ezt a rendelési kérést (${phrase}). A módosítás ebben a chatben még nincs végrehajtva; a vállalkozás fogja kezelni.`;
+  }
+
+  return result.requiresStaffApproval
+    ? `I submitted this for staff approval (${phrase}). No order change has been made in this chat; the business must confirm whether it’s possible.`
+    : `I submitted this order request (${phrase}). No change has been applied in this chat yet; the business will handle it.`;
 }
 
 export function normalizeChatRequestBody(body) {
@@ -1310,6 +1411,110 @@ async function maybeBuildChatQuoteRequestResponse({
       webCallSessionId: webCallSession?.id || "",
     });
   }
+}
+
+async function maybeBuildChatOrderSupportResponse({
+  supabase,
+  request,
+  publicContext,
+  services,
+}) {
+  const {
+    agent,
+    business,
+    widgetConfig,
+    webCallSession,
+  } = publicContext;
+  const draft = services.buildChatOrderSupportDraft({
+    message: request.message,
+    history: request.history,
+    visitorIdentity: request.visitorIdentity,
+  });
+
+  if (!draft?.matched) {
+    return null;
+  }
+
+  const userMessageCreatedAt = new Date().toISOString();
+  let result;
+  let reply;
+
+  try {
+    if (draft.intentType === "change_request") {
+      result = await services.submitOrderChangeRequest(supabase, {
+        ownerUserId: agent.ownerUserId,
+        agentId: agent.id,
+        businessId: business.id,
+        orderNumber: draft.orderNumber,
+        emailOrPhone: draft.emailOrPhone,
+        visitorSessionKey: request.sessionKey,
+        actionType: draft.actionType,
+        requestedChange: draft.requestedChange,
+        customer: request.visitorIdentity,
+        source: "public_chat",
+      });
+    } else {
+      result = await services.lookupOrderStatus(supabase, {
+        ownerUserId: agent.ownerUserId,
+        agentId: agent.id,
+        businessId: business.id,
+        orderNumber: draft.orderNumber,
+        emailOrPhone: draft.emailOrPhone,
+        visitorSessionKey: request.sessionKey,
+        source: "public_chat",
+      });
+    }
+  } catch (error) {
+    console.warn("[order support] Chat order support failed; returning safe fallback.", {
+      agentId: agent.id,
+      intentType: draft.intentType,
+      message: error?.message || "Unknown order support error",
+    });
+
+    result = {
+      handled: true,
+      status: "provider_unavailable",
+    };
+  }
+
+  if (["needs_verification"].includes(result.status)) {
+    reply = buildOrderSupportMissingVerificationReply(request.language);
+  } else if (["verification_failed", "order_not_found"].includes(result.status)) {
+    reply = buildOrderSupportVerificationFailedReply(request.language);
+  } else if (["not_enabled", "provider_unavailable", "schema_unavailable"].includes(result.status)) {
+    reply = buildOrderSupportUnavailableReply(result.status, request.language);
+  } else if (draft.intentType === "change_request") {
+    reply = buildOrderChangeRequestReply(result, draft.actionType, request.language);
+  } else if (result.verified && result.order) {
+    reply = buildOrderStatusReply(result.order, request.language);
+  } else {
+    reply = buildOrderSupportUnavailableReply("provider_unavailable", request.language);
+  }
+
+  return services.buildChatResponse({
+    supabase,
+    agent,
+    businessId: business.id,
+    widgetConfig,
+    userMessage: request.message,
+    reply,
+    sessionKey: request.sessionKey,
+    visitorIdentity: request.visitorIdentity,
+    userMessageCreatedAt,
+    storeMessages: services.storeMessages,
+    displayMode: request.displayMode,
+    conversationSource: request.conversationSource,
+    webCallSessionId: webCallSession?.id || "",
+    orderSupport: {
+      handled: true,
+      status: cleanText(result.status),
+      intentType: draft.intentType,
+      ...(draft.intentType === "change_request" ? {
+        actionType: draft.actionType,
+        requestStatus: result.actionRequest?.status || result.status,
+      } : {}),
+    },
+  });
 }
 
 async function assembleChatKnowledge({
@@ -1960,6 +2165,17 @@ export async function handleChatRequest({
 
   if (hotelConciergeActionResponse) {
     return hotelConciergeActionResponse;
+  }
+
+  const orderSupportResponse = await maybeBuildChatOrderSupportResponse({
+    supabase,
+    request,
+    publicContext,
+    services,
+  });
+
+  if (orderSupportResponse) {
+    return orderSupportResponse;
   }
 
   const quoteRequestResponse = await maybeBuildChatQuoteRequestResponse({

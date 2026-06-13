@@ -9,6 +9,7 @@ import { resolveAgentPackage as resolveRealAgentPackage } from "../src/services/
 import { buildHotelConciergeActionDraft as buildRealHotelConciergeActionDraft } from "../src/services/actions/hotelConciergeActionDraftService.js";
 import { buildChatBookingRequestDraft as buildRealChatBookingRequestDraft } from "../src/services/bookings/bookingRequestDraftService.js";
 import { buildChatQuoteRequestDraft as buildRealChatQuoteRequestDraft } from "../src/services/quotes/quoteRequestDraftService.js";
+import { buildChatOrderSupportDraft as buildRealChatOrderSupportDraft } from "../src/services/orders/orderSupportDraftService.js";
 import { handleChatRequest } from "../src/services/chat/chatService.js";
 import {
   buildBusinessContextForChat as buildRealBusinessContextForChat,
@@ -51,6 +52,9 @@ function createChatPackageIntegrationDeps({
   createAgentBookingRequest,
   buildChatQuoteRequestDraft,
   createAgentQuoteRequest,
+  buildChatOrderSupportDraft,
+  lookupOrderStatus,
+  submitOrderChangeRequest,
   billingSnapshot = null,
 } = {}) {
   const captured = {
@@ -72,6 +76,9 @@ function createChatPackageIntegrationDeps({
     bookingRequestPayload: null,
     quoteDraftInput: null,
     quoteRequestPayload: null,
+    orderDraftInput: null,
+    orderLookupPayload: null,
+    orderChangePayload: null,
   };
 
   const leadCaptureResult = leadCapture || {
@@ -192,6 +199,38 @@ function createChatPackageIntegrationDeps({
             },
           }
         : {}),
+      ...(buildChatOrderSupportDraft
+        ? {
+            buildChatOrderSupportDraft: (input) => {
+              captured.orderDraftInput = input;
+              return buildChatOrderSupportDraft(input);
+            },
+          }
+        : {}),
+      lookupOrderStatus: async (supabase, payload) => {
+        captured.orderLookupPayload = {
+          supabase,
+          ...payload,
+        };
+
+        if (lookupOrderStatus) {
+          return lookupOrderStatus(supabase, payload);
+        }
+
+        throw new Error("Unexpected order lookup.");
+      },
+      submitOrderChangeRequest: async (supabase, payload) => {
+        captured.orderChangePayload = {
+          supabase,
+          ...payload,
+        };
+
+        if (submitOrderChangeRequest) {
+          return submitOrderChangeRequest(supabase, payload);
+        }
+
+        throw new Error("Unexpected order change request.");
+      },
       createAgentActionRequest: async (supabase, payload) => {
         captured.actionRequestPayload = {
           supabase,
@@ -362,6 +401,9 @@ function createFrontDeskBookingChatDeps(options = {}) {
     createAgentBookingRequest: options.createAgentBookingRequest,
     buildChatQuoteRequestDraft: options.buildChatQuoteRequestDraft,
     createAgentQuoteRequest: options.createAgentQuoteRequest,
+    buildChatOrderSupportDraft: options.buildChatOrderSupportDraft,
+    lookupOrderStatus: options.lookupOrderStatus,
+    submitOrderChangeRequest: options.submitOrderChangeRequest,
     createAgentActionRequest: options.createAgentActionRequest,
   });
 }
@@ -532,6 +574,50 @@ test("quote request flag off keeps pricing intent on the normal reply path", asy
   assert.ok(captured.generatedPayload);
   assert.equal(result.quoteRequest, undefined);
   assert.equal(result.reply, "I do not have a confirmed price for that. Please share details so the business can follow up.");
+});
+
+test("order support lookup short-circuits RAG and OpenAI through the verified runtime", async () => {
+  const { deps, captured } = createFrontDeskBookingChatDeps({
+    buildChatOrderSupportDraft: buildRealChatOrderSupportDraft,
+    lookupOrderStatus: async (_supabase, payload) => ({
+      handled: true,
+      status: "provider_unavailable",
+      provider: "internal",
+      providerStatus: "needs_setup",
+      verified: false,
+      revealOrderDetails: false,
+      payloadSeen: payload,
+    }),
+    createAgentQuoteRequest: () => {
+      throw new Error("Order lookup must not create quote requests.");
+    },
+  });
+
+  const result = await runFrontDeskBookingChat({
+    deps,
+    message: "Where is my order VZ-1001? My email is taylor@customer.com.",
+    openai: () => {
+      throw new Error("OpenAI should not be called for deterministic order support.");
+    },
+  });
+
+  assert.equal(captured.generatedPayload, null);
+  assert.equal(captured.quoteRequestPayload, null);
+  assert.equal(captured.orderDraftInput.message, "Where is my order VZ-1001? My email is taylor@customer.com.");
+  assert.equal(captured.orderLookupPayload.ownerUserId, "owner-booking-chat-1");
+  assert.equal(captured.orderLookupPayload.agentId, "agent-booking-chat-1");
+  assert.equal(captured.orderLookupPayload.businessId, "business-booking-chat-1");
+  assert.equal(captured.orderLookupPayload.orderNumber, "VZ-1001");
+  assert.equal(captured.orderLookupPayload.emailOrPhone, "taylor@customer.com");
+  assert.equal(captured.orderLookupPayload.visitorSessionKey, "session-booking-chat-1");
+  assert.match(result.reply, /can’t access the order system right now/i);
+  assert.deepEqual(result.orderSupport, {
+    handled: true,
+    status: "provider_unavailable",
+    intentType: "lookup",
+  });
+  assert.doesNotMatch(JSON.stringify(result), /payloadSeen|proof_source_type|verification_session|idempotency/i);
+  assert.deepEqual(captured.storedMessages.entries.map((entry) => entry.role), ["user", "assistant"]);
 });
 
 test("quote request flag on creates a Hungarian staff-review request without OpenAI", async () => {

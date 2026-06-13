@@ -100,7 +100,11 @@ const whatsappAiReplyDraftContextMigrationSql = readFileSync(
   "supabase/migrations/20260603143000_whatsapp_ai_reply_draft_context.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}\n${connectedAppInboundEventsMigrationSql}\n${connectedAppInboundThreadsMigrationSql}\n${connectedAppOutboundMessagesMigrationSql}\n${whatsappAiReplyDraftContextMigrationSql}\n${agentQuoteRequestsMigrationSql}\n${qdhOwnerSetupsMigrationSql}\n${enterpriseRequestDeskRequestsMigrationSql}\n${enterpriseRequestDeskOwnerSetupsMigrationSql}\n${widgetEarlyAccessWaitlistMigrationSql}\n${agentKnowledgeFilesMigrationSql}\n${websiteContentPagesMigrationSql}`;
+const orderSupportMigrationSql = readFileSync(
+  "supabase/migrations/20260613110000_order_support.sql",
+  "utf8"
+);
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}\n${connectedAppInboundEventsMigrationSql}\n${connectedAppInboundThreadsMigrationSql}\n${connectedAppOutboundMessagesMigrationSql}\n${whatsappAiReplyDraftContextMigrationSql}\n${agentQuoteRequestsMigrationSql}\n${qdhOwnerSetupsMigrationSql}\n${enterpriseRequestDeskRequestsMigrationSql}\n${enterpriseRequestDeskOwnerSetupsMigrationSql}\n${widgetEarlyAccessWaitlistMigrationSql}\n${agentKnowledgeFilesMigrationSql}\n${websiteContentPagesMigrationSql}\n${orderSupportMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]

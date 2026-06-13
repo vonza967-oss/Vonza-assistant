@@ -263,6 +263,12 @@ async function stubDashboardWorkspaceApis(page, {
     persistenceAvailable: true,
     migrationRequired: false,
   }));
+  await page.route(/\/api\/agents\/[^/]+\/knowledge-files(?:\?.*)?$/, (route) => fulfillJson(route, {
+    ok: true,
+    files: [],
+    persistenceAvailable: true,
+    migrationRequired: false,
+  }));
   await page.route("**/agents/action-requests**", (route) => fulfillJson(route, {
     records: [],
     persistenceAvailable: true,
@@ -299,10 +305,25 @@ async function stubDashboardWorkspaceApis(page, {
   await page.route("**/agents/connected-apps**", (route) => fulfillJson(route, {
     connections: [],
   }));
-  await page.route("**/agents/*/connected-apps**", (route) => fulfillJson(route, {
+  await page.route(/\/agents\/[^/]+\/connected-apps(?:\?.*)?$/, (route) => fulfillJson(route, {
     enablements: [],
   }));
-  await page.route("**/agents/*/connected-app-readiness**", (route) => fulfillJson(route, {
+  await page.route(/\/agents\/[^/]+\/order-support(?:\?.*)?$/, (route) => fulfillJson(route, {
+    ok: true,
+    orderSupport: {
+      enabled: false,
+      provider: "internal",
+      providerStatus: "needs_setup",
+      approvalMode: "read_only",
+      supportedActions: [
+        "order_lookup",
+        "shipping_tracking",
+      ],
+      escalationDestination: "",
+      persistenceAvailable: true,
+    },
+  }));
+  await page.route(/\/agents\/[^/]+\/connected-app-readiness(?:\?.*)?$/, (route) => fulfillJson(route, {
     report: {
       reportOnly: true,
       status: "ready",
@@ -441,7 +462,7 @@ async function stubAsyncKnowledgeImport(page, {
   let importCount = 0;
   let statusCount = 0;
 
-  await page.route("**/knowledge/import", async (route) => {
+  await page.route(/\/knowledge\/import(?:\?.*)?$/, async (route) => {
     const request = route.request();
     const body = request.postDataJSON();
     importCount += 1;
@@ -470,7 +491,7 @@ async function stubAsyncKnowledgeImport(page, {
     });
   });
 
-  await page.route("**/api/agents/*/knowledge/import/status**", async (route) => {
+  await page.route(/\/api\/agents\/[^/]+\/knowledge\/import\/status(?:\?.*)?$/, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     statusRequests.push({

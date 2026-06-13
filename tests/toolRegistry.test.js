@@ -101,7 +101,7 @@ test("listToolDefinitions returns frozen and copy-safe metadata", () => {
   assert.notEqual(freshDefinition.label, "Mutated");
 });
 
-test("Front Desk can use common tools only", () => {
+test("Front Desk can use common tools and verified order support", () => {
   const frontDeskPackage = getAgentPackage("front_desk_general");
 
   assert.deepEqual(frontDeskPackage.tools, [
@@ -109,6 +109,7 @@ test("Front Desk can use common tools only", () => {
     "common.contact_route",
     "common.booking_link",
     "common.human_handoff",
+    "commerce.order_support",
   ]);
 
   for (const toolKey of frontDeskPackage.tools) {
@@ -117,10 +118,15 @@ test("Front Desk can use common tools only", () => {
 
   assert.equal(packageCanUseTool(frontDeskPackage, "hotel.booking_availability"), false);
   assert.equal(packageCanUseTool("front_desk_general", "hotel.booking_availability"), false);
+  assert.equal(packageCanUseTool(frontDeskPackage, "commerce.order_support"), true);
   assert.deepEqual(
     listToolDefinitionsForPackage(frontDeskPackage).map((definition) => definition.key),
     frontDeskPackage.tools
   );
+
+  const orderSupportDefinition = getToolDefinition("commerce.order_support");
+  assert.equal(orderSupportDefinition.riskLevel, "high");
+  assert.match(orderSupportDefinition.description, /verified customer order support/i);
 });
 
 test("Hotel Concierge can use its declared common and hotel tools", () => {

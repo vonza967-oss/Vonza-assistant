@@ -14083,6 +14083,7 @@ function createEmptyConnectedAppsState(overrides = {}) {
       status: "disabled",
       lastDraft: null,
     },
+    orderSupport: null,
     readiness: null,
     readinessContext: null,
     loading: false,
@@ -14130,6 +14131,7 @@ function normalizeConnectedAppsState(value = {}) {
       status: trimText(aiDrafts.status) || (aiDrafts.enabled === true ? "enabled" : "disabled"),
       lastDraft: aiDrafts.lastDraft || null,
     },
+    orderSupport: value.orderSupport || null,
     readiness: value.readiness || value.report || null,
     readinessContext: value.readinessContext || value.context || null,
     loading: value.loading === true,
@@ -14156,10 +14158,11 @@ function getAgentConnectedAppRequiredCapabilities(enablements = []) {
 
 async function loadConnectedApps(agentId) {
   const encodedAgentId = encodeURIComponent(agentId);
-  const [capabilitiesData, connectionsData, enablementsData, inboundThreadsData, inboundEventsData] = await Promise.all([
+  const [capabilitiesData, connectionsData, enablementsData, orderSupportData, inboundThreadsData, inboundEventsData] = await Promise.all([
     fetchJson("/agents/connected-app-capabilities"),
     fetchJson("/agents/connected-apps"),
     fetchJson(`/agents/${encodedAgentId}/connected-apps`),
+    fetchJson(`/agents/${encodedAgentId}/order-support`),
     fetchJson("/agents/connected-app-inbound-threads?provider=whatsapp&limit=25"),
     fetchJson("/agents/connected-app-inbound-events?provider=whatsapp&limit=50"),
   ]);
@@ -14193,6 +14196,7 @@ async function loadConnectedApps(agentId) {
     inboundEvents,
     manualReplies,
     aiDrafts,
+    orderSupport: orderSupportData.orderSupport || null,
     readiness: readinessData.report || null,
     readinessContext: readinessData.context || null,
     lastLoadedAt: new Date().toISOString(),
@@ -14950,6 +14954,49 @@ async function submitConnectedAppEnablementForm(event, agent) {
     });
   } catch (error) {
     setStatus(error.message || "Agent connected app enablement could not be saved.");
+  } finally {
+    setConnectedAppFormDisabled(form, false);
+  }
+}
+
+async function submitOrderSupportSettingsForm(event, agent) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const payload = {
+    enabled: trimText(formData.get("enabled")) === "true",
+    provider: trimText(formData.get("provider")) || "internal",
+    provider_status: trimText(formData.get("provider_status")) || "needs_setup",
+    approval_mode: trimText(formData.get("approval_mode")) || "read_only",
+    supported_actions: readConnectedAppFormList(formData, "supported_actions"),
+    escalation_destination: trimText(formData.get("escalation_destination")),
+    metadata: {
+      setupMode: "dashboard_order_support",
+      dashboardSurface: "connected_apps_order_support",
+    },
+  };
+
+  if (!agent?.id) {
+    setStatus("Order support needs a saved assistant before it can be configured.");
+    return;
+  }
+
+  setConnectedAppFormDisabled(form, true);
+  setStatus("Saving order support settings...");
+
+  try {
+    await fetchJson(`/agents/${encodeURIComponent(agent.id)}/order-support`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    await reloadConnectedAppsForAgent(agent.id, {
+      statusMessage: "Order support settings saved.",
+    });
+  } catch (error) {
+    setStatus(error.message || "Order support settings could not be saved.");
   } finally {
     setConnectedAppFormDisabled(form, false);
   }
@@ -17036,6 +17083,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const billingChangeButtons = document.querySelectorAll("[data-billing-plan-key]");
   const connectedAppConnectionForms = document.querySelectorAll("[data-connected-app-connection-form]");
   const calendlyConnectForms = document.querySelectorAll("[data-calendly-connect-form]");
+  const orderSupportForms = document.querySelectorAll("[data-order-support-form]");
   const connectedAppStatusForms = document.querySelectorAll("[data-connected-app-status-form]");
   const connectedAppEnablementForms = document.querySelectorAll("[data-connected-app-enable-form]");
   const connectedAppInboxStatusForms = document.querySelectorAll("[data-connected-app-inbox-status-form]");
@@ -18421,6 +18469,12 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   connectedAppEnablementForms.forEach((form) => {
     form.addEventListener("submit", (event) => {
       submitConnectedAppEnablementForm(event, agent);
+    });
+  });
+
+  orderSupportForms.forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      submitOrderSupportSettingsForm(event, agent);
     });
   });
 

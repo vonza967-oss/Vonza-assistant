@@ -80,6 +80,33 @@ const TOOL_DEFINITION_INPUTS = Object.freeze([
     ]),
   },
   {
+    key: "commerce.order_support",
+    label: "Order support",
+    description:
+      "Verified customer order support capability for order lookup, fulfillment/shipping tracking, and conservative order-change requests through commerce provider adapters.",
+    allowedPackages: Object.freeze([
+      "front_desk_general",
+    ]),
+    riskLevel: "high",
+    status: "active_metadata",
+    existingRuntimeSurfaces: Object.freeze([
+      "order support service",
+      "commerce provider registry",
+      "verified public chat order-support short-circuit",
+    ]),
+    claimTypes: Object.freeze([
+      "order_status",
+      "shipping_tracking",
+      "customer_order_verification",
+      "order_change_request",
+    ]),
+    evidenceRequirements: Object.freeze([
+      "order number plus customer-owned email or phone verification",
+      "provider order or fulfillment response",
+      "order action audit log",
+    ]),
+  },
+  {
     key: "hotel.booking_availability",
     label: "Hotel booking availability",
     description:

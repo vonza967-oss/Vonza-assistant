@@ -209,6 +209,11 @@ import {
   updateAgentQuoteRequestStatus,
 } from "../services/quotes/agentQuoteRequestService.js";
 import {
+  ORDER_SUPPORT_SETTINGS_OPTIONS,
+  getAgentOrderSupportSettings,
+  upsertAgentOrderSupportSettings,
+} from "../services/orders/orderSupportSettingsService.js";
+import {
   listConnectedAppCapabilities,
 } from "../services/integrations/connectedAppRegistry.js";
 import {
@@ -874,6 +879,10 @@ export function createAgentRouter(deps = {}) {
     deps.listAgentQuoteRequests || listAgentQuoteRequests;
   const updateAgentQuoteRequestStatusImpl =
     deps.updateAgentQuoteRequestStatus || updateAgentQuoteRequestStatus;
+  const getAgentOrderSupportSettingsImpl =
+    deps.getAgentOrderSupportSettings || getAgentOrderSupportSettings;
+  const upsertAgentOrderSupportSettingsImpl =
+    deps.upsertAgentOrderSupportSettings || upsertAgentOrderSupportSettings;
   const listConnectedAppCapabilitiesImpl =
     deps.listConnectedAppCapabilities || listConnectedAppCapabilities;
   const createConnectedAppConnectionImpl =
@@ -2856,6 +2865,80 @@ export function createAgentRouter(deps = {}) {
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/agents/connected-app-capabilities" });
+    }
+  });
+
+  router.get("/agents/:agentId/order-support", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = cleanText(req.params.agentId);
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const orderSupport = await getAgentOrderSupportSettingsImpl(supabase, {
+        ownerUserId: user.id,
+        agentId,
+      });
+
+      res.json({
+        ok: true,
+        orderSupport,
+        options: ORDER_SUPPORT_SETTINGS_OPTIONS,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/:agentId/order-support" });
+    }
+  });
+
+  router.post("/agents/:agentId/order-support", async (req, res) => {
+    try {
+      const body = req.body || {};
+
+      assertNoConnectedAppRouteUnsafeInput(body);
+
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = cleanText(req.params.agentId);
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: body.client_id || body.clientId,
+      });
+
+      const enabled = readOptionalBoolean(body.enabled, "enabled");
+      const hasSupportedActionsInput = hasBodyField(body, "supported_actions", "supportedActions");
+      const orderSupport = await upsertAgentOrderSupportSettingsImpl(supabase, {
+        ownerUserId: user.id,
+        agentId,
+        connectionId: readBodyField(body, "connection_id", "connectionId"),
+        enabled: enabled === true,
+        provider: readBodyField(body, "provider"),
+        providerStatus: readBodyField(body, "provider_status", "providerStatus"),
+        approvalMode: readBodyField(body, "approval_mode", "approvalMode"),
+        supportedActions: hasSupportedActionsInput
+          ? readBodyList(body, "supported_actions", "supportedActions")
+          : undefined,
+        escalationDestination: readBodyField(
+          body,
+          "escalation_destination",
+          "escalationDestination"
+        ),
+        metadata: body.metadata,
+      });
+
+      res.json({
+        ok: true,
+        orderSupport,
+        options: ORDER_SUPPORT_SETTINGS_OPTIONS,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/:agentId/order-support" });
     }
   });
 

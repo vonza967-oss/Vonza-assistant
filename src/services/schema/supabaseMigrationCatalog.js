@@ -496,6 +496,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "required",
     note: "Adds owner-scoped advanced custom instructions on agents with a bounded prompt length, preserving existing Widget, embed, billing, and factual guardrail behavior.",
   }),
+  Object.freeze({
+    id: "order_support",
+    version: "20260613110000",
+    name: "order_support",
+    file: "supabase/migrations/20260613110000_order_support.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds owner-scoped verified customer order support settings, internal order snapshots, verification sessions, action request queue, and audit logs with owner-select RLS and no anonymous order data access.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(
