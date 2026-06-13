@@ -5926,7 +5926,7 @@ html[data-dashboard-theme] .dashboard-v2-production-shell .workspace-page[data-s
   backdrop-filter: none !important;
 }
 
-/* Website Widget visual rollback: keep the dedicated dashboard on the simple
+/* Website Agent visual rollback: keep the dedicated dashboard on the simple
    V2 surface model without changing shared dashboard behavior. */
 html[data-dashboard-theme]:has(.website-widget-dashboard-shell),
 html[data-dashboard-theme]:has([data-website-widget-dashboard="dedicated"]),

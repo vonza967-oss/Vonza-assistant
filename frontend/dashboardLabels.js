@@ -54,7 +54,7 @@
     }
 
     if (normalized.includes("widget") || normalized.includes("chat")) {
-      return "Website widget";
+      return "Website Agent";
     }
 
     if (normalized.includes("inbox") || normalized.includes("email")) {

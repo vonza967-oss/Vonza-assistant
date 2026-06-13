@@ -94,7 +94,7 @@
     });
 
     if (primaryCta) {
-      primaryCta.textContent = isSignedIn ? "My Account" : "Set up Widget";
+      primaryCta.textContent = isSignedIn ? "My Account" : "Set up Agent";
       primaryCta.setAttribute("href", getAppHref(isSignedIn));
     }
 

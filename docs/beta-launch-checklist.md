@@ -6,7 +6,7 @@ Use this checklist before adding each controlled beta customer. Keep the beta sm
 - [ ] WordPress Front Desk page loads.
 - [ ] Hosted `/a/:slug` Front Desk route works.
 - [ ] `/assistant/:slug` route works.
-- [ ] Normal website widget works.
+- [ ] Normal website agent works.
 - [ ] Smart embed works.
 - [ ] QR/direct link works.
 - [ ] Voice input works if enabled for the customer.

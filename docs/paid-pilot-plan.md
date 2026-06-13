@@ -27,7 +27,7 @@ Use Stripe test mode for staging verification. Use live Stripe prices only after
 - Import website content and verify the summary.
 - Configure assistant name, greeting, tone, and key contact details.
 - Add business-specific weak-answer fixes for pricing, availability, service area, and emergency/urgent cases.
-- Install widget or verify preview with the owner.
+- Install agent or verify preview with the owner.
 - Send 5-10 representative test questions before launch.
 - Confirm lead capture language and owner follow-up path.
 - Review first real conversations within 24-48 hours.
@@ -41,7 +41,7 @@ Track weekly per account:
 - Bookings/quotes started
 - Weak-answer fixes added and resolved
 - AI cost per account
-- Setup time from signup to usable widget
+- Setup time from signup to usable agent
 - Churn/retention notes
 - Testimonial/proof points
 
@@ -50,7 +50,7 @@ Track weekly per account:
 Days 1-30:
 
 - Onboard 5 pilot users manually.
-- Verify widget install or preview for every account.
+- Verify agent install or preview for every account.
 - Review weak answers twice weekly.
 - Establish baseline conversation, lead, and AI cost metrics.
 

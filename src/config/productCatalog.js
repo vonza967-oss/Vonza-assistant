@@ -22,7 +22,7 @@ const PRODUCT_CATALOG = Object.freeze({
   }),
   [PRODUCT_KEYS.WEBSITE_WIDGET]: Object.freeze({
     key: PRODUCT_KEYS.WEBSITE_WIDGET,
-    label: "Website Widget",
+    label: "Website Agent",
     setupUrl: "/dashboard/widget",
     futurePriceEnvVarNames: Object.freeze({
       monthly: "STRIPE_PRICE_ID_WEBSITE_WIDGET_MONTHLY",

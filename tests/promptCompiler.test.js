@@ -155,18 +155,18 @@ test("empty owner custom instructions do not change compiled prompt output", () 
   assert.doesNotMatch(withEmptyCustomInstructions, /Owner custom instructions:/);
 });
 
-test("saved Website Widget AI Behavior settings appear in prompt compilation", () => {
+test("saved Website Agent AI Behavior settings appear in prompt compilation", () => {
   const prompt = compileAgentSystemPrompt({
     language: "English",
     agent: {
-      name: "Acme Widget",
+      name: "Acme Agent",
       purpose: "make_decision",
       tone: "sales",
       systemPrompt: "Ask one practical follow-up before suggesting contact.",
     },
   });
 
-  assert.match(prompt, /represent the assistant identity as Acme Widget/);
+  assert.match(prompt, /represent the assistant identity as Acme Agent/);
   assert.match(prompt, /widget purpose: Make a decision/);
   assert.match(prompt, /purpose-specific behavior: Help visitors compare options/);
   assert.match(prompt, /- preferred tone: sales/);

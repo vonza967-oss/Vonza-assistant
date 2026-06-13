@@ -496,15 +496,15 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
     operatorWorkspace
   );
 
-  assert.match(markup, /Widget conversations/);
-  assert.match(markup, /Widget leads/);
+  assert.match(markup, /Agent conversations/);
+  assert.match(markup, /Agent leads/);
   assert.match(markup, /Needs reply/);
   assert.match(markup, /Answered conversations/);
   assert.match(markup, /Recent activity/);
   assert.match(markup, /Can I book a consult\?/);
-  assert.match(markup, /Website widget readiness/);
-  assert.match(markup, /Widget activity/);
-  assert.match(markup, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
+  assert.match(markup, /Website Agent readiness/);
+  assert.match(markup, /Agent activity/);
+  assert.match(markup, /Agent conversations, leads, and analytics will appear after site visitors use the embed/);
   assert.doesNotMatch(markup, /Jessica Smith|Dylan Lee|Katherine Hall|Michael Miller|Sarah Brown|James Taylor|Lauren Martinez|David Carter/);
 
   const emptyMarkup = harness.buildOverviewPanel(
@@ -514,9 +514,9 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyMarkup, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
-  assert.match(emptyMarkup, /Widget leads/);
-  assert.match(emptyMarkup, /Widget activity/);
+  assert.match(emptyMarkup, /Agent conversations, leads, and analytics will appear after site visitors use the embed/);
+  assert.match(emptyMarkup, /Agent leads/);
+  assert.match(emptyMarkup, /Agent activity/);
 });
 
 test("Front Desk and Settings render async import progress and safe retry guidance", () => {
@@ -580,7 +580,7 @@ test("dashboard V2 Install keeps real widget, full-page assistant, QR, copy, and
     harness.createEmptyActionQueue()
   );
 
-  assert.match(markup, /Website Widget/);
+  assert.match(markup, /Website Agent/);
   assert.match(markup, /data-action="copy-install"/);
   assert.match(markup, /data-action="verify-install"/);
   assert.match(markup, /https:\/\/app\.example\.com\/embed\.js/);
@@ -650,7 +650,7 @@ test("dashboard sections keep section-specific content boundaries", () => {
   assert.doesNotMatch(settings, /Team access|Invite member|Integrations|No active billing plan data|data-privacy-export|Save privacy preference|install-script-output/);
 });
 
-test("dashboard V2 Analytics keeps the Website Widget view product-only", () => {
+test("dashboard V2 Analytics keeps the Website Agent view product-only", () => {
   const harness = createDashboardHarness();
   const agent = {
     id: "agent-1",
@@ -671,7 +671,7 @@ test("dashboard V2 Analytics keeps the Website Widget view product-only", () => 
       assistantSource: {
         widget: {
           key: "widget",
-          label: "Website widget",
+          label: "Website Agent",
           conversationCount: 2,
           messageCount: 5,
           visitorQuestionCount: 2,
@@ -706,12 +706,12 @@ test("dashboard V2 Analytics keeps the Website Widget view product-only", () => 
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(markup, /Website Widget snapshot/);
-  assert.match(markup, /2 Website Widget conversations recorded/);
-  assert.match(markup, /Website Widget analytics/);
-  assert.match(markup, /Widget conversations/);
-  assert.match(markup, /Widget leads/);
-  assert.match(markup, /From Website Widget conversations/);
+  assert.match(markup, /Website Agent snapshot/);
+  assert.match(markup, /2 Website Agent conversations recorded/);
+  assert.match(markup, /Website Agent analytics/);
+  assert.match(markup, /Agent conversations/);
+  assert.match(markup, /Agent leads/);
+  assert.match(markup, /From Website Agent conversations/);
   assert.doesNotMatch(markup, /Entry point \/ source breakdown/);
   assert.doesNotMatch(markup, /Performance by source/);
   assert.doesNotMatch(markup, /Source: All/);
@@ -731,8 +731,8 @@ test("dashboard V2 Analytics keeps the Website Widget view product-only", () => 
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyMarkup, /Waiting for Website Widget traffic/);
-  assert.match(emptyMarkup, /No Website Widget analytics yet\./);
+  assert.match(emptyMarkup, /Waiting for Website Agent traffic/);
+  assert.match(emptyMarkup, /No Website Agent analytics yet\./);
   assert.doesNotMatch(emptyMarkup, /Front Desk page/);
   assert.doesNotMatch(emptyMarkup, /Voice Agent/);
   assert.doesNotMatch(emptyMarkup, /Entry point \/ source breakdown|Performance by source|Source: All/);
@@ -750,7 +750,7 @@ test("dashboard loading screen uses premium workspace preparation UI", () => {
   assert.match(html, /dashboard-loading-screen/);
   assert.match(html, /<html lang="hu">/);
   assert.match(html, /Megnyitjuk a munkaterületedet/);
-  assert.match(html, /Betöltjük a Website Widget beállításait\.\.\./);
+  assert.match(html, /Betöltjük a Weboldali agent beállításait\.\.\./);
   assert.match(html, /Ez általában csak néhány másodperc\./);
   assert.match(html, /Az ingyenes Render példányok inaktivitás után akár egy percig is indulhatnak\./);
   assert.match(html, /data-loading-refresh/);
@@ -762,7 +762,7 @@ test("dashboard loading screen uses premium workspace preparation UI", () => {
   assert.doesNotMatch(html, /approvals/i);
 
   assert.match(script, /Opening your workspace/);
-  assert.match(script, /Loading your Website Widget setup\.\.\./);
+  assert.match(script, /Loading your Website Agent setup\.\.\./);
   assert.match(script, /dashboard-loading-progress/);
   assert.match(script, /dashboard-loading-delayed/);
   assert.doesNotMatch(script, /dashboard-skeleton-preview/);
@@ -1034,7 +1034,7 @@ test("Hungarian loading state stays fully Hungarian", () => {
   const loading = harness.document.getElementById("dashboard-root").innerHTML;
 
   assert.match(loading, /Megnyitjuk a munkaterületedet/);
-  assert.match(loading, /Betöltjük a Website Widget beállításait\.\.\./);
+  assert.match(loading, /Betöltjük a Weboldali agent beállításait\.\.\./);
   assert.match(loading, /Ez általában csak néhány másodperc\./);
   assert.match(loading, /Az ingyenes Render példányok inaktivitás után akár egy percig is indulhatnak\./);
   assert.match(loading, /Frissítés/);
@@ -1381,7 +1381,7 @@ function createWidgetAnalyticsFixture(harness) {
       assistantSource: {
         widget: {
           key: "widget",
-          label: "Website widget",
+          label: "Website Agent",
           conversationCount: 4,
           messageCount: 8,
           visitorQuestionCount: 4,
@@ -1427,7 +1427,7 @@ function createWidgetAnalyticsFixture(harness) {
   };
 }
 
-test("Hungarian Website Widget analytics route localizes top-level analytics copy and time labels", () => {
+test("Hungarian Website Agent analytics route localizes top-level analytics copy and time labels", () => {
   const harness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
     hash: "#analytics",
@@ -1444,17 +1444,17 @@ test("Hungarian Website Widget analytics route localizes top-level analytics cop
   const hungarianShortDate = harness.formatAnalyticsShortDate("2026-06-10T09:00:00.000Z");
 
   assert.doesNotMatch(analytics, /handled by AI/);
-  assert.doesNotMatch(analytics, /Weboldal Widget analytics/);
-  assert.doesNotMatch(analytics, /Widget conversations/);
-  assert.doesNotMatch(analytics, /Widget leads/);
+  assert.doesNotMatch(analytics, /Weboldal Agent analytics/);
+  assert.doesNotMatch(analytics, /Agent conversations/);
+  assert.doesNotMatch(analytics, /Agent leads/);
   assert.doesNotMatch(analytics, /Derived from existing conversation source data/);
   assert.doesNotMatch(analytics, /Forrás: minden|forrásbontás|AI kezelte|emberi kezelés|Emberi utánkövetések/i);
-  assert.match(analytics, /Website Widget elemzések/);
-  assert.match(analytics, /Website Widget áttekintés/);
-  assert.match(analytics, /Website Widget beszélgetés rögzítve/);
-  assert.match(analytics, /Widget beszélgetések/);
-  assert.match(analytics, /Widget érdeklődők/);
-  assert.match(analytics, /Website Widget beszélgetésekből/);
+  assert.match(analytics, /Weboldali agent elemzések/);
+  assert.match(analytics, /Weboldali agent áttekintés/);
+  assert.match(analytics, /Weboldali agent beszélgetés rögzítve/);
+  assert.match(analytics, /Agent beszélgetések/);
+  assert.match(analytics, /Agent érdeklődők/);
+  assert.match(analytics, /Weboldali agent beszélgetésekből/);
   assert.match(analytics, new RegExp(`>${escapeRegExp(hungarianMonday)}<`));
   assert.doesNotMatch(analytics, />Mon</);
   assert.doesNotMatch(analytics, /\b(?:AM|PM|am|pm)\b/);
@@ -1462,7 +1462,7 @@ test("Hungarian Website Widget analytics route localizes top-level analytics cop
   assert.doesNotMatch(hungarianShortDate, /Jun/);
 });
 
-test("cached English Website Widget analytics and status copy remain English", () => {
+test("cached English Website Agent analytics and status copy remain English", () => {
   const harness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
     hash: "#analytics",
@@ -1476,16 +1476,16 @@ test("cached English Website Widget analytics and status copy remain English", (
   const { agent, setup, actionQueue, messages, workspace } = createWidgetAnalyticsFixture(harness);
   const analytics = harness.buildAnalyticsPanel(agent, messages, setup, actionQueue, workspace);
 
-  assert.match(analytics, /Website Widget analytics/);
-  assert.match(analytics, /Website Widget snapshot/);
-  assert.match(analytics, /Website Widget conversations recorded/);
-  assert.match(analytics, /Widget conversations/);
-  assert.match(analytics, /Widget leads/);
-  assert.match(analytics, /From Website Widget conversations/);
+  assert.match(analytics, /Website Agent analytics/);
+  assert.match(analytics, /Website Agent snapshot/);
+  assert.match(analytics, /Website Agent conversations recorded/);
+  assert.match(analytics, /Agent conversations/);
+  assert.match(analytics, /Agent leads/);
+  assert.match(analytics, /From Website Agent conversations/);
   assert.doesNotMatch(analytics, /Derived from existing conversation source data/);
   assert.doesNotMatch(analytics, /conversations handled by AI|AI handled|Human follow-ups|AI vs Human handling|Source: All|Entry point \/ source breakdown|Performance by source|Front Desk|Voice Agent/i);
   assert.equal(harness.t("websiteWidget.status.verifyProgress"), "Verifying installation...");
-  assert.equal(harness.t("websiteWidget.status.settingsSaveSuccess"), "Website Widget settings saved.");
+  assert.equal(harness.t("websiteWidget.status.settingsSaveSuccess"), "Website Agent settings saved.");
   assert.match(harness.formatAnalyticsShortDate("2026-06-10T09:00:00.000Z"), /Jun/);
 });
 
@@ -1504,15 +1504,15 @@ test("Hungarian supported dashboard keys do not fall back to key names or Englis
     ["install.copyInstallCode", "Telepítőkód másolása"],
     ["customers.needsReply", "Válaszra vár"],
     ["analytics.productScope", "Termékanalitika"],
-    ["analytics.widgetAnalytics", "Website Widget elemzések"],
-    ["analytics.widgetConversations", "Widget beszélgetések"],
-    ["analytics.widgetLeads", "Widget érdeklődők"],
-    ["analytics.widgetEmptyTitle", "Még nincs Website Widget analitika."],
-    ["analytics.widgetEmptyCopy", "Telepítsd a beágyazást, ellenőrizd az engedélyezett domaineket, majd teszteld a widgetet egy weboldalon. A látogatói beszélgetések és érdeklődők használat után itt jelennek meg."],
-    ["analytics.widgetPageTitle", "Website Widget elemzések"],
-    ["analytics.widgetPageCopy", "Teljesítménymutatók a Website Widgethez."],
-    ["analytics.widgetSnapshot", "Website Widget áttekintés"],
-    ["analytics.derivedFromWidgetConversations", "Website Widget beszélgetésekből"],
+    ["analytics.widgetAnalytics", "Weboldali agent elemzések"],
+    ["analytics.widgetConversations", "Agent beszélgetések"],
+    ["analytics.widgetLeads", "Agent érdeklődők"],
+    ["analytics.widgetEmptyTitle", "Még nincs Weboldali agent analitika."],
+    ["analytics.widgetEmptyCopy", "Telepítsd a beágyazást, ellenőrizd az engedélyezett domaineket, majd teszteld az agentet egy weboldalon. A látogatói beszélgetések és érdeklődők használat után itt jelennek meg."],
+    ["analytics.widgetPageTitle", "Weboldali agent elemzések"],
+    ["analytics.widgetPageCopy", "Teljesítménymutatók a Weboldali agenthez."],
+    ["analytics.widgetSnapshot", "Weboldali agent áttekintés"],
+    ["analytics.derivedFromWidgetConversations", "Weboldali agent beszélgetésekből"],
     ["websiteWidget.status.verifyProgress", "Telepítés ellenőrzése..."],
     ["websiteWidget.sidebar.preferencesNote", "Irányítópult nyelve"],
     ["settings.preferencesCopy", "Válaszd ki az irányítópult nyelvét."],
@@ -1607,7 +1607,7 @@ test("Hungarian core dashboard screens surface missing translation keys through 
   }
 });
 
-test("Widget action status feedback keys are localized and wired to dashboard handlers", () => {
+test("Agent action status feedback keys are localized and wired to dashboard handlers", () => {
   const harness = createDashboardHarness();
   const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
   const requiredStatusKeys = [
@@ -1633,13 +1633,13 @@ test("Widget action status feedback keys are localized and wired to dashboard ha
 
   harness.cacheDashboardLanguage("hu");
   assert.equal(harness.t("websiteWidget.status.importStart"), "Weboldal import indítása...");
-  assert.equal(harness.t("websiteWidget.status.installCopySuccess"), "A widget telepítőkód másolva. Beillesztheted a weboldaladra, amikor készen állsz.");
-  assert.equal(harness.t("websiteWidget.status.settingsSaveProgress"), "Website Widget beállítások mentése...");
+  assert.equal(harness.t("websiteWidget.status.installCopySuccess"), "Az agent telepítőkódja másolva. Beillesztheted a weboldaladra, amikor készen állsz.");
+  assert.equal(harness.t("websiteWidget.status.settingsSaveProgress"), "Weboldali agent beállítások mentése...");
   assert.equal(harness.t("websiteWidget.status.verifyNotFound"), "A kódrészlet még nem található a weboldalon.");
 
   harness.cacheDashboardLanguage("en");
   assert.equal(harness.t("websiteWidget.status.importStart"), "Starting website import...");
-  assert.equal(harness.t("websiteWidget.status.installCopyFailure"), "We couldn't copy the widget install code.");
+  assert.equal(harness.t("websiteWidget.status.installCopyFailure"), "We couldn't copy the agent install code.");
   assert.equal(harness.t("websiteWidget.status.verifyMismatch"), "A different Vonza install was detected on the website.");
 
   requiredStatusKeys.forEach((key) => {
@@ -1941,7 +1941,7 @@ test("home overview AI priorities use business-facing wording and a calm empty s
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyPanel, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
+  assert.match(emptyPanel, /Agent conversations, leads, and analytics will appear after site visitors use the embed/);
 });
 
 test("dashboard normalizes sparse operator payloads without forcing the legacy shell", async () => {
@@ -2180,8 +2180,8 @@ test("Home command center consolidates setup, priority workflows, and mobile-saf
   assert.doesNotMatch(overview, /data-target-id="knowledge-improvement"/);
   assert.match(overview, /Review replies/);
   assert.match(overview, /View analytics/);
-  assert.match(overview, /Website widget readiness/);
-  assert.match(overview, /Widget appearance configured/);
+  assert.match(overview, /Website Agent readiness/);
+  assert.match(overview, /Agent appearance configured/);
   assert.match(overview, /Domain\/install status/);
 
   const sparseOverview = harness.buildOverviewPanel(
@@ -2192,7 +2192,7 @@ test("Home command center consolidates setup, priority workflows, and mobile-saf
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(sparseOverview, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
+  assert.match(sparseOverview, /Agent conversations, leads, and analytics will appear after site visitors use the embed/);
   assert.match(sparseOverview, /Today&#39;s priority|Today's priority/);
   assert.doesNotMatch(sparseOverview, /Notifications/);
 
@@ -2380,11 +2380,11 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(frontDeskSettings, /data-frontdesk-settings-tab="full_page"/);
   assert.doesNotMatch(frontDeskSettings, /data-frontdesk-settings-tab="appearance"[\s\S]*aria-selected="true"/);
 
-  assert.match(websiteWidgetSettings, /<h2 class="settings-shell-page-title">Website Widget<\/h2>/);
+  assert.match(websiteWidgetSettings, /<h2 class="settings-shell-page-title">Website Agent<\/h2>/);
   assert.match(websiteWidgetSettings, /data-settings-section="website_widget"/);
   assert.match(websiteWidgetSettings, /data-frontdesk-settings-tab="appearance"[\s\S]*aria-selected="true"/);
   assert.match(websiteWidgetSettings, /Allowed domains/);
-  assert.match(websiteWidgetSettings, /Save Website Widget/);
+  assert.match(websiteWidgetSettings, /Save Website Agent/);
 
   assert.match(voiceAgentSettings, /<h2 class="settings-shell-page-title">Voice Agent<\/h2>/);
   assert.match(voiceAgentSettings, /data-settings-section="voice_agent"/);
@@ -2596,8 +2596,8 @@ test("today workspace render uses a dominant queue and support rail shell", () =
 
   assert.match(overviewPanel, /Home/);
   assert.match(overviewPanel, /Your AI customer service snapshot for today/);
-  assert.match(overviewPanel, /Widget conversations/);
-  assert.match(overviewPanel, /Widget leads/);
+  assert.match(overviewPanel, /Agent conversations/);
+  assert.match(overviewPanel, /Agent leads/);
   assert.match(overviewPanel, /Needs reply/);
   assert.match(overviewPanel, /Answered conversations/);
   assert.doesNotMatch(overviewPanel, /Customers helped today/);
@@ -2611,8 +2611,8 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.doesNotMatch(overviewPanel, /Vonza needs stronger support context/);
   assert.doesNotMatch(overviewPanel, /Finish the live launch/);
   assert.match(overviewPanel, /Recent activity/);
-  assert.match(overviewPanel, /Website widget readiness/);
-  assert.match(overviewPanel, /Widget activity/);
+  assert.match(overviewPanel, /Website Agent readiness/);
+  assert.match(overviewPanel, /Agent activity/);
   assert.match(overviewPanel, /What to improve next/);
   assert.doesNotMatch(overviewPanel, /Today Copilot/);
   assert.doesNotMatch(overviewPanel, /today-side-column/);
@@ -3207,7 +3207,7 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.match(panel, /Recently published improvements/);
   assert.match(panel, /Published answers Front Desk can use when visitors ask similar questions/);
   assert.match(panel, /Open install/);
-  assert.match(panel, /Website Widget install/);
+  assert.match(panel, /Website Agent install/);
   assert.match(panel, /Front Desk page link/);
   assert.match(panel, /QR code/);
   assert.match(panel, /distribution channels and verification/);
@@ -3273,7 +3273,7 @@ test("front desk improvements render feedback metadata with owner-friendly label
   assert.match(markup, /Needs review/);
   assert.match(markup, /Reason: Missing details/);
   assert.match(markup, /Note: Visitor needed the Saturday cutoff\./);
-  assert.match(markup, /Assistant source: Website widget/);
+  assert.match(markup, /Assistant source: Website Agent/);
   assert.match(markup, />Open in practice<\/button>/);
   assert.match(markup, />Improve answer<\/button>/);
   assert.match(markup, />Ignore<\/button>/);
@@ -3845,7 +3845,7 @@ test("sidebar rail keeps primary and utility navigation without placeholder conn
   );
 
   assert.match(sidebar, /Operate/);
-  assert.match(sidebar, /Website Widget is the five-minute on-site AI agent/);
+  assert.match(sidebar, /Website Agent is the five-minute on-site AI agent/);
   assert.doesNotMatch(sidebar, /data-dashboard-product-nav|Connected Tools/);
   assert.doesNotMatch(sidebar, /\(coming soon\)/);
   assert.doesNotMatch(sidebar, /Email[\s\S]{0,80}Beta/);
@@ -3891,7 +3891,7 @@ test("analytics page renders the approved V2 analytics composition with real dat
     }
   );
 
-  assert.match(analyticsPanel, /Performance insights for the Website Widget/);
+  assert.match(analyticsPanel, /Performance insights for the Website Agent/);
   assert.match(analyticsPanel, /Conversations over time/);
   assert.doesNotMatch(analyticsPanel, /Is Vonza helping customer service\?/);
   assert.doesNotMatch(analyticsPanel, /Service report/);
@@ -3967,7 +3967,7 @@ test("analytics surfaces feedback recovery and owner-visible notifications", () 
   assert.match(analyticsPanel, /50% negative/);
 });
 
-test("analytics ignores non-widget source rows on the Website Widget dashboard", () => {
+test("analytics ignores non-widget source rows on the Website Agent dashboard", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -3983,7 +3983,7 @@ test("analytics ignores non-widget source rows on the Website Widget dashboard",
       assistantSource: {
         widget: {
           key: "widget",
-          label: "Website widget",
+          label: "Website Agent",
           conversationCount: 1,
           messageCount: 2,
           visitorQuestionCount: 1,
@@ -4027,9 +4027,9 @@ test("analytics ignores non-widget source rows on the Website Widget dashboard",
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(analyticsPanel, /Website Widget snapshot/);
-  assert.match(analyticsPanel, /Widget conversations/);
-  assert.match(analyticsPanel, /From Website Widget conversations/);
+  assert.match(analyticsPanel, /Website Agent snapshot/);
+  assert.match(analyticsPanel, /Agent conversations/);
+  assert.match(analyticsPanel, /From Website Agent conversations/);
   assert.match(analyticsPanel, /Conversion rate/);
   assert.doesNotMatch(analyticsPanel, /Entry point \/ source breakdown/);
   assert.doesNotMatch(analyticsPanel, /Performance by source/);
@@ -4053,7 +4053,7 @@ test("analytics widget view keeps empty companion source rows hidden", () => {
       assistantSource: {
         widget: {
           key: "widget",
-          label: "Website widget",
+          label: "Website Agent",
           conversationCount: 1,
           messageCount: 2,
         },
@@ -4083,9 +4083,9 @@ test("analytics widget view keeps empty companion source rows hidden", () => {
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(analyticsPanel, /Website Widget snapshot/);
-  assert.match(analyticsPanel, /Widget conversations/);
-  assert.match(analyticsPanel, /From Website Widget conversations/);
+  assert.match(analyticsPanel, /Website Agent snapshot/);
+  assert.match(analyticsPanel, /Agent conversations/);
+  assert.match(analyticsPanel, /From Website Agent conversations/);
   assert.doesNotMatch(analyticsPanel, /Front Desk page/);
   assert.doesNotMatch(analyticsPanel, /Not tracked/);
   assert.doesNotMatch(analyticsPanel, /Entry point \/ source breakdown|Performance by source|Source: All/);
@@ -4149,13 +4149,13 @@ test("customers panel renders searchable records with real identity, source, and
   assert.match(contactsPanel, /Missing contact details/);
   assert.match(contactsPanel, /Identified/);
   assert.match(contactsPanel, /Guest visitor/);
-  assert.match(contactsPanel, /Website widget/);
+  assert.match(contactsPanel, /Website Agent/);
   assert.match(contactsPanel, /Front Desk page/);
   assert.match(contactsPanel, /Web Call/);
   assert.match(contactsPanel, /QR \/ direct link/);
   assert.match(contactsPanel, /data-contact-identity="identified"/);
   assert.match(contactsPanel, /data-contact-identity="guest"/);
-  assert.match(contactsPanel, /data-contact-source-labels="Website widget"/);
+  assert.match(contactsPanel, /data-contact-source-labels="Website Agent"/);
   assert.match(contactsPanel, /data-contact-source-labels="Front Desk page\|QR \/ direct link"/);
   assert.match(contactsPanel, /data-contact-source-labels="Web Call"/);
   assert.match(contactsPanel, /View chat/);
@@ -4318,7 +4318,7 @@ test("install section stays focused on install methods and verification", () => 
 
   assert.match(markup, /Install setup stages/);
   assert.match(markup, /Start with website/);
-  assert.match(markup, /Install widget/);
+  assert.match(markup, /Install agent/);
   assert.match(markup, /Verify/);
   assert.match(markup, /Test live path/);
   assert.match(markup, /Allowed domains/);
@@ -4326,7 +4326,7 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(markup, /data-install-method-tab="widget"/);
   assert.match(markup, /data-install-method-tab="page"/);
   assert.match(markup, /data-install-method-tab="qr"/);
-  assert.match(markup, />Website Widget</);
+  assert.match(markup, />Website Agent</);
   assert.match(markup, />Front Desk page</);
   assert.match(markup, />QR \/ direct link</);
   assert.match(markup, /Recommended launch path/);
@@ -4334,13 +4334,13 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(markup, /id="install-panel-widget"/);
   assert.match(markup, /id="install-panel-page" role="tabpanel" data-install-method-panel="page"/);
   assert.match(markup, /id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden/);
-  assert.match(widgetPanel, /Website Widget embed snippet/);
+  assert.match(widgetPanel, /Website Agent embed snippet/);
   assert.match(widgetPanel, /data-action="copy-install"/);
-  assert.match(widgetPanel, /Paste this once into your site header to launch the Website Widget on normal site pages\./);
-  assert.match(widgetPanel, /Widget install status/);
+  assert.match(widgetPanel, /Paste this once into your site header to launch the Website Agent on normal site pages\./);
+  assert.match(widgetPanel, /Agent install status/);
   assert.match(widgetPanel, /example\.com/);
   assert.match(widgetPanel, /data-action="verify-install"/);
-  assert.match(widgetPanel, /Test widget/);
+  assert.match(widgetPanel, /Test agent/);
   assert.doesNotMatch(widgetPanel, /full-page-assistant-iframe|Iframe snippet|data-full-page-qr-preview|Target URL/);
   assert.match(pagePanel, /Use the full-page AI Front Desk as a companion/);
   assert.match(pagePanel, /Front Desk page link/);
@@ -4396,8 +4396,8 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(pagePanel, /data-install-platform="shopify"/);
   assert.match(pagePanel, /data-install-platform="webflow"/);
   assert.match(pagePanel, /data-install-platform="squarespace"/);
-  assert.match(pagePanel, /Start with the Website Widget: website URL\/import -> configure widget -> install snippet or WordPress -> verify -> test/);
-  assert.match(pagePanel, /Widget first \/ companion/);
+  assert.match(pagePanel, /Start with the Website Agent: website URL\/import -> configure agent -> install snippet or WordPress -> verify -> test/);
+  assert.match(pagePanel, /Agent first \/ companion/);
   assert.match(pagePanel, /WooCommerce product and order data are not connected by this install step/);
   assert.match(pagePanel, /Products, carts, and orders are not connected by this install step/);
   assert.match(pagePanel, /Some Wix areas can restrict custom code/);
@@ -4414,7 +4414,7 @@ test("install section stays focused on install methods and verification", () => 
   assert.doesNotMatch(pagePanel, /Use <code>size=compact<\/code>|Use <code>surface=flat<\/code>/);
   assert.doesNotMatch(pagePanel, /min-height:520px/);
   assert.match(pagePanel, /Customize Front Desk page/);
-  assert.doesNotMatch(pagePanel, /install-script-output|Website Widget embed snippet|Allowed domains/);
+  assert.doesNotMatch(pagePanel, /install-script-output|Website Agent embed snippet|Allowed domains/);
   assert.match(qrPanel, /data-full-page-qr-preview/);
   assert.match(qrPanel, /Download QR code/);
   assert.match(qrPanel, /Copy Front Desk page link/);
@@ -4498,7 +4498,7 @@ test("install panel shows real status, progress, and resources without unrelated
   );
 
   assert.match(panel, />Install</);
-  assert.match(panel, /Launch the Website Widget first, then add the AI Front Desk page through WordPress, smart embed, QR, or direct link as a companion channel\./);
+  assert.match(panel, /Launch the Website Agent first, then add the AI Front Desk page through WordPress, smart embed, QR, or direct link as a companion channel\./);
   assert.match(panel, /data-action="verify-install"/);
   assert.match(panel, /data-install-method-jump="widget"/);
   assert.match(panel, /Installation status/);

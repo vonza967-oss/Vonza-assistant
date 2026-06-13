@@ -5,7 +5,7 @@ import {
   generateWebsiteWidgetAgentInstructions,
 } from "../src/services/agents/agentInstructionGenerator.js";
 
-test("Hungarian Website Widget instruction draft enforces formal magázódás", () => {
+test("Hungarian Website Agent instruction draft enforces formal magázódás", () => {
   const instructions = generateWebsiteWidgetAgentInstructions({
     language: "hu",
     widgetPurpose: "lead_capture",
@@ -33,7 +33,7 @@ test("generated instructions include selected purpose and tone", () => {
     tone: "sales",
   });
 
-  assert.match(instructions, /Widget purpose: Make a decision/);
+  assert.match(instructions, /Agent purpose: Make a decision/);
   assert.match(instructions, /Help visitors compare options/);
   assert.match(instructions, /Tone: Sales-focused/);
 });

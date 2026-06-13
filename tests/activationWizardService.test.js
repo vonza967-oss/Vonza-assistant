@@ -194,7 +194,7 @@ test("each activation step exposes the correct next action", () => {
   });
   assert.equal(installWizard.currentStep, "install_widget");
   assert.equal(installWizard.nextAction.action, "open_install");
-  assert.equal(installWizard.steps.find((step) => step.key === "install_widget")?.label, "Install Widget");
+  assert.equal(installWizard.steps.find((step) => step.key === "install_widget")?.label, "Install Agent");
   assert.match(installWizard.steps.find((step) => step.key === "install_widget")?.copy || "", /WordPress|embed snippet/i);
 });
 
@@ -272,7 +272,7 @@ test("install verified state confirms the owner is live", () => {
 
   const installStep = wizard.steps.find((step) => step.key === "install_widget");
   assert.equal(installStep.complete, true);
-  assert.match(installStep.copy, /Website Widget is live/i);
+  assert.match(installStep.copy, /Website Agent is live/i);
 });
 
 test("weak test state routes to Analytics", () => {

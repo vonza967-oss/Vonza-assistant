@@ -10,7 +10,7 @@
 - `render.yaml`: Render deployment config
 
 ## Working Rules
-- Product direction: the Website Widget is the launch wedge and primary go-to-market surface for now; the full-page AI Front Desk is a companion/expansion channel.
+- Product direction: the Website Agent is the launch wedge and primary go-to-market surface for now; the full-page AI Front Desk is a companion/expansion channel.
 - Production-ready changes must target `main` because Render deploys from `main`.
 - `db/schema.sql` is canonical. Keep it aligned with any migration file you add.
 - `/dashboard` is the main app route.

@@ -359,7 +359,7 @@ async function stubDashboardWorkspaceApis(page, {
 
 async function stubWebsiteWidgetDashboardLaunchApis(page, {
   agent = buildDashboardFixtureAgent({
-    assistantName: "Launch widget assistant",
+    assistantName: "Launch agent assistant",
     buttonLabel: "Ask us",
     welcomeMessage: "Ask about services, pricing, or booking.",
   }),
@@ -389,9 +389,9 @@ window.VONZA_APP_VERSION = "browser-test";
 window.VONZA_BUILD_SHA = "browser-test";
 window.VONZA_LAUNCH_PROFILE = {};
 window.VONZA_BILLING_PLANS = [
-  { key: "starter", displayName: "Starter", monthlyPriceCents: 2000, monthlyPriceUsd: 20, monthlyPriceHuf: 19900, monthlyPriceLabel: "19,900 HUF/month", billingCurrency: "HUF", checkoutLabel: "Start with Starter", marketing: { audience: "For one Hungarian SME", summary: "A simple way to launch a Hungarian Website Widget" } },
+  { key: "starter", displayName: "Starter", monthlyPriceCents: 2000, monthlyPriceUsd: 20, monthlyPriceHuf: 19900, monthlyPriceLabel: "19,900 HUF/month", billingCurrency: "HUF", checkoutLabel: "Start with Starter", marketing: { audience: "For one Hungarian SME", summary: "A simple way to launch a Hungarian Website Agent" } },
   { key: "growth", displayName: "Growth", monthlyPriceCents: 5000, monthlyPriceUsd: 50, monthlyPriceHuf: 49900, monthlyPriceLabel: "49,900 HUF/month", billingCurrency: "HUF", checkoutLabel: "Start with Growth", recommended: true, marketing: { audience: "For regular customer questions", summary: "Best for most growing Hungarian SMEs" } },
-  { key: "pro", displayName: "Pro", monthlyPriceCents: 10000, monthlyPriceUsd: 100, monthlyPriceHuf: 99900, monthlyPriceLabel: "99,900 HUF/month", billingCurrency: "HUF", checkoutLabel: "Start with Pro", marketing: { audience: "For busier Website Widget workspaces", summary: "More room for higher monthly customer volume" } }
+  { key: "pro", displayName: "Pro", monthlyPriceCents: 10000, monthlyPriceUsd: 100, monthlyPriceHuf: 99900, monthlyPriceLabel: "99,900 HUF/month", billingCurrency: "HUF", checkoutLabel: "Start with Pro", marketing: { audience: "For busier Website Agent workspaces", summary: "More room for higher monthly customer volume" } }
 ];`.trim(),
     });
   });
@@ -572,7 +572,7 @@ test("signed-in mock dashboard home loads visible shell content", async () => {
     await page.locator("[data-app-shell]").waitFor({ state: "visible" });
     await assertVisibleText(page, "Home");
     await assertVisibleText(page, "Your AI customer service snapshot for today");
-    await assertVisibleText(page, "Website Widget");
+    await assertVisibleText(page, "Website Agent");
   } finally {
     await page.close();
   }
@@ -630,27 +630,27 @@ test("Settings save flow shows success only after backend confirmation", async (
   }
 });
 
-test("Website Widget launch dashboard routes render Widget-first surfaces", async () => {
+test("Website Agent launch dashboard routes render Agent-first surfaces", async () => {
   for (const route of [
     {
       path: "/website-widget/dashboard",
       visibleSelector: '[data-app-shell][data-website-widget-dashboard="dedicated"]',
-      expectedText: "Website Widget overview",
+      expectedText: "Website Agent overview",
     },
     {
       path: "/website-widget/dashboard#install",
       visibleSelector: '[data-shell-section="install"]:not([hidden])',
-      expectedText: "Install Website Widget",
+      expectedText: "Install Website Agent",
     },
     {
       path: "/website-widget/dashboard#settings",
       visibleSelector: '[data-shell-section="settings"]:not([hidden])',
-      expectedText: "Widget configuration",
+      expectedText: "Agent configuration",
     },
     {
       path: "/website-widget/dashboard#settings/widget/identity-welcome",
       visibleSelector: '[data-shell-section="settings"]:not([hidden])',
-      expectedText: "These instructions shape future widget replies",
+      expectedText: "These instructions shape future agent replies",
     },
     {
       path: "/website-widget/dashboard#preferences",
@@ -689,7 +689,7 @@ test("Website Widget launch dashboard routes render Widget-first surfaces", asyn
   }
 });
 
-test("public Widget launch routes serve /widget and /embed.js", async () => {
+test("public Agent launch routes serve /widget and /embed.js", async () => {
   const page = await newPage();
 
   await page.route("**/widget/bootstrap**", async (route) => {
@@ -703,11 +703,11 @@ test("public Widget launch routes serve /widget and /embed.js", async () => {
         },
         business: {
           id: "business-widget-1",
-          name: "Widget Services",
+          name: "Agent Services",
           websiteUrl: "https://widget.example.test",
         },
         widgetConfig: {
-          assistantName: "Widget Services Assistant",
+          assistantName: "Agent Services Assistant",
           welcomeMessage: "Ask about services or next steps.",
           launcherText: "Website assistant",
           primaryColor: "#2563eb",
@@ -720,7 +720,7 @@ test("public Widget launch routes serve /widget and /embed.js", async () => {
   try {
     await page.goto(`${baseUrl}/widget?agent_id=agent-widget-1&embedded=1`, { waitUntil: "domcontentloaded" });
     await page.locator("#assistant-name").waitFor({ state: "visible" });
-    await assertVisibleText(page, "Widget Services Assistant");
+    await assertVisibleText(page, "Agent Services Assistant");
 
     const embedResponse = await page.goto(`${baseUrl}/embed.js`, { waitUntil: "domcontentloaded" });
     assert.equal(embedResponse.status(), 200);
@@ -1068,8 +1068,8 @@ test("Hungarian dashboard fixture routes do not show audited operator English", 
     "Live install detected",
     "Choose method",
     "Installation methods",
-    "Website Widget embed",
-    "Copy widget snippet",
+    "Website Agent embed",
+    "Copy agent snippet",
     "Adjust how the customer-facing Front Desk speaks",
     "Identity & welcome",
     "What should your customer-facing",

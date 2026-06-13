@@ -25,7 +25,7 @@ const REPO_CONFIRMED_FACTS = Object.freeze({
   optionalGoogle: "A kódbázis opcionális Google Gmail és Google Calendar integrációkat is tartalmaz, de ezek workspace-szinten külön kapcsolódnak.",
   publicSurfaces: [
     "publikus marketing oldal a / útvonalon",
-    "publikus widget a /widget útvonalon",
+    "publikus agent a /widget útvonalon",
     "signed-out és signed-in dashboard / auth felület a /dashboard útvonalon",
     "beágyazó scriptek a /embed.js és /embed-lite.js útvonalakon",
     "hosted checkout indítása a dashboardból",
@@ -240,7 +240,7 @@ function buildTermsBody() {
       [
         renderParagraphs([
           "A Vonza nem használható jogellenes, megtévesztő, visszaélésszerű, biztonságot sértő vagy harmadik személy jogait sértő célra.",
-          "Nem megengedett a widget vagy az auth / install / domain-védelem megkerülése, a szolgáltatás visszafejtése, tömeges zavarása, illetve olyan tartalom beküldése, amelyhez a felhasználónak nincs joga.",
+          "Nem megengedett az agent vagy az auth / install / domain-védelem megkerülése, a szolgáltatás visszafejtése, tömeges zavarása, illetve olyan tartalom beküldése, amelyhez a felhasználónak nincs joga.",
           "A felhasználó felelős a saját business-kontextus, ügyfélkommunikációs beállítások és routing-célpontok jogszerű használatáért.",
         ]),
       ].join("")
@@ -282,7 +282,7 @@ function buildTermsBody() {
       "8. Szellemi tulajdon",
       [
         renderParagraphs([
-          "A Vonza szoftveres felületei, a widget, a dashboard, a megjelenített branding-elemek, valamint a kapcsolódó know-how a szolgáltatóhoz vagy annak jogosult partnereihez tartozhatnak.",
+          "A Vonza szoftveres felületei, az agent, a dashboard, a megjelenített branding-elemek, valamint a kapcsolódó know-how a szolgáltatóhoz vagy annak jogosult partnereihez tartozhatnak.",
           "A felhasználó által feltöltött saját üzleti tartalmak és konfigurációk feletti jogokat a szolgáltató nem sajátíthatja ki, ugyanakkor a szolgáltatás nyújtásához szükséges felhasználási jogot a működés idejére biztosítani kell.",
         ]),
       ].join("")
@@ -309,7 +309,7 @@ function buildTermsBody() {
       "11. Panaszkezelés",
       [
         renderParagraphs([
-          "A widget és az app a kódbázis szerint képes panasz- vagy support-jellegű beszélgetéseket azonosítani és dashboard-szinten kiemelni.",
+          "Az agent és az app a kódbázis szerint képes panasz- vagy support-jellegű beszélgetéseket azonosítani és dashboard-szinten kiemelni.",
           "A formális fogyasztói vagy üzleti panaszkezelés kapcsolattartója és eljárásrendje azonban nem szerepel a repositoryban, ezért ezt a szolgáltatónak valós adatokkal kell nyilvánossá tennie.",
         ]),
       ].join("")
@@ -410,7 +410,7 @@ function buildPrivacyBody() {
       "2. Milyen adatokat kezel a jelenlegi szolgáltatás",
       [
         renderParagraphs([
-          "A leírás a website, app, widget, auth és payments felületek jelenlegi repository-alapú működését követi.",
+          "A leírás a website, app, agent, auth és payments felületek jelenlegi repository-alapú működését követi.",
         ]),
         renderDefinitionList([
           {
@@ -426,7 +426,7 @@ function buildPrivacyBody() {
             description: "Workspace-beállítások, business profile, website URL, routing-célpontok, install állapot, analitikai összesítések és workspace-adatok.",
           },
           {
-            term: "Widget",
+            term: "Agent",
             description: "Név (opcionális), email-cím (azonosított módnál), visitor session key, oldal URL, origin, esetleges fingerprint / session_id, chatüzenetek, lead capture és routing-események.",
           },
           {
@@ -449,7 +449,7 @@ function buildPrivacyBody() {
       renderDefinitionList([
         {
           term: "Szerződés teljesítése / szolgáltatás nyújtása",
-          description: "Account-hozzáférés, dashboard működtetés, widgetes kérdéskezelés, routing, workspace-aktiválás és checkout-visszatérés kezelése.",
+          description: "Account-hozzáférés, dashboard működtetés, agentes kérdéskezelés, routing, workspace-aktiválás és checkout-visszatérés kezelése.",
         },
         {
           term: "Kapcsolattartás és follow-up",
@@ -457,7 +457,7 @@ function buildPrivacyBody() {
         },
         {
           term: "Biztonság és visszaélés-megelőzés",
-          description: "Install, auth és widget események, routing- és outcome-ellenőrzések, valamint hozzáférési állapotok kezelése.",
+          description: "Install, auth és agent események, routing- és outcome-ellenőrzések, valamint hozzáférési állapotok kezelése.",
         },
         {
           term: "Fizetés és elszámolás",
@@ -465,7 +465,7 @@ function buildPrivacyBody() {
         },
         {
           term: "Termékfejlesztés és analitika",
-          description: "Product eventek, widget telemetry, dashboard-összesítések és kérdésmintázatok elemzése.",
+          description: "Product eventek, agent telemetry, dashboard-összesítések és kérdésmintázatok elemzése.",
         },
       ])
     ),
@@ -499,13 +499,13 @@ function buildPrivacyBody() {
       [
         renderParagraphs([
           "A repository részletes szerveroldali retention-szabályzatot nem publikál. Ezért jelenleg csak annyi állapítható meg biztosan, hogy a böngészőoldali beállítások és session-jellegű elemek a felhasználó böngészőjében maradnak, amíg ki nem jelentkezik, felül nem írja őket, vagy manuálisan nem törli őket.",
-          "A szolgáltatónak a tényleges adatmegőrzési időket adatkategóriánként (account, widget chat, lead capture, payment logs, support records, analytics) külön kell véglegesítenie.",
+          "A szolgáltatónak a tényleges adatmegőrzési időket adatkategóriánként (account, agent chat, lead capture, payment logs, support records, analytics) külön kell véglegesítenie.",
         ]),
         renderMissingFields(
           "Hiányzó retention mezők",
           [
             "auth account adatok megőrzési ideje",
-            "widget chat és lead capture adatok megőrzési ideje",
+            "agent chat és lead capture adatok megőrzési ideje",
             "payment és számlázási naplók megőrzési ideje",
             "support / complaint / follow-up adatok megőrzési ideje",
             "dashboard analytics és product event adatok megőrzési ideje",
@@ -549,12 +549,12 @@ function buildPrivacyBody() {
       ].join("")
     ),
     renderSection(
-      "9. Widget-specifikus adatkezelés",
+      "9. Agent-specifikus adatkezelés",
       renderList([
         "a látogató választhat guest vagy email-alapú folytatást",
         "azonosított mód esetén email-cím és opcionális név kerülhet rögzítésre",
-        "a widget visitor session key-t és kapcsolódó routing- / outcome-jelöléseket tárolhat a böngészőben",
-        "a chatüzenetek, lead capture és widget telemetry események a backend felé továbbítódhatnak",
+        "az agent visitor session key-t és kapcsolódó routing- / outcome-jelöléseket tárolhat a böngészőben",
+        "a chatüzenetek, lead capture és agent telemetry események a backend felé továbbítódhatnak",
       ])
     ),
     renderSection(
@@ -593,7 +593,7 @@ function buildCookiesBody() {
       [
         renderParagraphs([
           "A jelenlegi repository nem bizonyít önálló, nem feltétlenül szükséges elsődleges marketing- vagy third-party tracking cookie beállítást a publikus Vonza felületeken.",
-          "A működéshez viszont több localStorage és sessionStorage elem használatos a website, app, widget és auth felületeken.",
+          "A működéshez viszont több localStorage és sessionStorage elem használatos a website, app, agent és auth felületeken.",
         ]),
       ].join("")
     ),
@@ -609,7 +609,7 @@ function buildCookiesBody() {
           description: "vonza_dashboard_theme, vonza_dashboard_language, vonza_dashboard_section és kapcsolódó Vonza dashboard kulcsok.",
         },
         {
-          term: "Widget session és identity",
+          term: "Agent session és identity",
           description: "vonza_visitor_session_<scope>, vonza_visitor_identity_<scope>, dismissed route kulcsok és outcome-detection sessionStorage kulcsok.",
         },
         {
@@ -632,21 +632,21 @@ function buildCookiesBody() {
       ])
     ),
     renderSection(
-      "4. Widget / session elemek",
+      "4. Agent / session elemek",
       renderList([
         "visitor session azonosító localStorage-ban",
         "visitor identity választás (guest vagy identified) localStorage-ban",
         "dismissed direct routing kulcsok localStorage-ban",
         "outcome detection sessionStorage jelölő, hogy az adott oldalra már lefutott-e az outcome-detect kérés",
-        "agent_key localStorage elem a widget bootstraphez",
+        "agent_key localStorage elem az agent bootstraphez",
       ])
     ),
     renderSection(
       "5. Analitika és tracking",
       [
         renderParagraphs([
-          "A jelenlegi kódbázis product event és widget telemetry végpontokat használ, de a repository nem bizonyít klasszikus third-party analytics vagy advertising tracker cookie beállítást.",
-          "A kliensoldali azonosítók és storage-elemek főként deduplikációhoz, session-azonosításhoz, install-ellenőrzéshez és dashboard- / widget-állapotmegőrzéshez szolgálnak.",
+          "A jelenlegi kódbázis product event és agent telemetry végpontokat használ, de a repository nem bizonyít klasszikus third-party analytics vagy advertising tracker cookie beállítást.",
+          "A kliensoldali azonosítók és storage-elemek főként deduplikációhoz, session-azonosításhoz, install-ellenőrzéshez és dashboard- / agent állapotmegőrzéshez szolgálnak.",
         ]),
       ].join("")
     ),
@@ -662,7 +662,7 @@ function buildCookiesBody() {
       renderList([
         "a böngésző localStorage és sessionStorage elemei kézzel törölhetők",
         "a signed-in appból kijelentkezve az auth session megszüntethető",
-        "a böngésző cookie- és storage-beállításai korlátozhatják az auth vagy widget működés egy részét",
+        "a böngésző cookie- és storage-beállításai korlátozhatják az auth vagy agent működés egy részét",
         "a service worker a jelenlegi kódbázisban csak átadja a fetch kéréseket, külön offline cache-logika nélkül",
       ])
     ),
@@ -678,7 +678,7 @@ function buildCookiesBody() {
 const LEGAL_DOCUMENTS = Object.freeze({
   terms: {
     title: "ÁSZF",
-    description: "A Vonza publikus website, app, widget és hosted checkout felületeinek általános szerződéses kerete.",
+    description: "A Vonza publikus website, app, agent és hosted checkout felületeinek általános szerződéses kerete.",
     body: buildTermsBody,
   },
   imprint: {
@@ -688,7 +688,7 @@ const LEGAL_DOCUMENTS = Object.freeze({
   },
   privacy: {
     title: "Adatkezelési tájékoztató",
-    description: "A Vonza website, app, widget, auth, support és payments adatáramainak repository-alapú összefoglalása.",
+    description: "A Vonza website, app, agent, auth, support és payments adatáramainak repository-alapú összefoglalása.",
     body: buildPrivacyBody,
   },
   cookies: {

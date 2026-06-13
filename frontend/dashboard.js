@@ -12,8 +12,8 @@ const dashboardAnalytics = window.VonzaDashboardAnalytics || {};
 const dashboardToday = window.VonzaDashboardToday || {};
 const activeDashboardProduct = dashboardState.ACTIVE_DASHBOARD_PRODUCT_CONTEXT || dashboardState.getDashboardProductContext?.(window.location.pathname) || {
   key: "website_widget",
-  label: "Website Widget",
-  dashboardLabel: "Website Widget workspace",
+  label: "Website Agent",
+  dashboardLabel: "Website Agent workspace",
   routePath: "/website-widget/dashboard",
   canonicalPath: "/website-widget/dashboard",
   isDedicatedProductDashboard: true,
@@ -21,7 +21,7 @@ const activeDashboardProduct = dashboardState.ACTIVE_DASHBOARD_PRODUCT_CONTEXT |
 const dashboardProductNavItems = typeof dashboardState.getDashboardProductNavItems === "function"
   ? dashboardState.getDashboardProductNavItems(activeDashboardProduct.key)
   : [
-    { key: "website_widget", label: "Website Widget", dashboardLabel: "Website Widget workspace", routePath: "/website-widget/dashboard", active: true },
+    { key: "website_widget", label: "Website Agent", dashboardLabel: "Website Agent workspace", routePath: "/website-widget/dashboard", active: true },
   ];
 const DASHBOARD_V2_ENABLED = window.VONZA_DASHBOARD_V2_ENABLED !== false;
 const DASHBOARD_LOCAL_FIXTURE_ENABLED = window.VONZA_LOCAL_DASHBOARD_FIXTURE === true;
@@ -279,7 +279,7 @@ const DASHBOARD_CAPABILITY_MAP = {
 };
 const DASHBOARD_ENGLISH_FALLBACKS = {
   "app.loading.title": "Opening your workspace",
-  "app.loading.copy": "Loading your Website Widget setup...",
+  "app.loading.copy": "Loading your Website Agent setup...",
   "app.loading.footer": "This usually takes a few seconds.",
   "app.loading.delayed": "Still loading? Free Render instances can take up to a minute after inactivity.",
   "app.loading.refresh": "Refresh",
@@ -428,65 +428,65 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.satisfactionSignal": "Satisfaction signal",
   "analytics.basedOnAnswerQuality": "Estimated from weak answers and owner attention",
   "analytics.operatorBrief": "Operator brief",
-  "analytics.widgetSnapshot": "Website Widget snapshot",
+  "analytics.widgetSnapshot": "Website Agent snapshot",
   "analytics.waitingForTraffic": "Waiting for live Front Desk traffic",
-  "analytics.waitingForTrafficCopy": "After customers use the Website Widget, hosted Front Desk page, QR/direct link, or embed, performance signals will appear here.",
+  "analytics.waitingForTrafficCopy": "After customers use the Website Agent, hosted Front Desk page, QR/direct link, or embed, performance signals will appear here.",
   "analytics.operatorBriefCopy": "Customer-service performance from Front Desk conversations, owner follow-ups, leads, answer quality, and improvement signals.",
   "analytics.whatToWatch": "What to watch",
   "analytics.webCallHealth": "Web Call health",
   "analytics.recentWebCalls": "Recent Web Calls",
   "analytics.aiHandledBriefTitle": "{handled} of {total} conversations handled by AI",
-  "analytics.widgetBriefTitle": "{total} Website Widget conversations recorded",
-  "analytics.widgetBriefCopy": "Track live widget conversations, captured leads, repeated questions, and answer-quality signals.",
-  "analytics.widgetBriefWaitingTitle": "Waiting for Website Widget traffic",
+  "analytics.widgetBriefTitle": "{total} Website Agent conversations recorded",
+  "analytics.widgetBriefCopy": "Track live agent conversations, captured leads, repeated questions, and answer-quality signals.",
+  "analytics.widgetBriefWaitingTitle": "Waiting for Website Agent traffic",
   "analytics.widgetLeadStatus": "{count} leads captured",
-  "analytics.widgetWaitingForTrafficCopy": "After customers use the Website Widget, conversations and captured leads will appear here.",
+  "analytics.widgetWaitingForTrafficCopy": "After customers use the Website Agent, conversations and captured leads will appear here.",
   "analytics.ownerFollowUp": "owner follow-up",
   "analytics.improvementFocus": "improvement focus",
   "analytics.repeatedQuestion": "repeated question: {question}",
-  "analytics.sourceBreakdownWidgetCopy": "Website Widget conversations and leads from recorded widget activity.",
-  "analytics.sourceBreakdownDefaultCopy": "Hosted Front Desk page remains the primary surface; widget and embeds are secondary distribution.",
+  "analytics.sourceBreakdownWidgetCopy": "Website Agent conversations and leads from recorded agent activity.",
+  "analytics.sourceBreakdownDefaultCopy": "Hosted Front Desk page remains the primary surface; agent and embeds are secondary distribution.",
   "analytics.handlingCopy": "Shows work handled by Front Desk versus conversations still needing a person.",
   "analytics.topQuestionsCopy": "Use repeated questions to decide which answer guidance to improve next.",
   "analytics.customerQuestionFallback": "Customer question",
   "analytics.topQuestionsEmpty": "No repeated customer questions yet. As Front Desk handles more live questions, recurring themes will appear here.",
-  "analytics.widgetTopQuestionsEmpty": "No repeated widget questions yet. As more Website Widget conversations arrive, recurring themes will appear here.",
+  "analytics.widgetTopQuestionsEmpty": "No repeated agent questions yet. As more Website Agent conversations arrive, recurring themes will appear here.",
   "analytics.chartEmpty": "Live conversations will draw this trend after customers start using Front Desk.",
-  "analytics.widgetChartEmpty": "Live conversations will draw this trend after customers start using the Website Widget.",
-  "analytics.performanceBySourceWidgetCopy": "Review Website Widget conversations and leads from recorded widget activity.",
-  "analytics.performanceBySourceDefaultCopy": "Compare Front Desk page, embed, and optional widget outcomes using real conversation data.",
-  "analytics.metricCompareWidgetSurface": "Live website widget",
+  "analytics.widgetChartEmpty": "Live conversations will draw this trend after customers start using the Website Agent.",
+  "analytics.performanceBySourceWidgetCopy": "Review Website Agent conversations and leads from recorded agent activity.",
+  "analytics.performanceBySourceDefaultCopy": "Compare Front Desk page, embed, and Website Agent outcomes using real conversation data.",
+  "analytics.metricCompareWidgetSurface": "Live website agent",
   "analytics.metricCompareVoiceSurface": "Browser voice surface",
   "analytics.liveWorkspaceData": "Live workspace data",
   "analytics.newSignal": "New",
   "analytics.productScope": "Product analytics",
   "analytics.productScopeCopy": "Product-specific view using the existing shared analytics data.",
-  "analytics.widgetPageTitle": "Website Widget analytics",
-  "analytics.widgetPageCopy": "Performance insights for the Website Widget.",
+  "analytics.widgetPageTitle": "Website Agent analytics",
+  "analytics.widgetPageCopy": "Performance insights for the Website Agent.",
   "analytics.frontDeskAnalytics": "Front Desk analytics",
   "analytics.frontDeskAnalyticsCopy": "Full-page and hosted Front Desk outcomes from existing conversation source data.",
-  "analytics.widgetAnalytics": "Website Widget analytics",
-  "analytics.widgetAnalyticsCopy": "Website Widget outcomes from conversations, captured leads, and question patterns.",
+  "analytics.widgetAnalytics": "Website Agent analytics",
+  "analytics.widgetAnalyticsCopy": "Website Agent outcomes from conversations, captured leads, and question patterns.",
   "analytics.voiceAnalytics": "Voice Agent analytics",
   "analytics.voiceAnalyticsCopy": "Browser Web Call outcomes from existing conversation and safe call-health data.",
   "analytics.frontDeskEmptyTitle": "No Front Desk analytics yet.",
   "analytics.frontDeskEmptyCopy": "Publish or open the full-page Front Desk, then ask one realistic test question. Page visitors, leads, and repeated questions will appear here after conversations are recorded.",
-  "analytics.widgetEmptyTitle": "No Website Widget analytics yet.",
-  "analytics.widgetEmptyCopy": "Install the embed, confirm allowed domains, then test the widget on a site page. Website visitor conversations and leads will appear here after use.",
+  "analytics.widgetEmptyTitle": "No Website Agent analytics yet.",
+  "analytics.widgetEmptyCopy": "Install the embed, confirm allowed domains, then test the agent on a site page. Website visitor conversations and leads will appear here after use.",
   "analytics.voiceEmptyTitle": "No Voice Agent analytics yet.",
   "analytics.voiceEmptyCopy": "Set up browser voice and Web Call, run a Web Call test, then review transcripts, handoff context, and analytics after conversations are recorded.",
   "analytics.frontDeskConversations": "Front Desk conversations",
   "analytics.frontDeskLeads": "Front Desk leads",
   "analytics.frontDeskVisitsUnavailable": "Front Desk visit analytics are not available in the current dashboard analytics response.",
-  "analytics.widgetConversations": "Widget conversations",
-  "analytics.widgetLeads": "Widget leads",
-  "analytics.widgetOpensUnavailable": "Widget open and install-event analytics are not available in the current dashboard analytics response.",
+  "analytics.widgetConversations": "Agent conversations",
+  "analytics.widgetLeads": "Agent leads",
+  "analytics.widgetOpensUnavailable": "Agent open and install-event analytics are not available in the current dashboard analytics response.",
   "analytics.webCallSessions": "Web Call sessions",
   "analytics.webCallStarts": "Web Call starts",
   "analytics.averageCallDuration": "Average call duration",
   "analytics.notAvailableYet": "Not available yet",
   "analytics.derivedFromConversationSource": "Derived from existing conversation source data",
-  "analytics.derivedFromWidgetConversations": "From Website Widget conversations",
+  "analytics.derivedFromWidgetConversations": "From Website Agent conversations",
   "analytics.derivedFromSafeWebCallTelemetry": "Derived from safe Web Call telemetry",
   "analytics.widgetQualitySignal": "Answer quality signal",
   "analytics.basedOnWidgetAnswerQuality": "Estimated from weak answers and visitor feedback",
@@ -494,17 +494,17 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.setupWidget": "Open embed install",
   "analytics.setupVoice": "Open voice setup",
   "analytics.frontDeskSettings": "Full-page setup",
-  "analytics.widgetSettings": "Widget settings",
+  "analytics.widgetSettings": "Agent settings",
   "analytics.voiceTest": "Open Web Call test",
   "websiteWidget.status.importStart": "Starting website import...",
   "websiteWidget.status.importRetry": "Retrying website import...",
   "websiteWidget.status.importFallback": "Async import did not start. Running the fallback website import...",
-  "websiteWidget.status.installCopySuccess": "Widget install code copied. You can paste it into your website when you are ready.",
-  "websiteWidget.status.installInstructionsCopySuccess": "Widget install instructions copied with the code.",
-  "websiteWidget.status.installCopyFailure": "We couldn't copy the widget install code.",
-  "websiteWidget.status.settingsSaveProgress": "Saving Website Widget settings...",
-  "websiteWidget.status.settingsSaveSuccess": "Website Widget settings saved.",
-  "websiteWidget.status.settingsSaveFailure": "Website Widget settings could not be saved.",
+  "websiteWidget.status.installCopySuccess": "Agent install code copied. You can paste it into your website when you are ready.",
+  "websiteWidget.status.installInstructionsCopySuccess": "Agent install instructions copied with the code.",
+  "websiteWidget.status.installCopyFailure": "We couldn't copy the agent install code.",
+  "websiteWidget.status.settingsSaveProgress": "Saving Website Agent settings...",
+  "websiteWidget.status.settingsSaveSuccess": "Website Agent settings saved.",
+  "websiteWidget.status.settingsSaveFailure": "Website Agent settings could not be saved.",
   "websiteWidget.status.settingsSaveStateSaving": "Saving changes...",
   "websiteWidget.status.settingsSaveStateSuccess": "Changes saved.",
   "websiteWidget.status.settingsSaveStateFailure": "Could not save changes.",
@@ -545,7 +545,7 @@ const DEFAULT_LAUNCH_PROFILE = {
     checkout: { state: FEATURE_STATE_STABLE, label: "Checkout" },
     front_desk: { state: FEATURE_STATE_STABLE, label: "AI front desk" },
     website_import: { state: FEATURE_STATE_STABLE, label: "Website import" },
-    widget_install: { state: FEATURE_STATE_STABLE, label: "Widget install" },
+    widget_install: { state: FEATURE_STATE_STABLE, label: "Agent install" },
     today: { state: FEATURE_STATE_STABLE, label: "Home" },
     contacts: { state: FEATURE_STATE_STABLE, label: "Customers" },
     outcomes: { state: FEATURE_STATE_STABLE, label: "Analytics" },
@@ -1063,7 +1063,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
         eyebrow: "Workspace",
         title: "Your core workspace is ready.",
         copy: dedicatedWebsiteWidget
-          ? "Website Widget, Customers, Analytics, Install, and Settings are available here. Connected tools stay out of the launch workspace for now."
+          ? "Website Agent, Customers, Analytics, Install, and Settings are available here. Connected tools stay out of the launch workspace for now."
           : "Home, Customers, Front Desk, Analytics, and Install are available here. Connected tools stay out of the launch workspace for now.",
       };
   }
@@ -1074,7 +1074,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       eyebrow: "Workspace",
       title: "Your main workspace is live.",
       copy: dedicatedWebsiteWidget
-        ? "Website Widget, Customers, Analytics, Install, and Settings are ready to use. Email, Calendar, and Automations stay out of the launch workspace for now."
+        ? "Website Agent, Customers, Analytics, Install, and Settings are ready to use. Email, Calendar, and Automations stay out of the launch workspace for now."
         : "Home, Customers, Front Desk, and Analytics are ready to use. Email, Calendar, and Automations stay out of the launch workspace for now.",
     };
   }
@@ -1086,7 +1086,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
         eyebrow: "Workspace",
         title: "Your core workspace is ready.",
         copy: dedicatedWebsiteWidget
-          ? "Website Widget, Customers, Analytics, Install, and Settings stay at the center. Connected tools are hidden from the launch navigation."
+          ? "Website Agent, Customers, Analytics, Install, and Settings stay at the center. Connected tools are hidden from the launch navigation."
           : "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are hidden from the launch navigation.",
       };
     }
@@ -1096,7 +1096,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       eyebrow: "Workspace",
       title: "Your core workspace is ready.",
       copy: dedicatedWebsiteWidget
-        ? "Website Widget, Customers, Analytics, Install, and Settings stay at the center. Connected tools are hidden from the launch navigation."
+        ? "Website Agent, Customers, Analytics, Install, and Settings stay at the center. Connected tools are hidden from the launch navigation."
         : "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are hidden from the launch navigation.",
     };
   }
@@ -1106,7 +1106,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     eyebrow: "Workspace",
     title: "Your main workspace is ready.",
     copy: dedicatedWebsiteWidget
-      ? "Website Widget, Customers, Analytics, Install, and Settings are ready now. Connected tools stay out of the launch navigation until they are intentionally enabled."
+      ? "Website Agent, Customers, Analytics, Install, and Settings are ready now. Connected tools stay out of the launch navigation until they are intentionally enabled."
       : "Home, Customers, Front Desk, and Analytics are ready now. Connected tools stay out of the launch navigation until they are intentionally enabled.",
   };
 }
@@ -1834,8 +1834,8 @@ function buildAuthLegalBlock(mode) {
     )
     : "";
   const intro = localizeDashboardCopy(
-    "Legal and company information for the website, app, widget, and hosted checkout:",
-    "A website, az app, a widget és a hosted checkout jogi és cégadatai:"
+    "Legal and company information for the website, app, agent, and hosted checkout:",
+    "A website, az app, az agent és a hosted checkout jogi és cégadatai:"
   );
 
   return `
@@ -1850,12 +1850,12 @@ function buildAuthLegalBlock(mode) {
 function buildAppLegalSurfaceMarkup(context = "workspace") {
   const copy = context === "billing"
     ? localizeDashboardCopy(
-      "Hosted checkout, account access, the public website, and the widget are covered by these public legal pages.",
-      "A hosted checkoutot, az account-hozzáférést, a publikus oldalt és a widgetet ezek a nyilvános jogi oldalak fedik le."
+      "Hosted checkout, account access, the public website, and the agent are covered by these public legal pages.",
+      "A hosted checkoutot, az account-hozzáférést, a publikus oldalt és az agentet ezek a nyilvános jogi oldalak fedik le."
     )
     : localizeDashboardCopy(
-      "These public pages keep the website, app, widget, and hosted checkout legal surface reachable from inside the workspace.",
-      "Ezek a nyilvános oldalak a workspace-ből is elérhetővé teszik a website, az app, a widget és a hosted checkout jogi felületét."
+      "These public pages keep the website, app, agent, and hosted checkout legal surface reachable from inside the workspace.",
+      "Ezek a nyilvános oldalak a workspace-ből is elérhetővé teszik a website, az app, az agent és a hosted checkout jogi felületét."
     );
 
   return `
@@ -2255,7 +2255,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Booking URL": "Foglalási URL",
   "Quote URL": "Ajánlatkérési URL",
   "Checkout URL": "Fizetési URL",
-  "Widget logo": "Widget logó",
+  "Agent logo": "Agent logó",
   "Primary color": "Elsődleges szín",
   "Secondary color": "Másodlagos szín",
   "Website detail": "Weboldali részletek",
@@ -2410,7 +2410,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Finish the Front Desk setup": "Fejezd be a Front Desk beállítását",
   "Prepare the companion Front Desk page": "Készítsd elő a kiegészítő Front Desk oldalt",
   "Keep testing the live Front Desk": "Teszteld tovább az élő Front Desket",
-  "Practice once, install the Website Widget, then enable the public page for QR, direct links, or dedicated assistant pages.": "Gyakorolj egyszer, telepítsd a Website Widgetet, majd engedélyezd a publikus oldalt QR-hez, direkt linkekhez vagy dedikált asszisztensoldalakhoz.",
+  "Practice once, install the Website Agent, then enable the public page for QR, direct links, or dedicated assistant pages.": "Gyakorolj egyszer, telepítsd a Weboldali agentet, majd engedélyezd a publikus oldalt QR-hez, direkt linkekhez vagy dedikált asszisztensoldalakhoz.",
   "Open improvements": "Javítások megnyitása",
   "Review drafts": "Piszkozatok áttekintése",
   "Open knowledge": "Tudás megnyitása",
@@ -2421,10 +2421,10 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Answer quality": "Válaszminőség",
   "No queued fixes": "Nincs sorban álló javítás",
   "Setup needed": "Beállítás szükséges",
-  "Widget first, page companion": "Először a widget, az oldal kiegészítő",
+  "Agent first, page companion": "Először az agent, az oldal kiegészítő",
   "AI Front Desk workspace": "AI Front Desk munkaterület",
   "Operator command center": "Operátori vezérlőközpont",
-  "Website Widget is the recommended customer surface.": "A Website Widget az ajánlott ügyféloldali felület.",
+  "Website Agent is the recommended customer surface.": "A Weboldali agent az ajánlott ügyféloldali felület.",
   "No website URL": "Nincs megadott weboldal URL",
   "Prompt starters": "Indító kérdések",
   "Use a few realistic customer questions to see whether the Front Desk sounds grounded and offers the right next step.": "Használj néhány valósághű ügyfélkérdést, hogy lásd, mennyire megalapozott a Front Desk, és a megfelelő következő lépést ajánlja-e.",
@@ -2511,7 +2511,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Follow-ups": "Utánkövetések",
   "Performance": "Teljesítmény",
   "Front Desk page, QR, and optional bubble": "Front Desk oldal, QR és opcionális buborék",
-  "Widget install, page links, QR": "Widget telepítés, oldallinkek, QR",
+  "Agent install, page links, QR": "Agent telepítés, oldallinkek, QR",
   "Privacy and workspace": "Adatvédelem és munkaterület",
   "Not detected on a live site yet": "Még nincs észlelve élő oldalon",
   "Review replies": "Válaszok áttekintése",
@@ -2525,8 +2525,8 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Account & Billing": "Fiók és számlázás",
   "Privacy & Legal": "Adatvédelem és jogi információk",
   "Workspace status, dashboard language, and launch posture.": "Munkaterület állapota, irányítópult nyelve és élesítési állapot.",
-  "Website Widget launcher, appearance, install, and domains.": "Website Widget indító, megjelenés, telepítés és domainek.",
-  "Identity, full-page companion, routing, and Website Widget.": "Identitás, teljes oldalas kiegészítő, útvonalak és Website Widget.",
+  "Website Agent launcher, appearance, install, and domains.": "Weboldali agent indító, megjelenés, telepítés és domainek.",
+  "Identity, full-page companion, routing, and Website Agent.": "Identitás, teljes oldalas kiegészítő, útvonalak és Weboldali agent.",
   "Grounding facts and readiness for customer answers.": "Megalapozó tények és készenlét az ügyfélválaszokhoz.",
   "Public trust, privacy, and legal pages.": "Publikus bizalmi, adatvédelmi és jogi oldalak.",
   "Business profile readiness summary": "Üzleti profil készenléti összefoglaló",
@@ -2540,7 +2540,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Save website": "Weboldal mentése",
   "Owner knowledge": "Tulajdonosi tudás",
   "Knowledge files": "Tudásfájlok",
-  "Upload TXT, Markdown, CSV, or JSON files with business details the Website Widget can use after indexing.": "Tölts fel TXT, Markdown, CSV vagy JSON fájlokat olyan üzleti részletekkel, amelyeket a Website Widget indexelés után használhat.",
+  "Upload TXT, Markdown, CSV, or JSON files with business details the Website Agent can use after indexing.": "Tölts fel TXT, Markdown, CSV vagy JSON fájlokat olyan üzleti részletekkel, amelyeket a Weboldali agent indexelés után használhat.",
   "Upload business information file": "Üzleti információs fájl feltöltése",
   "Files are used as trusted owner-provided business context after upload and indexing. Supported now: TXT, Markdown, CSV, and JSON up to 1 MB.": "A fájlokat feltöltés és indexelés után megbízható, tulajdonos által megadott üzleti kontextusként használjuk. Támogatott: TXT, Markdown, CSV és JSON legfeljebb 1 MB-ig.",
   "Upload file": "Fájl feltöltése",
@@ -2549,7 +2549,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Loading knowledge files...": "Tudásfájlok betöltése...",
   "Filename, size, status, and upload date will appear here.": "Itt jelenik meg a fájlnév, méret, állapot és feltöltési dátum.",
   "No knowledge files uploaded yet": "Még nincs feltöltött tudásfájl",
-  "Add TXT, Markdown, CSV, or JSON files with business details the Website Widget should know.": "Adj hozzá TXT, Markdown, CSV vagy JSON fájlokat azokkal az üzleti részletekkel, amelyeket a Website Widgetnek ismernie kell.",
+  "Add TXT, Markdown, CSV, or JSON files with business details the Website Agent should know.": "Adj hozzá TXT, Markdown, CSV vagy JSON fájlokat azokkal az üzleti részletekkel, amelyeket a Weboldali agentnek ismernie kell.",
   "Indexing": "Indexelés alatt",
   "Archived": "Archiválva",
   "Archive": "Archiválás",
@@ -2566,25 +2566,25 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Knowledge file archived.": "A tudásfájl archiválva.",
   "Could not archive that knowledge file.": "Nem sikerült archiválni ezt a tudásfájlt.",
   "Business Profile readiness": "Üzleti profil készenléte",
-  "Keep the business facts Vonza should trust when the Website Widget, hosted Front Desk page, QR links, or embeds answer customer questions.": "Tartsd naprakészen azokat az üzleti tényeket, amelyekben a Vonza megbízhat, amikor a Website Widget, a hosztolt Front Desk oldal, QR-linkek vagy beágyazások válaszolnak ügyfélkérdésekre.",
+  "Keep the business facts Vonza should trust when the Website Agent, hosted Front Desk page, QR links, or embeds answer customer questions.": "Tartsd naprakészen azokat az üzleti tényeket, amelyekben a Vonza megbízhat, amikor a Weboldali agent, a hosztolt Front Desk oldal, QR-linkek vagy beágyazások válaszolnak ügyfélkérdésekre.",
   "Review what is ready and what still needs detail before this profile supports live customer questions.": "Nézd át, mi áll készen és mi igényel még részleteket, mielőtt ez a profil élő ügyfélkérdéseket támogat.",
   "Front Desk launch settings summary": "Front Desk élesítési beállítások összefoglalója",
   "Hosted full-page assistant": "Hosztolt teljes oldalas asszisztens",
   "Dedicated full-page AI Front Desk for customers who need answers, routing, and follow-up capture.": "Dedikált teljes oldalas AI Front Desk ügyfeleknek, akik válaszokat, útvonalakat és utánkövetés-rögzítést keresnek.",
   "Open Front Desk setup": "Front Desk beállítás megnyitása",
   "Five-minute website AI agent for visitors who need quick answers without leaving a page.": "Ötperces weboldali AI ügyintéző látogatóknak, akik gyors választ keresnek az oldal elhagyása nélkül.",
-  "Open widget setup": "Widget beállítás megnyitása",
-  "Website Widget is the recommended launch surface; Front Desk remains available for companion pages.": "A Website Widget az ajánlott élesítési felület; a Front Desk továbbra is elérhető kiegészítő oldalakhoz.",
-  "Website Widget is the recommended customer-facing launch surface. Use Front Desk practice and the full-page setup for companion pages, QR, and later expansion.": "A Website Widget az ajánlott ügyféloldali élesítési felület. A Front Desk gyakorlást és a teljes oldalas beállítást kiegészítő oldalakhoz, QR-hez és későbbi bővítéshez használd.",
+  "Open agent setup": "Agent beállítás megnyitása",
+  "Website Agent is the recommended launch surface; Front Desk remains available for companion pages.": "A Weboldali agent az ajánlott élesítési felület; a Front Desk továbbra is elérhető kiegészítő oldalakhoz.",
+  "Website Agent is the recommended customer-facing launch surface. Use Front Desk practice and the full-page setup for companion pages, QR, and later expansion.": "A Weboldali agent az ajánlott ügyféloldali élesítési felület. A Front Desk gyakorlást és a teljes oldalas beállítást kiegészítő oldalakhoz, QR-hez és későbbi bővítéshez használd.",
   "Companion page": "Kiegészítő oldal",
-  "Share, embed, or QR the hosted page after widget setup": "A widget beállítása után oszd meg, ágyazd be vagy QR-ezd a hosztolt oldalt",
+  "Share, embed, or QR the hosted page after agent setup": "Az agent beállítása után oszd meg, ágyazd be vagy QR-ezd a hosztolt oldalt",
   "Browser voice, spoken replies, and Web Call setup for hands-free customer conversations where configured.": "Böngészős hang, felolvasott válaszok és Web Call beállítás kéz nélküli ügyfélbeszélgetésekhez, ahol be van állítva.",
   "Open Web Call setup": "Web Call beállítás megnyitása",
-  "Tune the recommended Website Widget launch surface using the existing snippet, launcher, install-status, and allowed-domain settings.": "Hangold az ajánlott Website Widget élesítési felületet a meglévő kódrészlet-, indító-, telepítésiállapot- és engedélyezett domain beállításokkal.",
+  "Tune the recommended Website Agent launch surface using the existing snippet, launcher, install-status, and allowed-domain settings.": "Hangold az ajánlott Weboldali agent élesítési felületet a meglévő kódrészlet-, indító-, telepítésiállapot- és engedélyezett domain beállításokkal.",
   "Configure the companion full-page Front Desk experience for QR, direct links, dedicated assistant pages, and embedded expansion.": "Állítsd be a kiegészítő teljes oldalas Front Desk élményt QR-hez, direkt linkekhez, dedikált asszisztensoldalakhoz és beágyazott bővítéshez.",
   "Embed/install status": "Beágyazási/telepítési állapot",
-  "Uses the existing Website Widget snippet and install verification flow.": "A meglévő Website Widget kódrészletet és telepítés-ellenőrzési folyamatot használja.",
-  "The current allowed-domains field controls where the Website Widget should run.": "A jelenlegi engedélyezett domainek mező szabályozza, hol fusson a Website Widget.",
+  "Uses the existing Website Agent snippet and install verification flow.": "A meglévő Weboldali agent kódrészletet és telepítés-ellenőrzési folyamatot használja.",
+  "The current allowed-domains field controls where the Website Agent should run.": "A jelenlegi engedélyezett domainek mező szabályozza, hol fusson a Weboldali agent.",
   "Launcher behavior": "Indító működése",
   "Configure browser voice, spoken replies, and Web Call readiness from the existing Voice Agent settings.": "Állítsd be a böngészős hangot, a felolvasott válaszokat és a Web Call készenlétet a meglévő Voice Agent beállításokból.",
   "Browser voice/Web Call": "Böngészős hang/Web Call",
@@ -2595,10 +2595,10 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Contact, booking, quote, or checkout destinations are available for customer next steps.": "Kapcsolatfelvételi, foglalási, ajánlatkérési vagy fizetési célok elérhetők az ügyfél következő lépéseihez.",
   "Add contact, booking, quote, or checkout destinations before relying on automated next steps.": "Adj meg kapcsolatfelvételi, foglalási, ajánlatkérési vagy fizetési célokat, mielőtt az automatikus következő lépésekre támaszkodsz.",
   "Defines how the companion full-page assistant frames its help.": "Meghatározza, hogyan keretezi a segítséget a kiegészítő teljes oldalas asszisztens.",
-  "Website Widget is the recommended launch surface. The hosted Front Desk page remains available for companion links, QR codes, and embeds.": "A Website Widget az ajánlott élesítési felület. A hosztolt Front Desk oldal továbbra is elérhető kiegészítő linkekhez, QR-kódokhoz és beágyazásokhoz.",
+  "Website Agent is the recommended launch surface. The hosted Front Desk page remains available for companion links, QR codes, and embeds.": "A Weboldali agent az ajánlott élesítési felület. A hosztolt Front Desk oldal továbbra is elérhető kiegészítő linkekhez, QR-kódokhoz és beágyazásokhoz.",
   "Hosted page live": "Hosztolt oldal él",
   "Hosted page off": "Hosztolt oldal kikapcsolva",
-  "Configure the Website Widget launch surface first, then companion Front Desk page, routing, and appearance.": "Először a Website Widget élesítési felületet állítsd be, majd a kiegészítő Front Desk oldalt, az útvonalakat és a megjelenést.",
+  "Configure the Website Agent launch surface first, then companion Front Desk page, routing, and appearance.": "Először a Weboldali agent élesítési felületet állítsd be, majd a kiegészítő Front Desk oldalt, az útvonalakat és a megjelenést.",
   "Full-page companion and hosted page": "Teljes oldalas kiegészítő és hosztolt oldal",
   "Account and billing summary": "Fiók- és számlázási összefoglaló",
   "Owner access": "Tulajdonosi hozzáférés",
@@ -2607,7 +2607,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Owner account unavailable": "A tulajdonosi fiók nem érhető el",
   "Monthly capacity status appears after billing sync.": "A havi kapacitás állapota számlázási szinkron után jelenik meg.",
   "Public legal pages": "Publikus jogi oldalak",
-  "Open the public legal and privacy pages used by the website, app, hosted Front Desk page, Website Widget, and checkout.": "Nyisd meg a weboldal, app, hosztolt Front Desk oldal, Website Widget és fizetés által használt publikus jogi és adatvédelmi oldalakat.",
+  "Open the public legal and privacy pages used by the website, app, hosted Front Desk page, Website Agent, and checkout.": "Nyisd meg a weboldal, app, hosztolt Front Desk oldal, Weboldali agent és fizetés által használt publikus jogi és adatvédelmi oldalakat.",
   "These links are presented as operational references for owner review and public trust checks.": "Ezek a linkek működési hivatkozásként szolgálnak tulajdonosi áttekintéshez és publikus bizalmi ellenőrzésekhez.",
   "Dashboard language and workspace status.": "Irányítópult nyelve és munkaterület-állapot.",
   "Customer-facing behavior, welcome, routing, and launch readiness.": "Ügyféloldali működés, üdvözlés, útvonalak és élesítési készenlét.",
@@ -2651,7 +2651,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Front Desk owns the launch flow, while the snippet, verification, and domain checks stay in the Install view where they are easier to manage.": "A Front Desk kezeli az élesítési folyamatot, míg a kódrészlet, az ellenőrzés és a domainellenőrzések a Telepítés nézetben maradnak, ahol könnyebb őket kezelni.",
   "Use the stable head snippet with your install id so Vonza can verify the right site.": "Használd a stabil head-kódrészletet a telepítési azonosítóddal, hogy a Vonza a megfelelő oldalt tudja ellenőrizni.",
   "Paste it into the live site head, theme layout, or global custom code area.": "Illeszd be az éles oldal head részébe, a sablon elrendezésébe vagy a globális egyéni kód területre.",
-  "Run the server check, then wait for the widget to ping back from a real page load.": "Futtasd a szerverellenőrzést, majd várd meg, hogy a widget visszajelezzen egy valódi oldalbetöltésből.",
+  "Run the server check, then wait for the agent to ping back from a real page load.": "Futtasd a szerverellenőrzést, majd várd meg, hogy az agent visszajelezzen egy valódi oldalbetöltésből.",
   "You are live.": "Élesben vagy.",
   "Snippet verified.": "Kódrészlet ellenőrizve.",
   "Setup path: copy the code, publish it in the live site head, run verification, then test the front desk as a customer.": "Beállítási út: másold ki a kódot, tedd közzé az éles oldal head részében, futtasd az ellenőrzést, majd teszteld a Front Desket ügyfélként.",
@@ -2728,7 +2728,6 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Search by name, email, phone, or conversation": "Keresés név, email, telefon vagy beszélgetés alapján",
   "Last seen": "Utoljára észlelve",
   "Customer": "Ügyfél",
-  "Website widget": "Weboldali widget",
   "Full-page assistant": "Teljes oldalas asszisztens",
   "QR touchpoint": "QR érintkezési pont",
   "Chat unavailable on guest visitor rows until identity is captured.": "A chat vendég látogatóknál addig nem elérhető, amíg nincs rögzített azonosító.",
@@ -2743,17 +2742,17 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Review": "Áttekintés",
   "AI handled": "AI kezelte",
   "A test or customer conversation exists.": "Van teszt- vagy ügyfélbeszélgetés.",
-  "Run one realistic Website Widget or Front Desk conversation.": "Futtass egy valósághű Website Widget vagy Front Desk beszélgetést.",
+  "Run one realistic Website Agent or Front Desk conversation.": "Futtass egy valósághű Weboldali agent vagy Front Desk beszélgetést.",
   "The AI Front Desk workspace exists.": "Az AI Front Desk munkaterület létrejött.",
   "The front desk has the core details it needs.": "A Front Desk rendelkezik a szükséges alapadatokkal.",
   "Public Front Desk page": "Publikus Front Desk oldal",
-  "At least one Website Widget or companion Front Desk path is available.": "Legalább egy Website Widget vagy kiegészítő Front Desk út elérhető.",
+  "At least one Website Agent or companion Front Desk path is available.": "Legalább egy Weboldali agent vagy kiegészítő Front Desk út elérhető.",
   "Launch health for the customer-facing Front Desk page.": "Az ügyféloldali Front Desk oldal élesítési állapota.",
   "Training ready": "Tanítás kész",
   "Vonza has usable business knowledge for customer answers.": "A Vonza használható üzleti tudással rendelkezik az ügyfélválaszokhoz.",
   "Website knowledge and grounding are ready for practice.": "A weboldali tudás és megalapozás készen áll a gyakorlásra.",
-  "Home is open. The next step is finishing Website Widget setup.": "A Kezdőlap nyitva van. A következő lépés a Website Widget beállításának befejezése.",
-  "Use website import, Front Desk practice, and Settings to shape grounded answers, then install the Website Widget as the first launch surface.": "Használd a weboldalimportot, a Front Desk gyakorlást és a Beállításokat a megalapozott válaszokhoz, majd első élesítési felületként telepítsd a Website Widgetet.",
+  "Home is open. The next step is finishing Website Agent setup.": "A Kezdőlap nyitva van. A következő lépés a Weboldali agent beállításának befejezése.",
+  "Use website import, Front Desk practice, and Settings to shape grounded answers, then install the Website Agent as the first launch surface.": "Használd a weboldalimportot, a Front Desk gyakorlást és a Beállításokat a megalapozott válaszokhoz, majd első élesítési felületként telepítsd a Weboldali agentet.",
   "Enable the public assistant page before sharing QR codes or links.": "Engedélyezd a publikus asszisztensoldalt QR-kódok vagy linkek megosztása előtt.",
   "Enable the public assistant page only when you need QR codes, links, or a dedicated assistant page.": "Csak akkor engedélyezd a publikus asszisztensoldalt, ha QR-kódokra, linkekre vagy dedikált asszisztensoldalra van szükség.",
   "First test conversation": "Első tesztbeszélgetés",
@@ -2768,14 +2767,14 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Your Front Desk page is disabled.": "A Front Desk oldalad le van tiltva.",
   "Your companion Front Desk page is live": "A kiegészítő Front Desk oldalad él",
   "Your companion Front Desk page is live.": "A kiegészítő Front Desk oldalad él.",
-  "The public assistant page is enabled for links, QR, and dedicated pages. Keep the Website Widget install path first for normal website traffic.": "A publikus asszisztensoldal linkekhez, QR-hez és dedikált oldalakhoz engedélyezett. Normál weboldali forgalomhoz maradjon első a Website Widget telepítési út.",
-  "Your Website Widget is published and waiting for first live traffic": "A Website Widget közzétéve, és az első élő forgalomra vár",
-  "Vonza found the Website Widget snippet. Verify the live site and test the widget; the public Front Desk page can stay as a companion for links or QR.": "A Vonza megtalálta a Website Widget kódrészletet. Ellenőrizd az élő oldalt és teszteld a widgetet; a publikus Front Desk oldal maradhat kiegészítő linkekhez vagy QR-hez.",
-  "Your Website Widget is ready for install": "A Website Widget készen áll a telepítésre",
-  "The setup is in place. Install the Website Widget with the snippet or WordPress flow, verify the live site, then test a real customer question. Add the Front Desk page, QR, direct link, or embeds as companion channels.": "A beállítás kész. Telepítsd a Website Widgetet kódrészlettel vagy WordPress folyamattal, ellenőrizd az élő oldalt, majd tesztelj egy valós ügyfélkérdést. A Front Desk oldalt, QR-t, direkt linket vagy beágyazást kiegészítő csatornaként add hozzá.",
+  "The public assistant page is enabled for links, QR, and dedicated pages. Keep the Website Agent install path first for normal website traffic.": "A publikus asszisztensoldal linkekhez, QR-hez és dedikált oldalakhoz engedélyezett. Normál weboldali forgalomhoz maradjon első a Weboldali agent telepítési út.",
+  "Your Website Agent is published and waiting for first live traffic": "A Weboldali agent közzétéve, és az első élő forgalomra vár",
+  "Vonza found the Website Agent snippet. Verify the live site and test the agent; the public Front Desk page can stay as a companion for links or QR.": "A Vonza megtalálta a Weboldali agent kódrészletet. Ellenőrizd az élő oldalt és teszteld az agentet; a publikus Front Desk oldal maradhat kiegészítő linkekhez vagy QR-hez.",
+  "Your Website Agent is ready for install": "A Weboldali agent készen áll a telepítésre",
+  "The setup is in place. Install the Website Agent with the snippet or WordPress flow, verify the live site, then test a real customer question. Add the Front Desk page, QR, direct link, or embeds as companion channels.": "A beállítás kész. Telepítsd a Weboldali agentet kódrészlettel vagy WordPress folyamattal, ellenőrizd az élő oldalt, majd tesztelj egy valós ügyfélkérdést. A Front Desk oldalt, QR-t, direkt linket vagy beágyazást kiegészítő csatornaként add hozzá.",
   "Your Front Desk companion page is ready to add.": "A kiegészítő Front Desk oldalad hozzáadásra kész.",
   "A few essentials still need attention before you publish.": "Néhány alapvető elem még figyelmet igényel közzététel előtt.",
-  "Install the Website Widget first, then enable the public Front Desk page for QR, direct links, dedicated assistant pages, or embedded expansion.": "Először a Website Widgetet telepítsd, majd engedélyezd a publikus Front Desk oldalt QR-hez, direkt linkekhez, dedikált asszisztensoldalakhoz vagy beágyazott bővítéshez.",
+  "Install the Website Agent first, then enable the public Front Desk page for QR, direct links, dedicated assistant pages, or embedded expansion.": "Először a Weboldali agentet telepítsd, majd engedélyezd a publikus Front Desk oldalt QR-hez, direkt linkekhez, dedikált asszisztensoldalakhoz vagy beágyazott bővítéshez.",
   "This space keeps companion launch options clear by showing what still needs attention before Install and distribution.": "Ez a rész tisztán tartja a kiegészítő élesítési opciókat azzal, hogy megmutatja, mi igényel még figyelmet a Telepítés és a terjesztés előtt.",
   "Live traffic confirmed": "Élő forgalom megerősítve",
   "Installed, waiting for first live visit": "Telepítve, az első élő látogatásra vár",
@@ -2790,7 +2789,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Use Install to share the QR code anywhere customers already are.": "Használd a Telepítést, hogy a QR-kódot ott oszd meg, ahol az ügyfelek már jelen vannak.",
   "QR is available after the public page is enabled.": "A QR a publikus oldal engedélyezése után érhető el.",
   "Use Install for page takeover, smart embed, and live-domain verification.": "Használd a Telepítést oldalátvételhez, okos beágyazáshoz és élő domain ellenőrzéshez.",
-  "Use Install to launch the Website Widget first, then add WordPress, smart embed, QR, or direct-link companion channels as needed.": "A Telepítésben először a Website Widgetet élesítsd, majd szükség szerint adj hozzá WordPresst, okos beágyazást, QR-t vagy direkt linkes kiegészítő csatornákat.",
+  "Use Install to launch the Website Agent first, then add WordPress, smart embed, QR, or direct-link companion channels as needed.": "A Telepítésben először a Weboldali agentet élesítsd, majd szükség szerint adj hozzá WordPresst, okos beágyazást, QR-t vagy direkt linkes kiegészítő csatornákat.",
   "Front Desk owns practice, training, answer quality, and launch readiness. Install only manages distribution channels and verification.": "A Front Desk kezeli a gyakorlást, tanítást, válaszminőséget és élesítési készenlétet. A Telepítés csak a terjesztési csatornákat és az ellenőrzést kezeli.",
   "Enable public access before sharing links or QR": "Engedélyezd a publikus hozzáférést linkek vagy QR megosztása előtt",
   "Custom full-page settings saved": "Az egyedi teljes oldalas beállítások mentve",
@@ -2801,38 +2800,38 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "A conversation exists": "Van beszélgetés",
   "Front desk preview opened": "Front Desk előnézet megnyitva",
   "No test conversation yet": "Még nincs tesztbeszélgetés",
-  "Website Widget or a companion Front Desk channel is ready": "Website Widget vagy kiegészítő Front Desk csatorna készen áll",
-  "Start with the Website Widget install path": "Kezdd a Website Widget telepítési útjával",
+  "Website Agent or a companion Front Desk channel is ready": "Weboldali agent vagy kiegészítő Front Desk csatorna készen áll",
+  "Start with the Website Agent install path": "Kezdd a Weboldali agent telepítési útjával",
   "Setup progress": "Beállítási állapot",
   "Start with website": "Kezdd a weboldallal",
-  "Use the website URL/import path, then configure the Website Widget.": "Használd a weboldal URL/import útvonalat, majd állítsd be a Website Widgetet.",
-  "Install widget": "Widget telepítése",
-  "Copy the Website Widget snippet or use the WordPress flow after configuration.": "A beállítás után másold a Website Widget kódrészletet, vagy használd a WordPress folyamatot.",
+  "Use the website URL/import path, then configure the Website Agent.": "Használd a weboldal URL/import útvonalat, majd állítsd be a Weboldali agentet.",
+  "Install agent": "Agent telepítése",
+  "Copy the Website Agent snippet or use the WordPress flow after configuration.": "A beállítás után másold a Weboldali agent kódrészletet, vagy használd a WordPress folyamatot.",
   "Paste website URL": "Weboldal URL beillesztése",
   "Start from the public website so content import has real business facts.": "A publikus weboldalból indulj ki, hogy a tartalomimport valós üzleti tényeket kapjon.",
-  "Import and configure widget": "Widget importálása és beállítása",
-  "Import content, then choose the widget template, tone, welcome, and next-step basics.": "Importáld a tartalmat, majd válaszd ki a widget sablont, hangnemet, üdvözlést és következő lépés alapokat.",
+  "Import and configure agent": "Agent importálása és beállítása",
+  "Import content, then choose the agent template, tone, welcome, and next-step basics.": "Importáld a tartalmat, majd válaszd ki az agent sablont, hangnemet, üdvözlést és következő lépés alapokat.",
   "Install snippet or WordPress": "Kódrészlet vagy WordPress telepítése",
   "Use WordPress or the one-line embed snippet on the live website.": "Használj WordPresst vagy egysoros beágyazási kódrészletet az élő weboldalon.",
   "Verify live site": "Élő oldal ellenőrzése",
   "Confirm the script is detected after publishing.": "Közzététel után ellenőrizd, hogy a szkript észlelhető.",
   "Test a visitor question": "Látogatói kérdés tesztelése",
-  "Open the live widget and send one realistic customer question.": "Nyisd meg az élő widgetet, és küldj egy valósághű ügyfélkérdést.",
+  "Open the live agent and send one realistic customer question.": "Nyisd meg az élő agentet, és küldj egy valósághű ügyfélkérdést.",
   "Verify": "Ellenőrzés",
-  "Confirm the widget snippet after publishing; keep page links and QR as companion channels.": "Közzététel után ellenőrizd a widget kódrészletet; az oldallinkek és QR-kódok maradjanak kiegészítő csatornák.",
+  "Confirm the agent snippet after publishing; keep page links and QR as companion channels.": "Közzététel után ellenőrizd az agent kódrészletet; az oldallinkek és QR-kódok maradjanak kiegészítő csatornák.",
   "Test live path": "Élő út tesztelése",
-  "Test the live widget first, then add Front Desk page links, QR, or embeds where useful.": "Először az élő widgetet teszteld, majd ahol hasznos, adj hozzá Front Desk oldallinkeket, QR-t vagy beágyazásokat.",
-  "Start with the Website Widget, then add Front Desk page, QR, direct link, or embed channels as needed.": "Kezdd a Website Widgettel, majd szükség szerint adj hozzá Front Desk oldalt, QR-t, direkt linket vagy beágyazási csatornákat.",
-  "Once the Website Widget is installed on a live site, Vonza will start showing real usage and recent customer questions here.": "Amint a Website Widget telepítve van az élő oldalon, a Vonza itt kezdi mutatni a valós használatot és a legutóbbi ügyfélkérdéseket.",
-  "Website Widget live": "Website Widget él",
+  "Test the live agent first, then add Front Desk page links, QR, or embeds where useful.": "Először az élő agentet teszteld, majd ahol hasznos, adj hozzá Front Desk oldallinkeket, QR-t vagy beágyazásokat.",
+  "Start with the Website Agent, then add Front Desk page, QR, direct link, or embed channels as needed.": "Kezdd a Weboldali agenttel, majd szükség szerint adj hozzá Front Desk oldalt, QR-t, direkt linket vagy beágyazási csatornákat.",
+  "Once the Website Agent is installed on a live site, Vonza will start showing real usage and recent customer questions here.": "Amint a Weboldali agent telepítve van az élő oldalon, a Vonza itt kezdi mutatni a valós használatot és a legutóbbi ügyfélkérdéseket.",
+  "Website Agent live": "Weboldali agent él",
   "Companion Front Desk page live": "Kiegészítő Front Desk oldal él",
-  "Website Widget not installed yet": "A Website Widget még nincs telepítve",
-  "Vonza has detected the Website Widget on the live site. Test one customer question next.": "A Vonza észlelte a Website Widgetet az élő oldalon. Ezután tesztelj egy ügyfélkérdést.",
-  "The companion Front Desk page is ready for links or QR. Install and verify the Website Widget next.": "A kiegészítő Front Desk oldal készen áll linkekhez vagy QR-hez. Ezután telepítsd és ellenőrizd a Website Widgetet.",
-  "Open Install, copy the Website Widget snippet or WordPress flow, verify the live site, then test the widget.": "Nyisd meg a Telepítést, másold a Website Widget kódrészletet vagy WordPress folyamatot, ellenőrizd az élő oldalt, majd teszteld a widgetet.",
+  "Website Agent not installed yet": "A Weboldali agent még nincs telepítve",
+  "Vonza has detected the Website Agent on the live site. Test one customer question next.": "A Vonza észlelte a Weboldali agentet az élő oldalon. Ezután tesztelj egy ügyfélkérdést.",
+  "The companion Front Desk page is ready for links or QR. Install and verify the Website Agent next.": "A kiegészítő Front Desk oldal készen áll linkekhez vagy QR-hez. Ezután telepítsd és ellenőrizd a Weboldali agentet.",
+  "Open Install, copy the Website Agent snippet or WordPress flow, verify the live site, then test the agent.": "Nyisd meg a Telepítést, másold a Weboldali agent kódrészletet vagy WordPress folyamatot, ellenőrizd az élő oldalt, majd teszteld az agentet.",
   "Launch path hierarchy": "Élesítési útvonalak sorrendje",
   "Pick the customer entry point": "Válaszd ki az ügyfél belépési pontját",
-  "Widget first": "Először a widget",
+  "Agent first": "Először az agent",
   "QR available": "QR elérhető",
   "Code ready": "Kód kész",
   "Not generated": "Nincs létrehozva",
@@ -2840,38 +2839,38 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Default launch path for normal website traffic. Install the snippet or WordPress flow, verify allowed domains, and test the launcher on the live site.": "Alapértelmezett élesítési út a normál weboldali forgalomhoz. Telepítsd a kódrészletet vagy WordPress folyamatot, ellenőrizd az engedélyezett domaineket, majd teszteld az indítót az élő oldalon.",
   "Full-page companion for QR codes, direct links, dedicated assistant pages, and later modular surfaces.": "Teljes oldalas kiegészítő QR-kódokhoz, direkt linkekhez, dedikált asszisztensoldalakhoz és későbbi moduláris felületekhez.",
   "Opens the companion Front Desk page from print, reception desks, invoices, menus, and offline traffic.": "Nyomtatványokról, recepciókról, számlákról, menükből és offline forgalomból nyitja meg a kiegészítő Front Desk oldalt.",
-  "Use a dedicated page embed or smart snippet when the full-page Front Desk should live inside the website after widget launch.": "Használj dedikált oldalbeágyazást vagy okos kódrészletet, ha a teljes oldalas Front Desknek a widget élesítése után a weboldalon belül kell megjelennie.",
+  "Use a dedicated page embed or smart snippet when the full-page Front Desk should live inside the website after agent launch.": "Használj dedikált oldalbeágyazást vagy okos kódrészletet, ha a teljes oldalas Front Desknek az agent élesítése után a weboldalon belül kell megjelennie.",
   "Installation methods": "Telepítési módszerek",
   "Optional add-on": "Opcionális kiegészítő",
-  "Website widget bubble": "Weboldali widget buborék",
-  "Website Widget": "Website Widget",
-  "Website Widget embed": "Website Widget beágyazás",
-  "Recommended launch path. Configure the widget, install the snippet or WordPress flow, verify the live site, then test a visitor question.": "Ajánlott élesítési út. Állítsd be a widgetet, telepítsd a kódrészletet vagy WordPress folyamatot, ellenőrizd az élő oldalt, majd tesztelj egy látogatói kérdést.",
+  "Website Agent bubble": "Weboldali agent buborék",
+  "Website Agent": "Weboldali agent",
+  "Website Agent embed": "Weboldali agent beágyazás",
+  "Recommended launch path. Configure the agent, install the snippet or WordPress flow, verify the live site, then test a visitor question.": "Ajánlott élesítési út. Állítsd be az agentet, telepítsd a kódrészletet vagy WordPress folyamatot, ellenőrizd az élő oldalt, majd tesztelj egy látogatói kérdést.",
   "Companion full-page surface for QR codes, direct links, dedicated assistant pages, and later modular surfaces.": "Kiegészítő teljes oldalas felület QR-kódokhoz, direkt linkekhez, dedikált asszisztensoldalakhoz és későbbi moduláris felületekhez.",
   "Companion channel that opens the full-page Front Desk from signs, menus, invoices, emails, or direct links.": "Kiegészítő csatorna, amely táblákról, menükből, számlákról, emailekből vagy direkt linkekből nyitja meg a teljes oldalas Front Desket.",
-  "Copy the Website Widget snippet for normal website pages, review allowed domains and install status, then verify and test the live launcher.": "Másold a Website Widget kódrészletet normál weboldalakhoz, ellenőrizd az engedélyezett domaineket és a telepítési állapotot, majd ellenőrizd és teszteld az élő indítót.",
-  "Copy the Website Widget snippet for normal website pages, then review allowed domains, install status, launcher appearance, and a live test.": "Másold a Website Widget kódrészletet normál weboldalakhoz, majd ellenőrizd az engedélyezett domaineket, a telepítési állapotot, az indító megjelenését és az élő tesztet.",
+  "Copy the Website Agent snippet for normal website pages, review allowed domains and install status, then verify and test the live launcher.": "Másold a Weboldali agent kódrészletet normál weboldalakhoz, ellenőrizd az engedélyezett domaineket és a telepítési állapotot, majd ellenőrizd és teszteld az élő indítót.",
+  "Copy the Website Agent snippet for normal website pages, then review allowed domains, install status, launcher appearance, and a live test.": "Másold a Weboldali agent kódrészletet normál weboldalakhoz, majd ellenőrizd az engedélyezett domaineket, a telepítési állapotot, az indító megjelenését és az élő tesztet.",
   "Recommended": "Ajánlott",
   "Companion": "Kiegészítő",
   "Expansion": "Bővítés",
   "QR ready": "QR kész",
   "Enable page for QR": "Oldal engedélyezése QR-hez",
   "Snippet ready": "Kódrészlet kész",
-  "Copy Website Widget snippet": "Website Widget kódrészlet másolása",
-  "Copy widget snippet": "Widget kódrészlet másolása",
+  "Copy Website Agent snippet": "Weboldali agent kódrészlet másolása",
+  "Copy agent snippet": "Agent kódrészlet másolása",
   "Test website bubble": "Weboldali buborék tesztelése",
-  "Test widget": "Widget tesztelése",
-  "Website widget bubble code": "Weboldali widget buborék kódja",
-  "Website Widget embed snippet": "Website Widget beágyazási kódrészlet",
+  "Test agent": "Agent tesztelése",
+  "Website Agent bubble code": "Weboldali agent buborék kódja",
+  "Website Agent embed snippet": "Weboldali agent beágyazási kódrészlet",
   "Copy bubble code": "Buborék kódjának másolása",
-  "Paste this once into your site header to launch the Website Widget on normal site pages.": "Ezt egyszer illeszd be az oldal fejlécébe, hogy a Website Widget elinduljon a normál weboldalakon.",
+  "Paste this once into your site header to launch the Website Agent on normal site pages.": "Ezt egyszer illeszd be az oldal fejlécébe, hogy a Weboldali agent elinduljon a normál weboldalakon.",
   "Detected install status": "Észlelt telepítési állapot",
-  "Widget install status": "Widget telepítési állapot",
+  "Agent install status": "Agent telepítési állapot",
   "Recommended method": "Ajánlott módszer",
   "Companion channel": "Kiegészítő csatorna",
   "Use the full-page AI Front Desk as a companion for QR codes, direct links, dedicated assistant pages, and future expansion surfaces.": "Használd a teljes oldalas AI Front Desket kiegészítőként QR-kódokhoz, direkt linkekhez, dedikált asszisztensoldalakhoz és későbbi bővítési felületekhez.",
   "WordPress Front Desk page": "WordPress Front Desk oldal",
-  "For WordPress, use the Website Widget as the launch path. Create a dedicated Front Desk page when you also need a companion full-page assistant.": "WordPresshez a Website Widget legyen az élesítési út. Dedikált Front Desk oldalt akkor hozz létre, ha kiegészítő teljes oldalas asszisztensre is szükség van.",
+  "For WordPress, use the Website Agent as the launch path. Create a dedicated Front Desk page when you also need a companion full-page assistant.": "WordPresshez a Weboldali agent legyen az élesítési út. Dedikált Front Desk oldalt akkor hozz létre, ha kiegészítő teljes oldalas asszisztensre is szükség van.",
   "Use dedicated page embed": "Dedikált oldalbeágyazás használata",
   "Your Front Desk page is disabled. Enable public Front Desk page access in Settings before sharing companion links, embeds, or QR codes.": "A Front Desk oldalad le van tiltva. Kiegészítő linkek, beágyazások vagy QR-kódok megosztása előtt engedélyezd a publikus Front Desk hozzáférést a Beállításokban.",
   "Enable public Front Desk page": "Publikus Front Desk oldal engedélyezése",
@@ -2881,36 +2880,36 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Platform install guidance": "Platform telepítési útmutató",
   "Platform quick guides": "Platform gyors útmutatók",
   "Install-only website guidance": "Csak telepítési weboldal útmutató",
-  "Start with the Website Widget: website URL/import -> configure widget -> install snippet or WordPress -> verify -> test. Use the hosted Front Desk, QR/direct links, and full-page embeds as companion and expansion channels.": "Kezdd a Website Widgettel: weboldal URL/import -> widget beállítása -> kódrészlet vagy WordPress telepítése -> ellenőrzés -> teszt. A hosztolt Front Desk, QR/direkt linkek és teljes oldalas beágyazások kiegészítő és bővítési csatornák.",
+  "Start with the Website Agent: website URL/import -> configure agent -> install snippet or WordPress -> verify -> test. Use the hosted Front Desk, QR/direct links, and full-page embeds as companion and expansion channels.": "Kezdd a Weboldali agenttel: weboldal URL/import -> agent beállítása -> kódrészlet vagy WordPress telepítése -> ellenőrzés -> teszt. A hosztolt Front Desk, QR/direkt linkek és teljes oldalas beágyazások kiegészítő és bővítési csatornák.",
   "Generic HTML / smart embed": "Általános HTML / okos beágyazás",
   "Embed-ready": "Beágyazásra kész",
   "Paste or link": "Beillesztés vagy link",
-  "Widget first / companion": "Widget először / kiegészítő",
+  "Agent first / companion": "Agent először / kiegészítő",
   "Limitation": "Korlát",
-  "Paste the Website Widget snippet into the site header or pages where the launcher should appear. Add the Front Desk page link or smart embed only for a dedicated companion page.": "Illeszd be a Website Widget kódrészletet az oldal fejlécébe vagy azokra az oldalakra, ahol az indítónak meg kell jelennie. Front Desk oldallinket vagy okos beágyazást csak dedikált kiegészítő oldalhoz adj hozzá.",
-  "Start with website URL/import, configure the widget, install the snippet, verify, then test. Add the full-page Front Desk for QR/direct-link or embedded expansion.": "Kezdd weboldal URL/importtal, állítsd be a widgetet, telepítsd a kódrészletet, ellenőrizd, majd teszteld. A teljes oldalas Front Desket QR/direkt linkes vagy beágyazott bővítéshez add hozzá.",
+  "Paste the Website Agent snippet into the site header or pages where the launcher should appear. Add the Front Desk page link or smart embed only for a dedicated companion page.": "Illeszd be a Weboldali agent kódrészletet az oldal fejlécébe vagy azokra az oldalakra, ahol az indítónak meg kell jelennie. Front Desk oldallinket vagy okos beágyazást csak dedikált kiegészítő oldalhoz adj hozzá.",
+  "Start with website URL/import, configure the agent, install the snippet, verify, then test. Add the full-page Front Desk for QR/direct-link or embedded expansion.": "Kezdd weboldal URL/importtal, állítsd be az agentet, telepítsd a kódrészletet, ellenőrizd, majd teszteld. A teljes oldalas Front Desket QR/direkt linkes vagy beágyazott bővítéshez add hozzá.",
   "Use the raw iframe fallback only when the site blocks scripts.": "A nyers iframe tartalékot csak akkor használd, ha az oldal blokkolja a szkripteket.",
   "Publish, run Verify installation, open the page as a visitor, and ask one realistic customer question. Test companion page links separately.": "Tedd közzé, futtasd a Telepítés ellenőrzését, nyisd meg az oldalt látogatóként, és tegyél fel egy valósághű ügyfélkérdést. A kiegészítő oldallinkeket külön teszteld.",
-  "Use the widget snippet or WordPress install flow for the site launcher. Add a dedicated Front Desk page or QR link later for companion flows.": "Használd a widget kódrészletet vagy WordPress telepítési folyamatot az oldali indítóhoz. Dedikált Front Desk oldalt vagy QR-linket később adj hozzá kiegészítő folyamatokhoz.",
-  "Use the Website Widget on normal site pages. Use the full-page Front Desk for QR, direct links, or restricted checkout and account areas.": "A Website Widgetet normál weboldalakon használd. A teljes oldalas Front Desket QR-hez, direkt linkekhez vagy korlátozott pénztár- és fiókterületekhez használd.",
+  "Use the agent snippet or WordPress install flow for the site launcher. Add a dedicated Front Desk page or QR link later for companion flows.": "Használd az agent kódrészletet vagy WordPress telepítési folyamatot az oldali indítóhoz. Dedikált Front Desk oldalt vagy QR-linket később adj hozzá kiegészítő folyamatokhoz.",
+  "Use the Website Agent on normal site pages. Use the full-page Front Desk for QR, direct links, or restricted checkout and account areas.": "A Weboldali agentet normál weboldalakon használd. A teljes oldalas Front Desket QR-hez, direkt linkekhez vagy korlátozott pénztár- és fiókterületekhez használd.",
   "WooCommerce product and order data are not connected by this install step.": "Ez a telepítési lépés nem kapcsol WooCommerce termék- vagy rendelési adatokat.",
-  "Publish, run Verify installation, open the site while signed out, and ask a test question in the widget.": "Tedd közzé, futtasd a Telepítés ellenőrzését, nyisd meg az oldalt kijelentkezve, és tegyél fel egy tesztkérdést a widgetben.",
-  "Add the Website Widget snippet in Wix custom code when available. Use the Front Desk page link from a button or menu when Wix blocks scripts.": "Add hozzá a Website Widget kódrészletet Wix egyéni kódban, ha elérhető. Ha a Wix blokkolja a szkripteket, használd a Front Desk oldallinket gombból vagy menüből.",
+  "Publish, run Verify installation, open the site while signed out, and ask a test question in the agent.": "Tedd közzé, futtasd a Telepítés ellenőrzését, nyisd meg az oldalt kijelentkezve, és tegyél fel egy tesztkérdést az agentben.",
+  "Add the Website Agent snippet in Wix custom code when available. Use the Front Desk page link from a button or menu when Wix blocks scripts.": "Add hozzá a Weboldali agent kódrészletet Wix egyéni kódban, ha elérhető. Ha a Wix blokkolja a szkripteket, használd a Front Desk oldallinket gombból vagy menüből.",
   "Treat the full-page Front Desk as a companion fallback for QR/direct links or script-restricted Wix areas.": "A teljes oldalas Front Desket kiegészítő tartalékként kezeld QR/direkt linkekhez vagy szkriptkorlátozott Wix területekhez.",
   "Some Wix areas can restrict custom code, so the iframe fallback may be needed.": "Egyes Wix területek korlátozhatják az egyéni kódot, ezért szükség lehet az iframe tartalékra.",
-  "Publish the site, run Verify installation, open the public page, and complete one visitor-style widget test.": "Tedd közzé az oldalt, futtasd a Telepítés ellenőrzését, nyisd meg a publikus oldalt, és futtass végig egy látogatói widget tesztet.",
-  "Install the Website Widget snippet in the theme where scripts are allowed. Use the Front Desk page link for navigation, pages, or restricted checkout/account areas.": "Telepítsd a Website Widget kódrészletet a sablonban ott, ahol a szkriptek engedélyezettek. Front Desk oldallinket navigációhoz, oldalakhoz vagy korlátozott pénztár-/fiókterületekhez használj.",
+  "Publish the site, run Verify installation, open the public page, and complete one visitor-style agent test.": "Tedd közzé az oldalt, futtasd a Telepítés ellenőrzését, nyisd meg a publikus oldalt, és futtass végig egy látogatói agent tesztet.",
+  "Install the Website Agent snippet in the theme where scripts are allowed. Use the Front Desk page link for navigation, pages, or restricted checkout/account areas.": "Telepítsd a Weboldali agent kódrészletet a sablonban ott, ahol a szkriptek engedélyezettek. Front Desk oldallinket navigációhoz, oldalakhoz vagy korlátozott pénztár-/fiókterületekhez használj.",
   "Use the full-page Front Desk as a companion for QR/direct links and areas where Shopify restricts custom scripts.": "A teljes oldalas Front Desket kiegészítőként használd QR/direkt linkekhez és olyan területekhez, ahol a Shopify korlátozza az egyéni szkripteket.",
   "Products, carts, and orders are not connected by this install step.": "Ez a telepítési lépés nem kapcsol termékeket, kosarakat vagy rendeléseket.",
-  "Publish the theme change, run Verify installation, open the storefront as a visitor, and test the widget.": "Tedd közzé a sablonmódosítást, futtasd a Telepítés ellenőrzését, nyisd meg a boltot látogatóként, és teszteld a widgetet.",
-  "Paste the Website Widget snippet into custom code for site-wide launch. Add the Front Desk page link or smart embed to a dedicated page for expansion.": "Illeszd be a Website Widget kódrészletet egyéni kódba az egész oldalas élesítéshez. Bővítéshez adj Front Desk oldallinket vagy okos beágyazást dedikált oldalhoz.",
+  "Publish the theme change, run Verify installation, open the storefront as a visitor, and test the agent.": "Tedd közzé a sablonmódosítást, futtasd a Telepítés ellenőrzését, nyisd meg a boltot látogatóként, és teszteld az agentet.",
+  "Paste the Website Agent snippet into custom code for site-wide launch. Add the Front Desk page link or smart embed to a dedicated page for expansion.": "Illeszd be a Weboldali agent kódrészletet egyéni kódba az egész oldalas élesítéshez. Bővítéshez adj Front Desk oldallinket vagy okos beágyazást dedikált oldalhoz.",
   "Use the full-page Front Desk for QR/direct links or when a Webflow page should host a dedicated assistant experience.": "A teljes oldalas Front Desket QR/direkt linkekhez vagy akkor használd, ha egy Webflow oldalnak dedikált asszisztensélményt kell hostolnia.",
   "Custom code publishing can depend on the Webflow site setup.": "Az egyéni kód közzététele a Webflow oldal beállításaitól függhet.",
-  "Publish to the live domain, run Verify installation, open the page in a private window, and send one widget test question.": "Tedd közzé az élő domainen, futtasd a Telepítés ellenőrzését, nyisd meg az oldalt privát ablakban, és küldj egy widget tesztkérdést.",
-  "Add the Website Widget snippet through Code Injection where available. Use the Front Desk page link from navigation or a button when scripts are blocked.": "Add hozzá a Website Widget kódrészletet Code Injectionön keresztül, ahol elérhető. Ha a szkriptek blokkolva vannak, használd a Front Desk oldallinket navigációból vagy gombból.",
+  "Publish to the live domain, run Verify installation, open the page in a private window, and send one agent test question.": "Tedd közzé az élő domainen, futtasd a Telepítés ellenőrzését, nyisd meg az oldalt privát ablakban, és küldj egy agent tesztkérdést.",
+  "Add the Website Agent snippet through Code Injection where available. Use the Front Desk page link from navigation or a button when scripts are blocked.": "Add hozzá a Weboldali agent kódrészletet Code Injectionön keresztül, ahol elérhető. Ha a szkriptek blokkolva vannak, használd a Front Desk oldallinket navigációból vagy gombból.",
   "Use the full-page Front Desk as a companion fallback for QR/direct links or Squarespace areas that block scripts.": "A teljes oldalas Front Desket kiegészítő tartalékként használd QR/direkt linkekhez vagy olyan Squarespace területekhez, amelyek blokkolják a szkripteket.",
   "Some templates and editing areas can limit script embeds.": "Egyes sablonok és szerkesztési területek korlátozhatják a szkriptbeágyazásokat.",
-  "Publish, run Verify installation, open the public page, and confirm the widget loads before sharing companion links.": "Tedd közzé, futtasd a Telepítés ellenőrzését, nyisd meg a publikus oldalt, és a kiegészítő linkek megosztása előtt ellenőrizd, hogy a widget betölt.",
+  "Publish, run Verify installation, open the public page, and confirm the agent loads before sharing companion links.": "Tedd közzé, futtasd a Telepítés ellenőrzését, nyisd meg a publikus oldalt, és a kiegészítő linkek megosztása előtt ellenőrizd, hogy az agent betölt.",
   "Smart embed": "Okos beágyazás",
   "Place the Front Desk inside part of an existing page.": "Helyezd el a Front Desket egy meglévő oldal egy részében.",
   "WordPress / dedicated page": "WordPress / dedikált oldal",
@@ -2965,7 +2964,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Resources": "Erőforrások",
   "View Front Desk page setup": "Front Desk oldal beállításainak megnyitása",
   "View companion Front Desk setup": "Kiegészítő Front Desk beállítás megnyitása",
-  "View Website Widget setup": "Website Widget beállítás megnyitása",
+  "View Website Agent setup": "Weboldali agent beállítás megnyitása",
   "Last seen page:": "Utoljára látott oldal:",
   "Last verified": "Utoljára ellenőrizve",
   "against": "ezzel:",
@@ -2975,18 +2974,18 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Live install detected on": "Élő telepítés észlelve ezen:",
   "last seen": "utoljára észlelve",
   "your website": "a weboldaladon",
-  "The Website Widget snippet was found on the site, but Vonza has not yet received a live visitor ping.": "A Website Widget kódrészlet megtalálható az oldalon, de a Vonza még nem kapott élő látogatói jelzést.",
+  "The Website Agent snippet was found on the site, but Vonza has not yet received a live visitor ping.": "A Weboldali agent kódrészlet megtalálható az oldalon, de a Vonza még nem kapott élő látogatói jelzést.",
   "Vonza found embed markup, but it points at a different install or a blocked domain.": "A Vonza talált beágyazási jelölést, de az másik telepítésre vagy blokkolt domainre mutat.",
   "Verification needs attention. Vonza either could not fetch the site or could not find the expected install snippet yet.": "Az ellenőrzés figyelmet igényel. A Vonza vagy nem tudta lekérni az oldalt, vagy még nem találta a várt telepítési kódrészletet.",
   "No website bubble install detected yet. The Front Desk page can still launch through the public page, WordPress, smart embed, or QR/direct link.": "Még nincs észlelt weboldali buboréktelepítés. A Front Desk oldal ettől még indítható publikus oldalon, WordPressen, okos beágyazással vagy QR/direkt linken keresztül.",
-  "No Website Widget install detected yet. Paste the website URL, import content, choose a template and tone, preview the widget, then install with WordPress or one embed snippet.": "Még nincs észlelt Website Widget telepítés. Add meg a weboldal URL-jét, importáld a tartalmat, válassz sablont és hangnemet, nézd meg előnézetben, majd telepítsd WordPress-szel vagy egy beágyazási kóddal.",
-  "Launch the Website Widget first, then add the AI Front Desk page through WordPress, smart embed, QR, or direct link as a companion channel.": "Először a Website Widgetet élesítsd, majd az AI Front Desk oldalt WordPressen, okos beágyazással, QR-kóddal vagy direkt linkkel add hozzá kiegészítő csatornaként.",
+  "No Website Agent install detected yet. Paste the website URL, import content, choose a template and tone, preview the agent, then install with WordPress or one embed snippet.": "Még nincs észlelt Weboldali agent telepítés. Add meg a weboldal URL-jét, importáld a tartalmat, válassz sablont és hangnemet, nézd meg előnézetben, majd telepítsd WordPress-szel vagy egy beágyazási kóddal.",
+  "Launch the Website Agent first, then add the AI Front Desk page through WordPress, smart embed, QR, or direct link as a companion channel.": "Először a Weboldali agentet élesítsd, majd az AI Front Desk oldalt WordPressen, okos beágyazással, QR-kóddal vagy direkt linkkel add hozzá kiegészítő csatornaként.",
   "Front Desk configuration sections": "Front Desk beállítási szakaszok",
   "Adjust how the customer-facing Front Desk speaks, routes, and appears to visitors.": "Állítsd be, hogyan beszéljen, merre vezessen és hogyan jelenjen meg az ügyféloldali Front Desk.",
   "Identity & welcome": "Identitás és üdvözlés",
   "Voice": "Hang",
   "Routing": "Útvonalak",
-  "Widget appearance": "Widget megjelenése",
+  "Agent appearance": "Agent megjelenése",
   "What should your customer-facing Front Desk mainly help visitors do?": "Miben segítsen elsősorban az ügyféloldali Front Desk a látogatóknak?",
   "Guidance": "Útmutatás",
   "Help visitors find what they need quickly.": "Segíts a látogatóknak gyorsan megtalálni, amire szükségük van.",
@@ -3106,7 +3105,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Leave blank to show the default title, Front Desk.": "Hagyd üresen az alapértelmezett Front Desk cím megjelenítéséhez.",
   "Subtitle": "Alcím",
   "Logo/avatar URL": "Logó/avatar URL",
-  "Optional. Leave blank to use the assistant initial or Website Widget logo.": "Opcionális. Hagyd üresen az asszisztens kezdőbetűjének vagy a Website Widget logójának használatához.",
+  "Optional. Leave blank to use the assistant initial or Website Agent logo.": "Opcionális. Hagyd üresen az asszisztens kezdőbetűjének vagy a Weboldali agent logójának használatához.",
   "Show booking card": "Foglalási kártya megjelenítése",
   "Show quote card": "Ajánlatkérési kártya megjelenítése",
   "Show contact card": "Kapcsolati kártya megjelenítése",
@@ -3155,7 +3154,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "This is the default route when an intent-specific destination is missing.": "Ez az alapértelmezett útvonal, ha hiányzik a szándékhoz kötött cél.",
   "Fallback CTA mode": "Tartalék CTA mód",
   "If a direct route is missing, Vonza follows this fallback.": "Ha hiányzik a közvetlen útvonal, a Vonza ezt a tartalékot követi.",
-  "One domain per line. Keep it limited to real widget hosts.": "Soronként egy domain. Csak valódi widget hosztokra korlátozd.",
+  "One domain per line. Keep it limited to real agent hosts.": "Soronként egy domain. Csak valódi agent hosztokra korlátozd.",
   "Optional. This appears in the next-step card.": "Opcionális. Ez jelenik meg a következő lépés kártyán.",
   "Outcome routing": "Eredményútvonalak",
   "Map the destinations Vonza can use for booking, quote, checkout, and success-state routing.": "Állítsd be azokat a célokat, amelyeket a Vonza foglaláshoz, ajánlatkéréshez, fizetéshez és sikerállapot-útvonalakhoz használhat.",
@@ -3177,9 +3176,9 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Success URL match mode": "Siker URL egyezési mód",
   "Fallback outcome mode": "Tartalék eredménymód",
   "Turn this on only when the owner needs a real fallback.": "Csak akkor kapcsold be, ha a tulajdonosnak valódi tartalékra van szüksége.",
-  "Website Widget install": "Website Widget telepítés",
-  "Website Widget launcher": "Website Widget indító",
-  "Configure the Website Widget launcher for the recommended website launch path. Full-page Front Desk settings stay in the companion page section.": "Állítsd be a Website Widget indítót az ajánlott weboldali élesítési úthoz. A teljes oldalas Front Desk beállításai a kiegészítő oldal szakaszban maradnak.",
+  "Website Agent install": "Weboldali agent telepítés",
+  "Website Agent launcher": "Weboldali agent indító",
+  "Configure the Website Agent launcher for the recommended website launch path. Full-page Front Desk settings stay in the companion page section.": "Állítsd be a Weboldali agent indítót az ajánlott weboldali élesítési úthoz. A teljes oldalas Front Desk beállításai a kiegészítő oldal szakaszban maradnak.",
   "Use a small square PNG, JPG, WebP, or GIF.": "Használj kis négyzetes PNG, JPG, WebP vagy GIF képet.",
   "Optional guidance for emphasis, tone, and edge cases.": "Opcionális útmutatás hangsúlyhoz, hangnemhez és kivételes esetekhez.",
   "Advanced custom instructions": "Haladó egyedi utasítások",
@@ -3366,7 +3365,7 @@ function localizeDashboardHtml(html = "") {
     .sort((left, right) => right[0].length - left[0].length)
     .forEach(([english, hungarian]) => {
       const pattern = english === "Website"
-        ? /(^|[^A-Za-z])(Website)(?! Widget)(?=$|[^A-Za-z])/g
+        ? /(^|[^A-Za-z])(Website)(?! Agent)(?=$|[^A-Za-z])/g
         : new RegExp(`(^|[^A-Za-z])(${escapeRegExp(english)})(?=$|[^A-Za-z])`, "g");
       output = output.replace(pattern, (_match, prefix) => `${prefix}${hungarian}`);
     });
@@ -4685,8 +4684,8 @@ function normalizeWidgetInstructionKnowledgeStatus(context = {}) {
 
 function buildEnglishWebsiteWidgetInstructions(payload) {
   const lines = [
-    "You are the client's Website Widget assistant. Help website visitors get clear answers and choose the safest next step.",
-    `Widget purpose: ${payload.purposeLabel}. ${payload.purposeInstruction}`,
+    "You are the client's Website Agent assistant. Help website visitors get clear answers and choose the safest next step.",
+    `Agent purpose: ${payload.purposeLabel}. ${payload.purposeInstruction}`,
     `Tone: ${payload.toneLabel}. Keep replies concise, practical, and business-ready.`,
     "Use imported website and approved business knowledge before general guidance. These instructions shape behavior; they do not replace factual sources.",
     "When information is missing, say that politely and ask one useful follow-up question or guide the visitor to a safe next step.",
@@ -4729,8 +4728,8 @@ function buildEnglishWebsiteWidgetInstructions(payload) {
 
 function buildHungarianWebsiteWidgetInstructions(payload) {
   const lines = [
-    "Ön az ügyfél Website Widget asszisztense. Segítsen a weboldal látogatóinak világos választ kapni és biztonságos következő lépést választani.",
-    `Widget célja: ${payload.purposeLabel}. ${payload.purposeInstruction}`,
+    "Ön az ügyfél Website Agent asszisztense. Segítsen a weboldal látogatóinak világos választ kapni és biztonságos következő lépést választani.",
+    `Agent célja: ${payload.purposeLabel}. ${payload.purposeInstruction}`,
     `Hangnem: ${payload.toneLabel}. A válasz legyen tömör, gyakorlati és üzletileg hiteles.`,
     "Először az importált weboldali és jóváhagyott üzleti tudást használja. Ezek az utasítások a viselkedést formálják, nem helyettesítik a tényforrásokat.",
     "Hiányzó információnál mondja ezt udvariasan, majd tegyen fel egy hasznos pontosító kérdést, vagy vezesse a látogatót biztonságos következő lépéshez.",
@@ -5837,7 +5836,7 @@ async function waitForActiveAccessAfterPayment() {
 // Entry states and shell rendering
 function renderAuthEntry() {
   renderTopbarMeta();
-  document.title = isDedicatedWebsiteWidgetDashboard() ? "Vonza | Website Widget" : "Vonza | Home";
+  document.title = isDedicatedWebsiteWidgetDashboard() ? "Vonza | Website Agent" : "Vonza | Home";
   const arrival = getArrivalContext();
   const mode = getAuthFlowType() === "recovery"
     ? AUTH_VIEW_MODES.UPDATE_PASSWORD
@@ -6780,7 +6779,7 @@ function buildSidebarShell(
       {
         key: "install",
         label: t("nav.install"),
-        note: "Widget install, page links, QR",
+        note: "Agent install, page links, QR",
       },
       {
         key: "settings",
@@ -6789,7 +6788,7 @@ function buildSidebarShell(
       },
     ].filter((item) => availableSections.includes(item.key));
 
-  const sidebarTitle = dedicatedWebsiteWidget ? "Website Widget" : "Vonza";
+  const sidebarTitle = dedicatedWebsiteWidget ? "Website Agent" : "Vonza";
   const sidebarEyebrow = dedicatedWebsiteWidget
     ? websiteWidgetText("sidebar.workspace")
     : (activeDashboardProduct.dashboardLabel || "AI Front Desk workspace");
@@ -6811,7 +6810,7 @@ function buildSidebarShell(
       ${buildSidebarGroup(dedicatedWebsiteWidget ? websiteWidgetText("sidebar.operateGroup") : translateDashboardText("Operate"), coreItems, activeSection, {
         note: dedicatedWebsiteWidget
           ? websiteWidgetText("sidebar.operateNote")
-          : (productHomeContext?.sidebarNote || "Website Widget is the recommended launch surface; Front Desk remains available for companion pages."),
+          : (productHomeContext?.sidebarNote || "Website Agent is the recommended launch surface; Front Desk remains available for companion pages."),
       })}
       <div class="sidebar-footer">
         <div class="sidebar-status-dock">
@@ -7876,10 +7875,10 @@ function getProductLandingContext(product = activeDashboardProduct) {
 
   return {
     eyebrow: label,
-    title: localizedWidgetContext?.contextTitle || (dedicatedWebsiteWidget ? "Launch the Website Widget" : "Launch the full-page AI Front Desk"),
+    title: localizedWidgetContext?.contextTitle || (dedicatedWebsiteWidget ? "Launch the Website Agent" : "Launch the full-page AI Front Desk"),
     copy: localizedWidgetContext?.contextCopy || (dedicatedWebsiteWidget
-      ? "Use website import, widget settings, install, customers, and analytics to run the on-site Website Widget."
-      : "Website Widget is the recommended customer-facing launch surface. Use Front Desk practice and the full-page setup for companion pages, QR, and later expansion."),
+      ? "Use website import, agent settings, install, customers, and analytics to run the on-site Website Agent."
+      : "Website Agent is the recommended customer-facing launch surface. Use Front Desk practice and the full-page setup for companion pages, QR, and later expansion."),
     setupLink: dedicatedWebsiteWidget
       ? { label: websiteWidgetText("quickAction.install"), note: websiteWidgetText("link.installNote"), href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }
       : { label: setupContext?.eyebrow || "Open setup", note: "Open the product-specific setup checklist", href: "#setup", shellTarget: "setup", icon: "review", primary: true },
@@ -7890,7 +7889,7 @@ function getProductLandingContext(product = activeDashboardProduct) {
     ] : Array.isArray(homeContext?.shortcuts) ? homeContext.shortcuts : [
       { label: "Practice", note: "Test the current customer experience", href: "#front-desk/practice", shellTarget: "customize", icon: "frontdesk", primary: true },
       { label: "Full-page setup", note: "Open existing Front Desk page settings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" },
-      { label: "Companion page", note: "Share, embed, or QR the hosted page after widget setup", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install" },
+      { label: "Companion page", note: "Share, embed, or QR the hosted page after agent setup", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install" },
     ],
   };
 }
@@ -8636,8 +8635,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     addPriority({
       tone: "slate",
       title: "Make contacting you easier",
-      why: "If the widget is not visible or verified, customers may leave before getting help with pricing, services, booking, or contact.",
-      change: "Confirm the Website Widget is installed on the right site and verify the allowed domain.",
+      why: "If the agent is not visible or verified, customers may leave before getting help with pricing, services, booking, or contact.",
+      change: "Confirm the Website Agent is installed on the right site and verify the allowed domain.",
       action: { type: "focus", value: "install", label: "Open install" },
     });
   }
@@ -8741,7 +8740,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
         title: "Make the next step easier to say yes to",
         copy: "More customers are showing intent than sharing contact details, so the next-step path may still be too soft.",
         action: isWebsiteWidgetProduct
-          ? { type: "section", value: "settings", label: "Open widget settings" }
+          ? { type: "section", value: "settings", label: "Open agent settings" }
           : { type: "section", value: "customize", label: "Open Front Desk" },
       };
     }
@@ -8877,10 +8876,10 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
 	      {
 	        title: useHungarianWidgetCopy ? websiteWidgetText("readiness.knowledgeLabel") : "Website knowledge",
 	        copy: setup.knowledgeReady
-	          ? (useHungarianWidgetCopy ? websiteWidgetText("readiness.knowledgeReady") : "Vonza has usable business knowledge for widget answers.")
+	          ? (useHungarianWidgetCopy ? websiteWidgetText("readiness.knowledgeReady") : "Vonza has usable business knowledge for agent answers.")
 	          : setup.knowledgeLimited
-	            ? (useHungarianWidgetCopy ? websiteWidgetText("readiness.knowledgeLimited") : "Knowledge is usable, but another pass would improve widget answers.")
-	            : (useHungarianWidgetCopy ? websiteWidgetText("readiness.knowledgeMissing") : "Import website knowledge so widget answers are grounded."),
+	            ? (useHungarianWidgetCopy ? websiteWidgetText("readiness.knowledgeLimited") : "Knowledge is usable, but another pass would improve agent answers.")
+	            : (useHungarianWidgetCopy ? websiteWidgetText("readiness.knowledgeMissing") : "Import website knowledge so agent answers are grounded."),
 	        done: setup.knowledgeReady && !setup.knowledgeLimited,
 	      },
 	      ...widgetReadinessItems.slice(1),
@@ -8973,7 +8972,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     weakAnswerCount > 0
       ? {
         title: `${weakAnswerCount} answer${weakAnswerCount === 1 ? "" : "s"} still need work`,
-        copy: "Use Analytics and widget configuration to tighten weak answers.",
+        copy: "Use Analytics and agent configuration to tighten weak answers.",
         icon: "review",
         tone: "violet",
       }
@@ -9011,12 +9010,12 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
           target: "install",
         },
         {
-          label: "Test widget",
+          label: "Test agent",
           icon: "sparkle",
           target: "install",
         },
         {
-          label: "Widget analytics",
+          label: "Agent analytics",
           icon: "outcomes",
           target: "analytics",
         },
@@ -9053,7 +9052,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
         : (!setup.knowledgeReady || setup.knowledgeLimited)
           ? { label: "Add knowledge", action: { type: "import", label: "Add knowledge" } }
           : { label: "Open configuration", action: { type: "section", value: "settings", label: "Open configuration" } })
-      : { label: "Test widget", action: { type: "section", value: "install", label: "Test widget" } })
+      : { label: "Test agent", action: { type: "section", value: "install", label: "Test agent" } })
     : (setupNeedsAttention
       ? (!setup.knowledgeReady || setup.knowledgeLimited
         ? { label: "Add knowledge", action: { type: "import", label: "Add knowledge" } }
@@ -9091,8 +9090,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     setup.isReady ? "Ready to use" : "",
     "Focused work that needs owner attention",
     "What to improve next",
-    isWebsiteWidgetProduct ? "Website widget readiness" : "Front Desk readiness",
-    isWebsiteWidgetProduct ? "Widget activity" : "Source activity",
+    isWebsiteWidgetProduct ? "Website Agent readiness" : "Front Desk readiness",
+    isWebsiteWidgetProduct ? "Agent activity" : "Source activity",
     "Needs reply",
     isWebsiteWidgetProduct ? "Answered conversations" : "AI handled",
     "Warm lead / booking intent",
@@ -9280,7 +9279,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
 	              copy: isWebsiteWidgetProduct
 	                ? websiteWidgetText("overview.previewCopy")
 	                : "Current Front Desk greeting and starter prompts.",
-	              defaultName: isWebsiteWidgetProduct ? "Website Widget" : "Vonza Front Desk",
+	              defaultName: isWebsiteWidgetProduct ? "Website Agent" : "Vonza Front Desk",
 	              defaultGreeting: isWebsiteWidgetProduct
 	                ? websiteWidgetText("overview.defaultGreeting")
 	                : "Your front desk is ready to greet visitors with a clear, helpful first message.",
@@ -9479,10 +9478,10 @@ function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace = createEmp
             <h3 class="settings-summary-title">${escapeHtml(installStatus.label || "Not installed yet")}</h3>
             <p class="settings-summary-copy">${escapeHtml(setup.isReady
               ? (dedicatedWebsiteWidget
-                ? "The Website Widget is configured well enough to move into live install and verification."
+                ? "The Website Agent is configured well enough to move into live install and verification."
                 : "The front desk is configured well enough to move into live install and verification.")
               : (dedicatedWebsiteWidget
-                ? "Finish the Website Widget basics before treating install as complete."
+                ? "Finish the Website Agent basics before treating install as complete."
                 : "Finish the front-desk basics before treating install as complete."))}</p>
           </article>
         </div>
@@ -9597,7 +9596,7 @@ function buildWebsiteWidgetConnectedAppsPanel(
       ${buildPageHeader({
         eyebrow: t("nav.connectedTools"),
         title: "Connected apps",
-        copy: "Connect Google Calendar, WhatsApp Business, Calendly, and other dashboard-only integration records for this Website Widget workspace.",
+        copy: "Connect Google Calendar, WhatsApp Business, Calendly, and other dashboard-only integration records for this Website Agent workspace.",
       })}
       <div class="workspace-page-body settings-shell-layout">
         ${buildOperatorEmptyState({
@@ -9752,7 +9751,7 @@ function buildInstallPanel(agent, setup, _operatorWorkspace = createEmptyOperato
       ${buildPageHeader({
         title: t("install.title"),
         copy: widgetOnly
-          ? "Install the Website Widget snippet, confirm allowed domains, and verify the live site."
+          ? "Install the Website Agent snippet, confirm allowed domains, and verify the live site."
           : t("install.publishFrontDeskPage"),
         actionsMarkup,
       })}
@@ -9909,7 +9908,7 @@ function buildWebsiteWidgetInstallPanel(agent) {
   return `
     <section class="workspace-page website-widget-page" data-shell-section="install" hidden>
       ${buildPageHeader({
-        eyebrow: "Website Widget",
+        eyebrow: "Website Agent",
         title: websiteWidgetText("install.title"),
         copy: websiteWidgetText("install.copy"),
       })}
@@ -9933,7 +9932,7 @@ function buildKnowledgeFilesSection(agent = {}, options = {}) {
         <div>
           <p class="website-widget-kicker">${escapeHtml(translateDashboardText("Owner knowledge"))}</p>
           <${titleTag} class="${isWebsiteWidgetPanel ? "" : "settings-shell-section-title"}">${escapeHtml(translateDashboardText("Knowledge files"))}</${titleTag}>
-          <p class="${isWebsiteWidgetPanel ? "" : "settings-shell-section-copy"}">${escapeHtml(translateDashboardText("Upload TXT, Markdown, CSV, or JSON files with business details the Website Widget can use after indexing."))}</p>
+          <p class="${isWebsiteWidgetPanel ? "" : "settings-shell-section-copy"}">${escapeHtml(translateDashboardText("Upload TXT, Markdown, CSV, or JSON files with business details the Website Agent can use after indexing."))}</p>
         </div>
       </div>
       <div class="knowledge-file-upload-form" data-knowledge-file-upload-form>
@@ -10017,7 +10016,7 @@ function renderKnowledgeFileRows(files = []) {
         <div class="settings-shell-status-main">
           <p class="settings-shell-status-label">${escapeHtml(translateDashboardText("Uploaded files"))}</p>
           <h4 class="settings-shell-status-value">${escapeHtml(translateDashboardText("No knowledge files uploaded yet"))}</h4>
-          <p class="settings-shell-status-copy">${escapeHtml(translateDashboardText("Add TXT, Markdown, CSV, or JSON files with business details the Website Widget should know."))}</p>
+          <p class="settings-shell-status-copy">${escapeHtml(translateDashboardText("Add TXT, Markdown, CSV, or JSON files with business details the Website Agent should know."))}</p>
         </div>
       </div>
     `;
@@ -10266,7 +10265,7 @@ function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
 	  return `
 	    <section class="workspace-page website-widget-page" data-shell-section="settings" hidden>
 	      ${buildPageHeader({
-	        eyebrow: "Website Widget",
+	        eyebrow: "Website Agent",
 	        title: websiteWidgetText("config.title"),
 	        copy: websiteWidgetText("config.copy"),
 	      })}
@@ -10443,7 +10442,7 @@ function buildWebsiteWidgetConfigurationPanel(agent, setup = {}) {
                   <div id="brand-widget-avatar" class="brand-widget-avatar" style="--brand-primary:${escapeHtml(primaryColor)};--brand-secondary:${escapeHtml(secondaryColor)}">${escapeHtml(assistantName.charAt(0).toUpperCase())}</div>
                   <div>
                     <p id="brand-widget-title" class="brand-widget-title">${escapeHtml(assistantName)}</p>
-                    <p class="brand-widget-subtitle">Website Widget</p>
+                    <p class="brand-widget-subtitle">Website Agent</p>
                   </div>
 	                </div>
 	                <div id="brand-widget-message" class="brand-message">${escapeHtml(welcomeMessage)}</div>
@@ -11120,7 +11119,7 @@ function createEmptyOperatorWorkspace() {
     briefing: {
       title: "Home briefing",
       text: isDedicatedWebsiteWidgetDashboard()
-        ? "Calendar context is beta. Website Widget, Customers, Analytics, Install, and Settings are ready without it."
+        ? "Calendar context is beta. Website Agent, Customers, Analytics, Install, and Settings are ready without it."
         : "Calendar context is beta. Home, Customers, Front Desk, and Analytics are ready without it.",
     },
     nextAction: {
@@ -11392,7 +11391,7 @@ function createEmptyOwnerAnalyticsDashboard() {
   const emptyAssistantSource = {
     widget: {
       key: "widget",
-      label: "Website widget",
+      label: "Website Agent",
       conversationCount: 0,
       messageCount: 0,
       visitorQuestionCount: 0,
@@ -12575,8 +12574,8 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
   let copy;
 
   if (!setup.isReady) {
-    title = "Home is open. The next step is finishing Website Widget setup.";
-    copy = "Use website import, widget testing, and Settings to shape grounded answers, then install the Website Widget.";
+    title = "Home is open. The next step is finishing Website Agent setup.";
+    copy = "Use website import, agent testing, and Settings to shape grounded answers, then install the Website Agent.";
     primaryAction = {
       label: "Continue setup",
       type: "section",
@@ -12584,13 +12583,13 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
     };
     if (trimText(agent.publicAgentKey)) {
       nextActions.push({
-        label: "Test widget",
+        label: "Test agent",
         type: "preview",
       });
     }
   } else if (isInstallSeen(installStatus)) {
     if (queueSummary.attentionNeeded > 0) {
-      title = `Your Website Widget is live and ${queueSummary.attentionNeeded} action item${queueSummary.attentionNeeded === 1 ? "" : "s"} need attention`;
+      title = `Your Website Agent is live and ${queueSummary.attentionNeeded} action item${queueSummary.attentionNeeded === 1 ? "" : "s"} need attention`;
       copy = `Vonza is live on ${installStatus.host || "your site"} and is surfacing visitor conversations and owner tasks that deserve attention.`;
       primaryAction = {
         label: "Review open items",
@@ -12603,20 +12602,20 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
         value: "analytics",
       });
     } else if (analyticsSummary.weakAnswerCount > 0) {
-      title = "Your Website Widget is live, and a few answers need strengthening";
-      copy = `Vonza is active on ${installStatus.host || "your site"}, and some real customer questions are showing where the widget answers need help.`;
+      title = "Your Website Agent is live, and a few answers need strengthening";
+      copy = `Vonza is active on ${installStatus.host || "your site"}, and some real customer questions are showing where the agent answers need help.`;
       primaryAction = {
         label: "Review weak answers",
         type: "section",
         value: "analytics",
       };
       nextActions.push({
-        label: "Widget settings",
+        label: "Agent settings",
         type: "section",
         value: "settings",
       });
     } else if (highIntentSignals > 0) {
-      title = "Your Website Widget is live and showing real buyer intent";
+      title = "Your Website Agent is live and showing real buyer intent";
       copy = `Vonza is live on ${installStatus.host || "your site"} and is already capturing high-value visitor intent you can act on.`;
       primaryAction = {
         label: "Review analytics",
@@ -12624,12 +12623,12 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
         value: "analytics",
       };
       nextActions.push({
-        label: "Widget settings",
+        label: "Agent settings",
         type: "section",
         value: "settings",
       });
     } else if (messageCount > 0) {
-      title = "Your Website Widget is live and already working";
+      title = "Your Website Agent is live and already working";
       copy = `Vonza is live on ${installStatus.host || "your site"} and has already started answering real customer questions.`;
       primaryAction = {
         label: "Review analytics",
@@ -12637,43 +12636,43 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
         value: "analytics",
       };
       nextActions.push({
-        label: "Widget settings",
+        label: "Agent settings",
         type: "section",
         value: "settings",
       });
     } else {
-      title = "Your Website Widget is live";
+      title = "Your Website Agent is live";
       copy = `Vonza has been detected on ${installStatus.host || "your site"} and is ready for customer questions, even if activity is still early.`;
       primaryAction = {
-        label: "Test widget",
+        label: "Test agent",
         type: "preview",
       };
       nextActions.push({
-        label: "Widget settings",
+        label: "Agent settings",
         type: "section",
         value: "settings",
       });
       nextActions.push({
-        label: "Test widget",
+        label: "Test agent",
         type: "preview",
       });
     }
   } else if (fullPageEnabled) {
-    title = "Your Website Widget is ready for install";
-    copy = "The widget setup is in place. Install the snippet or WordPress plugin, verify the live site, then test a real customer question.";
+    title = "Your Website Agent is ready for install";
+    copy = "The agent setup is in place. Install the snippet or WordPress plugin, verify the live site, then test a real customer question.";
     primaryAction = {
       label: "Open install",
       type: "focus",
       value: "install",
     };
     nextActions.push({
-      label: "Widget settings",
+      label: "Agent settings",
       type: "section",
       value: "settings",
     });
   } else if (installStatus.state === "installed_unseen") {
-    title = "Your Website Widget is published and waiting for first live traffic";
-    copy = "Vonza found the Website Widget snippet. Verify the live site and test the widget before sending traffic to it.";
+    title = "Your Website Agent is published and waiting for first live traffic";
+    copy = "Vonza found the Website Agent snippet. Verify the live site and test the agent before sending traffic to it.";
     primaryAction = {
       label: "Review settings",
       type: "section",
@@ -12697,7 +12696,7 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       type: "install",
     });
   } else if (installStatus.state === "verify_failed") {
-    title = "Your Website Widget is ready for verification";
+    title = "Your Website Agent is ready for verification";
     copy = "The setup is in place, but the live install has not verified yet. Publish the snippet, then run the check again.";
     primaryAction = {
       label: "Add to website",
@@ -12709,15 +12708,15 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       type: "install",
     });
   } else {
-    title = "Your Website Widget is ready for install";
-    copy = "The setup is in place. Install the Website Widget with the snippet or WordPress flow, verify the live site, then test a real customer question.";
+    title = "Your Website Agent is ready for install";
+    copy = "The setup is in place. Install the Website Agent with the snippet or WordPress flow, verify the live site, then test a real customer question.";
     primaryAction = {
       label: "Open install",
       type: "focus",
       value: "install",
     };
     nextActions.push({
-      label: "Widget settings",
+      label: "Agent settings",
       type: "section",
       value: "settings",
     });
@@ -12735,24 +12734,24 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
 
   const progressItems = [
     {
-      title: "Widget workspace ready",
+      title: "Agent workspace ready",
       copy: hasFrontDeskPage
-        ? "The Website Widget workspace exists."
-        : "Create the Website Widget workspace first.",
+        ? "The Website Agent workspace exists."
+        : "Create the Website Agent workspace first.",
       done: hasFrontDeskPage,
     },
     {
-      title: "Widget install path",
+      title: "Agent install path",
       copy: hasDistributionChannel
-        ? "The Website Widget install path is available."
-        : "Start with the Website Widget snippet or WordPress install flow.",
+        ? "The Website Agent install path is available."
+        : "Start with the Website Agent snippet or WordPress install flow.",
       done: hasDistributionChannel,
     },
     {
-      title: "Widget configured",
+      title: "Agent configured",
       copy: setup.isReady
-        ? "The widget has the core details it needs."
-        : "The widget still needs a few setup details before launch.",
+        ? "The agent has the core details it needs."
+        : "The agent still needs a few setup details before launch.",
       done: setup.isReady,
     },
     {
@@ -12766,14 +12765,14 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       title: "First test conversation",
       copy: hasConversation
         ? "A test or customer conversation exists."
-        : "Run one realistic Website Widget conversation.",
+        : "Run one realistic Website Agent conversation.",
       done: hasConversation,
     },
     {
       title: "Live site path selected",
       copy: hasDistributionChannel
-        ? "A Website Widget install path is available."
-        : "Start with the Website Widget snippet or WordPress install flow.",
+        ? "A Website Agent install path is available."
+        : "Start with the Website Agent snippet or WordPress install flow.",
       done: hasDistributionChannel,
     },
   ];
@@ -12801,7 +12800,7 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       title: "Customers are already using it",
       copy: topIntent?.[1]
         ? `Recent activity suggests customers are asking most often about ${topIntentLabelMap[topIntent[0]]}.`
-        : "Recent activity shows customers are starting to use the widget on your site.",
+        : "Recent activity shows customers are starting to use the agent on your site.",
     });
 
     if (recentQuestions.length) {
@@ -12816,8 +12815,8 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
     cards.push({
       title: "Next best move",
       copy: isInstallSeen(installStatus)
-        ? "Keep testing the widget on your site and review the wording, welcome message, and response style until it feels like a natural part of the business."
-        : "Once the Website Widget is installed on a live site, Vonza will start showing real usage and recent customer questions here.",
+        ? "Keep testing the agent on your site and review the wording, welcome message, and response style until it feels like a natural part of the business."
+        : "Once the Website Agent is installed on a live site, Vonza will start showing real usage and recent customer questions here.",
     });
   }
 
@@ -13543,7 +13542,7 @@ function renderAssistantShell(
   const setupHintMarkup = !setup.isReady
     ? `
       <div class="shell-inline-note">
-        Finish the Website Widget configuration, test the live widget, and then verify installation when you are ready to publish.
+        Finish the Website Agent configuration, test the live agent, and then verify installation when you are ready to publish.
       </div>
     `
     : "";
@@ -13593,7 +13592,7 @@ function renderDashboardV2Shell(
   const setupHintMarkup = !setup.isReady
     ? `
       <div class="shell-inline-note dashboard-v2-inline-note">
-        Finish the Website Widget configuration, test the live widget, and verify installation when you are ready to publish.
+        Finish the Website Agent configuration, test the live agent, and verify installation when you are ready to publish.
       </div>
     `
     : "";
@@ -14500,9 +14499,9 @@ async function loadOperatorWorkspace(agentId, options = {}) {
       },
       briefing: {
         ...workspace.briefing,
-        title: workspace.briefing?.title || (isDedicatedWebsiteWidgetDashboard() ? "Website Widget launch core" : "Front-desk launch core"),
+        title: workspace.briefing?.title || (isDedicatedWebsiteWidgetDashboard() ? "Website Agent launch core" : "Front-desk launch core"),
         text: workspace.briefing?.text || (isDedicatedWebsiteWidgetDashboard()
-          ? "Website Widget, Customers, Analytics, Install, and Settings stay available."
+          ? "Website Agent, Customers, Analytics, Install, and Settings stay available."
           : "Home, Customers, Front Desk, Analytics, Install, and Settings stay available."),
       },
     });
@@ -14520,7 +14519,7 @@ async function loadOperatorWorkspaceSafe(agentId, options = {}) {
       health: {
         ...createEmptyOperatorWorkspace().health,
         globalError: isDedicatedWebsiteWidgetDashboard()
-          ? "Email, Calendar, and Automations are temporarily unavailable. Website Widget, Customers, Analytics, Install, and Settings are still available."
+          ? "Email, Calendar, and Automations are temporarily unavailable. Website Agent, Customers, Analytics, Install, and Settings are still available."
           : "Email, Calendar, and Automations are temporarily unavailable. Home, Customers, Front Desk, and Analytics are still available.",
       },
     });
@@ -15527,7 +15526,7 @@ async function readWidgetLogoUpload(form) {
   }
 
   if (file.size > 65000) {
-    throw new Error("Use a smaller widget logo image under 65 KB.");
+    throw new Error("Use a smaller agent logo image under 65 KB.");
   }
 
   return readFileAsDataUrl(file);
@@ -17385,7 +17384,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
           visible = identity === "guest";
           break;
         case "website_widget":
-          visible = sourceLabels.includes("Website widget");
+          visible = sourceLabels.includes("Website Agent");
           break;
         case "full_page_assistant":
           visible = sourceLabels.some((label) => ["Front Desk page", "Full-page assistant", "QR / direct link", "QR touchpoint"].includes(label));

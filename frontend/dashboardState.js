@@ -95,7 +95,7 @@
     voice: "Voice",
     full_page: "Front Desk page",
     routing: "Routing",
-    appearance: "Optional widget",
+    appearance: "Optional agent",
   });
   const DASHBOARD_UI_STATE_DEFAULTS = Object.freeze({
     settingsMainTab: "website_widget",
@@ -159,8 +159,8 @@
       key: "website_widget",
       routeSegment: "website-widget",
       routePath: "/website-widget/dashboard",
-      label: "Website widget",
-      dashboardLabel: "Website widget workspace",
+      label: "Website Agent",
+      dashboardLabel: "Website Agent workspace",
     }),
   });
   const DASHBOARD_PRODUCT_ROUTE_SEGMENTS = Object.freeze({
@@ -185,9 +185,9 @@
     }),
     website_widget: Object.freeze({
       key: "website_widget",
-      name: "Website Widget",
+      name: "Website Agent",
       targetUseCase: "Five-minute website AI agent for visitors who need quick answers without leaving a page.",
-      setupLabel: "Open widget setup",
+      setupLabel: "Open agent setup",
       setupHref: "/dashboard/widget#setup",
       settingsHref: "#settings/widget/optional-widget",
       pricingLabel: "Product pricing coming soon",
@@ -246,40 +246,40 @@
     }),
     website_widget: Object.freeze({
       key: "website_widget",
-      homeTitle: "Website Widget home",
+      homeTitle: "Website Agent home",
       homeSubtitle: "Operate the on-site AI agent customers can use from your existing website.",
-      sidebarNote: "Website Widget is the five-minute on-site AI agent.",
-      statusKicker: "Widget status",
-      statusLiveTitle: "Your Website Widget is installed",
-      statusReadyTitle: "Your Website Widget is ready to test",
-      statusSetupTitle: "Your Website Widget needs setup",
-      statusLiveCopy: "Install verification has detected the embedded widget on a site.",
-      statusReadyCopy: "Review embed setup and appearance, then test the widget on the install surface.",
-      statusSetupCopy: "Finish install/embed setup, allowed domains, and widget appearance before relying on site traffic.",
-      contextTitle: "Launch the Website Widget in 5 minutes",
-      contextCopy: "Paste the website URL, import content, choose template and tone, preview the widget, then install through WordPress or one embed snippet.",
+      sidebarNote: "Website Agent is the five-minute on-site AI agent.",
+      statusKicker: "Agent status",
+      statusLiveTitle: "Your Website Agent is installed",
+      statusReadyTitle: "Your Website Agent is ready to test",
+      statusSetupTitle: "Your Website Agent needs setup",
+      statusLiveCopy: "Install verification has detected the embedded agent on a site.",
+      statusReadyCopy: "Review embed setup and appearance, then test the agent on the install surface.",
+      statusSetupCopy: "Finish install/embed setup, allowed domains, and agent appearance before relying on site traffic.",
+      contextTitle: "Launch the Website Agent in 5 minutes",
+      contextCopy: "Paste the website URL, import content, choose template and tone, preview the agent, then install through WordPress or one embed snippet.",
       metricLabels: Object.freeze({
-        conversations: "Widget conversations",
-        leads: "Widget leads",
+        conversations: "Agent conversations",
+        leads: "Agent leads",
         handled: "Answered conversations",
-        empty: "Widget conversations, leads, and analytics will appear after site visitors use the embed.",
+        empty: "Agent conversations, leads, and analytics will appear after site visitors use the embed.",
       }),
-      previewActionLabel: "Test widget",
-      analyticsLinkLabel: "Widget analytics",
+      previewActionLabel: "Test agent",
+      analyticsLinkLabel: "Agent analytics",
       quickActions: Object.freeze([
         Object.freeze({ label: "Embed/install snippet", icon: "install", shellTarget: "install", installMethod: "widget" }),
-        Object.freeze({ label: "Widget appearance", icon: "settings", shellTarget: "settings", settingsTarget: "website_widget" }),
-        Object.freeze({ label: "Test widget", icon: "sparkle", shellTarget: "install", installMethod: "widget" }),
-        Object.freeze({ label: "Widget analytics", icon: "outcomes", target: "analytics" }),
+        Object.freeze({ label: "Agent appearance", icon: "settings", shellTarget: "settings", settingsTarget: "website_widget" }),
+        Object.freeze({ label: "Test agent", icon: "sparkle", shellTarget: "install", installMethod: "widget" }),
+        Object.freeze({ label: "Agent analytics", icon: "outcomes", target: "analytics" }),
       ]),
       shortcuts: Object.freeze([
-        Object.freeze({ label: "Embed/install snippet", note: "Open the existing Website Widget embed panel", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }),
+        Object.freeze({ label: "Embed/install snippet", note: "Open the existing Website Agent embed panel", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }),
         Object.freeze({ label: "Allowed domains/status", note: "Review domain guidance and install verification", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
-        Object.freeze({ label: "Widget appearance", note: "Open Website Widget settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
-        Object.freeze({ label: "Launcher behavior", note: "Review the existing optional widget launcher settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "frontdesk" }),
-        Object.freeze({ label: "Test widget", note: "Use the existing embed test and verification surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "sparkle" }),
-        Object.freeze({ label: "Widget conversations/leads", note: "Review widget customer records", href: "#customers", shellTarget: "contacts", icon: "users" }),
-        Object.freeze({ label: "Widget analytics", note: "Review widget conversations and outcomes", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+        Object.freeze({ label: "Agent appearance", note: "Open Website Agent settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
+        Object.freeze({ label: "Launcher behavior", note: "Review the existing optional agent launcher settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "frontdesk" }),
+        Object.freeze({ label: "Test agent", note: "Use the existing embed test and verification surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "sparkle" }),
+        Object.freeze({ label: "Agent conversations/leads", note: "Review agent customer records", href: "#customers", shellTarget: "contacts", icon: "users" }),
+        Object.freeze({ label: "Agent analytics", note: "Review agent conversations and outcomes", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
       ]),
     }),
     voice_agent: Object.freeze({
@@ -343,17 +343,17 @@
     }),
     website_widget: Object.freeze({
       key: "website_widget",
-      title: "Set up Website Widget",
-      eyebrow: "Website Widget setup",
-      copy: "Paste the website URL, import content, choose template and tone, preview the widget, then install through WordPress or one embed snippet.",
+      title: "Set up Website Agent",
+      eyebrow: "Website Agent setup",
+      copy: "Paste the website URL, import content, choose template and tone, preview the agent, then install through WordPress or one embed snippet.",
       primaryAction: Object.freeze({ label: "Open WordPress or embed install", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
       secondaryActions: Object.freeze([
         Object.freeze({ label: "Template and tone", note: "Review launcher copy, tone, colors, and welcome text", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
         Object.freeze({ label: "Allowed domains", note: "Use the existing install surface for domain guidance and status", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
-        Object.freeze({ label: "WordPress or embed snippet", note: "Open the current Website Widget snippet and WordPress install path", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
-        Object.freeze({ label: "Install verification", note: "Check whether widget markup has been detected", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
-        Object.freeze({ label: "Test widget", note: "Use the existing widget install/test surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "sparkle" }),
-        Object.freeze({ label: "Widget analytics/conversations", note: "Review widget analytics and customer records", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+        Object.freeze({ label: "WordPress or embed snippet", note: "Open the current Website Agent snippet and WordPress install path", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
+        Object.freeze({ label: "Install verification", note: "Check whether agent markup has been detected", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
+        Object.freeze({ label: "Test agent", note: "Use the existing agent install/test surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "sparkle" }),
+        Object.freeze({ label: "Agent analytics/conversations", note: "Review agent analytics and customer records", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
       ]),
       launchPath: Object.freeze([
         Object.freeze({ label: "Import", note: "Paste the website URL and import public content.", href: "#setup", shellTarget: "setup", icon: "sparkle" }),
@@ -927,10 +927,10 @@
       return Object.freeze([
         createReadinessItem({
           key: "widget_appearance",
-          label: "Widget appearance configured",
+          label: "Agent appearance configured",
           copy: hasReadinessWidgetAppearance(agent)
-            ? "Launcher copy, color, logo, or welcome text exists in the current widget state."
-            : "Open Website Widget settings to review launcher appearance.",
+            ? "Launcher copy, color, logo, or welcome text exists in the current agent state."
+            : "Open Website Agent settings to review launcher appearance.",
           complete: hasReadinessWidgetAppearance(agent),
           kind: "derived",
           href: "#settings/widget/optional-widget",
@@ -953,8 +953,8 @@
           key: "widget_domain_status",
           label: "Domain/install status",
           copy: installDetected
-            ? (installStatus.label || "The existing install tracker has detected widget markup.")
-            : (installStatus.label || "Install verification has not detected widget traffic yet."),
+            ? (installStatus.label || "The existing install tracker has detected agent markup.")
+            : (installStatus.label || "Install verification has not detected agent traffic yet."),
           complete: installDetected,
           kind: "derived",
           href: "#install/embed",
@@ -967,7 +967,7 @@
           label: "Contact/next-step behavior configured",
           copy: hasRouting
             ? `${routingDestinationCount} next-step destination${routingDestinationCount === 1 ? "" : "s"} available.`
-            : "Add contact, booking, quote, or checkout destinations for widget next steps.",
+            : "Add contact, booking, quote, or checkout destinations for agent next steps.",
           complete: hasRouting,
           kind: "derived",
           href: "#settings/widget/routing",
@@ -977,10 +977,10 @@
         }),
         createReadinessItem({
           key: "widget_test",
-          label: "Test widget action",
+          label: "Test agent action",
           copy: widgetActivity
-            ? "Website Widget conversation or telemetry activity exists in the current snapshot."
-            : "Use the existing install panel to copy, verify, and test the Website Widget.",
+            ? "Website Agent conversation or telemetry activity exists in the current snapshot."
+            : "Use the existing install panel to copy, verify, and test the Website Agent.",
           complete: widgetActivity ? true : null,
           kind: widgetActivity ? "derived" : "action",
           href: "#install/embed",
@@ -990,8 +990,8 @@
         }),
         createReadinessItem({
           key: "widget_analytics",
-          label: "Widget analytics/conversations",
-          copy: "Open Analytics and Customers to review widget conversations, leads, and outcomes.",
+          label: "Agent analytics/conversations",
+          copy: "Open Analytics and Customers to review agent conversations, leads, and outcomes.",
           complete: null,
           kind: "action",
           href: "#analytics",

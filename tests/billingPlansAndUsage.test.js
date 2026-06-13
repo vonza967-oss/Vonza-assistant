@@ -255,13 +255,13 @@ test("billing plan config exposes starter, growth, and pro with public-friendly 
   const plans = listPublicBillingPlans();
 
   assert.deepEqual(plans.map((plan) => plan.key), ["starter", "growth", "pro"]);
-  assert.doesNotMatch(JSON.stringify(plans), /pilot_free_widget|Pilot Website Widget/i);
+  assert.doesNotMatch(JSON.stringify(plans), /pilot_free_widget|Pilot Website Agent/i);
   assert.equal(DEFAULT_BILLING_PLAN_KEY, "growth");
   assert.equal(plans[0].monthlyPriceLabel, "19,900 HUF/month");
   assert.equal(plans[1].monthlyPriceLabel, "49,900 HUF/month");
   assert.equal(plans[2].monthlyPriceLabel, "99,900 HUF/month");
   assert.equal(plans[0].billingCurrency, "HUF");
-  assert.match(plans[0].marketing.detail, /AI widget|website import|lead capture|email handoff/i);
+  assert.match(plans[0].marketing.detail, /AI agent|website import|lead capture|email handoff/i);
   assert.doesNotMatch(JSON.stringify(plans), /token|api[- ]?cost|api[- ]?spend|model cost/i);
 });
 
@@ -273,7 +273,7 @@ test("pilot free widget plan stays internal and HUF-aware", () => {
   assert.equal(plan.includedAiBudgetCents, 500);
   assert.equal(plan.isStripeBacked, false);
   assert.equal(isStripeBackedBillingPlan(PILOT_FREE_WIDGET_PLAN_KEY), false);
-  assert.match(plan.marketing.summary, /Website Widget proba Stripe checkout nelkul/);
+  assert.match(plan.marketing.summary, /Weboldali agent proba Stripe checkout nelkul/);
 });
 
 test("owner billing snapshots and upgrade options expose HUF labels", async () => {
@@ -313,7 +313,7 @@ test("pilot free widget billing snapshot does not pretend to have a Stripe subsc
   });
 
   assert.equal(snapshot.planKey, PILOT_FREE_WIDGET_PLAN_KEY);
-  assert.equal(snapshot.displayName, "Pilot Website Widget");
+  assert.equal(snapshot.displayName, "Pilot Website Agent");
   assert.equal(snapshot.monthlyPriceLabel, "0 HUF/month");
   assert.equal(snapshot.billingCurrency, "HUF");
   assert.equal(snapshot.hasActiveSubscription, false);
@@ -413,7 +413,7 @@ test("pilot free widget plan cannot start hosted Stripe checkout", async () => {
   );
 });
 
-test("pilot widget activation writes only the Website Widget free entitlement", async () => {
+test("pilot widget activation writes only the Website Agent free entitlement", async () => {
   const supabase = createPilotActivationSupabase();
   const result = await activatePilotWidgetPlan(supabase, {
     ownerUserId: "owner-1",

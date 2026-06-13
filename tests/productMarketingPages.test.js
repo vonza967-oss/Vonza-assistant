@@ -74,7 +74,7 @@ async function getManualRedirect(baseUrl, pathname) {
   return fetch(`${baseUrl}${pathname}`, { redirect: "manual" });
 }
 
-test("non-widget product marketing pages redirect to the Website Widget page", async () => {
+test("non-widget product marketing pages redirect to the Website Agent page", async () => {
   await withServer(async (baseUrl) => {
     for (const pathname of ["/front-desk", "/voice-agent", "/how-it-works"]) {
       const response = await getManualRedirect(baseUrl, pathname);
@@ -84,15 +84,15 @@ test("non-widget product marketing pages redirect to the Website Widget page", a
 
     const websiteWidget = await getHtml(baseUrl, "/website-widget");
     assert.match(websiteWidget, /data-marketing-page="websiteWidget"/);
-    assert.match(websiteWidget, /Website Widget for quick customer answers on your site/);
+    assert.match(websiteWidget, /Website Agent for quick customer answers on your site/);
     assert.match(websiteWidget, /AI agent on your website in 5 minutes/i);
     assert.match(websiteWidget, /href="\/website-widget\/dashboard\?from=site"/);
-    assert.match(websiteWidget, /Existing Website Widget runtime/i);
+    assert.match(websiteWidget, /Existing Website Agent runtime/i);
     assert.doesNotMatch(websiteWidget, /href="\/dashboard\/front-desk|href="\/dashboard\/voice|Voice Agent|Enterprise Request Desk|\bQDH\b|ESG|Hotel Concierge/i);
   });
 });
 
-test("website widget dashboard routes serve the private dashboard document", async () => {
+test("website agent dashboard routes serve the private dashboard document", async () => {
   await withServer(async (baseUrl) => {
     for (const pathname of ["/website-widget/dashboard", "/widget/dashboard"]) {
       const { response, text } = await getHtmlResponse(baseUrl, pathname);
@@ -109,7 +109,7 @@ test("website widget dashboard routes serve the private dashboard document", asy
   });
 });
 
-test("legacy dashboard product routes redirect to the Website Widget dashboard", async () => {
+test("legacy dashboard product routes redirect to the Website Agent dashboard", async () => {
   await withServer(async (baseUrl) => {
     const cases = [
       ["/dashboard", "/website-widget/dashboard"],
@@ -128,34 +128,34 @@ test("legacy dashboard product routes redirect to the Website Widget dashboard",
   });
 });
 
-test("homepage and product page expose Website Widget only", async () => {
+test("homepage and product page expose Website Agent only", async () => {
   await withServer(async (baseUrl) => {
     for (const pathname of ["/", "/product"]) {
       const html = await getHtml(baseUrl, pathname);
       assert.match(html, /href="\/website-widget"/, pathname);
-      assert.match(html, /Website Widget for quick customer answers on your site/, pathname);
+      assert.match(html, /Website Agent for quick customer answers on your site/, pathname);
       assert.match(html, /AI agent on your website in 5 minutes/i, pathname);
       assert.doesNotMatch(html, /href="\/front-desk"|href="\/voice-agent"|Vonza is one company with three products|Voice Agent|Enterprise Request Desk|\bQDH\b|ESG|Hotel Concierge/i, pathname);
     }
   });
 });
 
-test("/product presents Website Widget as launch product, not Front Desk as primary", async () => {
+test("/product presents Website Agent as launch product, not Front Desk as primary", async () => {
   await withServer(async (baseUrl) => {
     const html = await getHtml(baseUrl, "/product");
 
-    assert.match(html, /Website Widget is Vonza's launch product\./);
+    assert.match(html, /Website Agent is Vonza's launch product\./);
     assert.doesNotMatch(html, /Front Desk is the recommended primary product/i);
     assert.doesNotMatch(html, /Front Desk is the recommended Vonza product/i);
   });
 });
 
-test("global marketing navigation exposes Website Widget only", async () => {
+test("global marketing navigation exposes Website Agent only", async () => {
   await withServer(async (baseUrl) => {
     const html = await getHtml(baseUrl, "/");
 
-    assert.match(html, /<a href="\/website-widget" data-nav-page="websiteWidget">Website Widget<\/a>/);
-    assert.match(html, /<a href="\/website-widget">Website Widget<\/a>/);
+    assert.match(html, /<a href="\/website-widget" data-nav-page="websiteWidget">Website Agent<\/a>/);
+    assert.match(html, /<a href="\/website-widget">Website Agent<\/a>/);
     assert.doesNotMatch(html, /<a href="\/front-desk"|<a href="\/voice-agent"|>Front Desk<\/a>|>Voice Agent<\/a>/);
   });
 });
@@ -166,7 +166,7 @@ test("/widget and embed runtimes are still served", async () => {
     assert.match(html, /<title id="page-title">Vonza AI<\/title>/);
     assert.match(html, /id="assistant-name"/);
     assert.doesNotMatch(html, /data-marketing-page=/);
-    assert.doesNotMatch(html, /Website Widget for quick customer answers on your site/);
+    assert.doesNotMatch(html, /Website Agent for quick customer answers on your site/);
 
     for (const pathname of ["/embed.js", "/embed-lite.js", "/assistant-embed.js"]) {
       const response = await fetch(`${baseUrl}${pathname}`);
@@ -266,11 +266,11 @@ test("production widget pilot keeps widget routes active and pruned products una
   });
 });
 
-test("pricing page remains widget-focused and does not expose product checkout links", async () => {
+test("pricing page remains agent-focused and does not expose product checkout links", async () => {
   await withServer(async (baseUrl) => {
     const html = await getHtml(baseUrl, "/pricing");
 
-    assert.match(html, /Website Widget for quick customer answers on your site/);
+    assert.match(html, /Website Agent for quick customer answers on your site/);
     assert.match(html, /href="\/website-widget\/dashboard\?from=site"/);
     assert.match(html, /19,900 HUF\/month/);
     assert.match(html, /49,900 HUF\/month/);

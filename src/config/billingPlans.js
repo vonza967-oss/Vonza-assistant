@@ -7,11 +7,11 @@ export const DEFAULT_BILLING_PLAN_KEY = "growth";
 export const PILOT_FREE_WIDGET_PLAN_KEY = "pilot_free_widget";
 export const BILLING_USAGE_COPY = Object.freeze({
   sectionEyebrow: "Simple HUF monthly plans",
-  sectionHeadline: "Choose the monthly plan for your Website Widget.",
+  sectionHeadline: "Choose the monthly plan for your Website Agent.",
   sectionNote:
-    "All plans include the Website Widget launch path, website import, Hungarian-first answers, lead capture, AI disclosure, owner dashboard, email handoff, install verification, allowed domains, and the full-page Front Desk as a companion channel. Growth and Pro add capacity and launch help.",
+    "All plans include the Website Agent launch path, website import, Hungarian-first answers, lead capture, AI disclosure, owner dashboard, email handoff, install verification, allowed domains, and the full-page Front Desk as a companion channel. Growth and Pro add capacity and launch help.",
   sharedFeatures: Object.freeze([
-    "Website Widget for existing websites",
+    "Website Agent for existing websites",
     "Website import for grounded Hungarian answers",
     "Lead capture and email handoff",
     "Install verification and allowed domains",
@@ -38,8 +38,8 @@ const STRIPE_BILLING_PLAN_DEFINITIONS = Object.freeze([
     stripePriceEnvKey: "STRIPE_PRICE_ID_STARTER_MONTHLY",
     marketing: Object.freeze({
       audience: "For one Hungarian SME",
-      summary: "A simple way to launch a Hungarian Website Widget",
-      detail: "Includes one Website Widget workspace, website import, Hungarian-first answers, lead capture, AI disclosure, dashboard, email handoff, and companion full-page Front Desk",
+      summary: "A simple way to launch a Hungarian Website Agent",
+      detail: "Includes one Website Agent workspace, website import, Hungarian-first answers, lead capture, AI disclosure, dashboard, email handoff, and companion full-page Front Desk",
       capacityLabel: "Lighter monthly AI capacity",
     }),
   }),
@@ -57,7 +57,7 @@ const STRIPE_BILLING_PLAN_DEFINITIONS = Object.freeze([
     marketing: Object.freeze({
       audience: "For regular customer questions",
       summary: "Best for most growing Hungarian SMEs",
-      detail: "Adds higher widget usage, richer analytics, team handoff, companion full-page Front Desk templates, and booking links",
+      detail: "Adds higher agent usage, richer analytics, team handoff, companion full-page Front Desk templates, and booking links",
       capacityLabel: "Regular monthly AI capacity",
     }),
   }),
@@ -72,9 +72,9 @@ const STRIPE_BILLING_PLAN_DEFINITIONS = Object.freeze([
     checkoutLabel: "Start with Pro",
     stripePriceEnvKey: "STRIPE_PRICE_ID_PRO_MONTHLY",
     marketing: Object.freeze({
-      audience: "For busier Website Widget workspaces",
+      audience: "For busier Website Agent workspaces",
       summary: "More room for higher monthly customer volume",
-      detail: "Adds multiple users, multi-location logic, API or webhook options, priority support, white-glove widget tuning, and full-page expansion support",
+      detail: "Adds multiple users, multi-location logic, API or webhook options, priority support, white-glove agent tuning, and full-page expansion support",
       capacityLabel: "Higher monthly AI capacity",
     }),
   }),
@@ -83,7 +83,7 @@ const STRIPE_BILLING_PLAN_DEFINITIONS = Object.freeze([
 const INTERNAL_BILLING_PLAN_DEFINITIONS = Object.freeze([
   Object.freeze({
     key: PILOT_FREE_WIDGET_PLAN_KEY,
-    displayName: "Pilot Website Widget",
+    displayName: "Pilot Website Agent",
     monthlyPriceCents: 0,
     monthlyPriceUsd: 0,
     monthlyPriceHuf: 0,
@@ -95,8 +95,8 @@ const INTERNAL_BILLING_PLAN_DEFINITIONS = Object.freeze([
     isStripeBacked: false,
     marketing: Object.freeze({
       audience: "Pilot tesztelo KKV-k",
-      summary: "Website Widget proba Stripe checkout nelkul",
-      detail: "Belso pilot csomag Website Widget teszthez, weboldal importtal, magyar valaszokkal, lead capture-rel es install ellenorzessel",
+      summary: "Weboldali agent proba Stripe checkout nelkul",
+      detail: "Belso pilot csomag Weboldali agent teszthez, weboldal importtal, magyar valaszokkal, lead capture-rel es install ellenorzessel",
       capacityLabel: "Pilot havi AI kapacitas",
     }),
   }),

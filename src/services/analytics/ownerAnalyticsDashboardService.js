@@ -55,7 +55,7 @@ function createEmptyAssistantSourceBucket(key, label) {
 
 function buildAssistantSourceBreakdown(messages = [], leadCaptures = {}) {
   const buckets = {
-    widget: createEmptyAssistantSourceBucket("widget", "Website widget"),
+    widget: createEmptyAssistantSourceBucket("widget", "Website Agent"),
     page: createEmptyAssistantSourceBucket("page", "Front Desk page"),
     web_call: createEmptyAssistantSourceBucket("web_call", "Web Call"),
     unknown: createEmptyAssistantSourceBucket("unknown", "Legacy/unknown"),

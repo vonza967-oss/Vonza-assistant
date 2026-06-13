@@ -52,8 +52,8 @@
       {
         key: "widget",
         icon: "install",
-        title: "Website Widget",
-        copy: "Recommended launch path. Configure the widget, install the snippet or WordPress flow, verify the live site, then test a visitor question.",
+        title: "Website Agent",
+        copy: "Recommended launch path. Configure the agent, install the snippet or WordPress flow, verify the live site, then test a visitor question.",
         status: installDetected ? "Detected" : hasInstall ? "Recommended" : "Start here",
         tone: installDetected ? "ready" : "ready",
       },
@@ -266,7 +266,7 @@
       }
 
       if (installStatus.state === "installed_unseen") {
-        return "The Website Widget snippet was found on the site, but Vonza has not yet received a live visitor ping.";
+        return "The Website Agent snippet was found on the site, but Vonza has not yet received a live visitor ping.";
       }
 
       if (installStatus.state === "domain_mismatch") {
@@ -277,7 +277,7 @@
         return "Verification needs attention. Vonza either could not fetch the site or could not find the expected install snippet yet.";
       }
 
-      return "No Website Widget install detected yet. Paste the website URL, import content, choose a template and tone, preview the widget, then install with WordPress or one embed snippet.";
+      return "No Website Agent install detected yet. Paste the website URL, import content, choose a template and tone, preview the agent, then install with WordPress or one embed snippet.";
     }
 
     function getInstallStatusTone(installStatus = {}) {
@@ -401,15 +401,15 @@
       const widgetOnly = options.widgetOnly === true;
       const items = widgetOnly ? [
         {
-          title: "Widget workspace created",
+          title: "Agent workspace created",
           done: Boolean(trimText(agent.id || agent.publicAgentKey)),
-          detail: trimText(agent.assistantName || agent.name) || "Website Widget workspace",
+          detail: trimText(agent.assistantName || agent.name) || "Website Agent workspace",
         },
         {
           title: "Website content imported",
           done: setup.knowledgeReady === true || setup.knowledgeLimited === true,
           detail: setup.knowledgeReady
-            ? "Imported content is ready for grounded widget answers"
+            ? "Imported content is ready for grounded agent answers"
             : setup.knowledgeLimited
               ? "Imported content is usable, but another pass could improve answers"
               : "Paste the website URL and import public content",
@@ -418,11 +418,11 @@
           title: "Template and tone chosen",
           done: Boolean(trimText(agent.tone) && trimText(agent.purpose)),
           detail: trimText(agent.tone) && trimText(agent.purpose)
-            ? "Tone and widget purpose are saved"
+            ? "Tone and agent purpose are saved"
             : "Choose the starting template, tone, and customer handoff behavior",
         },
         {
-          title: "Widget appearance configured",
+          title: "Agent appearance configured",
           done: Boolean(trimText(agent.buttonLabel || agent.welcomeMessage || agent.widgetLogoUrl)),
           detail: trimText(agent.buttonLabel || agent.welcomeMessage || agent.widgetLogoUrl)
             ? "Launcher settings are saved"
@@ -436,15 +436,15 @@
             : "Add the real site domains before installing",
         },
         {
-          title: "Widget snippet ready",
+          title: "Agent snippet ready",
           done: Boolean(trimText(agent.installId)),
           detail: trimText(agent.installId) ? "Embed code is ready to copy" : "Create an assistant before copying code",
         },
         {
-          title: "Widget install verified",
+          title: "Agent install verified",
           done: isInstallDetected(installStatus),
           detail: isInstallDetected(installStatus)
-            ? "Install tracker has detected the widget"
+            ? "Install tracker has detected the agent"
             : "Verify installation after publishing",
         },
         {
@@ -453,7 +453,7 @@
           detail: hasConversation
             ? "A conversation exists"
             : progress.previewOpened
-              ? "Widget preview opened"
+              ? "Agent preview opened"
               : "No test conversation yet",
         },
       ] : [
@@ -494,8 +494,8 @@
           title: "Launch path selected",
           done: hasDistributionChannel,
           detail: hasDistributionChannel
-            ? "Website Widget or a companion Front Desk channel is ready"
-            : "Start with the Website Widget install path",
+            ? "Website Agent or a companion Front Desk channel is ready"
+            : "Start with the Website Agent install path",
         },
       ];
 
@@ -519,25 +519,25 @@
           number: "1",
           title: "Start with website",
           state: "active",
-          copy: "Use the website URL/import path, then configure the Website Widget.",
+          copy: "Use the website URL/import path, then configure the Website Agent.",
         },
         {
           number: "2",
-          title: "Install widget",
+          title: "Install agent",
           state: hasInstall || fullPageUrl || qrEndpoint ? "done" : "pending",
-          copy: "Copy the Website Widget snippet or use the WordPress flow after configuration.",
+          copy: "Copy the Website Agent snippet or use the WordPress flow after configuration.",
         },
         {
           number: "3",
           title: "Verify",
           state: verifyDone ? "done" : "pending",
-          copy: "Confirm the widget snippet after publishing; keep page links and QR as companion channels.",
+          copy: "Confirm the agent snippet after publishing; keep page links and QR as companion channels.",
         },
         {
           number: "4",
           title: "Test live path",
           state: isInstallSeen(installStatus) ? "done" : "pending",
-          copy: "Test the live widget first, then add Front Desk page links, QR, or embeds where useful.",
+          copy: "Test the live agent first, then add Front Desk page links, QR, or embeds where useful.",
         },
       ];
 
@@ -567,9 +567,9 @@
         },
         {
           number: "2",
-          title: "Import and configure widget",
+          title: "Import and configure agent",
           state: hasInstall ? "done" : "pending",
-          copy: "Import content, then choose the widget template, tone, welcome, and handoff basics.",
+          copy: "Import content, then choose the agent template, tone, welcome, and handoff basics.",
         },
         {
           number: "3",
@@ -587,12 +587,12 @@
           number: "5",
           title: "Test a visitor question",
           state: isInstallSeen(installStatus) ? "done" : "pending",
-          copy: "Open the live widget and send one realistic customer question.",
+          copy: "Open the live agent and send one realistic customer question.",
         },
       ];
 
       return `
-        <ol class="install-stage-flow" aria-label="Website Widget install setup stages">
+        <ol class="install-stage-flow" aria-label="Website Agent install setup stages">
           ${stages.map((stage) => `
             <li class="install-stage-item ${escapeHtml(stage.state)}">
               <span class="install-stage-number">${escapeHtml(stage.number)}</span>
@@ -626,7 +626,7 @@
       const paths = [
         {
           key: "widget",
-          title: "Website Widget",
+          title: "Website Agent",
           label: "Recommended",
           copy: "Default launch path for normal website traffic. Install the snippet or WordPress flow, verify allowed domains, and test the launcher on the live site.",
           state: isInstallDetected(installStatus) ? "Seen live" : hasInstall ? "Code ready" : "Not generated",
@@ -655,7 +655,7 @@
           key: "embed",
           title: "WordPress / smart embed",
           label: "Expansion",
-          copy: "Use a dedicated page embed or smart snippet when the full-page Front Desk should live inside the website after widget launch.",
+          copy: "Use a dedicated page embed or smart snippet when the full-page Front Desk should live inside the website after agent launch.",
           state: fullPageEnabled ? "Code ready" : "Enable page first",
           tone: fullPageEnabled ? "Ready" : "Pending",
           action: "page",
@@ -669,7 +669,7 @@
               <p class="overview-label">Launch path hierarchy</p>
               <h3>Pick the customer entry point</h3>
             </div>
-            <span>Widget first</span>
+            <span>Agent first</span>
           </div>
           <div class="install-launch-path-grid">
             ${paths.map((path) => `
@@ -713,7 +713,7 @@
               <dd>${escapeHtml(paste)}</dd>
             </div>
             <div>
-              <dt>Widget first / companion</dt>
+              <dt>Agent first / companion</dt>
               <dd>${escapeHtml(useHosted)}</dd>
             </div>
             <div>
@@ -733,51 +733,51 @@
       const platformGuides = [
         {
           platform: "Generic HTML / smart embed",
-          recommended: "Widget first",
-          paste: "Paste the Website Widget snippet into the site header or pages where the launcher should appear. Add the Front Desk page link or smart embed only for a dedicated companion page.",
-          useHosted: "Start with website URL/import, configure the widget, install the snippet, verify, then test. Add the full-page Front Desk for QR/direct-link or embedded expansion.",
+          recommended: "Agent first",
+          paste: "Paste the Website Agent snippet into the site header or pages where the launcher should appear. Add the Front Desk page link or smart embed only for a dedicated companion page.",
+          useHosted: "Start with website URL/import, configure the agent, install the snippet, verify, then test. Add the full-page Front Desk for QR/direct-link or embedded expansion.",
           limitation: "Use the raw iframe fallback only when the site blocks scripts.",
           verify: "Publish, run Verify installation, open the page as a visitor, and ask one realistic customer question. Test companion page links separately.",
         },
         {
           platform: "WordPress / WooCommerce",
-          recommended: "Widget first",
-          paste: "Use the widget snippet or WordPress install flow for the site launcher. Add a dedicated Front Desk page or QR link later for companion flows.",
-          useHosted: "Use the Website Widget on normal site pages. Use the full-page Front Desk for QR, direct links, or restricted checkout and account areas.",
+          recommended: "Agent first",
+          paste: "Use the agent snippet or WordPress install flow for the site launcher. Add a dedicated Front Desk page or QR link later for companion flows.",
+          useHosted: "Use the Website Agent on normal site pages. Use the full-page Front Desk for QR, direct links, or restricted checkout and account areas.",
           limitation: "WooCommerce product and order data are not connected by this install step.",
-          verify: "Publish, run Verify installation, open the site while signed out, and ask a test question in the widget.",
+          verify: "Publish, run Verify installation, open the site while signed out, and ask a test question in the agent.",
         },
         {
           platform: "Wix",
-          recommended: "Widget first",
-          paste: "Add the Website Widget snippet in Wix custom code when available. Use the Front Desk page link from a button or menu when Wix blocks scripts.",
+          recommended: "Agent first",
+          paste: "Add the Website Agent snippet in Wix custom code when available. Use the Front Desk page link from a button or menu when Wix blocks scripts.",
           useHosted: "Treat the full-page Front Desk as a companion fallback for QR/direct links or script-restricted Wix areas.",
           limitation: "Some Wix areas can restrict custom code, so the iframe fallback may be needed.",
-          verify: "Publish the site, run Verify installation, open the public page, and complete one visitor-style widget test.",
+          verify: "Publish the site, run Verify installation, open the public page, and complete one visitor-style agent test.",
         },
         {
           platform: "Shopify",
-          recommended: "Widget first",
-          paste: "Install the Website Widget snippet in the theme where scripts are allowed. Use the Front Desk page link for navigation, pages, or restricted checkout/account areas.",
+          recommended: "Agent first",
+          paste: "Install the Website Agent snippet in the theme where scripts are allowed. Use the Front Desk page link for navigation, pages, or restricted checkout/account areas.",
           useHosted: "Use the full-page Front Desk as a companion for QR/direct links and areas where Shopify restricts custom scripts.",
           limitation: "Products, carts, and orders are not connected by this install step.",
-          verify: "Publish the theme change, run Verify installation, open the storefront as a visitor, and test the widget.",
+          verify: "Publish the theme change, run Verify installation, open the storefront as a visitor, and test the agent.",
         },
         {
           platform: "Webflow",
           recommended: "Embed-ready",
-          paste: "Paste the Website Widget snippet into custom code for site-wide launch. Add the Front Desk page link or smart embed to a dedicated page for expansion.",
+          paste: "Paste the Website Agent snippet into custom code for site-wide launch. Add the Front Desk page link or smart embed to a dedicated page for expansion.",
           useHosted: "Use the full-page Front Desk for QR/direct links or when a Webflow page should host a dedicated assistant experience.",
           limitation: "Custom code publishing can depend on the Webflow site setup.",
-          verify: "Publish to the live domain, run Verify installation, open the page in a private window, and send one widget test question.",
+          verify: "Publish to the live domain, run Verify installation, open the page in a private window, and send one agent test question.",
         },
         {
           platform: "Squarespace",
-          recommended: "Widget first",
-          paste: "Add the Website Widget snippet through Code Injection where available. Use the Front Desk page link from navigation or a button when scripts are blocked.",
+          recommended: "Agent first",
+          paste: "Add the Website Agent snippet through Code Injection where available. Use the Front Desk page link from navigation or a button when scripts are blocked.",
           useHosted: "Use the full-page Front Desk as a companion fallback for QR/direct links or Squarespace areas that block scripts.",
           limitation: "Some templates and editing areas can limit script embeds.",
-          verify: "Publish, run Verify installation, open the public page, and confirm the widget loads before sharing companion links.",
+          verify: "Publish, run Verify installation, open the public page, and confirm the agent loads before sharing companion links.",
         },
       ];
 
@@ -787,7 +787,7 @@
             <div>
               <p class="install-option-eyebrow">Platform quick guides</p>
               <h3 class="install-platform-guides-title">Install-only website guidance</h3>
-              <p class="install-option-copy">Start with the Website Widget: website URL/import -> configure widget -> install snippet or WordPress -> verify -> test. Use the hosted Front Desk, QR/direct links, and full-page embeds as companion and expansion channels.</p>
+              <p class="install-option-copy">Start with the Website Agent: website URL/import -> configure agent -> install snippet or WordPress -> verify -> test. Use the hosted Front Desk, QR/direct links, and full-page embeds as companion and expansion channels.</p>
             </div>
           </div>
           <div class="install-platform-grid">
@@ -816,7 +816,7 @@
             tone: allowedDomains.length ? "Ready" : "Pending",
           },
           {
-            label: "Widget snippet",
+            label: "Agent snippet",
             value: hasInstall ? "Ready to copy" : "Create an assistant first",
             tone: hasInstall ? "Ready" : "Pending",
           },
@@ -835,10 +835,10 @@
         }
 
         return `
-          <aside class="install-side-panel" aria-label="Website Widget install status and resources">
-            <section class="install-side-card install-side-card-status" role="status" aria-live="polite" aria-label="Widget readiness status">
+          <aside class="install-side-panel" aria-label="Website Agent install status and resources">
+            <section class="install-side-card install-side-card-status" role="status" aria-live="polite" aria-label="Agent readiness status">
               <div class="install-side-card-header">
-                <p class="overview-label">Widget readiness</p>
+                <p class="overview-label">Agent readiness</p>
                 <span class="${getBadgeClass(getInstallStatusTone(installStatus))}">${escapeHtml(isInstallSeen(installStatus) ? "Live" : installStatus.state === "installed_unseen" ? "Verified" : "Not live yet")}</span>
               </div>
               <p class="install-side-summary">${escapeHtml(getInstallStatusCopy(installStatus))}</p>
@@ -858,16 +858,16 @@
                 <span class="install-preview-avatar">${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>
                 <div>
                   <strong>${escapeHtml(agent.assistantName || agent.name || "Your assistant")}</strong>
-                  <p>${escapeHtml(agent.welcomeMessage || "Preview the Website Widget before relying on live site traffic.")}</p>
+                  <p>${escapeHtml(agent.welcomeMessage || "Preview the Website Agent before relying on live site traffic.")}</p>
                 </div>
               </div>
-              <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test widget</a>
+              <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test agent</a>
             </section>
             <section class="install-side-card install-resource-card">
-              <p class="overview-label">Widget shortcuts</p>
-              <button class="ghost-button" type="button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>Copy widget snippet</button>
+              <p class="overview-label">Agent shortcuts</p>
+              <button class="ghost-button" type="button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>Copy agent snippet</button>
               <button class="ghost-button" type="button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>Verify installation</button>
-              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="website_widget">Open widget configuration</button>
+              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="website_widget">Open agent configuration</button>
             </section>
           </aside>
         `;
@@ -943,7 +943,7 @@
           </section>
           <section class="install-side-card install-resource-card">
             <p class="overview-label">Launch shortcuts</p>
-            <button class="ghost-button" type="button" data-install-method-jump="widget">View Website Widget setup</button>
+            <button class="ghost-button" type="button" data-install-method-jump="widget">View Website Agent setup</button>
             <button class="ghost-button" type="button" data-install-method-jump="page">View companion Front Desk setup</button>
             <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageEnabled ? "" : "disabled"}>Copy Front Desk page link</button>
             <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize Front Desk page</button>
@@ -990,41 +990,41 @@
         : "";
       if (widgetOnly) {
         return `
-        ${upcoming ? `<p class="install-upcoming">Finish the basic setup, then install the Website Widget on the allowed site.</p>` : ""}
+        ${upcoming ? `<p class="install-upcoming">Finish the basic setup, then install the Website Agent on the allowed site.</p>` : ""}
         ${buildWidgetOnlyInstallStageProgress(installStatus, hasInstall)}
         <div class="install-options-grid install-options-grid-widget-only">
           <section class="install-option-card active" id="install-panel-widget" role="tabpanel" data-install-method-panel="widget">
             <div class="install-option-header">
               <div>
-                <p class="install-option-eyebrow">Website Widget</p>
-                <h3 class="install-option-title">Website Widget embed</h3>
-                <p class="install-option-copy">Copy the Website Widget snippet for normal website pages, then review allowed domains, install status, launcher appearance, and a live test.</p>
+                <p class="install-option-eyebrow">Website Agent</p>
+                <h3 class="install-option-title">Website Agent embed</h3>
+                <p class="install-option-copy">Copy the Website Agent snippet for normal website pages, then review allowed domains, install status, launcher appearance, and a live test.</p>
               </div>
               <span class="${getBadgeClass(isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending")}">${escapeHtml(isInstallDetected(installStatus) ? "Detected" : hasInstall ? "Snippet ready" : "Setup")}</span>
             </div>
             <div class="install-cta-row">
-              <button class="primary-button" type="button" data-action="copy-install" aria-label="Copy Website Widget snippet" ${hasInstall ? "" : "disabled"}>Copy widget snippet</button>
+              <button class="primary-button" type="button" data-action="copy-install" aria-label="Copy Website Agent snippet" ${hasInstall ? "" : "disabled"}>Copy agent snippet</button>
               <button class="ghost-button" type="button" data-action="verify-install" aria-label="${escapeHtml(t("install.verifyInstallation"))}" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>
-              <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test widget</a>
+              <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test agent</a>
             </div>
             ${buildInstallCopyBlock({
               id: "install-script-output",
-              label: "Website Widget embed snippet",
+              label: "Website Agent embed snippet",
               value: script,
               rows: 5,
               buttonAction: "copy-install",
-              buttonLabel: "Copy widget snippet",
+              buttonLabel: "Copy agent snippet",
               disabled: !hasInstall,
               className: "install-code-block",
             })}
-            <p class="install-help">Paste this once into your site header to launch the Website Widget on normal site pages.</p>
+            <p class="install-help">Paste this once into your site header to launch the Website Agent on normal site pages.</p>
             <div class="install-detail-grid">
               <div class="install-detail-card" role="status" aria-live="polite" aria-label="Detected install status">
                 <span>Allowed domains</span>
                 ${buildInstallDomainChips(allowedDomains)}
               </div>
               <div class="install-detail-card">
-                <span>Widget install status</span>
+                <span>Agent install status</span>
                 <strong>${escapeHtml(installStatus.label || t("common.notInstalled"))}</strong>
                 <p>${escapeHtml(statusCopy)}</p>
                 ${recentSeenMarkup}
@@ -1048,7 +1048,7 @@
       const wordpressCallout = `
         <div class="operator-inline-alert install-wordpress-callout">
           <strong>WordPress Front Desk page</strong>
-          <p>For WordPress, use the Website Widget as the launch path. Create a dedicated Front Desk page when you also need a companion full-page assistant.</p>
+          <p>For WordPress, use the Website Agent as the launch path. Create a dedicated Front Desk page when you also need a companion full-page assistant.</p>
           <div class="inline-actions">
             <button class="ghost-button" type="button" data-full-page-option="dedicated">Use dedicated page embed</button>
           </div>
@@ -1056,7 +1056,7 @@
       `;
 
       return `
-        ${upcoming ? `<p class="install-upcoming">Install the Website Widget once setup feels ready; add the Front Desk page, QR, or embeds as companion channels.</p>` : ""}
+        ${upcoming ? `<p class="install-upcoming">Install the Website Agent once setup feels ready; add the Front Desk page, QR, or embeds as companion channels.</p>` : ""}
         ${buildInstallStageProgress(installStatus, hasInstall, publicFullPageUrl, qrEndpoint)}
         <div class="install-method-grid" role="tablist" aria-label="Installation methods">
           ${methodCards.map((item) => {
@@ -1085,34 +1085,34 @@
             <div class="install-option-header">
               <div>
                 <p class="install-option-eyebrow">Recommended method</p>
-                <h3 class="install-option-title">Website Widget embed</h3>
-                <p class="install-option-copy">Copy the Website Widget snippet for normal website pages, review allowed domains and install status, then verify and test the live launcher.</p>
+                <h3 class="install-option-title">Website Agent embed</h3>
+                <p class="install-option-copy">Copy the Website Agent snippet for normal website pages, review allowed domains and install status, then verify and test the live launcher.</p>
               </div>
               <span class="${getBadgeClass(isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending")}">${escapeHtml(isInstallDetected(installStatus) ? "Detected" : hasInstall ? "Snippet ready" : "Setup")}</span>
             </div>
             <div class="install-cta-row">
-              <button class="primary-button" type="button" data-action="copy-install" aria-label="Copy Website Widget snippet" ${hasInstall ? "" : "disabled"}>Copy widget snippet</button>
+              <button class="primary-button" type="button" data-action="copy-install" aria-label="Copy Website Agent snippet" ${hasInstall ? "" : "disabled"}>Copy agent snippet</button>
               <button class="ghost-button" type="button" data-action="verify-install" aria-label="${escapeHtml(t("install.verifyInstallation"))}" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>
-              <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test widget</a>
+              <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test agent</a>
             </div>
             ${buildInstallCopyBlock({
               id: "install-script-output",
-              label: "Website Widget embed snippet",
+              label: "Website Agent embed snippet",
               value: script,
               rows: 5,
               buttonAction: "copy-install",
-              buttonLabel: "Copy widget snippet",
+              buttonLabel: "Copy agent snippet",
               disabled: !hasInstall,
               className: "install-code-block",
             })}
-            <p class="install-help">Paste this once into your site header to launch the Website Widget on normal site pages.</p>
+            <p class="install-help">Paste this once into your site header to launch the Website Agent on normal site pages.</p>
             <div class="install-detail-grid">
               <div class="install-detail-card" role="status" aria-live="polite" aria-label="Detected install status">
                 <span>Allowed domains</span>
                 ${buildInstallDomainChips(allowedDomains)}
               </div>
               <div class="install-detail-card">
-                <span>Widget install status</span>
+                <span>Agent install status</span>
                 <strong>${escapeHtml(installStatus.label || t("common.notInstalled"))}</strong>
                 <p>${escapeHtml(statusCopy)}</p>
                 ${recentSeenMarkup}

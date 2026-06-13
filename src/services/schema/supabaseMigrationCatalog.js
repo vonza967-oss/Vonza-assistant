@@ -458,7 +458,7 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     file: "supabase/migrations/20260612110000_widget_early_access_waitlist.sql",
     legacySources: Object.freeze([]),
     tier: "feature-gated",
-    note: "Adds standalone Hungarian Website Widget early-access application persistence with service-role writes only; no public Supabase read/write policy, dashboard coupling, widget, embed, chat, or billing behavior.",
+    note: "Adds standalone Hungarian Website Agent early-access application persistence with service-role writes only; no public Supabase read/write policy, dashboard coupling, widget, embed, chat, or billing behavior.",
   }),
   Object.freeze({
     id: "agent_knowledge_files",
@@ -467,7 +467,7 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     file: "supabase/migrations/20260612130000_agent_knowledge_files.sql",
     legacySources: Object.freeze([]),
     tier: "feature-gated",
-    note: "Adds owner-scoped Website Widget knowledge file metadata for low-risk text uploads that index into existing Front Desk RAG chunks without changing public widget or embed behavior.",
+    note: "Adds owner-scoped Website Agent knowledge file metadata for low-risk text uploads that index into existing Front Desk RAG chunks without changing public widget or embed behavior.",
   }),
   Object.freeze({
     id: "website_import_structured_facts",
@@ -476,7 +476,7 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     file: "supabase/migrations/20260612153000_website_import_structured_facts.sql",
     legacySources: Object.freeze([]),
     tier: "feature-gated",
-    note: "Adds structured website facts storage and website_structured RAG source support for improved Website Widget imports without changing public widget, embed, or billing behavior.",
+    note: "Adds structured website facts storage and website_structured RAG source support for improved Website Agent imports without changing public widget, embed, or billing behavior.",
   }),
   Object.freeze({
     id: "website_content_pages",
@@ -494,7 +494,7 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     file: "supabase/migrations/20260612183000_agent_custom_instructions.sql",
     legacySources: Object.freeze([]),
     tier: "required",
-    note: "Adds owner-scoped advanced custom instructions on agents with a bounded prompt length, preserving existing Widget, embed, billing, and factual guardrail behavior.",
+    note: "Adds owner-scoped advanced custom instructions on agents with a bounded prompt length, preserving existing agent, embed, billing, and factual guardrail behavior.",
   }),
   Object.freeze({
     id: "order_support",

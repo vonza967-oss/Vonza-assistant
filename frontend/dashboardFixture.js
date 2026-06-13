@@ -156,7 +156,7 @@
         assistantSource: {
           widget: {
             key: "widget",
-            label: "Website widget",
+            label: "Website Agent",
             conversationCount: 1,
             messageCount: 2,
             visitorQuestionCount: 1,
@@ -368,7 +368,7 @@
             timeline: [
               {
                 at: now,
-                label: fixtureText("Website widget", "Website Widget"),
+                label: fixtureText("Website Agent", "Website Agent"),
                 summary: fixtureText(
                   "Booking question captured by the front desk.",
                   "A foglalási kérdést rögzítette a weboldali asszisztens."

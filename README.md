@@ -1,17 +1,17 @@
 # Vonza
 
-Vonza is a Hungarian-first Website Widget SaaS for SMEs. The public launch promise is a website AI agent/widget that can be installed in about 5 minutes, with no technical skill required, so customers can ask questions, request quotes, leave contact details, and get grounded next steps directly on the business website.
+Vonza is a Hungarian-first Website Agent SaaS for SMEs. The public launch promise is a website AI agent that can be installed in about 5 minutes, with no technical skill required, so customers can ask questions, request quotes, leave contact details, and get grounded next steps directly on the business website.
 
-The AI Front Desk is the broader system behind the widget: shared website knowledge, Hungarian-first answers, lead capture, owner controls, analytics, billing, and safety guardrails. The full-page Front Desk remains a companion and expansion channel for QR codes, direct links, WordPress pages, smart embeds, and dedicated customer-facing flows.
+The AI Front Desk is the broader system behind the agent: shared website knowledge, Hungarian-first answers, lead capture, owner controls, analytics, billing, and safety guardrails. The full-page Front Desk remains a companion and expansion channel for QR codes, direct links, WordPress pages, smart embeds, and dedicated customer-facing flows.
 
 ## Main Features
 
-- Website Widget launch path for customer questions, quote intent, booking intent, contact capture, and follow-up handoff on existing SME websites
+- Website Agent launch path for customer questions, quote intent, booking intent, contact capture, and follow-up handoff on existing SME websites
 - Website import that turns public site content into answer grounding
 - Hungarian-first customer answers and owner positioning with HUF monthly billing plans
 - Lead capture for warm visitors, quote requests, booking intent, and contact handoff
 - Safe handoff and direct conversion routing for booking, quote, checkout, contact, and capture actions
-- Install verification and allowed-domain checks for trusted widget deployment
+- Install verification and allowed-domain checks for trusted agent deployment
 - Owner dashboard for conversations, customers, setup, analytics, install, and settings
 - HUF Stripe checkout, subscriptions, plan capacity, webhook sync, and AI usage ledger
 - Analytics for conversations, lead capture, conversion outcomes, weak answers, top questions, and AI usage
@@ -25,7 +25,7 @@ Vonza is a Node.js and Express application backed by Supabase. The frontend is m
 
 ```text
 Customer
-  -> Website Widget / embedded assistant on the business website
+  -> Website Agent / embedded assistant on the business website
   -> Shared AI Front Desk system and optional full-page Front Desk companion channel
   -> Express routes (/chat, /widget/bootstrap, /install/events, full-page assistant routes)
   -> Services (chat, prompting, scraping, leads, analytics, billing)
@@ -72,7 +72,7 @@ Start the app:
 npm start
 ```
 
-Open the dashboard at `http://localhost:3000/dashboard`. The dashboard is the primary owner workspace for the Website Widget launch path and shared AI Front Desk system, including Home, Customers, Front Desk, Analytics, Install, and Settings. `/website-widget/dashboard` remains a supported runtime path for the Website Widget setup surface; legacy dashboard paths may redirect there for compatibility. Analytics renders inside the dashboard shell and reads JSON from `/dashboard/analytics/summary`; `/dashboard/analytics` is a JSON-only compatibility alias. The widget preview is served at `/widget`; the embeddable scripts are `/embed.js` and `/embed-lite.js`.
+Open the dashboard at `http://localhost:3000/dashboard`. The dashboard is the primary owner workspace for the Website Agent launch path and shared AI Front Desk system, including Home, Customers, Front Desk, Analytics, Install, and Settings. `/website-widget/dashboard` remains a supported runtime path for the Website Agent setup surface; legacy dashboard paths may redirect there for compatibility. Analytics renders inside the dashboard shell and reads JSON from `/dashboard/analytics/summary`; `/dashboard/analytics` is a JSON-only compatibility alias. The agent preview is served at `/widget`; the embeddable scripts are `/embed.js` and `/embed-lite.js`.
 
 ## Calendly Webhook Provisioning
 

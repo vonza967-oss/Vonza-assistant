@@ -79,7 +79,7 @@ const LEGACY_WIDGET_DEFAULTS = {
 const DEFAULT_WIDGET_CONFIG = {
   assistantName: "Vonza AI",
   welcomeMessage: DEFAULT_WIDGET_WELCOME_MESSAGE_EN,
-  buttonLabel: "Open widget",
+  buttonLabel: "Open agent",
   launcherText: DEFAULT_WIDGET_LAUNCHER_TEXT_EN,
   widgetLogoUrl: "",
   primaryColor: "#5b61ff",

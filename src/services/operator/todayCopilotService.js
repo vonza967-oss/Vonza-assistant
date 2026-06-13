@@ -191,7 +191,7 @@ function buildFallbackGuidance({
   }
 
   if (!installLive) {
-    guidance.push("Confirm the widget is live so Home starts seeing real front-desk activity instead of setup-only state.");
+    guidance.push("Confirm the agent is live so Home starts seeing real front-desk activity instead of setup-only state.");
   }
 
   if ((businessProfile.readiness?.missingSections || []).length) {
@@ -1350,7 +1350,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
         ? "The front desk is still mostly in setup mode, so Vonza only sees sparse stable-core activity."
         : scheduleItems.length || appointmentFollowUpItems.length || unlinkedAppointments.length
           ? `${pluralize(scheduleItems.length, "appointment")} remain on today’s schedule, ${pluralize(appointmentFollowUpItems.length, "recent appointment")} likely need follow-up, and ${pluralize(unlinkedAppointments.length, "appointment")} are still unlinked to contacts.`
-          : `${pluralize(todaysMessages.length, "message")} arrived today. Website knowledge is ${websiteReady ? "ready" : "still limited"}, the widget is ${installLive ? "live or recently detected" : "not yet confirmed live"}, and ${pluralize(routingEvents.length, "routing event")} have been recorded.`,
+          : `${pluralize(todaysMessages.length, "message")} arrived today. Website knowledge is ${websiteReady ? "ready" : "still limited"}, the agent is ${installLive ? "live or recently detected" : "not yet confirmed live"}, and ${pluralize(routingEvents.length, "routing event")} have been recorded.`,
       confidence: sparseData ? "low" : "high",
       rationale: "This summary combines calendar context, messages, website knowledge state, install detection, and routing telemetry without creating autonomous actions.",
     }),

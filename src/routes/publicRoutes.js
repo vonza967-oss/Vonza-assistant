@@ -119,7 +119,7 @@ function renderMarketingPricingSection(locale = "en") {
         <div class="section-intro" data-reveal>
           <p class="eyebrow">${escapeHtml(isHu ? "Beta hozzáférés" : BILLING_USAGE_COPY.sectionEyebrow)}</p>
           <h2>${escapeHtml(isHu ? "Egyszerű havi csomagok a weboldali AI ügyintéző indulásához." : BILLING_USAGE_COPY.sectionHeadline)}</h2>
-          <p class="section-copy">${escapeHtml(isHu ? "Válaszd ki azt a havi csomagot, amely elég a magyar widget-first induláshoz. A csomagok a dashboardból kezelhetők." : BILLING_USAGE_COPY.sectionNote)}</p>
+          <p class="section-copy">${escapeHtml(isHu ? "Válaszd ki azt a havi csomagot, amely elég a magyar agent-first induláshoz. A csomagok a dashboardból kezelhetők." : BILLING_USAGE_COPY.sectionNote)}</p>
         </div>
 
         <div class="pricing-grid">
@@ -136,12 +136,12 @@ function renderMarketingPricingSection(locale = "en") {
                   <span>${escapeHtml(isHu ? "Havi csomag" : "Monthly plan")}</span>
                 </div>
               </div>
-              <p class="pricing-plan-summary">${escapeHtml(isHu ? `${plan.displayName} csomag kisvállalkozásoknak, amelyek weboldali AI widgetet indítanak.` : plan.marketing.summary)}</p>
-              <p class="pricing-plan-detail">${escapeHtml(isHu ? "Tartalmazza a weboldali widgetet, weboldal-importot, leadgyűjtést, AI tájékoztatást, dashboardot és emailes átadást." : plan.marketing.detail)}</p>
+              <p class="pricing-plan-summary">${escapeHtml(isHu ? `${plan.displayName} csomag kisvállalkozásoknak, amelyek weboldali AI agentet indítanak.` : plan.marketing.summary)}</p>
+              <p class="pricing-plan-detail">${escapeHtml(isHu ? "Tartalmazza a Weboldali agentet, weboldal-importot, leadgyűjtést, AI tájékoztatást, dashboardot és emailes átadást." : plan.marketing.detail)}</p>
               <ul class="pricing-plan-features" aria-label="${escapeHtml(plan.displayName)} plan features">
                 ${(isHu
                   ? [
-                    "Website Widget egy élő weboldalhoz",
+                    "Weboldali agent egy élő weboldalhoz",
                     "Weboldal-import földelt válaszokhoz",
                     "Leadgyűjtés és emailes átadás",
                     "AI tájékoztató szöveg",
@@ -204,7 +204,7 @@ function renderValueStrip() {
         "Dedicated Front Desk page",
         "WordPress, QR, embed, or link",
         "Train with approved answers",
-        "Optional website widget",
+        "Optional website agent",
       ].map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
     </section>
   `;
@@ -215,13 +215,13 @@ function renderProductRouteLinks() {
     <section class="section product-route-section" aria-label="Vonza products">
       <div class="section-heading-row" data-reveal>
         <div>
-          <h2>Website Widget is the launch product.</h2>
-          <p>The Website Widget is the first public offer. AI Front Desk remains the companion page and shared workspace system behind the widget-first launch.</p>
+          <h2>Website Agent is the launch product.</h2>
+          <p>The Website Agent is the first public offer. AI Front Desk remains the companion page and shared workspace system behind the agent-first launch.</p>
         </div>
       </div>
       <div class="product-route-grid">
         ${[
-          ["/website-widget", "Website Widget", "Launch product", "A compact on-site assistant for existing websites that need a small launcher or embedded assistant surface."],
+          ["/website-widget", "Website Agent", "Launch product", "A compact on-site assistant for existing websites that need a small launcher or embedded assistant surface."],
           ["/front-desk", "Front Desk", "Companion page", "A shared AI Front Desk page for customer questions, quote intent, bookings, and follow-up details."],
           ["/voice-agent", "Voice Agent", "Configured web voice", "A web voice assistant for browser-based voice conversations where voice is enabled in the workspace."],
         ].map(([href, title, label, copy]) => `
@@ -254,11 +254,11 @@ function renderFinalCta(locale = "en") {
     return `
       <section class="final-cta" data-reveal>
         <div>
-          <h2>Indíts weboldali widgetet, amit az ügyfelek tényleg használni tudnak.</h2>
-          <p>Telepítsd a meglévő Website Widget kódot, korlátozd a domainjeit, teszteld élőben, és javítsd a válaszokat a dashboardból.</p>
+          <h2>Indíts Weboldali agentet, amit az ügyfelek tényleg használni tudnak.</h2>
+          <p>Telepítsd a meglévő Weboldali agent kódot, korlátozd a domainjeit, teszteld élőben, és javítsd a válaszokat a dashboardból.</p>
         </div>
         <div class="final-cta-actions">
-          <a class="button button-primary" data-app-link href="/website-widget/dashboard?from=site">Widget beállítása</a>
+          <a class="button button-primary" data-app-link href="/website-widget/dashboard?from=site">Weboldali agent beállítása</a>
           <a class="button button-secondary" href="/hu#product">Termék áttekintése</a>
         </div>
       </section>
@@ -268,11 +268,11 @@ function renderFinalCta(locale = "en") {
   return `
     <section class="final-cta" data-reveal>
       <div>
-        <h2>Launch the Website Widget customers can actually use.</h2>
-        <p>Install the existing widget snippet, keep domains scoped, test it live, and improve answers from the dashboard.</p>
+        <h2>Launch the Website Agent customers can actually use.</h2>
+        <p>Install the existing agent snippet, keep domains scoped, test it live, and improve answers from the dashboard.</p>
       </div>
       <div class="final-cta-actions">
-        <a class="button button-primary" data-app-link href="/website-widget/dashboard?from=site">Set up Website Widget</a>
+        <a class="button button-primary" data-app-link href="/website-widget/dashboard?from=site">Set up Website Agent</a>
         <a class="button button-secondary" href="/product">View product</a>
       </div>
     </section>
@@ -284,7 +284,7 @@ function _renderMarketingHomePage() {
     <section class="hero">
       <div class="hero-copy" data-reveal>
         <h1>Your AI Front Desk for customer questions, quotes, bookings, and follow-ups.</h1>
-        <p class="hero-text">Vonza is a product family for customer conversations. Front Desk gives customers a dedicated page where they can ask questions, request quotes, leave details, and get grounded next steps. Add Website Widget or Voice Agent as separate products when your workspace needs them.</p>
+        <p class="hero-text">Vonza is a product family for customer conversations. Front Desk gives customers a dedicated page where they can ask questions, request quotes, leave details, and get grounded next steps. Add Website Agent or Voice Agent as separate products when your workspace needs them.</p>
         <div class="hero-actions">
           <a class="button button-primary" data-app-link href="/dashboard?from=site">Create your Front Desk</a>
           <a class="button button-secondary" href="/product">See how it works</a>
@@ -307,8 +307,8 @@ function _renderMarketingHomePage() {
     <section class="section front-desk-first">
       <div class="section-heading-row" data-reveal>
         <div>
-          <h2>More than a website widget.</h2>
-          <p>The widget bubble is optional. Vonza starts with a full-page AI Front Desk you can publish, share, embed, or connect to WordPress.</p>
+          <h2>More than a website agent.</h2>
+          <p>The compact agent launcher is optional. Vonza starts with a full-page AI Front Desk you can publish, share, embed, or connect to WordPress.</p>
         </div>
         <a class="text-arrow" href="/features">Explore all features</a>
       </div>
@@ -316,9 +316,9 @@ function _renderMarketingHomePage() {
         ${[
           ["Dedicated Front Desk page", "A hosted customer-facing assistant page for questions, quotes, bookings, and contact capture."],
           ["WordPress Front Desk page", "Use the plugin or page embed when the assistant should feel like a full page on your site."],
-          ["Smart embed", "Place the Front Desk inside part of an existing page without making the widget the main experience."],
+          ["Smart embed", "Place the Front Desk inside part of an existing page without making the agent the main experience."],
           ["QR / direct link", "Share the same Front Desk from flyers, invoices, menus, emails, or social profiles."],
-          ["Optional widget bubble", "Add the compact website bubble only when a normal page needs a small launcher."],
+          ["Optional agent launcher", "Add the compact website agent only when a normal page needs a small launcher."],
         ].map(([title, copy]) => `
           <article data-reveal>
             <h3>${escapeHtml(title)}</h3>
@@ -337,7 +337,7 @@ function _renderMarketingHomePage() {
         ${[
           ["Connect your business website", "Import the pages and business context Vonza should use for grounded answers."],
           ["Customize your Front Desk", "Set the welcome, voice, page style, suggested questions, and customer next steps."],
-          ["Publish by page, QR, embed, or widget", "Use the recommended Front Desk page first, then add WordPress, smart embed, or the optional bubble."],
+          ["Publish by page, QR, embed, or agent", "Use the recommended Front Desk page first, then add WordPress, smart embed, or the optional bubble."],
           ["Review and improve answers", "Use conversations, feedback, and approved answers to make the next response stronger."],
         ].map(([title, copy], index) => `
           <article data-reveal style="--reveal-delay:${index * 70}ms;">
@@ -368,7 +368,7 @@ function _renderMarketingHomePage() {
         <article class="feature-preview-card" data-reveal style="--reveal-delay: 80ms;">
           ${renderAppImage({
             src: PRODUCT_IMAGES.dashboardInstall,
-            alt: "Vonza Install dashboard showing Front Desk page, QR or direct link, smart embed, and optional widget choices",
+            alt: "Vonza Install dashboard showing Front Desk page, QR or direct link, smart embed, and optional agent choices",
           })}
           <h3>Install flow</h3>
           <p>Publish the Front Desk page first, then add WordPress, smart embed, QR/direct link, or the optional website bubble.</p>
@@ -422,7 +422,7 @@ function _renderMarketingHomePage() {
       <div class="section-heading-row" data-reveal>
         <div>
           <h2>Install options match how customers find you.</h2>
-          <p>Use one Front Desk across the channels you already use. The website widget remains available, but it is no longer the whole product.</p>
+          <p>Use one Front Desk across the channels you already use. The website agent remains available, but it is no longer the whole product.</p>
         </div>
       </div>
       <div class="install-option-layout">
@@ -435,7 +435,7 @@ function _renderMarketingHomePage() {
             ["WordPress plugin", "Create a dedicated Front Desk page inside WordPress."],
             ["Smart embed", "Place the assistant as a full-page or section experience."],
             ["Hosted page / QR", "Share the same page by link or QR code."],
-            ["Optional widget", "Keep the compact website bubble as a secondary entry point."],
+            ["Optional agent", "Keep the compact website bubble as a secondary entry point."],
           ].map(([title, copy]) => `
             <article data-reveal>
               <h3>${escapeHtml(title)}</h3>
@@ -474,17 +474,17 @@ function _renderHungarianMarketingHomePage() {
     <section class="hero">
       <div class="hero-copy" data-reveal>
         <h1>AI ügyintéző a weboldaladon 5 perc alatt.</h1>
-        <p class="hero-text">Technikai tudás nélkül. Illeszd be a Website Widgetet a meglévő weboldaladra, válaszolj a gyakori kérdésekre üzleti adatokból, gyűjts leadeket, és kezeld a beszélgetéseket egy fókuszált dashboardból.</p>
+        <p class="hero-text">Technikai tudás nélkül. Illeszd be a Weboldali agentet a meglévő weboldaladra, válaszolj a gyakori kérdésekre üzleti adatokból, gyűjts leadeket, és kezeld a beszélgetéseket egy fókuszált dashboardból.</p>
         <div class="hero-actions">
-          <a class="button button-primary" data-app-link href="/website-widget/dashboard?from=site">Widget beállítása</a>
+          <a class="button button-primary" data-app-link href="/website-widget/dashboard?from=site">Weboldali agent beállítása</a>
           <a class="button button-secondary" href="/hu#product">Hogyan működik</a>
         </div>
       </div>
       <div class="hero-media" data-reveal style="--reveal-delay: 100ms;">
         ${renderAppImage({
           src: PRODUCT_IMAGES.frontDeskPage,
-          alt: "Vonza Website Widget dashboard ügyfélkérdésekhez és következő lépésekhez",
-          caption: "A Website Widget a meglévő weboldalról indít beszélgetést, a dashboard pedig mutatja a leadeket és javítandó válaszokat.",
+          alt: "Vonza Weboldali agent dashboard ügyfélkérdésekhez és következő lépésekhez",
+          caption: "A Weboldali agent a meglévő weboldalról indít beszélgetést, a dashboard pedig mutatja a leadeket és javítandó válaszokat.",
           className: "app-frame-hero",
           loading: "eager",
         })}
@@ -496,14 +496,14 @@ function _renderHungarianMarketingHomePage() {
     <section id="product" class="section front-desk-first">
       <div class="section-heading-row" data-reveal>
         <div>
-          <h2>Widget-first indulás, AI Front Desk háttérrel.</h2>
-          <p>A magyar indulás első ajánlata a weboldali Website Widget: gyorsan telepíthető, kezdőknek is érthető, és ugyanahhoz a dashboardhoz kapcsolódik, amely később a teljes AI Front Desk rendszert is kiszolgálja.</p>
+          <h2>Weboldali agent indulás, AI Front Desk háttérrel.</h2>
+          <p>A magyar indulás első ajánlata a Weboldali agent: gyorsan telepíthető, kezdőknek is érthető, és ugyanahhoz a dashboardhoz kapcsolódik, amely később a teljes AI Front Desk rendszert is kiszolgálja.</p>
         </div>
         <a class="text-arrow" href="/website-widget/dashboard?from=site" data-app-link>Beta hozzáférés megnyitása</a>
       </div>
       <div class="channel-grid">
         ${[
-          ["Weboldali AI widget", "Ügyfélkérdések, ajánlatkérés, foglalási szándék és kapcsolatfelvétel a meglévő weboldalon."],
+          ["Weboldali AI agent", "Ügyfélkérdések, ajánlatkérés, foglalási szándék és kapcsolatfelvétel a meglévő weboldalon."],
           ["WordPress vagy embed", "Plugin vagy egyetlen beágyazási kód, amikor gyors telepítés kell fejlesztő nélkül."],
           ["Dashboard a leadekhez", "Beszélgetések, ügyfelek, elemzések, jóváhagyott válaszok és javítási kör egy helyen."],
           ["AI Front Desk később", "A teljes oldalas Front Desk, email, WhatsApp és voice bővítések későbbi modulok maradnak."],
@@ -592,7 +592,7 @@ function _renderFeaturesPage() {
     },
     {
       title: "Analytics and source breakdown",
-      copy: "Track conversations, messages, leads, Front Desk page activity, and the mix of page, embed, and widget entry points.",
+      copy: "Track conversations, messages, leads, Front Desk page activity, and the mix of page, embed, and agent entry points.",
       src: PRODUCT_IMAGES.dashboardAnalytics,
       alt: "Vonza Analytics dashboard with source breakdown",
     },
@@ -602,7 +602,7 @@ function _renderFeaturesPage() {
     <section class="page-hero page-hero-split">
       <div data-reveal>
         <h1>Features for a real AI Front Desk, not just a chat bubble.</h1>
-        <p>Vonza combines a dedicated customer page, install options, conversations, training, approved answers, analytics, and optional widget support.</p>
+        <p>Vonza combines a dedicated customer page, install options, conversations, training, approved answers, analytics, and optional agent support.</p>
       </div>
       ${renderAppImage({
         src: PRODUCT_IMAGES.frontDeskPage,
@@ -631,7 +631,7 @@ function _renderFeaturesPage() {
     <section class="section trust-section">
       <div class="section-intro" data-reveal>
         <h2>Also included where configured.</h2>
-        <p>Vonza supports contact capture, semantic knowledge retrieval, voice input and spoken replies when enabled, approved answers, and the website widget bubble as a secondary channel.</p>
+        <p>Vonza supports contact capture, semantic knowledge retrieval, voice input and spoken replies when enabled, approved answers, and the website agent bubble as a secondary channel.</p>
       </div>
     </section>
 
@@ -641,7 +641,7 @@ function _renderFeaturesPage() {
 
 function _renderProductPage() {
   const steps = [
-    ["Website Widget", "The launch product gives existing websites a compact assistant for grounded first answers, lead capture, and handoff into the dashboard.", PRODUCT_IMAGES.dashboardInstall, "Vonza Install screen with Website Widget setup"],
+    ["Website Agent", "The launch product gives existing websites a compact assistant for grounded first answers, lead capture, and handoff into the dashboard.", PRODUCT_IMAGES.dashboardInstall, "Vonza Install screen with Website Agent setup"],
     ["Dashboard", "Use Home, Customers, Front Desk, Analytics, Install, and Settings to run the assistant from one owner workspace.", PRODUCT_IMAGES.dashboardHome, "Vonza dashboard Home screen"],
     ["Training and feedback loop", "Practice questions, review weak answers, and turn approved corrections into better answers for next time.", PRODUCT_IMAGES.dashboardFrontDesk, "Vonza Front Desk practice and training workspace"],
     ["Customers and conversations", "Review guest or identified customer conversations, follow-up context, and recent customer details without claiming a full contact-management suite.", PRODUCT_IMAGES.dashboardCustomers, "Vonza Customers dashboard with conversation detail"],
@@ -653,12 +653,12 @@ function _renderProductPage() {
   return `
     <section class="page-hero page-hero-split">
       <div data-reveal>
-        <h1>Website Widget is the Vonza launch product.</h1>
-        <p>The Website Widget leads the public launch. AI Front Desk remains the companion page and shared workspace system behind the widget-first workflow.</p>
+        <h1>Website Agent is the Vonza launch product.</h1>
+        <p>The Website Agent leads the public launch. AI Front Desk remains the companion page and shared workspace system behind the agent-first workflow.</p>
       </div>
       ${renderAppImage({
         src: PRODUCT_IMAGES.dashboardInstall,
-        alt: "Vonza dashboard showing Website Widget install and embed setup",
+        alt: "Vonza dashboard showing Website Agent install and embed setup",
         className: "page-hero-frame",
         loading: "eager",
       })}
@@ -680,7 +680,7 @@ function _renderProductPage() {
     <section class="section connected-section">
       <div class="connected-note" data-reveal>
         <h2>One workspace, separate product surfaces.</h2>
-        <p>Front Desk, Website Widget, and Voice Agent are presented as separate Vonza products. Current account setup and billing still run through the shared dashboard workspace.</p>
+        <p>Front Desk, Website Agent, and Voice Agent are presented as separate Vonza products. Current account setup and billing still run through the shared dashboard workspace.</p>
         <span>Current product scope</span>
       </div>
     </section>
@@ -751,10 +751,10 @@ function _renderWebsiteWidgetPage() {
   return `
     <section class="page-hero page-hero-split">
       <div data-reveal>
-        <h1>Website Widget adds Vonza to an existing site.</h1>
+        <h1>Website Agent adds Vonza to an existing site.</h1>
         <p>Use the on-site embedded assistant when a business wants a compact website launcher or embedded assistant surface alongside its existing pages.</p>
         <div class="hero-actions">
-          <a class="button button-primary" href="/website-widget/dashboard?from=site">Set up Website Widget</a>
+          <a class="button button-primary" href="/website-widget/dashboard?from=site">Set up Website Agent</a>
           <a class="button button-secondary" href="/front-desk">Compare with Front Desk</a>
         </div>
       </div>
@@ -769,7 +769,7 @@ function _renderWebsiteWidgetPage() {
     <section class="section how-it-works">
       <div class="section-intro" data-reveal>
         <h2>For websites that need an assistant in place.</h2>
-        <p>The widget is secondary to the Front Desk, but it remains useful when an existing website needs a small entry point for customer questions.</p>
+        <p>The agent is secondary to the Front Desk, but it remains useful when an existing website needs a small entry point for customer questions.</p>
       </div>
       <div class="channel-grid product-channel-grid">
         ${[
@@ -789,12 +789,12 @@ function _renderWebsiteWidgetPage() {
     <section class="section product-story">
       <div class="story-copy" data-reveal>
         <h2>Best as a supporting website channel.</h2>
-        <p>Use Website Widget when an existing website already works and needs an assistant entry point. Use Front Desk when the assistant should be the main public destination.</p>
-        <a class="button button-primary" href="/website-widget/dashboard?from=site">Open Widget setup</a>
+        <p>Use Website Agent when an existing website already works and needs an assistant entry point. Use Front Desk when the assistant should be the main public destination.</p>
+        <a class="button button-primary" href="/website-widget/dashboard?from=site">Open Agent setup</a>
       </div>
       ${renderAppImage({
         src: PRODUCT_IMAGES.dashboardInstall,
-        alt: "Vonza Install dashboard showing website widget and embed setup choices",
+        alt: "Vonza Install dashboard showing website agent and embed setup choices",
         className: "story-frame",
       })}
     </section>
@@ -863,10 +863,10 @@ function _renderPricingPage() {
   return `
     <section class="page-hero">
       <div data-reveal>
-        <h1>Website Widget for quick customer answers on your site.</h1>
-        <p>Launch an AI agent on your website in 5 minutes, with no technical skill required. Starter, Growth, and Pro are public HUF monthly plans for the shared Website Widget workspace.</p>
+        <h1>Website Agent for quick customer answers on your site.</h1>
+        <p>Launch an AI agent on your website in 5 minutes, with no technical skill required. Starter, Growth, and Pro are public HUF monthly plans for the shared Website Agent workspace.</p>
         <div class="hero-actions">
-          <a class="button button-primary" data-app-link href="/website-widget/dashboard?from=site">Set up Website Widget</a>
+          <a class="button button-primary" data-app-link href="/website-widget/dashboard?from=site">Set up Website Agent</a>
           <a class="button button-secondary" href="/website-widget">See how it works</a>
         </div>
       </div>
@@ -878,11 +878,11 @@ function _renderPricingPage() {
       </div>
       <div class="faq-grid">
         ${[
-          ["What is included in each plan?", "Every public plan includes the Website Widget, website import, lead capture, AI disclosure copy, dashboard, conversations, and email handoff."],
-          ["Can I start without a technical setup?", "Yes. Paste your website URL, import content, choose a template and tone, preview the widget, then install through WordPress or one embed snippet."],
+          ["What is included in each plan?", "Every public plan includes the Website Agent, website import, lead capture, AI disclosure copy, dashboard, conversations, and email handoff."],
+          ["Can I start without a technical setup?", "Yes. Paste your website URL, import content, choose a template and tone, preview the agent, then install through WordPress or one embed snippet."],
           ["Can I change plans later?", "Yes. Plan movement is handled from the dashboard billing experience when billing is configured."],
           ["Do products have separate checkout links?", "No. The public pricing page still sends Starter, Growth, and Pro to the existing account-plan checkout paths."],
-          ["What happens to AI Front Desk?", "The AI Front Desk remains the broader dashboard and long-term product system behind the widget-first launch."],
+          ["What happens to AI Front Desk?", "The AI Front Desk remains the broader dashboard and long-term product system behind the agent-first launch."],
           ["Is this replacing my team?", "No. Vonza answers common first questions and keeps human follow-up work visible."],
         ].map(([title, copy]) => `
           <article data-reveal>
@@ -900,43 +900,43 @@ function renderWidgetOnlyMarketingPage({ productPage = false } = {}) {
   return `
     <section class="hero">
       <div class="hero-copy" data-reveal>
-        <h1>Website Widget for quick customer answers on your site.</h1>
-        <p class="hero-text">${productPage ? "Website Widget is Vonza's launch product. " : ""}Launch an AI agent on your website in 5 minutes, with no technical skill required. Vonza helps visitors ask questions from the pages they are already reading, keeps answers grounded in business context, and sends conversations into one focused dashboard.</p>
+        <h1>Website Agent for quick customer answers on your site.</h1>
+        <p class="hero-text">${productPage ? "Website Agent is Vonza's launch product. " : ""}Launch an AI agent on your website in 5 minutes, with no technical skill required. Vonza helps visitors ask questions from the pages they are already reading, keeps answers grounded in business context, and sends conversations into one focused dashboard.</p>
         <div class="hero-actions">
-          <a class="button button-primary" data-app-link href="/website-widget/dashboard?from=site">Set up Website Widget</a>
+          <a class="button button-primary" data-app-link href="/website-widget/dashboard?from=site">Set up Website Agent</a>
           <a class="button button-secondary" href="/website-widget">See how it works</a>
         </div>
       </div>
       <div class="hero-media" data-reveal style="--reveal-delay: 100ms;">
         ${renderAppImage({
           src: PRODUCT_IMAGES.dashboardInstall,
-          alt: "Vonza dashboard showing Website Widget install and embed setup",
-          caption: "Install, configure, and verify the existing Website Widget from a focused dashboard.",
+          alt: "Vonza dashboard showing Website Agent install and embed setup",
+          caption: "Install, configure, and verify the existing Website Agent from a focused dashboard.",
           className: "app-frame-hero",
           loading: "eager",
         })}
       </div>
     </section>
 
-    <section class="value-strip" aria-label="Website Widget value">
+    <section class="value-strip" aria-label="Website Agent value">
       ${[
-        "Existing Website Widget runtime",
+        "Existing Website Agent runtime",
         "Embed snippet and allowed domains",
         "Customers and conversations",
-        "Widget analytics",
+        "Agent analytics",
       ].map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
     </section>
 
     <section class="section how-it-works">
       <div class="section-intro" data-reveal>
-        <h2>Paste the website, preview the widget, then install it.</h2>
+        <h2>Paste the website, preview the agent, then install it.</h2>
         <p>The pilot dashboard keeps the workflow narrow: website URL, import, template and tone, preview, install, verification, customers, and analytics.</p>
       </div>
       <div class="step-grid">
         ${[
           ["Paste website URL", "Start from the public site so Vonza can import real services, opening hours, contact details, and FAQs."],
           ["Choose template and tone", "Pick a service-business starting point, set the assistant name, welcome message, tone, and handoff basics."],
-          ["Preview widget", "Check a realistic visitor question before publishing anything on the live website."],
+          ["Preview agent", "Check a realistic visitor question before publishing anything on the live website."],
           ["Install and verify", "Use WordPress or one embed snippet, then run install detection and improve answers from the dashboard."],
         ].map(([title, copy], index) => `
           <article data-reveal style="--reveal-delay:${index * 70}ms;">
@@ -951,34 +951,34 @@ function renderWidgetOnlyMarketingPage({ productPage = false } = {}) {
     <section class="section product-screenshot-section">
       <div class="section-heading-row" data-reveal>
         <div>
-          <h2>A widget-only dashboard for the pilot.</h2>
-          <p>The visible app is focused on the Website Widget: status, customer conversations, analytics, install, and configuration.</p>
+          <h2>An agent-only dashboard for the pilot.</h2>
+          <p>The visible app is focused on the Website Agent: status, customer conversations, analytics, install, and configuration.</p>
         </div>
       </div>
       <div class="feature-preview-grid product-shot-grid">
         <article class="feature-preview-card" data-reveal>
           ${renderAppImage({
             src: PRODUCT_IMAGES.dashboardHome,
-            alt: "Vonza widget dashboard overview",
+            alt: "Vonza agent dashboard overview",
           })}
           <h3>Overview</h3>
-          <p>See widget readiness, setup health, and the next action.</p>
+          <p>See agent readiness, setup health, and the next action.</p>
         </article>
         <article class="feature-preview-card" data-reveal style="--reveal-delay: 80ms;">
           ${renderAppImage({
             src: PRODUCT_IMAGES.dashboardCustomers,
-            alt: "Vonza widget customer conversations dashboard",
+            alt: "Vonza agent customer conversations dashboard",
           })}
           <h3>Customers and conversations</h3>
-          <p>Review visitor threads and follow-up context from widget activity.</p>
+          <p>Review visitor threads and follow-up context from agent activity.</p>
         </article>
         <article class="feature-preview-card" data-reveal style="--reveal-delay: 160ms;">
           ${renderAppImage({
             src: PRODUCT_IMAGES.dashboardAnalytics,
-            alt: "Vonza widget analytics dashboard",
+            alt: "Vonza agent analytics dashboard",
           })}
           <h3>Analytics</h3>
-          <p>Track widget conversations, leads, and source-level outcomes.</p>
+          <p>Track agent conversations, leads, and source-level outcomes.</p>
         </article>
       </div>
     </section>
@@ -1124,18 +1124,18 @@ function renderMacDownloadPage() {
 
 const MARKETING_PAGES = {
   home: {
-    title: "Vonza | Website Widget for customer questions",
-    description: "Vonza gives small businesses a Website Widget for customer questions, grounded answers, conversations, install, and analytics.",
+    title: "Vonza | Website Agent for customer questions",
+    description: "Vonza gives small businesses a Website Agent for customer questions, grounded answers, conversations, install, and analytics.",
     body: renderWidgetOnlyMarketingPage,
   },
   features: {
-    title: "Vonza Features | Website Widget install, conversations, and analytics",
-    description: "Explore Vonza Website Widget features for install, configuration, customer conversations, grounded answers, and analytics.",
+    title: "Vonza Features | Website Agent install, conversations, and analytics",
+    description: "Explore Vonza Website Agent features for install, configuration, customer conversations, grounded answers, and analytics.",
     body: renderWidgetOnlyMarketingPage,
   },
   product: {
-    title: "Vonza Product | How the Website Widget works",
-    description: "See how Vonza connects the Website Widget, dashboard, customer conversations, install, analytics, and configuration.",
+    title: "Vonza Product | How the Website Agent works",
+    description: "See how Vonza connects the Website Agent, dashboard, customer conversations, install, analytics, and configuration.",
     body: () => renderWidgetOnlyMarketingPage({ productPage: true }),
   },
   frontDesk: {
@@ -1144,8 +1144,8 @@ const MARKETING_PAGES = {
     body: renderFrontDeskPage,
   },
   websiteWidget: {
-    title: "Vonza Website Widget | Embedded assistant for existing websites",
-    description: "Add Vonza Website Widget to an existing website as a compact embedded assistant for customer questions.",
+    title: "Vonza Website Agent | Embedded assistant for existing websites",
+    description: "Add Vonza Website Agent to an existing website as a compact embedded assistant for customer questions.",
     body: renderWidgetOnlyMarketingPage,
   },
   voiceAgent: {
@@ -1154,13 +1154,13 @@ const MARKETING_PAGES = {
     body: renderVoiceAgentPage,
   },
   pricing: {
-    title: "Vonza Pricing | Plans for the Website Widget",
-    description: "Review Vonza pricing plans for launching the Website Widget and organizing customer questions.",
+    title: "Vonza Pricing | Plans for the Website Agent",
+    description: "Review Vonza pricing plans for launching the Website Agent and organizing customer questions.",
     body: _renderPricingPage,
   },
   about: {
-    title: "About Vonza | Website Widget for small businesses",
-    description: "Learn about Vonza, the Website Widget built for small businesses that need clearer customer answers and follow-up.",
+    title: "About Vonza | Website Agent for small businesses",
+    description: "Learn about Vonza, the Website Agent built for small businesses that need clearer customer answers and follow-up.",
     body: renderWidgetOnlyMarketingPage,
   },
   mac: {
@@ -1181,14 +1181,14 @@ const MARKETING_CHROME = Object.freeze({
     navFeatures: "Features",
     navProduct: "Product",
     navFrontDesk: "Front Desk",
-    navWebsiteWidget: "Website Widget",
+    navWebsiteWidget: "Website Agent",
     navVoiceAgent: "Voice Agent",
     navPricing: "Pricing",
     navAbout: "About",
     dashboard: "Dashboard",
     signIn: "Sign in",
-    primaryCta: "Set up Widget",
-    footerCopy: "A Website Widget for customer questions, grounded answers, conversations, and better follow-up.",
+    primaryCta: "Set up Agent",
+    footerCopy: "A Website Agent for customer questions, grounded answers, conversations, and better follow-up.",
     terms: "Terms",
     privacy: "Privacy",
     cookies: "Cookies",
@@ -1204,14 +1204,14 @@ const MARKETING_CHROME = Object.freeze({
     navFeatures: "Funkciók",
     navProduct: "Termék",
     navFrontDesk: "Front Desk",
-    navWebsiteWidget: "Website Widget",
+    navWebsiteWidget: "Website Agent",
     navVoiceAgent: "Voice Agent",
     navPricing: "Árak",
     navAbout: "Rólunk",
     dashboard: "Dashboard",
     signIn: "Bejelentkezés",
-    primaryCta: "Widget beállítása",
-    footerCopy: "Website Widget ügyfélkérdésekhez, válaszokhoz, elérhetőségekhez és jobb utánkövetéshez.",
+    primaryCta: "Weboldali agent beállítása",
+    footerCopy: "Weboldali agent ügyfélkérdésekhez, válaszokhoz, elérhetőségekhez és jobb utánkövetéshez.",
     terms: "ÁSZF",
     privacy: "Adatvédelem",
     cookies: "Cookie-k",
@@ -1228,10 +1228,10 @@ function renderMarketingPage(rootDir, pageKey = "home", locale = "en") {
   const page = MARKETING_PAGES[pageKey] || MARKETING_PAGES.home;
   const chrome = getMarketingChrome(locale);
   const title = isHu
-    ? "Vonza | Website Widget magyar beta vállalkozásoknak"
+    ? "Vonza | Weboldali agent magyar beta vállalkozásoknak"
     : page.title;
   const description = isHu
-    ? "Vonza Website Widget magyar ügyfélkérdésekhez, válaszokhoz, kapcsolatfelvételhez és utánkövetéshez."
+    ? "Vonza Weboldali agent magyar ügyfélkérdésekhez, válaszokhoz, kapcsolatfelvételhez és utánkövetéshez."
     : page.description;
   const body = isHu ? _renderHungarianMarketingHomePage() : page.body();
   const template = readFileSync(path.join(rootDir, "frontend", "index.html"), "utf8");

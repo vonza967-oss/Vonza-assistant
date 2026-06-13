@@ -1306,16 +1306,16 @@ test("marketing homepage and app routes load without broken handoff paths", { co
       try {
         const marketingHome = await getText(server.baseUrl, "/");
         assert.equal(marketingHome.status, 200);
-        assert.match(marketingHome.text, /Website Widget for quick customer answers on your site/i);
+        assert.match(marketingHome.text, /Website Agent for quick customer answers on your site/i);
         assert.match(marketingHome.text, /AI agent on your website in 5 minutes/i);
         assert.match(marketingHome.text, /Paste website URL/i);
-        assert.match(marketingHome.text, /Set up Website Widget/i);
+        assert.match(marketingHome.text, /Set up Website Agent/i);
         assert.match(marketingHome.text, /href="\/website-widget\/dashboard\?from=site"/);
         assert.match(marketingHome.text, /href="\/dashboard\?from=site"/);
         assert.match(marketingHome.text, /id="site-auth-link"/);
         assert.match(marketingHome.text, /id="site-primary-cta"/);
         assert.match(marketingHome.text, /data-app-link/);
-        assert.match(marketingHome.text, /Existing Website Widget runtime/i);
+        assert.match(marketingHome.text, /Existing Website Agent runtime/i);
         assert.match(marketingHome.text, /Embed snippet and allowed domains/i);
         assert.match(marketingHome.text, /Customers/i);
         assert.match(marketingHome.text, /Analytics/i);
@@ -1334,27 +1334,27 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         for (const route of ["/features", "/product", "/pricing", "/about"]) {
           const page = await getText(server.baseUrl, route);
           assert.equal(page.status, 200);
-          assert.match(page.text, /Website Widget for quick customer answers on your site/i);
+          assert.match(page.text, /Website Agent for quick customer answers on your site/i);
           assert.match(page.text, /href="\/website-widget\/dashboard\?from=site"/);
           assert.match(page.text, /\/marketing\.js/);
           assert.doesNotMatch(page.text, /href="\/front-desk"|href="\/voice-agent"|Voice Agent|Enterprise Request Desk|\bQDH\b|ESG|Hotel Concierge|fully autonomous|human replacement|enterprise compliance|omnichannel/i);
         }
 
         const pricingPage = await getText(server.baseUrl, "/pricing");
-        assert.match(pricingPage.text, /Website Widget for quick customer answers on your site/i);
-        assert.match(pricingPage.text, /Set up Website Widget/i);
+        assert.match(pricingPage.text, /Website Agent for quick customer answers on your site/i);
+        assert.match(pricingPage.text, /Set up Website Agent/i);
         assert.match(pricingPage.text, /19,900 HUF\/month/i);
         assert.match(pricingPage.text, /49,900 HUF\/month/i);
         assert.match(pricingPage.text, /99,900 HUF\/month/i);
         assert.doesNotMatch(pricingPage.text, /data-product-checkout|data-product-plan-key|dashboard\/front-desk|dashboard\/voice|Buy Voice Agent|Buy Front Desk/i);
 
         const featuresPage = await getText(server.baseUrl, "/features");
-        assert.match(featuresPage.text, /Existing Website Widget runtime/i);
+        assert.match(featuresPage.text, /Existing Website Agent runtime/i);
         assert.match(featuresPage.text, /Embed snippet and allowed domains/i);
-        assert.match(featuresPage.text, /Widget analytics/i);
+        assert.match(featuresPage.text, /Agent analytics/i);
 
         const productPage = await getText(server.baseUrl, "/product");
-        assert.match(productPage.text, /Website Widget for quick customer answers on your site/i);
+        assert.match(productPage.text, /Website Agent for quick customer answers on your site/i);
         assert.match(productPage.text, /Customers and conversations/i);
         assert.match(productPage.text, /configuration/i);
 
@@ -1383,8 +1383,8 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         const hungarianHome = await getText(server.baseUrl, "/hu");
         assert.equal(hungarianHome.status, 200);
         assert.match(hungarianHome.text, /<html lang="hu">/);
-        assert.match(hungarianHome.text, /Website Widget/i);
-        assert.match(hungarianHome.text, /Widget beállítása/);
+        assert.match(hungarianHome.text, /Website Agent/i);
+        assert.match(hungarianHome.text, /Weboldali agent beállítása/);
         assert.match(hungarianHome.text, /Funkciók/);
         assert.match(hungarianHome.text, /Árak/);
         assert.match(hungarianHome.text, /Adatvédelem/);
@@ -1467,7 +1467,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /\/dashboard\.js/);
         assert.match(dashboard.text, /<html lang="hu">/);
         assert.match(dashboard.text, /Megnyitjuk a munkaterületedet/);
-        assert.match(dashboard.text, /Betöltjük a Website Widget beállításait\.\.\./);
+        assert.match(dashboard.text, /Betöltjük a Weboldali agent beállításait\.\.\./);
         assert.match(dashboard.text, /ingyenes Render példányok inaktivitás után akár egy percig is indulhatnak\./);
         assert.doesNotMatch(dashboard.text, /dashboard-skeleton-preview/);
         assert.doesNotMatch(dashboard.text, /dashboardFixture\.js|VONZA_LOCAL_DASHBOARD_FIXTURE/);
@@ -1478,7 +1478,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.equal(dashboardI18n.status, 200);
         assert.match(dashboardI18n.text, /DEFAULT_LANGUAGE = "hu"/);
         assert.match(dashboardI18n.text, /"app\.loading\.title": "Opening your workspace"/);
-        assert.match(dashboardI18n.text, /"app\.loading\.copy": "Loading your Website Widget setup\.\.\."/);
+        assert.match(dashboardI18n.text, /"app\.loading\.copy": "Loading your Website Agent setup\.\.\."/);
 
         for (const productDashboardPath of ["/website-widget/dashboard", "/widget/dashboard"]) {
           const productDashboard = await getText(server.baseUrl, productDashboardPath);
@@ -1948,7 +1948,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Use email link instead/);
         assert.match(dashboardScript.text, /Choose your new password/);
         assert.match(dashboardScript.text, /Creating an account means you acknowledge the ÁSZF/);
-        assert.match(dashboardScript.text, /Legal and company information for the website, app, widget, and hosted checkout/);
+        assert.match(dashboardScript.text, /Legal and company information for the website, app, agent, and hosted checkout/);
         assert.match(dashboardScript.text, /\/aszf/);
         assert.match(dashboardScript.text, /\/impresszum/);
         assert.match(dashboardScript.text, /\/adatkezelesi-tajekoztato/);
@@ -2021,9 +2021,9 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardInstallScript.text, /QR code/);
         assert.match(dashboardInstallScript.text, /Setup progress/);
         assert.match(dashboardInstallScript.text, /Domain status/);
-        assert.match(dashboardInstallScript.text, /View Website Widget setup/);
+        assert.match(dashboardInstallScript.text, /View Website Agent setup/);
         assert.match(dashboardInstallScript.text, /View companion Front Desk setup/);
-        assert.match(dashboardInstallScript.text, /Copy widget snippet/);
+        assert.match(dashboardInstallScript.text, /Copy agent snippet/);
         assert.match(dashboardInstallScript.text, /Verify installation/);
         assert.match(dashboardInstallScript.text, /Platform quick guides/);
         assert.match(dashboardInstallScript.text, /Generic HTML \/ smart embed/);
@@ -2066,7 +2066,7 @@ test("signed-out marketing header keeps the normal CTA", async () => {
   const harness = createMarketingHarness({ storedSession: null, session: null });
   await harness.settle();
 
-  assert.equal(harness.primaryCta.textContent, "Set up Widget");
+  assert.equal(harness.primaryCta.textContent, "Set up Agent");
   assert.equal(harness.primaryCta.getAttribute("href"), "/dashboard?from=site");
   assert.equal(harness.authLink.hidden, false);
   assert.equal(harness.footerAppLink.getAttribute("href"), "/dashboard?from=site");

@@ -191,8 +191,8 @@ function buildRecentActivity({
       description: localizeAnalyticsSummaryText(language, "Syncing recent live activity", "Friss élő aktivitás szinkronizálása"),
       copy: localizeAnalyticsSummaryText(
         language,
-        "Widget activity was detected before the stored conversation read model caught up.",
-        "Widget aktivitást észleltünk, mielőtt a mentett beszélgetési nézet teljesen frissült."
+        "Agent activity was detected before the stored conversation read model caught up.",
+        "Weboldali agent aktivitást észleltünk, mielőtt a mentett beszélgetési nézet teljesen frissült."
       ),
       lastActivityAt: widgetMetrics.lastConversationAt || installStatus.lastSeenAt || null,
     };

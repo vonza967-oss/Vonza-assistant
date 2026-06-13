@@ -14,8 +14,8 @@
     },
     {
       key: "website_widget",
-      label: "Website Widget",
-      note: "Website Widget launcher, appearance, install, and domains.",
+      label: "Website Agent",
+      note: "Website Agent launcher, appearance, install, and domains.",
     },
     {
       key: "voice_agent",
@@ -921,7 +921,7 @@
 
   function getBillingPlanStateCopy(billing = {}) {
     if (isPilotFreeBillingPlan(billing)) {
-      return "Pilot Website Widget tesztcsomag aktiv. Stripe checkout nem szukseges; ez a hozzaferes a widget pilot probahoz van beallitva.";
+      return "Pilot Weboldali agent tesztcsomag aktiv. Stripe checkout nem szukseges; ez a hozzaferes az agent pilot probahoz van beallitva.";
     }
 
     return billing.hasActiveSubscription
@@ -972,9 +972,9 @@
       },
       {
         key: "website_widget",
-        name: "Website Widget",
+        name: "Website Agent",
         targetUseCase: "Five-minute website AI agent for visitors who need quick answers without leaving a page.",
-        setupLabel: "Open widget setup",
+        setupLabel: "Open agent setup",
         setupHref: "/dashboard/widget",
         pricingLabel: "Product pricing coming soon",
       },
@@ -1493,24 +1493,24 @@
 
     if (normalizedSection === "website_widget") {
       return {
-        kicker: "Website Widget",
-        title: "Website Widget",
-        copy: "Tune the recommended Website Widget launch surface using the existing snippet, launcher, install-status, and allowed-domain settings.",
-        ariaLabel: "Website Widget settings summary",
-        saveLabel: "Save Website Widget",
+        kicker: "Website Agent",
+        title: "Website Agent",
+        copy: "Tune the recommended Website Agent launch surface using the existing snippet, launcher, install-status, and allowed-domain settings.",
+        ariaLabel: "Website Agent settings summary",
+        saveLabel: "Save Website Agent",
         tabs: getProductSettingsTabs(normalizedSection, details.activeTab),
         rows: [
           {
             label: "Embed/install status",
             value: installStatus.label || "Not installed yet",
             tone: installStatus.state === "seen_recently" ? "Ready" : installStatus.state === "installed_unseen" ? "Limited" : "Pending",
-            copy: "Uses the existing Website Widget snippet and install verification flow.",
+            copy: "Uses the existing Website Agent snippet and install verification flow.",
           },
           {
             label: "Allowed domains",
             value: allowedDomainCount ? `${allowedDomainCount} domain${allowedDomainCount === 1 ? "" : "s"}` : "Not limited",
             tone: allowedDomainCount ? "Ready" : "Limited",
-            copy: "The current allowed-domains field controls where the Website Widget should run.",
+            copy: "The current allowed-domains field controls where the Website Agent should run.",
           },
           {
             label: "Launcher behavior",
@@ -1892,7 +1892,7 @@
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Business profile</p>
             <h2 class="settings-shell-page-title">Business profile</h2>
-            <p class="settings-shell-page-copy">Keep the business facts Vonza should trust when the Website Widget, hosted Front Desk page, QR links, or embeds answer customer questions.</p>
+            <p class="settings-shell-page-copy">Keep the business facts Vonza should trust when the Website Agent, hosted Front Desk page, QR links, or embeds answer customer questions.</p>
           </div>
           <div class="settings-shell-page-meta">
             <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs details" : "Profile ready"}</span>
@@ -2166,7 +2166,7 @@
           ${frontDeskTabButton("identity", "Identity & welcome")}
           ${frontDeskTabButton("full_page", "Full-page assistant")}
           ${frontDeskTabButton("routing", "Routing")}
-          ${frontDeskTabButton("appearance", "Website Widget")}
+          ${frontDeskTabButton("appearance", "Website Agent")}
           ${frontDeskTabButton("voice", "Voice")}
         </div>
 
@@ -2415,7 +2415,7 @@
                     <div class="field">
                       <label for="full-page-logo-url">Logo/avatar URL</label>
                       <input id="full-page-logo-url" name="full_page_logo_url" type="url" value="${escapeHtml(fullPageConfig.logoUrl || "")}" placeholder="https://example.com/logo.png">
-                      <p class="field-help">Optional. Leave blank to use the assistant initial or Website Widget logo.</p>
+                      <p class="field-help">Optional. Leave blank to use the assistant initial or Website Agent logo.</p>
                     </div>
                   </div>
                   <div class="settings-full-page-toggle-row">
@@ -2684,7 +2684,7 @@
                 <div class="field">
                   <label for="assistant-allowed-domains">Allowed domains</label>
                   <textarea id="assistant-allowed-domains" name="allowed_domains" placeholder="example.com&#10;www.example.com">${escapeHtml((agent.allowedDomains || []).join("\n"))}</textarea>
-                  <p class="field-help">One domain per line. Keep it limited to real widget hosts.</p>
+                  <p class="field-help">One domain per line. Keep it limited to real Website Agent hosts.</p>
                 </div>
                 <div class="field">
                   <label for="assistant-business-hours-note">Availability note</label>
@@ -2781,13 +2781,13 @@
             <section class="settings-shell-section" data-frontdesk-settings-panel="appearance" ${frontDeskPanelAttrs("appearance")}>
               <div class="settings-shell-section-header">
                 <div>
-                  <h3 class="settings-shell-section-title">Website Widget launcher</h3>
-                  <p class="settings-shell-section-copy">Configure the Website Widget launcher for the recommended website launch path. Full-page Front Desk settings stay in the companion page section.</p>
+                  <h3 class="settings-shell-section-title">Website Agent launcher</h3>
+                  <p class="settings-shell-section-copy">Configure the Website Agent launcher for the recommended website launch path. Full-page Front Desk settings stay in the companion page section.</p>
                 </div>
               </div>
               <div class="settings-shell-field-stack">
                 <div class="field">
-                  <label for="assistant-widget-logo">Widget logo</label>
+                  <label for="assistant-widget-logo">Agent logo</label>
                   <div class="settings-shell-logo-upload">
                     <div class="settings-shell-logo-preview" aria-hidden="true">
                       ${agent.widgetLogoUrl ? `<img src="${escapeHtml(agent.widgetLogoUrl)}" alt="">` : `<span>${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>`}
@@ -2832,7 +2832,7 @@
                 <h3 id="studio-summary-name" class="studio-summary-name">${escapeHtml(agent.assistantName || agent.name || "")}</h3>
                 <p id="studio-summary-copy" class="studio-summary-copy">${escapeHtml(agent.welcomeMessage || "Your front desk is ready to greet visitors with a clear, helpful first message.")}</p>
                 <div class="settings-shell-logo-summary">
-                  <span class="settings-shell-logo-summary-label">Widget logo</span>
+                  <span class="settings-shell-logo-summary-label">Agent logo</span>
                   <span class="settings-shell-logo-preview settings-shell-logo-preview--small" aria-hidden="true" style="--settings-card-logo-bg:${escapeHtml(primaryColor)}">
                     ${agent.widgetLogoUrl ? `<img src="${escapeHtml(agent.widgetLogoUrl)}" alt="">` : `<span>${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>`}
                   </span>
@@ -3051,8 +3051,8 @@
             <div>
               <h3 class="settings-shell-section-title">${escapeHtml(isHungarian ? "Jogi és bizalmi felület" : "Legal and trust")}</h3>
               <p class="settings-shell-section-copy">${escapeHtml(isHungarian
-                ? "Ezek a nyilvános oldalak a website, az app, a widget és a hosted checkout jogi felületét fedik le."
-                : "These public pages cover the website, app, widget, and hosted checkout legal surface.")}</p>
+                ? "Ezek a nyilvános oldalak a website, az app, az agent és a hosted checkout jogi felületét fedik le."
+                : "These public pages cover the website, app, agent, and hosted checkout legal surface.")}</p>
             </div>
           </div>
           <div class="app-legal-card">
@@ -3172,7 +3172,7 @@
             <span>${escapeHtml(setup.isReady ? "Core setup ready" : setup.knowledgeLimited ? "Knowledge limited" : "Needs setup")}</span>
           </div>
           <div class="settings-status-row">
-            <strong>Website Widget</strong>
+            <strong>Website Agent</strong>
             <span>${escapeHtml(installStatus.label || "Not installed yet")}</span>
           </div>
         </div>
@@ -3364,7 +3364,7 @@
         <div class="settings-card-heading">
           <div>
             <h2 class="settings-card-title">Privacy & compliance</h2>
-            <p class="settings-card-copy">Legal and trust. These public pages cover the website, app, widget, and hosted checkout legal surface.</p>
+            <p class="settings-card-copy">Legal and trust. These public pages cover the website, app, agent, and hosted checkout legal surface.</p>
           </div>
         </div>
         <div class="settings-card-actions settings-card-actions--wrap">
@@ -3401,7 +3401,7 @@
             <div class="settings-shell-page-title-group">
               <p class="studio-kicker">Account & Billing</p>
               <h2 class="settings-shell-page-title">Account & Billing</h2>
-              <p class="settings-shell-page-copy">Review the owner account, access status, plan state, and monthly AI capacity that affect live Website Widget operations.</p>
+              <p class="settings-shell-page-copy">Review the owner account, access status, plan state, and monthly AI capacity that affect live Website Agent operations.</p>
             </div>
           </header>
 
@@ -3529,7 +3529,7 @@
             <div class="settings-shell-page-title-group">
               <p class="studio-kicker">Privacy & Legal</p>
               <h2 class="settings-shell-page-title">Privacy & Legal</h2>
-              <p class="settings-shell-page-copy">Open the public legal and privacy pages used by the website, app, hosted Front Desk page, Website Widget, and checkout.</p>
+              <p class="settings-shell-page-copy">Open the public legal and privacy pages used by the website, app, hosted Front Desk page, Website Agent, and checkout.</p>
             </div>
           </header>
           <section class="settings-operational-summary settings-operational-summary--privacy" aria-label="Privacy and legal summary">
@@ -3922,17 +3922,17 @@
         : "Needs booking link";
     const displayTone = providerConnected ? "Ready" : hasCalendlyBookingUrl ? "Pending" : "Warning";
     const statusCopy = providerConnected
-      ? "Signed Calendly booking webhooks can record confirmed booking outcomes for this Website Widget."
+      ? "Signed Calendly booking webhooks can record confirmed booking outcomes for this Website Agent."
       : hasCalendlyBookingUrl
         ? "Connect creates the Vonza webhook endpoint and, when backend Calendly onboarding is configured, creates the Calendly webhook subscription."
-        : "Add a public HTTPS Calendly booking link in Website Widget routing before connecting the webhook.";
+        : "Add a public HTTPS Calendly booking link in Website Agent routing before connecting the webhook.";
 
     return `
       <section class="settings-shell-section settings-connected-app-adapter-panel">
         <div class="settings-shell-section-header">
           <div>
             <h3 class="settings-shell-section-title">Calendly booking connect</h3>
-            <p class="settings-shell-section-copy">Use the saved Website Widget booking link to connect signed Calendly webhook evidence for confirmed bookings.</p>
+            <p class="settings-shell-section-copy">Use the saved Website Agent booking link to connect signed Calendly webhook evidence for confirmed bookings.</p>
           </div>
           <span class="${getBadgeClass(displayTone)}">${escapeHtml(displayLabel)}</span>
         </div>
@@ -4647,7 +4647,7 @@
     const capabilities = [
       { label: "Workspace mode", value: workspaceMode.title },
       { label: "Website knowledge", value: importState.value },
-      { label: "Website Widget install", value: installStatus.label || "Not installed yet" },
+      { label: "Website Agent install", value: installStatus.label || "Not installed yet" },
       { label: "Gmail read", value: google.gmailRead ? "Connected" : "Not connected" },
       { label: "Calendar write", value: google.calendarWrite ? "Connected" : "Not connected" },
     ];
@@ -4732,9 +4732,9 @@
       <form data-settings-form data-form-kind="customize" data-settings-section="website_widget" class="settings-shell-form settings-shell-form--system settings-frontdesk-form settings-frontdesk-form--website_widget" id="settings-section-website_widget">
         <header class="settings-shell-page-header">
           <div class="settings-shell-page-title-group">
-            <p class="studio-kicker">Website Widget</p>
-            <h2 class="settings-shell-page-title">Website Widget</h2>
-            <p class="settings-shell-page-copy">Configure the existing embedded widget launcher, answer posture, routing destinations, and allowed domains.</p>
+            <p class="studio-kicker">Website Agent</p>
+            <h2 class="settings-shell-page-title">Website Agent</h2>
+            <p class="settings-shell-page-copy">Configure the existing embedded agent launcher, answer posture, routing destinations, and allowed domains.</p>
           </div>
           <div class="settings-shell-page-meta">
             <span class="badge success">${defaultEscapeHtml(selectedPurposeOption.label)}</span>
@@ -4743,7 +4743,7 @@
           </div>
         </header>
 
-        <section class="settings-operational-summary" aria-label="Website Widget settings summary">
+        <section class="settings-operational-summary" aria-label="Website Agent settings summary">
           <article class="settings-operational-card">
             <div class="settings-operational-card-head">
               <span>Launcher</span>
@@ -4756,14 +4756,14 @@
               <span>Allowed domains</span>
               <span class="${helpers.getBadgeClass(allowedDomains.length ? "Ready" : "Pending")}">${defaultEscapeHtml(allowedDomains.length ? `${allowedDomains.length} saved` : "None saved")}</span>
             </div>
-            <p>${defaultEscapeHtml(allowedDomains.length ? "The widget is scoped to saved domains." : "Add the real website domains that should load the widget.")}</p>
+            <p>${defaultEscapeHtml(allowedDomains.length ? "The agent is scoped to saved domains." : "Add the real website domains that should load the agent.")}</p>
           </article>
           <article class="settings-operational-card">
             <div class="settings-operational-card-head">
               <span>Routing</span>
               <span class="${helpers.getBadgeClass(routingDestinationCount ? "Ready" : "Pending")}">${defaultEscapeHtml(routingDestinationCount ? `${routingDestinationCount} destination${routingDestinationCount === 1 ? "" : "s"}` : "No destinations")}</span>
             </div>
-            <p>${defaultEscapeHtml(routingDestinationCount ? "Widget handoff destinations are available." : "Add at least one contact or next-step destination.")}</p>
+            <p>${defaultEscapeHtml(routingDestinationCount ? "Agent handoff destinations are available." : "Add at least one contact or next-step destination.")}</p>
           </article>
         </section>
 
@@ -4772,7 +4772,7 @@
             <section class="settings-shell-section">
               <div class="settings-shell-section-header">
                 <div>
-                  <h3 class="settings-shell-section-title">Widget purpose</h3>
+                  <h3 class="settings-shell-section-title">Agent purpose</h3>
                   <p class="settings-shell-section-copy">Set the main job for the embedded assistant on normal website pages.</p>
                 </div>
               </div>
@@ -4830,7 +4830,7 @@
                   <textarea id="assistant-welcome" name="welcome_message">${defaultEscapeHtml(agent.welcomeMessage || "")}</textarea>
                 </div>
                 <div class="field settings-field-wide">
-                  <label for="assistant-widget-logo">Widget logo</label>
+                  <label for="assistant-widget-logo">Agent logo</label>
                   <div class="settings-shell-logo-upload">
                     <div class="settings-shell-logo-preview" aria-hidden="true">
                       ${agent.widgetLogoUrl ? `<img src="${defaultEscapeHtml(agent.widgetLogoUrl)}" alt="">` : `<span>${defaultEscapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>`}
@@ -4848,7 +4848,7 @@
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Routing and domains</h3>
-                  <p class="settings-shell-section-copy">Set safe handoff destinations and the domains allowed to host the widget.</p>
+                  <p class="settings-shell-section-copy">Set safe handoff destinations and the domains allowed to host the agent.</p>
                 </div>
               </div>
               <div class="settings-shell-field-stack">
@@ -4874,7 +4874,7 @@
                 <div class="field">
                   <label for="assistant-allowed-domains">Allowed domains</label>
                   <textarea id="assistant-allowed-domains" name="allowed_domains" placeholder="example.com&#10;www.example.com">${defaultEscapeHtml(allowedDomains.join("\n"))}</textarea>
-                  <p class="field-help">One domain per line. Keep this limited to real widget hosts.</p>
+                  <p class="field-help">One domain per line. Keep this limited to real Website Agent hosts.</p>
                 </div>
                 <div class="field">
                   <label for="assistant-booking-url">Booking URL</label>
@@ -4908,7 +4908,7 @@
             </section>
           </div>
 
-          <aside class="settings-frontdesk-preview" aria-label="Website Widget live readout" data-frontdesk-settings-preview>
+          <aside class="settings-frontdesk-preview" aria-label="Website Agent live readout" data-frontdesk-settings-preview>
             <section class="settings-shell-section">
               <div class="settings-shell-section-header">
                 <div>
@@ -4918,14 +4918,14 @@
               </div>
               <div class="settings-shell-live-summary">
                 <h3 id="studio-summary-name" class="studio-summary-name">${defaultEscapeHtml(agent.assistantName || agent.name || "")}</h3>
-                <p id="studio-summary-copy" class="studio-summary-copy">${defaultEscapeHtml(agent.welcomeMessage || "The widget is ready to greet visitors with a clear, helpful first message.")}</p>
+                <p id="studio-summary-copy" class="studio-summary-copy">${defaultEscapeHtml(agent.welcomeMessage || "The agent is ready to greet visitors with a clear, helpful first message.")}</p>
               </div>
             </section>
           </aside>
         </div>
 
         <div class="settings-shell-form-actions">
-          <button class="primary-button" type="submit">Save Website Widget</button>
+          <button class="primary-button" type="submit">Save Website Agent</button>
           <span class="settings-shell-save-state" data-settings-save-state>No changes yet.</span>
         </div>
       </form>
@@ -4984,7 +4984,7 @@
         ${helpers.buildPageHeader({
           title: widgetOnly ? "Configuration" : helpers.t("settings.title"),
           copy: widgetOnly
-            ? "Manage the Website Widget launcher, routing destinations, allowed domains, and answer posture."
+            ? "Manage the Website Agent launcher, routing destinations, allowed domains, and answer posture."
             : helpers.t("settings.copy"),
         })}
         <div class="workspace-page-body settings-shell-layout">
@@ -5003,7 +5003,7 @@
         ${helpers.buildPageHeader({
           eyebrow: helpers.t("nav.connectedTools"),
           title: "Connected apps",
-          copy: "Connect Google Calendar, WhatsApp Business, Calendly, and other dashboard-only integration records for this Website Widget workspace.",
+          copy: "Connect Google Calendar, WhatsApp Business, Calendly, and other dashboard-only integration records for this Website Agent workspace.",
         })}
         <div class="workspace-page-body settings-shell-layout settings-shell-layout--single">
           ${buildConnectedAppsSettingsSection(options.agent || {}, options.connectedApps, helpers)}

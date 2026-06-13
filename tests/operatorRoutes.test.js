@@ -811,7 +811,7 @@ test("agents update route preserves explicit blanks and omits untouched fields",
   }
 });
 
-test("agents update route maps Website Widget AI Behavior fields", async () => {
+test("agents update route maps Website Agent AI Behavior fields", async () => {
   let capturedPayload = null;
   const server = await startServer(createApp(buildRouteDeps({
     updateAgentSettings: async (_supabase, payload) => {

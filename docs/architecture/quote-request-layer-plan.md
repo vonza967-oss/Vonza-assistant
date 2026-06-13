@@ -2,7 +2,7 @@
 
 Plan date: 2026-06-04
 
-This document defines the generic request-only quote foundation used by Vonza. It prepares the Website Widget and shared assistant flows to collect and review quote requests without turning chat into a pricing engine.
+This document defines the generic request-only quote foundation used by Vonza. It prepares the Website Agent and shared assistant flows to collect and review quote requests without turning chat into a pricing engine.
 
 ## Contract Terms
 

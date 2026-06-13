@@ -17,7 +17,7 @@ test("Settings Front Desk stays configuration-only", () => {
   assert.match(settingsShellScript, /Front Desk page/);
   assert.match(settingsShellScript, /Routing/);
   assert.match(settingsShellScript, /Voice/);
-  assert.match(settingsShellScript, /Website Widget/);
+  assert.match(settingsShellScript, /Website Agent/);
   assert.match(settingsShellScript, /Spoken replies are AI-generated on demand/);
   assert.match(settingsShellScript, /Owner voice QA simulator/);
   assert.match(settingsShellScript, /\/api\/voice\/transcribe/);
@@ -57,7 +57,7 @@ test("Dashboard Front Desk renders training workspace tabs and empty states", ()
   assert.doesNotMatch(frontDeskDashboardSurface, /Send AI draft/);
 });
 
-test("widget-first launch path exposes status and form accessibility semantics", () => {
+test("agent-first launch path exposes status and form accessibility semantics", () => {
   const launchSurface = `${dashboardHtml}\n${dashboardScript}\n${dashboardInstallScript}\n${dashboardFrontDeskScript}\n${settingsShellScript}`;
 
   assert.match(dashboardHtml, /id="status-banner"[^>]+role="status"[^>]+aria-live="polite"[^>]+aria-atomic="true"/);
@@ -76,7 +76,7 @@ test("widget-first launch path exposes status and form accessibility semantics",
   assert.match(launchSurface, /<label class="settings-shell-choice-row" for="full-page-public-enabled">/);
 });
 
-test("dashboard install source copy stays Widget-first", () => {
+test("dashboard install source copy stays Agent-first", () => {
   const setupSurface = `${dashboardScript}\n${dashboardInstallScript}\n${dashboardFrontDeskScript}\n${dashboardI18nScript}\n${settingsShellScript}`;
 
   assert.doesNotMatch(setupSurface, /hosted page first/i);
@@ -85,10 +85,10 @@ test("dashboard install source copy stays Widget-first", () => {
   assert.doesNotMatch(setupSurface, /fastest launch path/i);
 });
 
-test("README leads with Hungarian Website Widget while preserving Front Desk expansion channel", () => {
-  assert.match(readme, /Hungarian-first Website Widget SaaS for SMEs/i);
-  assert.match(readme, /website AI agent\/widget that can be installed in about 5 minutes/i);
-  assert.match(readme, /AI Front Desk is the broader system behind the widget/i);
+test("README leads with Hungarian Website Agent while preserving Front Desk expansion channel", () => {
+  assert.match(readme, /Hungarian-first Website Agent SaaS for SMEs/i);
+  assert.match(readme, /website AI agent that can be installed in about 5 minutes/i);
+  assert.match(readme, /AI Front Desk is the broader system behind the agent/i);
   assert.match(readme, /full-page Front Desk remains a companion and expansion channel/i);
   assert.match(readme, /Install verification and allowed-domain checks/i);
 });

@@ -13,7 +13,7 @@ const STEP_LABELS = Object.freeze({
   business_basics: "Paste Website URL",
   import_knowledge: "Import Content",
   configure_assistant: "Choose Template and Tone",
-  install_widget: "Install Widget",
+  install_widget: "Install Agent",
   test_improve: "Verify and Improve",
 });
 
@@ -39,7 +39,7 @@ const STEP_NEXT_ACTIONS = Object.freeze({
     target: "install",
   },
   test_improve: {
-    label: "Preview widget",
+    label: "Preview agent",
     action: "test_preview",
     target: "preview",
   },
@@ -239,7 +239,7 @@ function buildStepCopy(stepKey, signals, progress) {
   if (stepKey === "business_basics") {
     return signals.hasBusinessBasics
       ? "Business name and website URL are saved."
-      : "Paste the business website URL so Vonza can build the widget from the real site.";
+      : "Paste the business website URL so Vonza can build the agent from the real site.";
   }
 
   if (stepKey === "import_knowledge") {
@@ -247,26 +247,26 @@ function buildStepCopy(stepKey, signals, progress) {
       return progress.importError || "Website import failed. Retry when the website is reachable.";
     }
     if (signals.knowledgeReady) {
-      return "Website content is imported and ready for grounded widget answers.";
+      return "Website content is imported and ready for grounded agent answers.";
     }
     if (signals.knowledgeImported) {
-      return "Website content was imported with limited detail. You can retry to strengthen widget answers.";
+      return "Website content was imported with limited detail. You can retry to strengthen agent answers.";
     }
     return "Import the public website so answers are grounded in real business detail.";
   }
 
   if (stepKey === "configure_assistant") {
     return signals.hasAssistantConfig
-      ? "Template, visible name, tone, and first customer-facing widget settings are saved."
+      ? "Template, visible name, tone, and first customer-facing agent settings are saved."
       : "Choose the template, tone, visible name, welcome text, and contact or CTA basics.";
   }
 
   if (stepKey === "install_widget") {
     if (signals.hasLiveInstall) {
-      return "Your Website Widget is live. Vonza has received a ping from the installed site.";
+      return "Your Website Agent is live. Vonza has received a ping from the installed site.";
     }
     if (signals.hasDetectedInstall) {
-      return "The Website Widget snippet was found. Open the live site once so Vonza can confirm a real page-load ping.";
+      return "The Website Agent snippet was found. Open the live site once so Vonza can confirm a real page-load ping.";
     }
     return "Install through WordPress or copy the one-line embed snippet, then run verification on the live site.";
   }
@@ -279,13 +279,13 @@ function buildStepCopy(stepKey, signals, progress) {
     return "A sample conversation exists. Send the owner to Home to watch the first real usage.";
   }
 
-  return "Preview the widget with one realistic customer question, then improve knowledge if the answer is weak.";
+  return "Preview the agent with one realistic customer question, then improve knowledge if the answer is weak.";
 }
 
 function buildStepNextAction(stepKey, signals) {
   if (stepKey === "install_widget" && signals.hasLiveInstall) {
     return {
-      label: "Preview widget",
+      label: "Preview agent",
       action: "go_to_test",
       target: "preview",
     };

@@ -876,7 +876,7 @@
           </div>
           <div class="v2-list">
             ${statusRow("Front Desk page", "Live and ready to share", "Recommended", "green", "window")}
-            ${statusRow("Website widget bubble", "Optional add-on detected on your site", "Optional", "green", "check")}
+            ${statusRow("Website Agent launcher", "Optional add-on detected on your site", "Optional", "green", "check")}
             ${statusRow("QR / direct links", "4 Front Desk page QR codes generated", "Live", "green", "qr")}
           </div>
         </article>
@@ -974,7 +974,7 @@
               </tr>
             </thead>
             <tbody>
-              ${performanceRow("Widget", "2,841", "699 (56%)", "181", "25.9%", "610 (87%)", "89 (13%)", "1m 18s", "window", "blue")}
+              ${performanceRow("Agent", "2,841", "699 (56%)", "181", "25.9%", "610 (87%)", "89 (13%)", "1m 18s", "window", "blue")}
               ${performanceRow("Full Page", "1,126", "274 (22%)", "51", "18.6%", "235 (86%)", "39 (14%)", "1m 32s", "window", "blue")}
               ${performanceRow("QR Flyer", "712", "114 (9%)", "21", "18.4%", "97 (85%)", "17 (15%)", "1m 41s", "qr", "teal")}
               ${performanceRow("QR Window", "386", "60 (5%)", "10", "16.7%", "50 (83%)", "10 (17%)", "1m 55s", "qr", "teal")}
@@ -1028,7 +1028,7 @@
 
   function renderSourceBreakdown() {
     const rows = [
-      ["Website widget", "56%", "699", "teal"],
+      ["Website Agent", "56%", "699", "teal"],
       ["Front Desk page", "22%", "274", "blue"],
       ["QR / direct link", "14%", "174", "soft-blue"],
       ["Embedded assistant", "8%", "101", "gray"],
@@ -1185,7 +1185,7 @@
       <section class="v2-install-methods">
         ${installMethodCard("full-page", "Front Desk page", "Create and share the dedicated assistant page.", "Recommended", "window", "blue")}
         ${installMethodCard("qr", "QR / direct link", "Open the Front Desk page from any channel.", "Offline to online", "qr", "teal")}
-        ${installMethodCard("widget", "Website widget bubble", "Optional compact bubble for normal website pages.", "Optional", "code", "teal")}
+        ${installMethodCard("widget", "Website Agent launcher", "Optional compact agent for normal website pages.", "Optional", "code", "teal")}
       </section>
       <section class="v2-install-layout">
         <div>
@@ -1265,14 +1265,14 @@
       <article class="v2-method-detail">
         <div class="v2-section-header">
           <div>
-            <h2 class="v2-section-title">Website widget bubble</h2>
+            <h2 class="v2-section-title">Website Agent launcher</h2>
             <p class="v2-section-subtitle">Optional compact bubble for normal website pages.</p>
           </div>
           ${pill("Installed", "green")}
         </div>
         <div class="v2-code-block">
           <div class="v2-code-actions">${button("Copy code", "copy")}</div>
-<pre>&lt;!-- Vonza Widget --&gt;
+<pre>&lt;!-- Vonza Agent --&gt;
 &lt;script src="https://cdn.vonza.com/widget/v1/widget.js"
   data-site-id="site_8f3c2a9e"
   data-position="right"
@@ -1380,7 +1380,7 @@
         </div>
         <div class="v2-list">
           ${statusRow("Front Desk page", "Live and ready to share", "Recommended", "green", "window")}
-          ${statusRow("Website widget bubble", "Optional add-on detected on your site", "Optional", "green", "check")}
+          ${statusRow("Website Agent launcher", "Optional add-on detected on your site", "Optional", "green", "check")}
           ${statusRow("QR / direct links", "4 QR codes generated", "Live", "green", "qr")}
         </div>
       </article>

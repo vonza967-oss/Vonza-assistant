@@ -428,6 +428,6 @@ export async function deleteVisitorOrCustomerRecords(supabase, options = {}) {
   return {
     ok: true,
     deleted,
-    guidance: "Billing, account, and auth records were not deleted. Widget visitor identity should also be cleared in the visitor browser or host site identity layer when applicable.",
+    guidance: "Billing, account, and auth records were not deleted. Agent visitor identity should also be cleared in the visitor browser or host site identity layer when applicable.",
   };
 }

@@ -1,14 +1,14 @@
 # Companion Full-Page Front Desk Launch Guide
 
-Use this checklist after the Website Widget is installed, or when the business wants the full-page Front Desk alongside the widget for QR codes, direct links, WordPress pages, smart embeds, or dedicated customer-facing flows. Vonza is Hungarian-first for the initial SME launch: default customer-facing copy should be natural Hungarian unless the business deliberately serves another language, and public plan prices are shown in HUF.
+Use this checklist after the Website Agent is installed, or when the business wants the full-page Front Desk alongside the agent for QR codes, direct links, WordPress pages, smart embeds, or dedicated customer-facing flows. Vonza is Hungarian-first for the initial SME launch: default customer-facing copy should be natural Hungarian unless the business deliberately serves another language, and public plan prices are shown in HUF.
 
 ## 1. Open The Dashboard
 
-Sign in and open `/dashboard`. If the Website Widget workspace already exists, choose that current assistant so the full-page Front Desk uses the same website knowledge, lead capture, billing, and safety settings.
+Sign in and open `/dashboard`. If the Website Agent workspace already exists, choose that current assistant so the full-page Front Desk uses the same website knowledge, lead capture, billing, and safety settings.
 
 ## 2. Import Website Knowledge
 
-Go to Settings → Business Profile. Add or confirm the website URL, then run Import website knowledge. Wait for the import status to finish, or retry if the status says the import is limited, failed, or stalled. The Website Widget and full-page Front Desk should use the same grounded business knowledge.
+Go to Settings → Business Profile. Add or confirm the website URL, then run Import website knowledge. Wait for the import status to finish, or retry if the status says the import is limited, failed, or stalled. The Website Agent and full-page Front Desk should use the same grounded business knowledge.
 
 ## 3. Practice And Improve Answers
 
@@ -26,9 +26,9 @@ Go to Install. Copy the Front Desk page link for buttons, menus, emails, and own
 
 Use WordPress / dedicated page when the full-page Front Desk should be the main content of a website page. Use the smart embed when it should live inside part of an existing page. Use the raw iframe only when the site blocks scripts.
 
-## 7. Keep The Website Widget Live
+## 7. Keep The Website Agent Live
 
-Keep the Website Widget as the main launch surface on normal website pages. Treat the full-page Front Desk as the companion path for larger surfaces, QR/direct links, and expansion workflows.
+Keep the Website Agent as the main launch surface on normal website pages. Treat the full-page Front Desk as the companion path for larger surfaces, QR/direct links, and expansion workflows.
 
 ## 8. Optional Web Call
 

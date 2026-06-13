@@ -6,7 +6,7 @@ export const DEFAULT_LANGUAGE = "auto";
 export const DEFAULT_WIDGET_CONFIG = {
   assistantName: "Vonza AI",
   welcomeMessage: "Üdvözöljük! Miben segíthetünk?",
-  buttonLabel: "Widget megnyitása",
+  buttonLabel: "Agent megnyitása",
   launcherText: "",
   widgetLogoUrl: "",
   primaryColor: "#10a37f",

@@ -607,7 +607,7 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   assert.equal(context.window.VonzaDashboardState.getSettingsFrontDeskTabHashSegment("full_page"), "full-page-assistant");
   assert.equal(context.window.VonzaDashboardState.getSettingsFrontDeskTabHashSegment("appearance"), "optional-widget");
   assert.equal(context.window.VonzaDashboardLabels.getCustomerSourceLabel("full_page_assistant"), "Front Desk page");
-  assert.equal(context.window.VonzaDashboardLabels.getCustomerSourceLabel("widget_chat"), "Website widget");
+  assert.equal(context.window.VonzaDashboardLabels.getCustomerSourceLabel("widget_chat"), "Website Agent");
   assert.equal(context.window.VonzaDashboardLabels.getActionQueueStatusLabel("reviewed", ["new", "reviewed"]), "Reviewed");
   assert.equal(context.window.VonzaDashboardLabels.getFollowUpStatusLabel("missing_contact"), "Missing contact");
   assert.equal(typeof context.window.VonzaDashboardInstall.createInstallHelpers, "function");
@@ -663,7 +663,7 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   assert.match(customerHelpers.deriveCustomerReachability(guestContact).reason, /No contact details captured yet/);
   assert.deepEqual(
     JSON.parse(JSON.stringify(["widget_chat", "full_page_assistant", "embedded_assistant", ""].map((source) => customerHelpers.getCustomerSourceLabel(source) || "Unknown source"))),
-    ["Website widget", "Front Desk page", "Embedded assistant", "Unknown source"]
+    ["Website Agent", "Front Desk page", "Embedded assistant", "Unknown source"]
   );
   const rowMarkup = customerHelpers.renderCustomerRow(guestContact);
   assert.match(rowMarkup, /data-contact-id="guest-1"/);
@@ -753,7 +753,7 @@ test("dashboard shows a visible loading state before workspace data resolves", a
   });
 
   assert.match(harness.getRootHtml(), /Opening your workspace/i);
-  assert.match(harness.getRootHtml(), /Loading your Website Widget setup\.\.\./i);
+  assert.match(harness.getRootHtml(), /Loading your Website Agent setup\.\.\./i);
   assert.match(harness.getRootHtml(), /Free Render instances can take up to a minute after inactivity\./i);
   assert.match(harness.getRootHtml(), /data-loading-refresh/i);
   assert.doesNotMatch(harness.getRootHtml(), /Syncing customer conversations/i);
@@ -884,12 +884,12 @@ test("widget dashboard routes render widget-only home and sidebar copy", async (
     const html = harness.getRootHtml();
 
     assert.match(html, /data-website-widget-dashboard="dedicated"/, pathname);
-    assert.match(html, /Website Widget workspace/, pathname);
-    assert.match(html, /Website Widget overview/, pathname);
-    assert.match(html, /Website URL, import, install, analytics, and configuration for the Website Widget/, pathname);
-    assert.match(html, /Install Website Widget/, pathname);
-    assert.match(html, /Widget configuration/, pathname);
-    assert.match(html, /How the widget answers/, pathname);
+    assert.match(html, /Website Agent workspace/, pathname);
+    assert.match(html, /Website Agent overview/, pathname);
+    assert.match(html, /Website URL, import, install, analytics, and configuration for the Website Agent/, pathname);
+    assert.match(html, /Install Website Agent/, pathname);
+    assert.match(html, /Agent configuration/, pathname);
+    assert.match(html, /How the agent answers/, pathname);
     assert.match(html, /Agent instructions/, pathname);
     assert.match(html, /data-shell-target="overview"/, pathname);
     assert.match(html, /<span class="shell-nav-label">Overview<\/span>/, pathname);
@@ -909,11 +909,11 @@ test("widget dashboard routes render widget-only home and sidebar copy", async (
     assert.doesNotMatch(html, />\s*(Front Desk|Voice Agent|QDH|ESG|Enterprise Request Desk|Web Call|Hotel Concierge)\s*</i, pathname);
     assert.doesNotMatch(html, /Front Desk created|Public Front Desk page|Front Desk customized|Distribution channel selected|Front Desk improvements|Current Front Desk greeting/i, pathname);
     assert.doesNotMatch(html, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"/i, pathname);
-    assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
+    assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Agent|Buy Front Desk/);
   }
 });
 
-test("Hungarian Website Widget dashboard renders localized nav and close label", async () => {
+test("Hungarian Website Agent dashboard renders localized nav and close label", async () => {
   const harness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
     agents: () => [createActiveAgent()],
@@ -926,7 +926,7 @@ test("Hungarian Website Widget dashboard renders localized nav and close label",
   const html = harness.getRootHtml();
   const shellLabels = Array.from(html.matchAll(/<span class="shell-nav-label">([^<]+)<\/span>/g), (match) => match[1]);
   assert.match(html, /aria-label="Navigáció bezárása"/);
-  ["Áttekintés", "Ügyfelek", "Elemzések", "Telepítés", "Widget konfiguráció", "Kapcsolt alkalmazások", "Beállítások"].forEach((label) => {
+  ["Áttekintés", "Ügyfelek", "Elemzések", "Telepítés", "Agent konfiguráció", "Kapcsolt alkalmazások", "Beállítások"].forEach((label) => {
     assert.ok(shellLabels.includes(label), `Expected Hungarian nav label: ${label}`);
   });
 });
@@ -943,7 +943,7 @@ test("widget dashboard links to existing widget setup hashes without unsupported
   assert.match(widgetHtml, /href="#settings\/widget\/optional-widget"/);
   assert.match(widgetHtml, /Allowed domains/);
   assert.match(widgetHtml, /Launcher/);
-  assert.match(widgetHtml, /Test widget/);
+  assert.match(widgetHtml, /Test agent/);
   assert.match(widgetHtml, /Customers/);
   assert.doesNotMatch(widgetHtml, />\s*(Front Desk|Voice Agent|Web Call|Hotel Concierge|Enterprise Request Desk)\s*</i);
   assert.doesNotMatch(widgetHtml, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"|browser voice|telephony/i);
@@ -960,10 +960,10 @@ test("widget dashboard routes render widget analytics links and customer empty s
     const analyticsHtml = analyticsHarness.getRootHtml();
 
     assert.match(analyticsHtml, /data-product-analytics-view="website_widget"/, `${pathname} analytics product view`);
-    assert.match(analyticsHtml, /No Website Widget analytics yet\.|Website Widget analytics/, pathname);
+    assert.match(analyticsHtml, /No Website Agent analytics yet\.|Website Agent analytics/, pathname);
     assert.match(analyticsHtml, /href="#install\/embed"/, pathname);
     assert.match(analyticsHtml, /href="#settings\/widget\/optional-widget"/, pathname);
-    assert.doesNotMatch(analyticsHtml, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
+    assert.doesNotMatch(analyticsHtml, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Agent|Buy Front Desk/);
     assert.doesNotMatch(analyticsHtml, />\s*(Front Desk|Voice Agent|Web Call|Enterprise Request Desk|Hotel Concierge)\s*</i);
     assert.doesNotMatch(analyticsHtml, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"/i);
 
@@ -975,15 +975,15 @@ test("widget dashboard routes render widget analytics links and customer empty s
     await customerHarness.settle();
     const customerHtml = customerHarness.getRootHtml();
 
-    assert.match(customerHtml, /No Website Widget customer conversations yet\.|Website Widget customer conversations|Customers/, `${pathname} customer title`);
-    assert.match(customerHtml, /website visitors use the embedded assistant|existing widget contacts and leads|Widget Lead|Customers/, `${pathname} customer copy`);
+    assert.match(customerHtml, /No Website Agent customer conversations yet\.|Website Agent customer conversations|Customers/, `${pathname} customer title`);
+    assert.match(customerHtml, /website visitors use the embedded assistant|existing agent contacts and leads|Agent Lead|Customers/, `${pathname} customer copy`);
     assert.match(customerHtml, /href="#install\/embed"|href="#settings\/widget\/optional-widget"/, `${pathname} customer link`);
     assert.doesNotMatch(customerHtml, />\s*(Front Desk|Voice Agent|Web Call|Enterprise Request Desk|Hotel Concierge)\s*</i);
     assert.doesNotMatch(customerHtml, /href="\/dashboard\/(?:front-desk|voice)|href="#settings\/(?:front-desk|voice)|data-product-context-panel="(?:front_desk|voice_agent)"|telephony/i);
   }
 });
 
-test("dedicated Website Widget dashboard remaps stale Front Desk state to widget surfaces", async () => {
+test("dedicated Website Agent dashboard remaps stale Front Desk state to widget surfaces", async () => {
   const harness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
     hash: "#settings/front-desk/full-page-assistant",
@@ -1008,7 +1008,7 @@ test("dedicated Website Widget dashboard remaps stale Front Desk state to widget
 
   assert.equal(harness.getLocation().hash, "#settings/widget/optional-widget");
   assert.match(html, /data-shell-target="settings"[\s\S]{0,260}aria-current="page"/);
-  assert.match(html, /Widget configuration/);
+  assert.match(html, /Agent configuration/);
   assert.match(html, /website-widget-config-form/);
   assert.doesNotMatch(html, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
   assert.doesNotMatch(html, /data-frontdesk-section=|data-frontdesk-settings-tab="voice"|Enable browser voice for Front Desk|Front Desk page customization/i);
@@ -1020,7 +1020,7 @@ test("dedicated Website Widget dashboard remaps stale Front Desk state to widget
   assert.notEqual(harness.getGlobal("window").localStorage.getItem("vonza_dashboard_frontdesk_section"), "customization");
 });
 
-test("dedicated Website Widget dashboard has a separate Settings preferences page", async () => {
+test("dedicated Website Agent dashboard has a separate Settings preferences page", async () => {
   const harness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
     hash: "#preferences",
@@ -1040,10 +1040,10 @@ test("dedicated Website Widget dashboard has a separate Settings preferences pag
   assert.match(preferencesHtml, /name="dashboard_language"/);
   assert.doesNotMatch(preferencesHtml, /data-dashboard-theme-choice|data-dashboard-background-choice|data-dashboard-background-blur-control/);
   assert.doesNotMatch(preferencesHtml, /Bright Glass|Dark Glass|Dashboard background|Glass transparency/);
-  assert.doesNotMatch(preferencesHtml, /Widget configuration|How the widget answers|website-widget-config-form/);
+  assert.doesNotMatch(preferencesHtml, /Agent configuration|How the agent answers|website-widget-config-form/);
 });
 
-test("dedicated Website Widget dashboard exposes connected apps page", async () => {
+test("dedicated Website Agent dashboard exposes connected apps page", async () => {
   const connectedAppCapabilities = [
     {
       key: "google.calendar.read",
@@ -1229,7 +1229,7 @@ test("dedicated Website Widget dashboard exposes connected apps page", async () 
   assert.doesNotMatch(connectedAppsHtml, /Connect with OAuth|Call from public chat|Send AI reply|Embedded Signup is ready/i);
 });
 
-test("dedicated Website Widget dashboard redirects settings connected apps hash to menu page", async () => {
+test("dedicated Website Agent dashboard redirects settings connected apps hash to menu page", async () => {
   const harness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
     hash: "#settings/connected-apps",
@@ -1241,7 +1241,7 @@ test("dedicated Website Widget dashboard redirects settings connected apps hash 
   assert.match(harness.getRootHtml(), /data-shell-target="connected_apps"[\s\S]{0,260}aria-current="page"/);
 });
 
-test("dedicated Website Widget analytics and customers default to widget context when product context is absent", () => {
+test("dedicated Website Agent analytics and customers default to widget context when product context is absent", () => {
   const harness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
     agents: () => [createActiveAgent()],
@@ -1251,11 +1251,11 @@ test("dedicated Website Widget analytics and customers default to widget context
   const customerHtml = customers.renderCustomerEmptyState();
   const analyticsHtml = analytics.renderProductAnalyticsSection([], null, { hideProductTabs: true });
 
-  assert.match(customerHtml, /No Website Widget customer conversations yet\./);
+  assert.match(customerHtml, /No Website Agent customer conversations yet\./);
   assert.match(customerHtml, /href="#install\/embed"/);
   assert.doesNotMatch(customerHtml, /Front Desk|Web Call|Voice Agent/);
   assert.match(analyticsHtml, /data-product-analytics-view="website_widget"/);
-  assert.match(analyticsHtml, /No Website Widget analytics yet\./);
+  assert.match(analyticsHtml, /No Website Agent analytics yet\./);
   assert.match(analyticsHtml, /href="#settings\/widget\/optional-widget"/);
   assert.doesNotMatch(analyticsHtml, /No Front Desk analytics|Open full-page publish|Web Call|Voice Agent/);
 });
@@ -1300,7 +1300,7 @@ test("product dashboard routes preserve existing dashboard hashes", async () => 
   }
 });
 
-test("dedicated Website Widget dashboard separates the existing widget surfaces", async () => {
+test("dedicated Website Agent dashboard separates the existing widget surfaces", async () => {
   const now = "2026-06-07T10:00:00.000Z";
   const agent = createActiveAgent({
     installId: "install-1",
@@ -1342,16 +1342,16 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   ];
   const widgetContact = {
     id: "contact-widget-1",
-    name: "Widget Lead",
+    name: "Agent Lead",
     email: "lead@example.com",
     lifecycleState: "active_lead",
     source: "widget",
-    latestSummary: "Asked from widget about availability.",
+    latestSummary: "Asked from agent about availability.",
     lastMessageAt: now,
     timeline: [
       {
         at: now,
-        label: "Website Widget",
+        label: "Website Agent",
         summary: "Availability question captured.",
       },
     ],
@@ -1361,7 +1361,7 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
     name: "Page Lead",
     source: "page",
     lifecycleState: "active_lead",
-    latestSummary: "Should stay out of the widget dashboard.",
+    latestSummary: "Should stay out of the agent dashboard.",
   };
   const harness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
@@ -1413,25 +1413,25 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
 
   assert.match(html, /data-website-widget-dashboard="dedicated"/);
   assert.match(html, /data-dashboard-product="website_widget"/);
-  assert.match(html, /Website Widget workspace/);
-  assert.match(html, /Website URL, import, install, analytics, and configuration for the Website Widget/);
-  assert.match(html, /Website Widget overview/);
-  assert.match(html, /Start with the website URL, import content for grounded widget answers/);
-  assert.match(html, /Install Website Widget/);
-  assert.match(html, /Website Widget embed snippet/);
-  assert.match(html, /Copy widget snippet/);
+  assert.match(html, /Website Agent workspace/);
+  assert.match(html, /Website URL, import, install, analytics, and configuration for the Website Agent/);
+  assert.match(html, /Website Agent overview/);
+  assert.match(html, /Start with the website URL, import content for grounded agent answers/);
+  assert.match(html, /Install Website Agent/);
+  assert.match(html, /Website Agent embed snippet/);
+  assert.match(html, /Copy agent snippet/);
   assert.match(html, /Verify installation/);
-  assert.match(html, /Test widget/);
-  assert.match(html, /Widget configuration/);
-  assert.match(html, /Edit how the embedded Website Widget appears, where it can run, and how the AI answers customers/);
-  assert.match(html, /How the widget answers/);
+  assert.match(html, /Test agent/);
+  assert.match(html, /Agent configuration/);
+  assert.match(html, /Edit how the embedded Website Agent appears, where it can run, and how the AI answers customers/);
+  assert.match(html, /How the agent answers/);
   assert.match(html, /data-purpose-card="support"/);
   assert.match(html, /data-tone-card="professional"/);
   assert.match(html, /Agent instructions/);
   assert.match(html, /Generate instructions/);
   assert.match(html, /Import website knowledge|Retry website import|Refresh website knowledge/);
-  assert.match(html, /Live widget preview/);
-  assert.match(html, /Save Website Widget/);
+  assert.match(html, /Live agent preview/);
+  assert.match(html, /Save Website Agent/);
   assert.match(html, /Embed\/install status/);
   assert.match(html, /Allowed domains/);
   assert.match(html, /data-shell-target="contacts"/);
@@ -1440,12 +1440,12 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.match(html, /data-shell-target="connected_apps"/);
   assert.match(html, /data-shell-target="preferences"/);
   assert.match(html, /Customers/);
-  assert.match(html, /Website Widget analytics/);
+  assert.match(html, /Website Agent analytics/);
   assert.match(html, /data-product-analytics-view="website_widget"/);
   assert.match(html, /data-product-analytics-card="widget_conversations"[\s\S]{0,140}data-product-analytics-state="available"/);
   assert.match(html, /data-product-analytics-card="widget_leads"[\s\S]{0,140}data-product-analytics-state="available"/);
   assert.match(html, /Can I book this week\?/);
-  assert.match(html, /Widget Lead/);
+  assert.match(html, /Agent Lead/);
   assert.match(html, /lead@example\.com/);
   assert.match(html, /data-shell-target="install"[\s\S]{0,260}aria-current="page"/);
   assert.doesNotMatch(html, /Widget Conversations|Widget source leads|Widget Analytics/);
@@ -1458,7 +1458,7 @@ test("dedicated Website Widget dashboard separates the existing widget surfaces"
   assert.doesNotMatch(html, /data-shell-target="customize"|data-shell-target="inbox"|data-shell-target="calendar"|data-shell-target="automations"/);
 });
 
-test("Website Widget AI Behavior copy is Hungarian-first and English-aware", async () => {
+test("Website Agent AI Behavior copy is Hungarian-first and English-aware", async () => {
   const agent = createActiveAgent({
     purpose: "support",
     tone: "professional",
@@ -1477,10 +1477,10 @@ test("Website Widget AI Behavior copy is Hungarian-first and English-aware", asy
   await huHarness.settle();
   const huHtml = huHarness.getRootHtml();
 
-  assert.match(huHtml, /Hogyan válaszoljon a widget/);
+  assert.match(huHtml, /Hogyan válaszoljon az agent/);
   assert.match(huHtml, /AI utasítások/);
   assert.match(huHtml, /Utasítások generálása/);
-  assert.match(huHtml, /Ezek az utasítások a jövőbeli widgetválaszokat formálják/);
+  assert.match(huHtml, /Ezek az utasítások a jövőbeli agentválaszokat formálják/);
   assert.match(huHtml, /Nem tanítják újra a modellt/);
   assert.match(huHtml, /nem írják felül a jóváhagyott üzleti tényeket/);
   assert.match(huHtml, /name="system_prompt"/);
@@ -1488,12 +1488,12 @@ test("Website Widget AI Behavior copy is Hungarian-first and English-aware", asy
   assert.match(huHtml, /válasz hossza, hangneme, működése, emoji-használata/);
   assert.match(huHtml, /name="custom_instructions"/);
   assert.match(huHtml, /Gyors kérdések/);
-  assert.match(huHtml, /Rövid kérdések, amelyekre a látogatók a beágyazott widgetben kattinthatnak/);
+  assert.match(huHtml, /Rövid kérdések, amelyekre a látogatók a beágyazott agentben kattinthatnak/);
   assert.match(huHtml, /Chip felirata/);
   assert.match(huHtml, /Elküldött kérdés/);
   assert.match(huHtml, /Milyen árakkal vagy díjakkal számolhatok\?/);
   assert.doesNotMatch(huHtml, /Agent instructions/);
-  assert.doesNotMatch(huHtml, /Saved changes shape future widget replies/);
+  assert.doesNotMatch(huHtml, /Saved changes shape future agent replies/);
   assert.doesNotMatch(huHtml, /Quick questions/);
 
   const enHarness = createDashboardHarness({
@@ -1505,22 +1505,22 @@ test("Website Widget AI Behavior copy is Hungarian-first and English-aware", asy
   await enHarness.settle();
   const enHtml = enHarness.getRootHtml();
 
-  assert.match(enHtml, /How the widget answers/);
+  assert.match(enHtml, /How the agent answers/);
   assert.match(enHtml, /Agent instructions/);
   assert.match(enHtml, /Generate instructions/);
-  assert.match(enHtml, /These instructions shape future widget replies/);
+  assert.match(enHtml, /These instructions shape future agent replies/);
   assert.match(enHtml, /They do not retrain the model or override approved business facts/);
   assert.match(enHtml, /name="system_prompt"/);
   assert.match(enHtml, /Advanced custom instructions/);
   assert.match(enHtml, /answer length, tone, behaviour, emoji usage/);
   assert.match(enHtml, /name="custom_instructions"/);
   assert.match(enHtml, /Quick questions/);
-  assert.match(enHtml, /Short questions visitors can click inside the embedded widget/);
+  assert.match(enHtml, /Short questions visitors can click inside the embedded agent/);
   assert.match(enHtml, /Chip label/);
   assert.match(enHtml, /Sent question/);
   assert.match(enHtml, /What services do you offer\?/);
   assert.doesNotMatch(enHtml, /AI utasítások/);
-  assert.doesNotMatch(enHtml, /A mentett módosítások a jövőbeli widgetválaszokat alakítják/);
+  assert.doesNotMatch(enHtml, /A mentett módosítások a jövőbeli agentválaszokat alakítják/);
   assert.doesNotMatch(enHtml, /Gyors kérdések/);
 });
 
@@ -1584,10 +1584,10 @@ test("Install dashboard renders website platform guidance cards", async () => {
   assert.match(html, /data-install-platform="generic-html-smart-embed"/);
   assert.match(html, /data-install-platform="wordpress-woocommerce"/);
   assert.match(html, /data-install-platform="shopify"/);
-  assert.match(html, /Start with the Website Widget: website URL\/import -> configure widget -> install snippet or WordPress -> verify -> test/);
-  assert.match(html, /Widget first \/ companion/);
+  assert.match(html, /Start with the Website Agent: website URL\/import -> configure agent -> install snippet or WordPress -> verify -> test/);
+  assert.match(html, /Agent first \/ companion/);
   assert.match(html, /Publish, run Verify installation/);
-  assert.match(html, /Website Widget embed/);
+  assert.match(html, /Website Agent embed/);
   assert.match(html, /data-install-id=&quot;install-1&quot;|data-install-id="install-1"/);
   assert.match(html, /data-agent-id=&quot;agent-1&quot;|data-agent-id="agent-1"/);
   assert.match(html, /data-public-page-key=&quot;page-key-1&quot;|data-public-page-key="page-key-1"/);
@@ -1620,16 +1620,16 @@ test("Hungarian Install dashboard localizes platform guidance", async () => {
   assert.match(installHtml, /Csak telepítési weboldal útmutató/);
   assert.match(installHtml, /Általános HTML \/ okos beágyazás/);
   assert.match(installHtml, /Beillesztés vagy link/);
-  assert.match(installHtml, /Widget először \/ kiegészítő/);
+  assert.match(installHtml, /Agent először \/ kiegészítő/);
   assert.match(installHtml, /Korlát/);
-  assert.match(installHtml, /Kezdd a (?:Weboldal Widgettel|Website Widgettel)/);
+  assert.match(installHtml, /Kezdd a Weboldali agenttel/);
   assert.match(installHtml, /Ez a telepítési lépés nem kapcsol WooCommerce termék- vagy rendelési adatokat/);
   assert.match(installHtml, /Ez a telepítési lépés nem kapcsol termékeket, kosarakat vagy rendeléseket/);
   assert.match(installHtml, /Egyes Wix területek korlátozhatják az egyéni kódot/);
   assert.doesNotMatch(installHtml, /Platform quick guides|Install-only website guidance|Start with the hosted AI Front Desk page|Paste or link|Hosted page vs embed|Limitation|Products, carts, and orders are not connected|Some Wix areas can restrict custom code|Hosted page first|widget optional/i);
 });
 
-test("Hungarian Website Widget install route stays Widget-first", async () => {
+test("Hungarian Website Agent install route stays Agent-first", async () => {
   const harness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
     hash: "#install",
@@ -1652,23 +1652,23 @@ test("Hungarian Website Widget install route stays Widget-first", async () => {
   const start = html.indexOf(marker);
   const next = html.indexOf('data-shell-section="', start + marker.length);
   const installHtml = html.slice(start, next > start ? next : undefined);
-  assert.match(installHtml, /Website Widget embed snippet|(?:Website|Weboldal) Widget beágyazási kódrészlet/);
-  assert.match(installHtml, /Copy widget snippet|Widget kódrészlet másolása|Kódrészlet vagy WordPress telepítése|Weboldal Widget telepítés/);
-  assert.match(installHtml, /Copy the widget snippet|Másold a widget kódrészletét|Ezt egyszer illeszd be az oldal fejlécébe, hogy a Weboldal Widget elinduljon/);
+  assert.match(installHtml, /Website Agent embed snippet|Weboldali agent beágyazási kódrészlet/);
+  assert.match(installHtml, /Copy agent snippet|Agent kódrészlet másolása|Kódrészlet vagy WordPress telepítése|Weboldali agent telepítés/);
+  assert.match(installHtml, /Copy the agent snippet|Másold az agent kódrészletét|Ezt egyszer illeszd be az oldal fejlécébe, hogy a Weboldali agent elinduljon/);
   assert.doesNotMatch(installHtml, /Először hosztolt oldal|hosztolt AI Front Desk oldallal|opcionális widget|widget opcionális|másodlagos/i);
 });
 
-test("Hungarian dedicated Website Widget owner routes localize the core launch path", async () => {
-  const bannedHungarianLeaks = /Website Widget home|Widget status|Quick actions|Install snippet|Widget configuration|Front Desk knowledge|secondary website widget/i;
+test("Hungarian dedicated Website Agent owner routes localize the core launch path", async () => {
+  const bannedHungarianLeaks = /Website Agent home|Agent status|Quick actions|Install snippet|Agent configuration|Front Desk knowledge|secondary website agent/i;
   const routes = [
     {
       hash: "",
       section: "overview",
       expected: [
-        /(?:Website|Weboldal) Widget áttekintés/,
-        /Widget állapota/,
-        /Widget műveletek/,
-        /(?:Website|Weboldal) Widget készenlét/,
+        /Weboldali agent áttekintés/,
+        /Agent állapota/,
+        /Agent műveletek/,
+        /Weboldali agent készenlét/,
         /Weboldali tudás/,
       ],
     },
@@ -1676,12 +1676,12 @@ test("Hungarian dedicated Website Widget owner routes localize the core launch p
       hash: "#install",
       section: "install",
       expected: [
-        /Website Widget telepítése/,
+        /Weboldali agent telepítése/,
         /Telepítési kód/,
-        /Website Widget beágyazási kódrészlet/,
-        /Widget kódrészlet másolása/,
+        /Weboldali agent beágyazási kódrészlet/,
+        /Agent kódrészlet másolása/,
         /Telepítés ellenőrzése/,
-        /Widget tesztelése/,
+        /Agent tesztelése/,
         /Engedélyezett domainek/,
         /Telepítés állapota/,
       ],
@@ -1690,17 +1690,17 @@ test("Hungarian dedicated Website Widget owner routes localize the core launch p
       hash: "#settings",
       section: "settings",
       expected: [
-        /Widget beállításai/,
-        /Hol fut a widget/,
+        /Agent beállításai/,
+        /Hol fut az agent/,
         /Weboldali tudás/,
-        /Hogyan válaszoljon a widget/,
+        /Hogyan válaszoljon az agent/,
         /AI utasítások/,
         /Utasítások generálása/,
-        /Widget megjelenés/,
+        /Agent megjelenés/,
         /Beállítások mentése/,
-        /Website Widget mentése/,
-        /Élő widget előnézet/,
-        /Teszt widget megnyitása/,
+        /Weboldali agent mentése/,
+        /Élő agent előnézet/,
+        /Teszt agent megnyitása/,
       ],
     },
   ];
@@ -1733,7 +1733,7 @@ test("Hungarian dedicated Website Widget owner routes localize the core launch p
 
     const html = harness.getRootHtml();
     const sectionHtml = getShellSectionHtml(html, route.section);
-    assert.match(html, /Website Widget munkaterület/);
+    assert.match(html, /Weboldali agent munkaterület/);
     assert.match(html, /Működtetés/);
     route.expected.forEach((pattern) => {
       assert.match(sectionHtml, pattern, `${route.hash || "overview"} should render ${pattern}`);
@@ -1742,7 +1742,7 @@ test("Hungarian dedicated Website Widget owner routes localize the core launch p
   }
 });
 
-test("explicit English preference keeps the Website Widget owner path in English", async () => {
+test("explicit English preference keeps the Website Agent owner path in English", async () => {
   const harness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
     agents: () => [createActiveAgent()],
@@ -1754,12 +1754,12 @@ test("explicit English preference keeps the Website Widget owner path in English
 
   const html = harness.getRootHtml();
   assert.equal(harness.getGlobal("getDashboardLanguage")(), "en");
-  assert.match(html, /Website Widget overview/);
-  assert.match(html, /Widget status/);
-  assert.match(html, /Widget configuration/);
-  assert.match(html, /Website Widget embed snippet/);
+  assert.match(html, /Website Agent overview/);
+  assert.match(html, /Agent status/);
+  assert.match(html, /Agent configuration/);
+  assert.match(html, /Website Agent embed snippet/);
   assert.match(html, /aria-label="Close navigation"/);
-  assert.doesNotMatch(html, /Widget állapota|Widget beállításai|Telepítési kód/);
+  assert.doesNotMatch(html, /Agent állapota|Agent beállításai|Telepítési kód/);
   assert.doesNotMatch(html, /aria-label="Navigáció bezárása"/);
 });
 
@@ -1768,7 +1768,7 @@ test("Hungarian launch path copy localizes release-facing Install Front Desk and
     {
       hash: "#install",
       marker: 'data-shell-section="install"',
-      expected: [/Élesítési útvonalak sorrendje/, /Weboldal Widget|Website Widget/, /Kiegészítő|Bővítés/, /WordPress \/ okos beágyazás/],
+      expected: [/Élesítési útvonalak sorrendje/, /Weboldali agent|Website Agent/, /Kiegészítő|Bővítés/, /WordPress \/ okos beágyazás/],
       englishLeak: /Launch path hierarchy|Fastest launch path|Copy website bubble code|Use this QR code|Hosted page first|widget optional/i,
     },
     {
@@ -1781,7 +1781,7 @@ test("Hungarian launch path copy localizes release-facing Install Front Desk and
       hash: "#front-desk/launch",
       marker: 'data-frontdesk-section="launch"',
       expected: [/Publikus Front Desk oldal/, /QR \/ direkt link/, /Telepítés megnyitása|Gyakorolj először/],
-      englishLeak: /A few essentials still need attention|Use Install for page takeover|Optional website widget|Why Install still lives separately/i,
+      englishLeak: /A few essentials still need attention|Use Install for page takeover|Optional website agent|Why Install still lives separately/i,
     },
     {
       hash: "#front-desk/customization/full-page-assistant",
@@ -2011,14 +2011,14 @@ test("dashboard Home renders the real-data V2 snapshot without command-center pl
   const html = harness.getRootHtml();
 
   assert.match(html, /Review replies/);
-  assert.match(html, /Website Widget analytics/);
-  assert.match(html, /Widget conversations/);
-  assert.match(html, /Widget leads/);
+  assert.match(html, /Website Agent analytics/);
+  assert.match(html, /Agent conversations/);
+  assert.match(html, /Agent leads/);
   assert.match(html, /Needs reply/);
   assert.match(html, /Answered conversations/);
   assert.doesNotMatch(html, /AI handled|Human follow-ups|AI vs Human handling/i);
   assert.match(html, /Today.?s priority/);
-  assert.match(html, /Widget conversations, leads, and analytics will appear after site visitors use the embed/);
+  assert.match(html, /Agent conversations, leads, and analytics will appear after site visitors use the embed/);
   assert.doesNotMatch(html, /data-target-id="knowledge-improvement"/);
   assert.doesNotMatch(html, /data-target-id="notifications"/);
 });
@@ -2237,7 +2237,7 @@ test("dashboard fetches quote requests from the owner API", async () => {
   assert.equal(quoteFetch.options.method || "GET", "GET");
 });
 
-test("dedicated Website Widget dashboard does not load Front Desk request review queues", async () => {
+test("dedicated Website Agent dashboard does not load Front Desk request review queues", async () => {
   const harness = createDashboardHarness({
     pathname: "/website-widget/dashboard",
     agents: [createActiveAgent()],
@@ -2359,7 +2359,7 @@ test("Customers labels separate guest review from reachable follow-up", async ()
         { role: "customer", label: "Customer", content: "Are you available today?", createdAt: now },
       ],
       timeline: [
-        { at: now, label: "Widget conversation", source: "chat", summary: "Active replyable chat." },
+        { at: now, label: "Agent conversation", source: "chat", summary: "Active replyable chat." },
       ],
     },
   ];
@@ -2411,7 +2411,7 @@ test("Customers labels separate guest review from reachable follow-up", async ()
 
   assert.match(html, /<span>Needs review<\/span>\s*<strong>\d+<\/strong>/);
   assert.match(html, /<span>Follow-up possible<\/span>\s*<strong>\d+<\/strong>/);
-  assert.match(html, /<span>Website widget<\/span>\s*<strong>\d+<\/strong>/);
+  assert.match(html, /<span>Website Agent<\/span>\s*<strong>\d+<\/strong>/);
   assert.match(html, /<span>Front Desk page<\/span>\s*<strong>\d+<\/strong>/);
 });
 
@@ -2433,7 +2433,7 @@ test("Home review actions route to Customers while analytics actions say analyti
         description: "Prepare a direct owner reply.",
       },
       timeline: [
-        { at: now, label: "Widget conversation", source: "chat", summary: "Needs an owner reply." },
+        { at: now, label: "Agent conversation", source: "chat", summary: "Needs an owner reply." },
       ],
     },
   ];
@@ -2560,7 +2560,7 @@ test("null auth user session renders the auth shell without fetching dashboard d
   );
 });
 
-test("dedicated Website Widget dashboard uses the same signed-out auth gate as dashboard", async () => {
+test("dedicated Website Agent dashboard uses the same signed-out auth gate as dashboard", async () => {
   const dashboardHarness = createDashboardHarness({
     pathname: "/dashboard",
     session: null,
@@ -2576,7 +2576,7 @@ test("dedicated Website Widget dashboard uses the same signed-out auth gate as d
   assert.match(dashboardHarness.getRootHtml(), /Create your Vonza account|Sign in to continue into Vonza/);
   assert.match(widgetHarness.getRootHtml(), /Create your Vonza account|Sign in to continue into Vonza/);
   assert.equal(dashboardHarness.getGlobal("document").title, "Vonza | Home");
-  assert.equal(widgetHarness.getGlobal("document").title, "Vonza | Website Widget");
+  assert.equal(widgetHarness.getGlobal("document").title, "Vonza | Website Agent");
   assert.equal(
     widgetHarness.fetchCalls.some((call) => call.pathname === "/agents/list"),
     false

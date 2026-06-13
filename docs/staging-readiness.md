@@ -63,7 +63,7 @@ npm run validate:clean-db
 - Checkout gate renders for unpaid owners.
 - Assistant creation/configuration path creates or updates an assistant for an authenticated owner.
 - Website import succeeds for an authenticated owner with a public website URL, or fails clearly when auth/data is missing.
-- Widget preview loads at `/widget`.
+- Agent preview loads at `/widget`.
 - Chat send path works with seeded test data, or fails clearly when install/auth setup is missing.
 - Lead capture path works with seeded test data, or fails clearly when install/auth setup is missing.
 - Analytics and customers surfaces render safely with sparse data.

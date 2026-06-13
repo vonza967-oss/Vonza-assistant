@@ -108,7 +108,7 @@
       || route.includes("/assistant/");
 
     if (isEmbedded) return "Embedded assistant";
-    if (mode === "widget" || isWidget) return "Website widget";
+    if (mode === "widget" || isWidget) return "Website Agent";
     if ((mode === "page" && isFullPage) || isFullPage) return "Front Desk page";
     if (mode === "page") return "Front Desk page";
     if (route.includes("hosted")) return "Front Desk page";
@@ -132,7 +132,7 @@
     return {
       launchHeadline: setup.isReady ? "Your Front Desk companion page is ready to add." : "A few essentials still need attention before you publish.",
       launchCopy: setup.isReady
-        ? "Install the Website Widget first, then enable the public Front Desk page for QR, direct links, dedicated assistant pages, or embedded expansion."
+        ? "Install the Website Agent first, then enable the public Front Desk page for QR, direct links, dedicated assistant pages, or embedded expansion."
         : "This space keeps companion launch options clear by showing what still needs attention before Install and distribution.",
       publicPageLabel: publicFrontDeskLive ? "Your Front Desk page is live" : "Your Front Desk page is disabled",
       liveVerificationLabel,
@@ -434,7 +434,7 @@
         return {
           label: "Next action",
           title: "Prepare the companion Front Desk page",
-          copy: "Practice once, install the Website Widget, then enable the public page for QR, direct links, or dedicated assistant pages.",
+          copy: "Practice once, install the Website Agent, then enable the public page for QR, direct links, or dedicated assistant pages.",
           button: "Open launch",
           frontDeskTarget: "launch",
           tone: "ready",
@@ -492,7 +492,7 @@
         {
           label: "Launch",
           value: publicFrontDeskLive ? "Page live" : hasPreview ? "Page prepared" : "Setup needed",
-          copy: installStatus.label || "Widget first, page companion",
+          copy: installStatus.label || "Agent first, page companion",
         },
       ];
 
@@ -982,7 +982,7 @@
               <strong class="frontdesk-detail-row-value">${sanitizeHtml(qrEndpoint ? "Available in Install" : "Available after the public Front Desk page is enabled.")}</strong>
             </div>
             <div class="frontdesk-detail-row">
-              <span class="frontdesk-detail-row-label">Website Widget install</span>
+              <span class="frontdesk-detail-row-label">Website Agent install</span>
               <strong class="frontdesk-detail-row-value">${sanitizeHtml(installStatus.label || liveVerificationLabel)}</strong>
             </div>
           </div>
@@ -990,7 +990,7 @@
           <div class="frontdesk-launch-channel-grid">
             <article>
               <span>Recommended</span>
-              <strong>Website Widget</strong>
+              <strong>Website Agent</strong>
               <p>${sanitizeHtml(installStatus.label || liveVerificationLabel)}</p>
             </article>
             <article>
@@ -1050,10 +1050,10 @@
                 <p class="frontdesk-step-copy">${sanitizeHtml(isInstallSeen(installStatus)
                   ? "Vonza is already seeing live traffic from the site. Keep Install handy for quick verification checks."
                   : isInstallDetected(installStatus)
-                    ? "The Website Widget snippet is in place, and the next step is simply confirming the first live visit."
+                    ? "The Website Agent snippet is in place, and the next step is simply confirming the first live visit."
                     : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
                       ? "Verification needs attention before the launch can be treated as confidently live."
-                      : "Use Install to launch the Website Widget first, then add WordPress, smart embed, QR, or direct-link companion channels as needed.")}</p>
+                      : "Use Install to launch the Website Agent first, then add WordPress, smart embed, QR, or direct-link companion channels as needed.")}</p>
               </div>
             </article>
           </div>

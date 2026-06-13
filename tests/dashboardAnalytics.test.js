@@ -47,7 +47,7 @@ test("Analytics source labels map owner-facing sources", () => {
   assert.equal(analytics.getAnalyticsSourceLabel("page"), "Front Desk page");
   assert.equal(analytics.getAnalyticsSourceLabel("full_page_assistant"), "Front Desk page");
   assert.equal(analytics.getAnalyticsSourceLabel("web_call"), "Web Call");
-  assert.equal(analytics.getAnalyticsSourceLabel("widget_chat"), "Website widget");
+  assert.equal(analytics.getAnalyticsSourceLabel("widget_chat"), "Website Agent");
   assert.equal(analytics.getAnalyticsSourceLabel("embedded_assistant"), "Embedded assistant");
   assert.equal(analytics.normalizeAnalyticsSource("display_mode"), "unknown");
 });
@@ -81,7 +81,7 @@ test("Analytics assistant source rows include real sources and hide empty legacy
   });
 
   assert.equal(JSON.stringify(rows.map((row) => row.label)), JSON.stringify([
-    "Website widget",
+    "Website Agent",
     "Front Desk page",
     "Web Call",
     "Embedded assistant",
@@ -213,7 +213,7 @@ test("Analytics page fragment preserves real values without QR or raw display mo
 
   assert.match(markup, /Total conversations/);
   assert.match(markup, />6</);
-  assert.match(markup, /Website widget/);
+  assert.match(markup, /Website Agent/);
   assert.match(markup, /Front Desk page/);
   assert.match(markup, /Web Call/);
   assert.match(markup, /Embedded assistant/);
@@ -266,13 +266,13 @@ test("Product analytics view selection marks the active product tab", () => {
   assert.match(markup, /data-product-analytics-view="website_widget"/);
   assert.match(markup, /data-product-analytics-tab="website_widget"[\s\S]{0,80}aria-current="page"/);
   assert.match(markup, /href="\/dashboard\/widget#analytics"/);
-  assert.match(markup, /Widget conversations/);
+  assert.match(markup, /Agent conversations/);
   assert.match(markup, /2 conversations/);
-  assert.match(markup, /Widget leads/);
+  assert.match(markup, /Agent leads/);
   assert.match(markup, /1 lead/);
 });
 
-test("Product analytics cards render Front Desk, Widget, and Voice contexts from existing data", () => {
+test("Product analytics cards render Front Desk, Website Agent, and Voice contexts from existing data", () => {
   const analytics = loadAnalyticsModule();
   const sourceRows = analytics.buildAssistantSourceRows({
     widget: { key: "widget", conversationCount: 2, messageCount: 4, leadsCaptured: 1 },
@@ -312,9 +312,9 @@ test("Product analytics cards render Front Desk, Widget, and Voice contexts from
   assert.match(frontDesk, /Front Desk visit analytics are not available/);
   assert.match(frontDesk, /#install\/full-page/);
 
-  assert.match(widget, /Widget conversations/);
+  assert.match(widget, /Agent conversations/);
   assert.match(widget, /2 conversations/);
-  assert.match(widget, /Widget open and install-event analytics are not available/);
+  assert.match(widget, /Agent open and install-event analytics are not available/);
   assert.match(widget, /#install\/embed/);
 
   assert.match(voice, /Web Call sessions/);
@@ -362,7 +362,7 @@ test("Product analytics empty states render product-specific setup guidance", ()
   assert.match(frontDesk, /href="#install\/full-page"/);
   assert.match(frontDesk, /href="#settings\/front-desk\/full-page-assistant"/);
 
-  assert.match(widget, /No Website Widget analytics yet\./);
+  assert.match(widget, /No Website Agent analytics yet\./);
   assert.match(widget, /Install the embed/);
   assert.match(widget, /href="#install\/embed"/);
   assert.match(widget, /href="#settings\/widget\/optional-widget"/);
@@ -372,5 +372,5 @@ test("Product analytics empty states render product-specific setup guidance", ()
   assert.match(voice, /transcripts, handoff context, and analytics/);
   assert.match(voice, /href="#settings\/voice\/voice"/);
   assert.doesNotMatch(voice, /phone|telephony/i);
-  assert.doesNotMatch(`${frontDesk}${widget}${voice}`, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
+  assert.doesNotMatch(`${frontDesk}${widget}${voice}`, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Agent|Buy Front Desk/);
 });

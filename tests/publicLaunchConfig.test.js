@@ -9,17 +9,17 @@ test("public launch profile defines the stable core and hides Google workspace s
   });
 
   assert.equal(profile.mode, "public_cohort_v1");
-  assert.equal(profile.product.name, "Vonza Website Widget");
-  assert.match(profile.product.headline, /Five-minute Hungarian website agent\/widget/i);
-  assert.match(profile.product.purchaseSummary, /first public offer is the Website Widget/i);
+  assert.equal(profile.product.name, "Vonza Website Agent");
+  assert.match(profile.product.headline, /Five-minute Hungarian website agent/i);
+  assert.match(profile.product.purchaseSummary, /first public offer is the Website Agent/i);
   assert.match(profile.product.purchaseSummary, /installs on an existing site in about 5 minutes/i);
   assert.match(profile.product.purchaseSummary, /full-page Front Desk is a companion\/expansion channel/i);
   assert.equal(profile.icp.key, "service_businesses_with_inbound_leads");
   assert.equal(profile.icp.shortLabel, "Hungarian SMEs");
   assert.match(profile.icp.positioning, /Hungarian SMEs that already get website visitors asking/i);
-  assert.match(profile.icp.positioning, /fast Hungarian-first Website Widget/i);
+  assert.match(profile.icp.positioning, /fast Hungarian-first Website Agent/i);
   assert.equal(profile.matrix.front_desk.state, FEATURE_STATES.STABLE);
-  assert.equal(profile.matrix.customize.label, "Widget configuration");
+  assert.equal(profile.matrix.customize.label, "Agent configuration");
   assert.equal(profile.matrix.today.state, FEATURE_STATES.STABLE);
   assert.equal(profile.matrix.contacts.state, FEATURE_STATES.STABLE);
   assert.equal(profile.matrix.outcomes.state, FEATURE_STATES.STABLE);

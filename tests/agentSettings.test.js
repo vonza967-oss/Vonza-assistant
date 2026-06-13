@@ -180,8 +180,8 @@ function createSupabaseStub(initialState) {
   };
 }
 
-test("default Website Widget identity avoids Front Desk copy", () => {
-  assert.equal(DEFAULT_WIDGET_CONFIG.buttonLabel, "Widget megnyitása");
+test("default Weboldali agent identity avoids Front Desk copy", () => {
+  assert.equal(DEFAULT_WIDGET_CONFIG.buttonLabel, "Agent megnyitása");
   assert.equal(DEFAULT_WIDGET_CONFIG.launcherText, "");
   assert.equal(DEFAULT_WIDGET_CONFIG.welcomeMessage, "Üdvözöljük! Miben segíthetünk?");
   assert.doesNotMatch(DEFAULT_WIDGET_CONFIG.welcomeMessage, /\b(?:Szia|szeretnéd|megadhatod|kérdezz|írd be)\b/i);
@@ -504,7 +504,7 @@ test("updateAgentSettings preserves explicit saved widget assistant name and lau
       {
         id: "widget-1",
         agent_id: "agent-1",
-        assistant_name: "Custom Widget Concierge",
+        assistant_name: "Custom Agent Concierge",
         welcome_message: "Hello there",
         button_label: "Ask the team",
         primary_color: "#14b8a6",
@@ -522,7 +522,7 @@ test("updateAgentSettings preserves explicit saved widget assistant name and lau
   });
 
   assert.equal(result.buttonLabel, "Ask the team");
-  assert.equal(state.widget_configs[0].assistant_name, "Custom Widget Concierge");
+  assert.equal(state.widget_configs[0].assistant_name, "Custom Agent Concierge");
   assert.equal(state.widget_configs[0].button_label, "Ask the team");
 });
 
@@ -641,7 +641,7 @@ test("updateAgentSettings persists sanitized full-page assistant config", async 
   assert.equal(state.widget_configs[0].full_page_config.design.background_scope, "iframe");
 });
 
-test("updateAgentSettings persists Website Widget quick prompts and bootstrap returns them", async () => {
+test("updateAgentSettings persists Weboldali agent quick prompts and bootstrap returns them", async () => {
   const { state, ...supabase } = createSupabaseStub({
     agents: [
       {
@@ -1036,7 +1036,7 @@ test("updateAgentSettings rejects advanced custom instructions over the max leng
   assert.equal(state.agents[0].custom_instructions, "safe custom instructions");
 });
 
-test("updateAgentSettings persists generated Website Widget instructions through system_prompt", async () => {
+test("updateAgentSettings persists generated Weboldali agent instructions through system_prompt", async () => {
   const { state, ...supabase } = createSupabaseStub({
     agents: [
       {
@@ -1096,7 +1096,7 @@ test("updateAgentSettings persists generated Website Widget instructions through
 
   assert.equal(result.systemPrompt, persistedInstructions);
   assert.equal(state.agents[0].system_prompt, persistedInstructions);
-  assert.match(result.systemPrompt, /AI utasítások|Website Widget asszisztense/);
+  assert.match(result.systemPrompt, /AI utasítások|Weboldali agent asszisztense/);
   assert.match(result.systemPrompt, /projektleírást/);
 });
 

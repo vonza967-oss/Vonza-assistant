@@ -1,6 +1,6 @@
 # Web Call Real-Device QA Checklist
 
-Scope: browser-based voice on the hosted full-page Front Desk, including optional Realtime WebRTC mode and the existing turn-based fallback. The website widget remains secondary. Do not validate Web Call through phone, Twilio, or phone-number flows.
+Scope: browser-based voice on the hosted full-page Front Desk, including optional Realtime WebRTC mode and the existing turn-based fallback. The website agent remains secondary. Do not validate Web Call through phone, Twilio, or phone-number flows.
 
 ## Test Setup
 

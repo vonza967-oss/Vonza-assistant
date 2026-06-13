@@ -49,7 +49,7 @@ test("waitlist app serves the standalone page with restrictive framing headers",
     });
 
     assert.equal(response.status, 200);
-    assert.match(response.text, /Korai hozzáférés a magyar weboldali AI widgethez/);
+    assert.match(response.text, /Korai hozzáférés a magyar weboldali AI agenthez/);
     assert.equal(response.headers.get("x-frame-options"), "DENY");
     assert.match(response.headers.get("content-security-policy") || "", /frame-ancestors 'none'/);
   } finally {

@@ -131,14 +131,14 @@ test("dashboard product links resolve to exact aliases", () => {
   assert.deepEqual(links, ["/website-widget/dashboard"]);
 });
 
-test("product packaging metadata exposes Website Widget only", () => {
+test("product packaging metadata exposes Website Agent only", () => {
   const { state } = loadDashboardState();
   const products = state.listDashboardProductPackaging();
 
   assert.deepEqual(products.map((product) => product.key), ["website_widget"]);
-  assert.deepEqual(products.map((product) => product.name), ["Website Widget"]);
+  assert.deepEqual(products.map((product) => product.name), ["Website Agent"]);
   assert.deepEqual(products.map((product) => product.setupHref), ["/dashboard/widget#setup"]);
-  assert.deepEqual(products.map((product) => product.setupLabel), ["Open widget setup"]);
+  assert.deepEqual(products.map((product) => product.setupLabel), ["Open agent setup"]);
   assert.match(products.find((product) => product.key === "website_widget").targetUseCase, /Five-minute website AI agent/);
   assert.equal(state.getDashboardProductPackaging("front_desk").key, "website_widget");
   assert.equal(state.getDashboardProductPackaging("voice_agent").key, "website_widget");
@@ -149,7 +149,7 @@ test("product packaging metadata exposes Website Widget only", () => {
   });
 });
 
-test("product home context exposes Website Widget only", () => {
+test("product home context exposes Website Agent only", () => {
   const { state } = loadDashboardState();
   const contexts = ["front_desk", "website_widget", "voice_agent"].map((key) =>
     state.getDashboardProductHomeContext(key)
@@ -169,19 +169,19 @@ test("product home context exposes Website Widget only", () => {
   });
 });
 
-test("product setup context exposes Website Widget for every product alias", () => {
+test("product setup context exposes Website Agent for every product alias", () => {
   const { state } = loadDashboardState();
   const frontDesk = state.getDashboardProductSetupContext("front_desk");
   const widget = state.getDashboardProductSetupContext("website_widget");
   const voice = state.getDashboardProductSetupContext("voice_agent");
   const voiceCopy = JSON.stringify(voice);
 
-  assert.equal(frontDesk.title, "Set up Website Widget");
-  assert.equal(widget.title, "Set up Website Widget");
-  assert.equal(voice.title, "Set up Website Widget");
-  assert.match(JSON.stringify(frontDesk), /Template and tone|Allowed domains|WordPress or embed snippet|Install verification|Test widget|Widget analytics\/conversations/);
-  assert.match(JSON.stringify(widget), /Template and tone|Allowed domains|WordPress or embed snippet|Install verification|Test widget|Widget analytics\/conversations/);
-  assert.match(voiceCopy, /Template and tone|Allowed domains|WordPress or embed snippet|Install verification|Test widget|Widget analytics\/conversations/);
+  assert.equal(frontDesk.title, "Set up Website Agent");
+  assert.equal(widget.title, "Set up Website Agent");
+  assert.equal(voice.title, "Set up Website Agent");
+  assert.match(JSON.stringify(frontDesk), /Template and tone|Allowed domains|WordPress or embed snippet|Install verification|Test agent|Agent analytics\/conversations/);
+  assert.match(JSON.stringify(widget), /Template and tone|Allowed domains|WordPress or embed snippet|Install verification|Test agent|Agent analytics\/conversations/);
+  assert.match(voiceCopy, /Template and tone|Allowed domains|WordPress or embed snippet|Install verification|Test agent|Agent analytics\/conversations/);
   assert.doesNotMatch(voiceCopy, /telephony|phone|Web Call|Voice Agent/i);
 });
 
@@ -201,8 +201,8 @@ test("product home context points every product alias at safe widget surfaces", 
   assert.match(widgetLinks, /Embed\/install snippet/);
   assert.match(widgetLinks, /Allowed domains\/status/);
   assert.match(widgetLinks, /Launcher behavior/);
-  assert.match(widgetLinks, /Test widget/);
-  assert.match(widgetLinks, /Widget analytics/);
+  assert.match(widgetLinks, /Test agent/);
+  assert.match(widgetLinks, /Agent analytics/);
   assert.match(voiceCopy, /#install\/embed/);
   assert.match(voiceCopy, /#settings\/widget\/optional-widget/);
   assert.doesNotMatch(voiceCopy, /Voice Agent|Web Call|telephony|phone/i);
@@ -228,7 +228,7 @@ test("billing product packaging cards render without product checkout controls",
   assert.match(shellScript, /data-product-packaging-link="\$\{escapeHtml\(product\.key\)\}"/);
   assert.match(shellScript, /Product pricing is being separated\. Current billing remains account-level plan capacity\./);
   assert.match(shellScript, /data-billing-plan-key="\$\{escapeHtml\(plan\.planKey\)\}"/);
-  assert.doesNotMatch(shellScript, /Buy Voice Agent|Buy Website Widget|Buy Front Desk|data-product-checkout|data-product-plan-key/);
+  assert.doesNotMatch(shellScript, /Buy Voice Agent|Buy Website Agent|Buy Front Desk|data-product-checkout|data-product-plan-key/);
 });
 
 test("frontend product cards tolerate missing availability data", () => {
@@ -258,7 +258,7 @@ test("frontend product cards tolerate missing availability data", () => {
   assert.doesNotMatch(html, /data-product-packaging-card="front_desk"/);
   assert.doesNotMatch(html, /data-product-packaging-card="voice_agent"/);
   assert.match(html, /Included in current workspace/);
-  assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
+  assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Agent|Buy Front Desk/);
 });
 
 test("frontend product cards read canonical product availability when present", () => {
@@ -283,7 +283,7 @@ test("frontend product cards read canonical product availability when present", 
   assert.match(html, /Product availability: Account Access Pending/);
   assert.match(html, /data-product-availability-enforced="false"/);
   assert.doesNotMatch(html, /data-product-packaging-card="front_desk"|data-product-packaging-card="voice_agent"/);
-  assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
+  assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Agent|Buy Front Desk/);
 });
 
 test("frontend product cards prefer product entitlement labels when present", () => {
@@ -319,7 +319,7 @@ test("frontend product cards prefer product entitlement labels when present", ()
   assert.match(html, /data-product-entitlement-row-exists="true"/);
   assert.match(html, /data-product-availability-enforced="false"/);
   assert.doesNotMatch(html, /data-product-packaging-card="front_desk"|data-product-packaging-card="voice_agent"/);
-  assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
+  assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Agent|Buy Front Desk/);
 });
 
 test("missing entitlement rows stay read-only and do not block product setup links", () => {
@@ -347,10 +347,10 @@ test("missing entitlement rows stay read-only and do not block product setup lin
   assert.match(html, /href="\/dashboard\/widget#setup" data-product-packaging-link="website_widget"/);
   assert.doesNotMatch(html, /data-product-packaging-link="front_desk"|data-product-packaging-link="voice_agent"/);
   assert.match(html, /Product pricing coming soon/);
-  assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk|checkout_url/);
+  assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Agent|Buy Front Desk|checkout_url/);
 });
 
-test("account billing copy reflects the free Website Widget pilot plan", () => {
+test("account billing copy reflects the free Website Agent pilot plan", () => {
   const html = renderAccountBillingSettings({
     agent: {
       accessStatus: "active",
@@ -358,7 +358,7 @@ test("account billing copy reflects the free Website Widget pilot plan", () => {
     operatorWorkspace: {
       billing: {
         planKey: "pilot_free_widget",
-        displayName: "Pilot Website Widget",
+        displayName: "Pilot Website Agent",
         monthlyPriceLabel: "0 HUF/month",
         subscriptionStatus: "free",
         hasActiveSubscription: false,
@@ -393,9 +393,9 @@ test("account billing copy reflects the free Website Widget pilot plan", () => {
     },
   });
 
-  assert.match(html, /Pilot Website Widget/);
+  assert.match(html, /Pilot Website Agent/);
   assert.match(html, /0 HUF\/month/);
-  assert.match(html, /Pilot Website Widget tesztcsomag aktiv/);
+  assert.match(html, /Pilot Weboldali agent tesztcsomag aktiv/);
   assert.match(html, /Stripe checkout nem szukseges/);
   assert.match(html, /data-product-entitlement-status="free"/);
   assert.doesNotMatch(html, /Plan details appear after checkout|Billing plan details will appear/);
@@ -624,7 +624,7 @@ test("product readiness action-only items stay neutral and old product copy stay
   actionItems.forEach((item) => {
     assert.equal(item.complete, null);
   });
-  assert.match(voiceCopy, /Website Widget|widget/i);
+  assert.match(voiceCopy, /Website Agent|agent/i);
   assert.doesNotMatch(voiceCopy, /Voice Agent|Web Call|browser voice|telephony|phone/i);
 });
 

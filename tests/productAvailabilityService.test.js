@@ -219,7 +219,7 @@ test("static product catalog exposes labels setup URLs and future price env name
   );
   assert.deepEqual(
     catalog.map((product) => product.label),
-    ["Front Desk", "Website Widget", "Voice Agent"]
+    ["Front Desk", "Website Agent", "Voice Agent"]
   );
   assert.deepEqual(
     catalog.map((product) => product.setupUrl),
@@ -301,7 +301,7 @@ test("service does not introduce product-specific checkout or enforcement wiring
   assert.doesNotMatch(source, /stripe|checkoutService|webhook|createCheckout|\/billing\/checkout/i);
   assert.doesNotMatch(source, /from\s+["'].*routes|from\s+["'].*chat|from\s+["'].*voice|from\s+["'].*phone/i);
   assert.doesNotMatch(source, /supabase|\.from\(["'`]|insert\(|update\(|delete\(/i);
-  assert.doesNotMatch(source, /Buy Voice Agent|Buy Website Widget|Buy Front Desk|data-product-checkout/i);
+  assert.doesNotMatch(source, /Buy Voice Agent|Buy Website Agent|Buy Front Desk|data-product-checkout/i);
 
   products.forEach((product) => {
     assert.equal(Object.hasOwn(product, "checkout_url"), false);
@@ -450,5 +450,5 @@ test("product entitlement service is read-only and has no checkout controls", ()
   assert.doesNotMatch(source, /stripe|checkoutService|webhook|createCheckout|\/billing\/checkout/i);
   assert.doesNotMatch(source, /from\s+["'].*routes|from\s+["'].*chat|from\s+["'].*voice|from\s+["'].*phone/i);
   assert.doesNotMatch(source, /insert\(|update\(|delete\(|upsert\(/i);
-  assert.doesNotMatch(source, /Buy Voice Agent|Buy Website Widget|Buy Front Desk|data-product-checkout|checkout_url/i);
+  assert.doesNotMatch(source, /Buy Voice Agent|Buy Website Agent|Buy Front Desk|data-product-checkout|checkout_url/i);
 });

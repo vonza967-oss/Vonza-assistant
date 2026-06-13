@@ -86,7 +86,7 @@ test("dashboard connected apps surface has dedicated Calendly connect flow witho
 });
 
 
-test("dashboard state and Website Widget shell route connected apps hashes", () => {
+test("dashboard state and Website Agent shell route connected apps hashes", () => {
   const dashboard = readSource("frontend/dashboard.js");
   const dashboardState = readSource("frontend/dashboardState.js");
 

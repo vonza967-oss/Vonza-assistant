@@ -42,11 +42,11 @@
       ]),
     }),
     website_widget: Object.freeze({
-      title: "No Website Widget customer conversations yet.",
-      copy: "After website visitors use the embedded assistant, leads and conversation context from the widget will appear here.",
+      title: "No Website Agent customer conversations yet.",
+      copy: "After website visitors use the embedded assistant, leads and conversation context from the agent will appear here.",
       actions: Object.freeze([
         Object.freeze({ label: "Open embed install", href: "#install/embed", shellTarget: "install", installMethod: "widget" }),
-        Object.freeze({ label: "Open widget settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget" }),
+        Object.freeze({ label: "Open agent settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget" }),
       ]),
     }),
     voice_agent: Object.freeze({
@@ -753,8 +753,8 @@
         },
         {
           key: "website_widget",
-          label: translateDashboardText("Website widget"),
-          count: countMatching((contact) => getCustomerSourceLabels(contact).includes("Website widget")),
+          label: translateDashboardText("Website Agent"),
+          count: countMatching((contact) => getCustomerSourceLabels(contact).includes("Website Agent")),
         },
         {
           key: "full_page_assistant",
@@ -1499,7 +1499,7 @@
   }
 
   function getCustomerFilterLabel(filterKey = "") {
-    const labels = { all: "All", identified: "Identified", guests: "Guests", needs_review: "Needs review", needs_follow_up: "Follow-up possible", needs_reply: "Needs reply", website_widget: "Website widget", full_page_assistant: "Front Desk page", leads: "Leads", complaints: "Complaints", resolved: "Resolved" };
+    const labels = { all: "All", identified: "Identified", guests: "Guests", needs_review: "Needs review", needs_follow_up: "Follow-up possible", needs_reply: "Needs reply", website_widget: "Website Agent", full_page_assistant: "Front Desk page", leads: "Leads", complaints: "Complaints", resolved: "Resolved" };
     return translateDashboardText(labels[normalizeCustomerFilter(filterKey)] || labels.all);
   }
 
